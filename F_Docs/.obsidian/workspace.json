@@ -1,0 +1,232 @@
+{
+  "main": {
+    "id": "1b1db1955c0f01c2",
+    "type": "split",
+    "children": [
+      {
+        "id": "12e32904c9547d58",
+        "type": "tabs",
+        "dimension": 69.24882629107981,
+        "children": [
+          {
+            "id": "63cef31f29a30384",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Unreal_Source_Structure.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Unreal_Source_Structure"
+            },
+            "group": "9b9c777d78310e6b"
+          }
+        ]
+      },
+      {
+        "id": "08149352055e0144",
+        "type": "tabs",
+        "dimension": 30.751173708920188,
+        "children": [
+          {
+            "id": "9a0a9eb09b815b33",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Unreal_Source_Structure.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Unreal_Source_Structure 的大纲"
+            },
+            "group": "9b9c777d78310e6b"
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "5b522cdfeb1539ba",
+    "type": "split",
+    "children": [
+      {
+        "id": "648fbc70d2c0d035",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "97989f6bf9511d78",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "88cc39dca85cb534",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "3b043ea40fa7a4ff",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "d0d6d4fe4a74560b",
+    "type": "split",
+    "children": [
+      {
+        "id": "aa31d92c82ced540",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f2e8ba1c83571127",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Unreal_Source_Structure.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Unreal_Source_Structure 的反向链接列表"
+            }
+          },
+          {
+            "id": "27a3c6bc2a375d4c",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Unreal_Source_Structure.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Unreal_Source_Structure 的出链列表"
+            }
+          },
+          {
+            "id": "b6177eeeaf7e561b",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "09bec04af3173220",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "d8817e770c2c9760",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Unreal_Source_Structure.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Unreal_Source_Structure 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "63cef31f29a30384",
+  "lastOpenFiles": [
+    "AGENTS.md",
+    "Unreal_Source_Structure.md",
+    "Source_Bootstrap_Checklist.md",
+    "Code_Function_Requirements.md",
+    "UI_Wireframe.md",
+    "Status_System_Guide.md",
+    "Battle_Rules.md",
+    "GDD4.0.md",
+    "Numbers_FirstPass.md",
+    "Combat_Data_Schema_v2.md",
+    "Starter_Characters.md",
+    "Card_Design_Guide.md",
+    "Card_Effect_Architecture_Plan.md",
+    "Combat_Data_Schema.md",
+    "Starter_Relics.md",
+    "Starter_Events.md",
+    "Starter_Enemies.md",
+    "Starter_Content_List.md"
+  ]
+}

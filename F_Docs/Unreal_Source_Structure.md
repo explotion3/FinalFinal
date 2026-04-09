@@ -1,0 +1,520 @@
+# Unreal 源码架构方案
+
+## 1. 文档定位
+本文档用于定义 Unreal 项目的模块划分、目录结构、依赖方向与核心类职责。  
+当前项目准备从零开始，因此本文件不再延续旧的 `Final` 单模块方案，而是直接给出一套更适合扩展和复用的多模块起步架构。
+
+本文档默认服务于：
+* [Code_Function_Requirements.md](Code_Function_Requirements.md)
+* [GDD4.0.md](GDD4.0.md)
+* [Battle_Rules.md](Battle_Rules.md)
+* [Combat_Data_Schema_v2.md](Combat_Data_Schema_v2.md)
+* [Status_System_Guide.md](Status_System_Guide.md)
+
+本文档只回答：
+* Unreal 模块怎么拆
+* 哪类代码放哪一层
+* 哪些类应该公开，哪些应该留在私有实现
+* Build.cs 依赖如何保持单向
+
+---
+
+## 2. 目标结论
+对于一个准备从零开始、并且后续会持续扩角色、敌人、遗物、事件的项目，推荐直接采用：
+* `FinalCore`
+* `FinalData`
+* `FinalBattle`
+* `FinalRun`
+* `FinalApp`
+* `FinalEditor`（可延后）
+
+说明：
+* 若首版一开始不想立刻建 `FinalEditor`，可以先不创建，但文档中先保留它的边界
+
+不再推荐：
+* 把全部代码塞进一个 Runtime 模块
+* 在 `Battle` 内同时放 DataAsset、ViewModel、World Actor
+* 让 Run、Battle、UI 互相横向引用
+
+---
+
+## 3. 模块图
+
+```text
+FinalCore
+    ↓
+FinalData
+    ↓
+FinalBattle      FinalRun
+      \             /
+       \           /
+         FinalApp
+             ↓
+        FinalEditor
+```
+
+依赖规则：
+* `FinalCore` 不依赖业务模块
+* `FinalData` 只依赖 `FinalCore`
+* `FinalBattle` 只依赖 `FinalCore + FinalData`
+* `FinalRun` 只依赖 `FinalCore + FinalData`
+* `FinalApp` 负责把 Battle、Run、UI、World 接起来
+* `FinalEditor` 只服务编辑器校验与工具，不参与运行时规则真相
+
+---
+
+## 4. 模块职责
+
+### 4.1 FinalCore
+职责：
+* 全项目共用 ID、轻量枚举、通用类型、日志分类、Gameplay Tags 注册
+* 通用接口、薄协议、少量工具函数
+
+不放：
+* 卡牌效果逻辑
+* DataAsset 定义
+* 战斗状态
+* Run 进度
+* Widget 或 Actor
+
+适合内容：
+* `FCardId / FEnemyId / FEventId`
+* 日志 Channel
+* 共用 `UENUM`
+* 基础错误码与调试标签
+
+### 4.2 FinalData
+职责：
+* 承载全部静态定义资产
+* 承载共享协议与数据结构映射
+* 提供内容查询、数据索引、基础校验入口
+
+放入：
+* `CharacterDefinition`
+* `CardDefinition`
+* `BattleEffectDefinition`
+* `EnemyDefinition`
+* `EnemyIntentDefinition`
+* `StatusDefinition`
+* `PassiveDefinition`
+* `RelicDefinition`
+* `EventDefinition`
+* `RunEffectDefinition`
+* `UltimateDefinition`
+* `BattleEncounterDefinition`
+* `BattleRuleConfig`
+
+不放：
+* 战斗运行时实例
+* 结算流程
+* UI 显示逻辑
+
+### 4.3 FinalBattle
+职责：
+* 承载战斗内权威状态
+* 处理命令校验、规则解析、原子结算、状态窗口、敌人行动、崩溃与苏醒
+* 对外只暴露“提交命令、查询状态、读取日志、订阅事件”的接口
+
+放入：
+* `BattleState`
+* `BattleCharacterState`
+* `BattleEnemyState`
+* `TeamDeckState`
+* `BattleCardInstance`
+* `BattleStatusInstance`
+* `BattlePassiveInstance`
+* `BattleRelicRuntimeState`
+* `BattleSession`
+* `BattleCommandProcessor`
+* `BattleResolver`
+* `BattleEffectExecutor`
+* `BattleStatusService`
+* `BattleTurnService`
+* `EnemyIntentService`
+* `BattleLogService`
+
+不放：
+* Widget Controller
+* 角色表现 Actor
+* 地图节点推进
+* 存档文件读写
+
+### 4.4 FinalRun
+职责：
+* 承载单局外权威状态
+* 管理节点推进、奖励、商店、事件、角色成长、构筑修正
+* 在进入战斗前组装战斗输入，在战后消费战斗结果
+* 对外只暴露 `RunSession` 与少量桥接请求 / 结果结构
+
+放入：
+* `RunState`
+* `RunPersistentCharacterState`
+* `RosterState`
+* `DeckBuildState`
+* `RelicInventoryState`
+* `RunSession`
+* `RunNodeResolver`
+* `RunEventResolver`
+* `RewardResolver`
+* `ShopResolver`
+* `GrowthResolver`
+
+不放：
+* 单张牌伤害结算
+* Break 与先机规则
+* UI 控件逻辑
+
+### 4.5 FinalApp
+职责：
+* 连接 Unreal 世界与运行时系统
+* 持有 Subsystem、GameMode、PlayerController、Widget Controller、ViewModel
+* 组织输入、场景生成、UI 刷新、表现桥接、存档调用
+
+放入：
+* `GameInstanceSubsystem`
+* `BattleFlowSubsystem`
+* `RunFlowSubsystem`
+* `SaveGameCoordinator`
+* `BattleGameMode`
+* `BattlePlayerController`
+* `BattleDirector`
+* `WidgetController`
+* `BattleHUDViewModel`
+* `HandPanelViewModel`
+* `EnemyPanelViewModel`
+* 表现层桥接 Actor / Component
+
+不放：
+* 权威战斗规则
+* DataAsset 定义
+
+### 4.6 FinalEditor
+职责：
+* 资源校验
+* 数据批量检查
+* 调试工具
+* 编辑器菜单和导入器
+
+可后置：
+* 若首版资源量不大，可以在第一次垂直切片跑通后再建立
+
+---
+
+## 5. Public / Private 边界
+
+### 5.1 总规则
+* `Public` 只放真正需要跨模块引用的头文件
+* `Private` 放具体实现、内部工具、局部 helper
+* 头文件优先前向声明，具体 include 放进 `.cpp`
+* 不把大型 USTRUCT、工具类、执行器全都暴露到 `Public`
+
+### 5.2 各模块公开面建议
+
+#### FinalCore/Public
+只暴露：
+* 共用 ID 类型
+* 共用枚举
+* Gameplay Tags 注册入口
+* 核心日志定义
+
+#### FinalData/Public
+只暴露：
+* 可被其他模块读取的定义类
+* 查询接口
+* 少量必需协议类型
+
+不暴露：
+* 数据校验器的内部实现
+* 编辑器工具
+
+#### FinalBattle/Public
+只暴露：
+* `BattleSession`
+* `BattleSnapshot` 或只读查询接口
+* `BattleCommand`
+* `BattleEvent`
+* 少量供 UI / App 读取的查询结构
+
+不暴露：
+* Resolver 内部细节
+* StatusService 内部流程
+* 敌人 AI 选择实现
+* `BattleState`、`BattleCharacterState`、`BattleEnemyState` 等权威运行时结构
+
+#### FinalRun/Public
+只暴露：
+* `RunSession`
+* `RunState` 只读查询接口
+* `RunCommand`
+* 进入战斗与战后结算的桥接请求结构
+
+#### FinalApp/Public
+只暴露：
+* 游戏入口 Subsystem
+* Widget Controller
+* 对 Blueprint 必须开放的类
+
+---
+
+## 6. Build.cs 依赖建议
+
+### 6.1 FinalCore
+`PublicDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `GameplayTags`
+
+### 6.2 FinalData
+`PublicDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `Engine`
+* `GameplayTags`
+* `FinalCore`
+
+### 6.3 FinalBattle
+`PublicDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `Engine`
+* `GameplayTags`
+* `FinalCore`
+* `FinalData`
+
+### 6.4 FinalRun
+`PublicDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `Engine`
+* `GameplayTags`
+* `FinalCore`
+* `FinalData`
+
+### 6.5 FinalApp
+`PublicDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `Engine`
+* `InputCore`
+* `EnhancedInput`
+* `UMG`
+* `Slate`
+* `SlateCore`
+* `GameplayTags`
+* `FinalCore`
+* `FinalData`
+* `FinalBattle`
+* `FinalRun`
+
+### 6.6 FinalEditor
+`PrivateDependencyModuleNames`
+* `UnrealEd`
+* `AssetTools`
+* `DataValidation`
+* `FinalCore`
+* `FinalData`
+* `FinalBattle`
+* `FinalRun`
+* `FinalApp`
+
+规则：
+* `FinalBattle` 不依赖 `FinalRun`
+* `FinalRun` 不依赖 `FinalBattle`
+* 两者只通过 `FinalData` 中的定义和 `FinalApp` 中的桥接层协作
+
+---
+
+## 7. 推荐目录结构
+
+```text
+Source
+├─ FinalCore
+│  ├─ Public
+│  │  ├─ Ids
+│  │  ├─ Types
+│  │  ├─ Tags
+│  │  └─ Logging
+│  └─ Private
+├─ FinalData
+│  ├─ Public
+│  │  ├─ Battle
+│  │  │  ├─ Definitions
+│  │  │  ├─ Effects
+│  │  │  └─ Rules
+│  │  ├─ Run
+│  │  │  ├─ Definitions
+│  │  │  └─ Rewards
+│  │  └─ Queries
+│  └─ Private
+│     ├─ Registry
+│     └─ Validation
+├─ FinalBattle
+│  ├─ Public
+│  │  ├─ Commands
+│  │  ├─ Events
+│  │  ├─ Queries
+│  │  └─ Facade
+│  └─ Private
+│     ├─ Runtime
+│     ├─ Resolver
+│     ├─ Ops
+│     ├─ Systems
+│     ├─ Services
+│     └─ Queries
+├─ FinalRun
+│  ├─ Public
+│  │  ├─ Commands
+│  │  ├─ Runtime
+│  │  ├─ Requests
+│  │  └─ Facade
+│  └─ Private
+│     ├─ NodeFlow
+│     ├─ Events
+│     ├─ Rewards
+│     ├─ Shops
+│     └─ Growth
+├─ FinalApp
+│  ├─ Public
+│  │  ├─ Subsystems
+│  │  ├─ World
+│  │  ├─ Controllers
+│  │  ├─ ViewModels
+│  │  └─ Save
+│  └─ Private
+│     ├─ Presentation
+│     ├─ BattleBridge
+│     └─ RunBridge
+└─ FinalEditor
+   ├─ Public
+   └─ Private
+      ├─ Validation
+      ├─ Tools
+      └─ Menus
+```
+
+---
+
+## 8. 关键类建议
+
+### 8.1 Battle 入口
+推荐：
+* `UFinalBattleSession`
+* `UFinalBattleCommandProcessor`
+* `UFinalBattleResolver`
+
+边界：
+* `BattleSession` 是唯一战斗入口
+* 外层系统不直接调用内部 `Service`
+
+### 8.2 Battle 子系统
+推荐：
+* `UFinalBattleCardService`
+* `UFinalBattleResourceService`
+* `UFinalBattleStatusService`
+* `UFinalBattleBreakService`
+* `UFinalBattleTurnService`
+* `UFinalEnemyIntentService`
+* `UFinalCollapseAwakenService`
+* `UFinalBattleLogService`
+
+规则：
+* Service 可以互相协作，但由 Resolver 或 Session 统一编排
+* 不允许多个 Service 同时持有彼此的状态真相副本
+
+### 8.3 Run 入口
+推荐：
+* `UFinalRunSession`
+* `UFinalRunNodeResolver`
+* `UFinalRunEventResolver`
+* `UFinalRewardResolver`
+* `UFinalShopResolver`
+* `UFinalGrowthResolver`
+
+### 8.4 App 层桥接
+推荐：
+* `UFinalGameFlowSubsystem`
+* `UFinalBattleFlowSubsystem`
+* `UFinalRunFlowSubsystem`
+* `AFinalBattleDirector`
+* `AFinalBattlePlayerController`
+* `UFinalBattleWidgetController`
+
+---
+
+## 9. C++ 与 Blueprint 分工
+
+### 9.1 必须放在 C++
+* 战斗权威状态
+* 命令合法性校验
+* 伤害、治疗、压力
+* Break 与先机
+* 状态结算窗口
+* 崩溃与苏醒
+* 敌人意图选择
+* 事件条件与代价判定
+* 奖励与成长的核心结算
+
+### 9.2 可以交给 Blueprint
+* 角色表现 Actor
+* 场景摆放
+* UI 布局
+* 动画播放
+* 相机、特效、音频、浮字
+* 节点地图的纯展示部分
+
+### 9.3 谨慎交给 Blueprint
+* 事件文本分支的少量展示逻辑
+* 首领演出触发
+* 非权威调试按钮
+
+原则：
+* 一旦 Blueprint 开始改变数值、状态、卡牌去向、行动顺序，就应回收至 C++
+
+---
+
+## 10. 首版落地顺序
+
+### 10.1 第一批
+* 建立 `FinalCore / FinalData / FinalBattle / FinalRun / FinalApp`
+* 跑通 DataAsset 加载与查询
+* 跑通 `RunSession -> BattleSession` 输入桥接
+* 跑通 BattleSession 最小链路
+* 跑通一场普通战：打牌、伤害、削韧、Break、先机、敌人行动、奥义释放
+
+### 10.2 第二批
+* 补状态、被动、遗物触发
+* 补崩溃与苏醒
+* 补 FinalRun 的事件、奖励、商店与成长链
+
+### 10.3 第三批
+* 补事件、商店、角色成长
+* 补 Save / Load
+* 补调试工具与编辑器校验
+
+---
+
+## 11. 首版不做
+首版明确不做：
+* GAS 作为规则核心
+* 依赖 Tick 的战斗规则驱动
+* 让 UI 直接读写 BattleState
+* 单模块塞满所有运行时代码
+* 把 DataAsset 定义散落在 Battle、Run、UI 各层
+* 用 `CardId == xxx` 大量硬编码特例
+
+---
+
+## 12. 当前执行建议
+当前项目从零开始时，推荐按以下顺序启动：
+1. 先按本文件建立模块和目录
+2. 先写 `FinalCore` 与 `FinalData`
+3. 再写 `FinalRun` 的最小桥接状态与请求结构
+4. 再写 `FinalBattle` 的最小战斗闭环
+5. 然后接 `FinalApp` 跑通世界与 UI 桥接
+6. 最后再补 `FinalEditor`
+
+这样做的好处是：
+* 一开始就把数据、规则、外层编排分开
+* 后面新增内容时不需要反复搬类
+* UI 和表现层可以并行开发
+* Run 层系统可以在战斗闭环稳定后再接入
