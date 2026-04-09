@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Commands/FinalBattleCommand.h"
+#include "Events/FinalBattleEvent.h"
 #include "Facade/FinalBattleSession.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleSnapshot.h"
@@ -38,6 +39,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	FText GetLastFailureReason() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	FFinalBattleEvent GetLastCommandEvent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	TArray<FFinalBattleEvent> GetBattleLogEntries() const;
+
 private:
 	bool BuildInitContext(const FFinalBattleStartRequest& StartRequest, FFinalBattleInitContext& OutInitContext);
 
@@ -49,4 +56,7 @@ private:
 
 	UPROPERTY(Transient)
 	FText LastFailureReason;
+
+	UPROPERTY(Transient)
+	FFinalBattleEvent LastCommandEvent;
 };

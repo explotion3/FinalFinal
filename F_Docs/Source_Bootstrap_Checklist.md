@@ -269,6 +269,7 @@
 * `FinalGameInstance::StartTestBattle()` 会串起 `BootstrapNewRun -> ConfigureBattleStartState -> StartBattleFromRunSession`
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
+* 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写
 
 ---
 

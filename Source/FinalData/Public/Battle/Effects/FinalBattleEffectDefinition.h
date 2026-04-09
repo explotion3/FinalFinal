@@ -18,5 +18,11 @@ public:
 	EFinalBattleEffectType EffectType = EFinalBattleEffectType::Damage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	EFinalBattleUnitTargetRule UnitTargetRule = EFinalBattleUnitTargetRule::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	float FlatValue = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FText Notes;
 };

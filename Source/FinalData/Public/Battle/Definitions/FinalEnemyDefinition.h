@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Types/FinalCoreTypes.h"
 #include "FinalEnemyDefinition.generated.h"
 
 class UFinalEnemyIntentDefinition;
@@ -37,6 +38,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	int32 InitiativeResponse = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
+	EFinalIntentSelectRule IntentSelectRule = EFinalIntentSelectRule::Cycle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
+	TArray<FFinalEnemyPhaseDefinition> PhaseSequence;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	TArray<TSoftObjectPtr<UFinalEnemyIntentDefinition>> IntentPool;

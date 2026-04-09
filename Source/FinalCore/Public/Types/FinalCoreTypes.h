@@ -48,6 +48,54 @@ enum class EFinalBattleEffectType : uint8
 };
 
 UENUM(BlueprintType)
+enum class EFinalBattleUnitTargetRule : uint8
+{
+	None,
+	Self,
+	TeamPlayer,
+	SelectedEnemy,
+	FirstAliveEnemy,
+	AllEnemies
+};
+
+UENUM(BlueprintType)
+enum class EFinalBattleScalarMode : uint8
+{
+	Flat,
+	SourceStatMultiplier
+};
+
+UENUM(BlueprintType)
+enum class EFinalBattleSourceStat : uint8
+{
+	None,
+	Attack,
+	Defense,
+	BaseDamagePower
+};
+
+USTRUCT(BlueprintType)
+struct FINALCORE_API FFinalBattleScalarValue
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Effect")
+	float BaseValue = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Effect")
+	EFinalBattleScalarMode ScaleMode = EFinalBattleScalarMode::Flat;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Effect")
+	EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Effect")
+	float FlatBonus = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Effect")
+	float Cap = 0.0f;
+};
+
+UENUM(BlueprintType)
 enum class EFinalStatusCategory : uint8
 {
 	Buff,
@@ -66,4 +114,25 @@ enum class EFinalIntentType : uint8
 	Summon,
 	Charge,
 	Special
+};
+
+UENUM(BlueprintType)
+enum class EFinalIntentSelectRule : uint8
+{
+	WeightedRandom,
+	Cycle,
+	PhaseSequence,
+	Scripted
+};
+
+USTRUCT(BlueprintType)
+struct FINALCORE_API FFinalEnemyPhaseDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Enemy")
+	FName PhaseTag = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Enemy", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxHpPercent = 1.0f;
 };

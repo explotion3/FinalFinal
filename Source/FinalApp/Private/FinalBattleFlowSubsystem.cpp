@@ -10,11 +10,13 @@
 void UFinalBattleFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	LastCommandEvent = FFinalBattleEvent{};
 }
 
 UFinalBattleSession* UFinalBattleFlowSubsystem::CreateBattleSessionFromStartRequest(const FFinalBattleStartRequest& StartRequest)
 {
 	LastFailureReason = FText::GetEmpty();
+	LastCommandEvent = FFinalBattleEvent{};
 	LastStartRequest = StartRequest;
 
 	UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
@@ -68,11 +70,18 @@ bool UFinalBattleFlowSubsystem::SubmitBattleCommand(const FFinalBattleCommand& C
 {
 	if (!ActiveBattleSession)
 	{
+		LastCommandEvent = FFinalBattleEvent{};
+		LastCommandEvent.EventType = EFinalBattleEventType::CommandRejected;
+		LastCommandEvent.Message = FText::FromString(TEXT("No active battle session is available."));
+		LastFailureReason = LastCommandEvent.Message;
 		return false;
 	}
 
-	ActiveBattleSession->SubmitCommand(Command);
-	return true;
+	LastCommandEvent = ActiveBattleSession->SubmitCommand(Command);
+	LastFailureReason = LastCommandEvent.EventType == EFinalBattleEventType::CommandRejected
+		? LastCommandEvent.Message
+		: FText::GetEmpty();
+	return LastCommandEvent.EventType != EFinalBattleEventType::CommandRejected;
 }
 
 void UFinalBattleFlowSubsystem::ClearActiveBattleSession()
@@ -83,6 +92,7 @@ void UFinalBattleFlowSubsystem::ClearActiveBattleSession()
 	}
 
 	ActiveBattleSession = nullptr;
+	LastCommandEvent = FFinalBattleEvent{};
 }
 
 FFinalBattleSnapshot UFinalBattleFlowSubsystem::GetCurrentSnapshot() const
@@ -98,6 +108,16 @@ UFinalBattleSession* UFinalBattleFlowSubsystem::GetActiveBattleSession() const
 FText UFinalBattleFlowSubsystem::GetLastFailureReason() const
 {
 	return LastFailureReason;
+}
+
+FFinalBattleEvent UFinalBattleFlowSubsystem::GetLastCommandEvent() const
+{
+	return LastCommandEvent;
+}
+
+TArray<FFinalBattleEvent> UFinalBattleFlowSubsystem::GetBattleLogEntries() const
+{
+	return ActiveBattleSession ? ActiveBattleSession->GetBattleLogEntries() : TArray<FFinalBattleEvent>{};
 }
 
 bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest& StartRequest, FFinalBattleInitContext& OutInitContext)

@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	FFinalBattleSnapshot GetSnapshot() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	TArray<FFinalBattleEvent> GetBattleLogEntries() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();
 

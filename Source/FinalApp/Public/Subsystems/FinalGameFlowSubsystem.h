@@ -25,6 +25,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Flow")
 	bool CompleteBattleAndApplyResult(const FFinalBattleResult& Result);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Flow")
+	bool CompleteResolvedBattle();
+
 	UFUNCTION(BlueprintPure, Category = "Final|Flow")
 	UFinalRunSession* GetRunSession() const;
 
@@ -38,6 +41,8 @@ public:
 	FText GetLastBattleFailureReason() const;
 
 private:
+	bool BuildResolvedBattleResult(FFinalBattleResult& OutResult);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunSession> RunSession;
 

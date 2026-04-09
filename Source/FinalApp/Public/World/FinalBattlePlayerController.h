@@ -17,6 +17,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Test")
 	FText GetLastTestBattleFailureReason() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Test")
+	bool DumpBattleSnapshotToLog() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Test")
+	bool DumpBattleLogToLog() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Test")
+	bool PlayFirstHandCard();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Test")
+	bool CompleteResolvedBattle();
+
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	bool SubmitBattleCommand(const FFinalBattleCommand& Command);
 
@@ -25,4 +37,19 @@ public:
 
 	UFUNCTION(Exec)
 	void FinalStartTestBattle();
+
+	UFUNCTION(Exec)
+	void FinalDumpBattleSnapshot();
+
+	UFUNCTION(Exec)
+	void FinalDumpBattleLog();
+
+	UFUNCTION(Exec)
+	void FinalPlayFirstHandCard();
+
+	UFUNCTION(Exec)
+	void FinalEndTurnCommand();
+
+	UFUNCTION(Exec)
+	void FinalCompleteResolvedBattle();
 };

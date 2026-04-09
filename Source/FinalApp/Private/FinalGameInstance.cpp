@@ -5,6 +5,10 @@
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Effects/FinalBattleEffectDamage.h"
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Facade/FinalBattleSession.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
@@ -24,6 +28,8 @@ namespace FinalTestBootstrap
 	const FName GuardianGuardCardId(TEXT("card.test.guardian.guard"));
 	const FName SupportShotCardId(TEXT("card.test.support.shot"));
 	const FName SupportFocusCardId(TEXT("card.test.support.focus"));
+	const FName PhaseOneTag(TEXT("phase.one"));
+	const FName PhaseTwoTag(TEXT("phase.two"));
 }
 
 void UFinalGameInstance::Init()
@@ -104,6 +110,12 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	TestGuardianStrikeCard->Rarity = EFinalRarity::Common;
 	TestGuardianStrikeCard->BaseCostAP = 1;
 	TestGuardianStrikeCard->RulesText = FText::FromString(TEXT("测试用普通攻击牌。"));
+	UFinalBattleEffectDamage* GuardianStrikeDamage = NewObject<UFinalBattleEffectDamage>(TestGuardianStrikeCard);
+	GuardianStrikeDamage->EffectId = TEXT("effect.test.guardian.strike.damage");
+	GuardianStrikeDamage->Scalar.BaseValue = 1.0f;
+	GuardianStrikeDamage->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+	GuardianStrikeDamage->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+	TestGuardianStrikeCard->Effects.Add(GuardianStrikeDamage);
 	RuntimeTestAssets.Add(TestGuardianStrikeCard);
 
 	TestGuardianGuardCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestGuardianGuardCard"));
@@ -114,6 +126,12 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	TestGuardianGuardCard->Rarity = EFinalRarity::Common;
 	TestGuardianGuardCard->BaseCostAP = 1;
 	TestGuardianGuardCard->RulesText = FText::FromString(TEXT("测试用防御牌。"));
+	UFinalBattleEffectGainShield* GuardianGuardShield = NewObject<UFinalBattleEffectGainShield>(TestGuardianGuardCard);
+	GuardianGuardShield->EffectId = TEXT("effect.test.guardian.guard.shield");
+	GuardianGuardShield->Scalar.BaseValue = 1.0f;
+	GuardianGuardShield->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+	GuardianGuardShield->Scalar.SourceStat = EFinalBattleSourceStat::Defense;
+	TestGuardianGuardCard->Effects.Add(GuardianGuardShield);
 	RuntimeTestAssets.Add(TestGuardianGuardCard);
 
 	TestSupportShotCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestSupportShotCard"));
@@ -124,6 +142,12 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	TestSupportShotCard->Rarity = EFinalRarity::Common;
 	TestSupportShotCard->BaseCostAP = 1;
 	TestSupportShotCard->RulesText = FText::FromString(TEXT("测试用远程攻击牌。"));
+	UFinalBattleEffectDamage* SupportShotDamage = NewObject<UFinalBattleEffectDamage>(TestSupportShotCard);
+	SupportShotDamage->EffectId = TEXT("effect.test.support.shot.damage");
+	SupportShotDamage->Scalar.BaseValue = 1.0f;
+	SupportShotDamage->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+	SupportShotDamage->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+	TestSupportShotCard->Effects.Add(SupportShotDamage);
 	RuntimeTestAssets.Add(TestSupportShotCard);
 
 	TestSupportFocusCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestSupportFocusCard"));
@@ -134,6 +158,10 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	TestSupportFocusCard->Rarity = EFinalRarity::Common;
 	TestSupportFocusCard->BaseCostAP = 1;
 	TestSupportFocusCard->RulesText = FText::FromString(TEXT("测试用辅助牌。"));
+	UFinalBattleEffectDrawCards* SupportFocusDraw = NewObject<UFinalBattleEffectDrawCards>(TestSupportFocusCard);
+	SupportFocusDraw->EffectId = TEXT("effect.test.support.focus.draw");
+	SupportFocusDraw->DrawCount = 2;
+	TestSupportFocusCard->Effects.Add(SupportFocusDraw);
 	RuntimeTestAssets.Add(TestSupportFocusCard);
 
 	UFinalEnemyDefinition* TestEnemyDefinition = NewObject<UFinalEnemyDefinition>(this, TEXT("DA_TestEnemyDefinition"));
@@ -144,6 +172,64 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	TestEnemyDefinition->BaseDamagePower = 6;
 	TestEnemyDefinition->InitialInitiativeValue = 2;
 	TestEnemyDefinition->InitiativeResponse = 1;
+	TestEnemyDefinition->IntentSelectRule = EFinalIntentSelectRule::PhaseSequence;
+
+	FFinalEnemyPhaseDefinition& PhaseOneDefinition = TestEnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
+	PhaseOneDefinition.PhaseTag = FinalTestBootstrap::PhaseOneTag;
+	PhaseOneDefinition.MaxHpPercent = 1.0f;
+
+	FFinalEnemyPhaseDefinition& PhaseTwoDefinition = TestEnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
+	PhaseTwoDefinition.PhaseTag = FinalTestBootstrap::PhaseTwoTag;
+	PhaseTwoDefinition.MaxHpPercent = 0.5f;
+
+	UFinalEnemyIntentDefinition* TestEnemyAttackIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyAttackIntent"));
+	TestEnemyAttackIntent->IntentId = TEXT("intent.test.enemy.attack");
+	TestEnemyAttackIntent->DisplayName = FText::FromString(TEXT("试作劈砍"));
+	TestEnemyAttackIntent->IntentType = EFinalIntentType::Attack;
+	TestEnemyAttackIntent->PreviewText = FText::FromString(TEXT("劈砍 6"));
+	TestEnemyAttackIntent->PhaseTags.Add(FinalTestBootstrap::PhaseOneTag);
+	UFinalBattleEffectDamage* TestEnemyAttackEffect = NewObject<UFinalBattleEffectDamage>(TestEnemyAttackIntent);
+	TestEnemyAttackEffect->EffectId = TEXT("effect.test.enemy.attack.damage");
+	TestEnemyAttackEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+	TestEnemyAttackEffect->Scalar.BaseValue = 1.0f;
+	TestEnemyAttackEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+	TestEnemyAttackEffect->Scalar.SourceStat = EFinalBattleSourceStat::BaseDamagePower;
+	TestEnemyAttackIntent->Effects.Add(TestEnemyAttackEffect);
+	RuntimeTestAssets.Add(TestEnemyAttackIntent);
+
+	UFinalEnemyIntentDefinition* TestEnemyGuardIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyGuardIntent"));
+	TestEnemyGuardIntent->IntentId = TEXT("intent.test.enemy.guard");
+	TestEnemyGuardIntent->DisplayName = FText::FromString(TEXT("试作整备"));
+	TestEnemyGuardIntent->IntentType = EFinalIntentType::Defense;
+	TestEnemyGuardIntent->PreviewText = FText::FromString(TEXT("获得 4 护盾"));
+	TestEnemyGuardIntent->PhaseTags.Add(FinalTestBootstrap::PhaseOneTag);
+	TestEnemyGuardIntent->CooldownTurns = 1;
+	TestEnemyGuardIntent->UseLimitPerBattle = 2;
+	UFinalBattleEffectGainShield* TestEnemyGuardEffect = NewObject<UFinalBattleEffectGainShield>(TestEnemyGuardIntent);
+	TestEnemyGuardEffect->EffectId = TEXT("effect.test.enemy.guard.shield");
+	TestEnemyGuardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+	TestEnemyGuardEffect->Scalar.BaseValue = 4.0f;
+	TestEnemyGuardEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+	TestEnemyGuardIntent->Effects.Add(TestEnemyGuardEffect);
+	RuntimeTestAssets.Add(TestEnemyGuardIntent);
+
+	UFinalEnemyIntentDefinition* TestEnemyEnrageIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyEnrageIntent"));
+	TestEnemyEnrageIntent->IntentId = TEXT("intent.test.enemy.enrage");
+	TestEnemyEnrageIntent->DisplayName = FText::FromString(TEXT("试作狂斩"));
+	TestEnemyEnrageIntent->IntentType = EFinalIntentType::Attack;
+	TestEnemyEnrageIntent->PreviewText = FText::FromString(TEXT("狂斩 10"));
+	TestEnemyEnrageIntent->PhaseTags.Add(FinalTestBootstrap::PhaseTwoTag);
+	UFinalBattleEffectDamage* TestEnemyEnrageEffect = NewObject<UFinalBattleEffectDamage>(TestEnemyEnrageIntent);
+	TestEnemyEnrageEffect->EffectId = TEXT("effect.test.enemy.enrage.damage");
+	TestEnemyEnrageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+	TestEnemyEnrageEffect->Scalar.BaseValue = 10.0f;
+	TestEnemyEnrageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+	TestEnemyEnrageIntent->Effects.Add(TestEnemyEnrageEffect);
+	RuntimeTestAssets.Add(TestEnemyEnrageIntent);
+
+	TestEnemyDefinition->IntentPool.Add(TestEnemyAttackIntent);
+	TestEnemyDefinition->IntentPool.Add(TestEnemyGuardIntent);
+	TestEnemyDefinition->IntentPool.Add(TestEnemyEnrageIntent);
 	RuntimeTestAssets.Add(TestEnemyDefinition);
 
 	TestEncounterDefinition = NewObject<UFinalBattleEncounterDefinition>(this, TEXT("DA_TestEncounterDefinition"));
@@ -213,11 +299,12 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	TArray<FFinalCardId> DeckCardIds;
 	DeckCardIds.Append({
 		TestGuardianStrikeCard->CardId,
-		TestGuardianStrikeCard->CardId,
 		TestGuardianGuardCard->CardId,
+		TestSupportFocusCard->CardId,
 		TestSupportShotCard->CardId,
+		TestGuardianStrikeCard->CardId,
 		TestSupportShotCard->CardId,
-		TestSupportFocusCard->CardId
+		TestGuardianGuardCard->CardId
 	});
 
 	const int32 TeamCurrentHP = TestGuardianDefinition->BaseVitalShare + TestSupportDefinition->BaseVitalShare;

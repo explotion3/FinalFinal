@@ -76,6 +76,19 @@ bool UFinalGameFlowSubsystem::CompleteBattleAndApplyResult(const FFinalBattleRes
 	return true;
 }
 
+bool UFinalGameFlowSubsystem::CompleteResolvedBattle()
+{
+	LastFlowFailureReason = FText::GetEmpty();
+
+	FFinalBattleResult Result;
+	if (!BuildResolvedBattleResult(Result))
+	{
+		return false;
+	}
+
+	return CompleteBattleAndApplyResult(Result);
+}
+
 UFinalRunSession* UFinalGameFlowSubsystem::GetRunSession() const
 {
 	return RunSession;
@@ -102,4 +115,43 @@ FText UFinalGameFlowSubsystem::GetLastBattleFailureReason() const
 
 	const UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
 	return BattleFlowSubsystem ? BattleFlowSubsystem->GetLastFailureReason() : FText::GetEmpty();
+}
+
+bool UFinalGameFlowSubsystem::BuildResolvedBattleResult(FFinalBattleResult& OutResult)
+{
+	if (RunSession == nullptr)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("RunSession is unavailable."));
+		return false;
+	}
+
+	const UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
+	if (BattleFlowSubsystem == nullptr)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("FinalBattleFlowSubsystem is unavailable."));
+		return false;
+	}
+
+	if (BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("There is no active battle session to resolve."));
+		return false;
+	}
+
+	const FFinalBattleSnapshot Snapshot = BattleFlowSubsystem->GetCurrentSnapshot();
+	if (!Snapshot.bBattleEnded)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("Battle is not resolved yet."));
+		return false;
+	}
+
+	const FFinalRunState RunState = RunSession->GetRunState();
+
+	OutResult = FFinalBattleResult{};
+	OutResult.EncounterId = RunState.CurrentEncounterId;
+	OutResult.Outcome = Snapshot.bPlayerVictory ? EFinalBattleOutcome::Victory : EFinalBattleOutcome::Defeat;
+	OutResult.TeamCurrentHP = Snapshot.TeamCurrentHP;
+	OutResult.RewardGold = Snapshot.bPlayerVictory ? 15 : 0;
+	OutResult.UpdatedCharacterStates = RunState.Characters;
+	return true;
 }

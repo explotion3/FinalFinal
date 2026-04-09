@@ -19,6 +19,9 @@ struct FFinalBattleState
 	int32 CurrentEP = 0;
 	int32 TeamCurrentHP = 0;
 	int32 TeamMaxHP = 0;
+	int32 TeamShield = 0;
+	bool bBattleEnded = false;
+	bool bPlayerVictory = false;
 	FName CurrentTargetUnitId = NAME_None;
 	TArray<FFinalBattleCharacterState> Characters;
 	TArray<FFinalBattleEnemyState> Enemies;

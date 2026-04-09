@@ -56,6 +56,11 @@ FFinalBattleSnapshot UFinalBattleSession::GetSnapshot() const
 	return Resolver->BuildSnapshot(*State);
 }
 
+TArray<FFinalBattleEvent> UFinalBattleSession::GetBattleLogEntries() const
+{
+	return State != nullptr ? State->BattleLogEntries : TArray<FFinalBattleEvent>{};
+}
+
 void UFinalBattleSession::ResetSession()
 {
 	delete State;

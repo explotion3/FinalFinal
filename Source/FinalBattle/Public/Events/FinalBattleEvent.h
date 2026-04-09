@@ -9,7 +9,8 @@ enum class EFinalBattleEventType : uint8
 	Info,
 	CommandAccepted,
 	CommandRejected,
-	StateChanged
+	StateChanged,
+	PhaseChanged
 };
 
 USTRUCT(BlueprintType)
