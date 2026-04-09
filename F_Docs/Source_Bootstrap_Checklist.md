@@ -241,8 +241,8 @@
 
 ### 8.1 最小链路
 1. 游戏进入一个普通战入口
-2. `FinalRunSession` 组装 `FinalBattleStartRequest`
-3. `FinalBattleFlowSubsystem` 根据 `FinalBattleStartRequest` 请求创建 `FinalBattleSession`
+2. `FinalGameFlowSubsystem` 从 `FinalRunSession` 触发 `FinalBattleStartRequest` 组装
+3. `FinalBattleFlowSubsystem::CreateBattleSessionFromStartRequest` 根据 `FinalBattleStartRequest` 创建 `FinalBattleSession`
 4. `FinalBattleSession` 根据 `BattleEncounterDefinition + BattleRuleConfig + 当前队伍配置` 初始化 `BattleState`
 5. UI 能显示：
    * 队伍生命
@@ -256,13 +256,19 @@
 10. 下一回合开始
 11. 至少能释放 1 次测试奥义
 12. 敌人死亡后判定胜利
-13. `FinalRunSession` 消费 `FinalBattleResult` 并回写单局状态
+13. `FinalGameFlowSubsystem::CompleteBattleAndApplyResult` 驱动 `FinalRunSession` 消费 `FinalBattleResult` 并回写单局状态
 
 ### 8.2 第一批验收标准
 * 没有硬编码 `CardId == xxx` 的规则分支
 * 伤害与削韧从定义数据读
 * 先机与 Break 的顺序符合 [Battle_Rules.md](Battle_Rules.md)
 * UI 通过 ViewModel 读状态，而不是直接改规则状态
+
+### 8.3 当前测试入口
+* `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
+* `FinalGameInstance::StartTestBattle()` 会串起 `BootstrapNewRun -> ConfigureBattleStartState -> StartBattleFromRunSession`
+* `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
+* 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
 
 ---
 

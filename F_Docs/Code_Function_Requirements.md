@@ -419,23 +419,24 @@
 ### 11.1 目标链路
 首批代码至少需要跑通下面这条链路：
 1. 进入一个普通战节点
-2. 从 `RunSession` 组装战斗输入
-3. 创建 `BattleSession`
+2. `FinalGameFlowSubsystem` 从 `RunSession` 发起战斗输入组装
+3. `FinalBattleFlowSubsystem` 创建 `BattleSession`
 4. 完成战斗开始初始化
 5. 玩家打出 1 张牌
 6. 结算伤害、削韧、Break、先机变化
 7. 敌人行动
 8. 回合结束并进入下一回合
 9. 战斗胜利
-10. 结算奖励并回写 `RunSession`
+10. `FinalGameFlowSubsystem` 提交 `BattleResult` 并回写 `RunSession`
 
 ### 11.2 首批必须有的公开接口
-* `StartBattle(EncounterId)`
+* `BootstrapNewRun()`
+* `ConfigureBattleStartState(...)`
+* `StartBattleFromRunSession()`
 * `SubmitBattleCommand(Command)`
 * `SubmitRunCommand(Command)`
-* `EndPlayerTurn()`
-* `ResolveBattleResult()`
-* `ApplyBattleRewards(Result)`
+* `GetCurrentBattleSnapshot()`
+* `CompleteBattleAndApplyResult(Result)`
 * `AdvanceToNextNode(NodeId)`
 
 ### 11.3 首批必须有的最小状态

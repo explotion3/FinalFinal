@@ -1,0 +1,26 @@
+using UnrealBuildTool;
+
+public class FinalApp : ModuleRules
+{
+	public FinalApp(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"EnhancedInput",
+			"UMG",
+			"Slate",
+			"SlateCore",
+			"GameplayTags",
+			"FinalCore",
+			"FinalData",
+			"FinalBattle",
+			"FinalRun"
+		});
+	}
+}

@@ -7,6 +7,7 @@
 
 class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
+class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 
 UCLASS()
@@ -18,16 +19,21 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	void RegisterCharacterDefinition(UFinalCharacterDefinition* Definition);
+	void RegisterCardDefinition(UFinalCardDefinition* Definition);
 	void RegisterEncounterDefinition(UFinalBattleEncounterDefinition* Definition);
 	void RegisterRuleConfig(UFinalBattleRuleConfig* Definition);
 
-	const UFinalCharacterDefinition* FindCharacterDefinition(const FFinalCharacterId& CharacterId) const;
-	const UFinalBattleEncounterDefinition* FindEncounterDefinition(const FFinalEncounterId& EncounterId) const;
-	const UFinalBattleRuleConfig* FindRuleConfig(const FFinalRuleConfigId& RuleConfigId) const;
+	UFinalCharacterDefinition* FindCharacterDefinition(const FFinalCharacterId& CharacterId) const;
+	UFinalCardDefinition* FindCardDefinition(const FFinalCardId& CardId) const;
+	UFinalBattleEncounterDefinition* FindEncounterDefinition(const FFinalEncounterId& EncounterId) const;
+	UFinalBattleRuleConfig* FindRuleConfig(const FFinalRuleConfigId& RuleConfigId) const;
 
 private:
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalCharacterDefinition>> CharacterDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UFinalCardDefinition>> CardDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalBattleEncounterDefinition>> EncounterDefinitions;
