@@ -462,6 +462,9 @@
 8. 回合结束并进入下一回合
 9. 战斗胜利
 10. `FinalGameFlowSubsystem` 提交 `BattleResult` 并回写 `RunSession`
+11. `RunSession` 进入明确的 `PendingBattleReward` 外层状态
+12. 外层领取战后奖励
+13. 外层显式推进到下一节点
 
 ### 11.2 首批必须有的公开接口
 * `BootstrapNewRun()`
@@ -476,6 +479,7 @@
 * `GetRunLogEntries()`
 * `GetRunEventsSince(Sequence)`
 * `CompleteBattleAndApplyResult(Result)`
+* `ClaimPendingBattleReward()`
 * `AdvanceToNextNode(NodeId)`
 
 ### 11.3 首批必须有的最小状态
