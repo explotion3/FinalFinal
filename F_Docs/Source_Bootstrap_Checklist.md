@@ -288,6 +288,9 @@
 11. 至少能释放 1 次测试奥义
 12. 敌人死亡后判定胜利
 13. `FinalGameFlowSubsystem::CompleteBattleAndApplyResult` 驱动 `FinalRunSession` 消费 `FinalBattleResult` 并回写单局状态
+14. `FinalRunSession` 生成待领取的战后奖励状态
+15. 外层领取奖励
+16. 外层推进到下一节点
 
 ### 8.2 第一批验收标准
 * 没有硬编码 `CardId == xxx` 的规则分支

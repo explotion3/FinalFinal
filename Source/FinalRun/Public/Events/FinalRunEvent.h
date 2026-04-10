@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Commands/FinalRunCommand.h"
 #include "Ids/FinalIds.h"
 #include "Requests/FinalBattleResult.h"
 #include "FinalRunEvent.generated.h"
@@ -13,7 +14,25 @@ enum class EFinalRunEventType : uint8
 	BattleStartConfigured,
 	RunCommandAccepted,
 	RunCommandRejected,
-	BattleResultApplied
+	BattleResultApplied,
+	PendingBattleRewardGenerated,
+	PendingBattleRewardClaimed,
+	NodeAdvanced
+};
+
+UENUM(BlueprintType)
+enum class EFinalRunCommandRejectReason : uint8
+{
+	None,
+	UnsupportedCommand,
+	MissingPendingBattleReward,
+	PendingBattleRewardMustBeClaimed,
+	MissingTargetNode,
+	UnknownTargetNode,
+	TargetNodeNotReachable,
+	UnsupportedTargetNodeType,
+	TargetNodeMissingBattleConfig,
+	RunEnded
 };
 
 USTRUCT(BlueprintType)
@@ -28,6 +47,12 @@ struct FINALRUN_API FFinalRunEvent
 	EFinalRunEventType EventType = EFinalRunEventType::Info;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunCommandType CommandType = EFinalRunCommandType::AdvanceToNode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunCommandRejectReason RejectReason = EFinalRunCommandRejectReason::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalEncounterId EncounterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
@@ -35,6 +60,12 @@ struct FINALRUN_API FFinalRunEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FName PayloadId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName NodeId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName SourceNodeId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	EFinalBattleOutcome BattleOutcome = EFinalBattleOutcome::None;
