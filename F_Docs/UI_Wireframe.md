@@ -49,53 +49,67 @@
 * 回合数
 * 当前 `AP`
 * 当前 `EP`
+* `EP` 上限
 * 队伍当前生命 / 最大生命
 * 队伍护盾
+* 当前目标 `RuntimeUnitId`
+* 牌堆 / 手牌 / 弃牌 / 持续区 / 消耗区计数
 * 角色运行时单位 `RuntimeUnitId`
 * 角色 `CharacterId`
+* 角色显示名
 * 角色当前压力
+* 角色压力上限
 * 角色是否崩溃
+* 角色当前苏醒计数 / 苏醒阈值
+* 角色崩溃次数
+* 角色生命份额
+* 角色奥义 `UltimateId / DisplayName / CostEP / CanActivate`
 * 敌人名称
+* 敌人站位
 * 敌人当前生命 / 护盾 / Break / 先机
+* 敌人当前意图 `Id`
 * 敌人当前意图文案
 * 手牌实例 `CardInstanceId`
 * 手牌 `CardId`
+* 手牌所属单位 `RuntimeOwnerUnitId`
+* 手牌显示名
 * 手牌当前消耗 `AP`
+* 手牌关键词 / 是否保留 / 是否崩溃牌
+* 状态列表 `StatusId / Owner / Stacks / Duration`
 * 最近战斗日志文本
 
 ### 3.2 FinalApp 通过 Data / Run 补出的展示字段
 * 遭遇名
 * 当前金币
-* `EP` 上限
-* 角色显示名
-* 角色压力上限
 * 卡牌显示名
 * 卡牌规则文本
 
-## 4. 当前缺口字段 / 需要 Battle 或 Run 提供的接口
-以下字段当前不能由 `FinalApp/UI` 安全推导，不能在 UI 层硬补：
+## 4. 当前 HUD 还未消费的已公开字段
+以下字段 Battle 侧已经公开，但当前首轮 `BattleHUDScreen` 仍未全部接入展示：
+* `Statuses` 状态列表
+* 角色苏醒计数 / 阈值
+* 角色崩溃次数
+* 角色生命份额
+* 奥义当前消耗 / 可用态 / 定义就绪态
+* 抽牌堆 / 弃牌堆 / 消耗区计数
+* 当前目标 `RuntimeUnitId`
+* 手牌所属单位 `RuntimeOwnerUnitId`
+
+## 5. 当前仍缺口字段 / 需要 Battle 或 Run 继续补的接口
+以下字段当前仍不能由 `FinalApp/UI` 安全推导，不能在 UI 层硬补：
 * `Team Status` 列表
 * `Character Status` 列表
-* 角色苏醒进度
-* 角色崩溃次数的战斗内实时显示值
-* 奥义当前消耗
-* 奥义是否可释放
 * 奥义是否本战已释放
-* 当前手牌所属角色的稳定公开映射
-* 抽牌堆 / 弃牌堆 / 消耗区计数
 * 当前阶段进度的公开查询值
 * 更细粒度的即时反馈类型（如 `EP 不足 / 无合法目标 / 奥义已释放` 的结构化原因）
 
 建议后续由 Battle / Run 公开以下稳定查询结构，而不是让 UI 猜：
 * `BattleSnapshot.TeamStatuses`
-* `BattleSnapshot.CharacterStatuses`
-* `BattleSnapshot.CharacterAwakenProgress`
-* `BattleSnapshot.CharacterCollapseCount`
-* `BattleSnapshot.UltimateEntries`
-* `BattleSnapshot.DeckCounters`
+* `BattleSnapshot.CharacterStatuses` 的团队 / 角色归属约束
+* `BattleSnapshot.UltimateEntries.bUsedThisBattle`
 * `BattleSnapshot.PhaseProgress`
 * `BattleCommandResult.ReasonTag` 或同等可枚举失败原因
-## 5. 必须显示的信息
+## 6. 必须显示的信息
 * `EP` 必须独立显示当前值与上限
 * 当 `EP` 足以释放某角色奥义时，该角色奥义按钮必须显示为可用
 * 顶部必须保留一条短反馈，用于显示 `EP 不足 / 角色崩溃 / 无合法目标 / 奥义已释放` 这类即时结果

@@ -173,6 +173,11 @@
 * 为 UI、表现层、调试工具提供统一事件流
 * 为后续回放、战斗日志、QA 检查保留基础
 
+当前稳定公开面：
+* `BattleEvent` 已承载 `EventSequence`
+* 事件已可携带来源 / 目标单位、关联卡牌 / 奥义 / 状态、关键数值、战斗结果
+* `BattleSession` 已提供全量读取与按序号增量读取，供 `FinalApp/UI` 做事件驱动刷新
+
 优先级：
 * `P1`
 
@@ -242,6 +247,15 @@
 优先级：
 * `P1`
 
+### 5.7 Run 查询与事件流
+职责：
+* 为 `FinalApp` 与调试工具提供 `RunSnapshot`
+* 提供结构化 `RunEvent`，记录初始化、战前桥接、RunCommand、战后回写等关键外层流程
+* 提供全量读取与按序号增量读取，避免 UI 只能猜当前 Run 状态
+
+优先级：
+* `P1`
+
 ---
 
 ## 6. 内容与数据功能
@@ -268,6 +282,7 @@
 职责：
 * 按 `CardId / EnemyId / EventId / RelicId` 查询
 * 按标签、章节、稀有度、角色归属、推荐阶段做筛选
+* 为 Battle / Run / UI 提供 `Enemy / EnemyIntent / Status / Ultimate` 等静态定义查询
 
 优先级：
 * `P1`
@@ -289,6 +304,11 @@
 * `WidgetController` 负责订阅 `BattleSnapshot / BattleEvent / RunQuery` 并组装 `ViewModel`
 * `ViewModel` 不绑定某一版具体布局
 * `Widget` 只读 `ViewModel`，不直接访问 `BattleState / RunState` 私有结构
+
+当前已落地：
+* `UISubsystem + UIRootLayout + BattleHUDScreen`
+* `FinalBattleWidgetController` 已可把 `Snapshot / Event` 转成首轮 `HUD Presentation`
+* `FinalApp` 可结合 `FinalData / RunSession` 补齐遭遇名、金币、`EP` 上限、角色名、卡牌名等展示字段
 
 优先级：
 * `P0`
@@ -405,6 +425,7 @@
 | 伤害、治疗、压力 | `FinalBattle` | 结算器 / 原子操作 | Blueprint |
 | Break 与先机 | `FinalBattle` | Break 服务 / 回合服务 | `FinalRun` |
 | 状态系统 | `FinalBattle` | 状态服务 | Widget |
+| Battle 只读查询与事件流 | `FinalBattle` | `BattleSnapshot / BattleEvent / EventsSince` | `FinalApp` 内部私有缓存真相 |
 | 崩溃与苏醒 | `FinalBattle` | 崩溃苏醒服务 | `FinalApp` |
 | 敌人意图与行动 | `FinalBattle` | 意图服务 / 回合服务 | 世界表现 Actor |
 | 单局持久状态 | `FinalRun` | `RunSession` | `FinalBattle` |
@@ -413,8 +434,9 @@
 | 事件系统 | `FinalRun` | 事件解析器 | Widget |
 | 奖励与商店 | `FinalRun` | 奖励 / 商店解析器 | `FinalBattle` |
 | 角色成长入口 | `FinalRun` | 成长解析器 | `FinalBattle` |
+| Run 只读查询与事件流 | `FinalRun` | `RunSnapshot / RunEvent / EventsSince` | `FinalApp` 内部私有缓存真相 |
 | UI 页面栈与根布局 | `FinalApp` | `UISubsystem / RootLayout` | `FinalBattle`、`FinalRun` |
-| UI 视图模型 | `FinalApp` | Widget Controller / ViewModel | `FinalBattle` 内部服务 |
+| UI 视图模型 | `FinalApp` | Widget Controller / ViewModel / HUDScreen | `FinalBattle` 内部服务 |
 | 世界桥接 | `FinalApp` | Flow Subsystem / Director | `FinalBattle` |
 | Save / Load | `FinalApp` | Save 协调器 | `FinalBattle` 内部类 |
 | 数据校验 / 编辑器工具 | `FinalEditor` | 编辑器菜单 / 校验器 | Runtime 模块 |
@@ -448,6 +470,11 @@
 * `SubmitBattleCommand(Command)`
 * `SubmitRunCommand(Command)`
 * `GetCurrentBattleSnapshot()`
+* `GetBattleLogEntries()`
+* `GetBattleEventsSince(Sequence)`
+* `GetRunSnapshot()`
+* `GetRunLogEntries()`
+* `GetRunEventsSince(Sequence)`
 * `CompleteBattleAndApplyResult(Result)`
 * `AdvanceToNextNode(NodeId)`
 
@@ -499,6 +526,7 @@
 * UI 页面栈、输入模式、焦点恢复必须集中由 `FinalApp` 管理
 * 战斗事件日志必须能继续服务动画、音效、调试面板和回放
 * 世界桥接层必须允许替换表现 Actor 而不影响规则层
+* 首轮代码生成的 `BattleHUDScreen` 只是承接层，后续替换成 Widget Blueprint 不应改变 `WidgetController / ViewModel` 合约
 
 ### 12.4 工程侧
 * 模块间不通过 include 私有实现偷引用

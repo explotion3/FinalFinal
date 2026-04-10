@@ -142,6 +142,7 @@
 * 跑通伤害、削韧、Break、先机减少事件
 * 跑通敌人行动
 * 跑通回合开始与回合结束
+* 暴露稳定的 `BattleSnapshot / BattleEvent / EventsSince` 公开查询面，供 `FinalApp` 只读接入
 
 #### 暂不创建
 * 遗物运行时状态
@@ -162,19 +163,20 @@
 * `Source/FinalApp/Public/ViewModels/FinalBattleHUDViewModel.h`
 * `Source/FinalApp/Public/Controllers/FinalBattleWidgetController.h`
 
-#### 建议同步预留的 UI 基座（允许空壳）
+#### 当前已落地的 UI 基座
 * `Source/FinalApp/Public/Subsystems/UI/FinalUISubsystem.h`
 * `Source/FinalApp/Public/UI/Core/FinalUITypes.h`
 * `Source/FinalApp/Public/UI/Root/FinalUIRootLayout.h`
 * `Source/FinalApp/Public/UI/Screens/FinalScreenBase.h`
+* `Source/FinalApp/Public/UI/Screens/Battle/FinalBattleHUDScreen.h`
 * `Source/FinalApp/Public/UI/Panels/FinalPanelWidgetBase.h`
 * `Source/FinalApp/Public/UI/Controllers/FinalWidgetControllerBase.h`
 * `Source/FinalApp/Public/UI/ViewModels/FinalViewModelBase.h`
 
 说明：
-* 首批允许这些类先做空壳，不要求一开始就把 Battle HUD 拆成大量 Panel
-* 现有 `FinalBattleWidgetController + FinalBattleHUDViewModel` 可先作为聚合入口
-* 若首批仍沿用 `Public/Controllers`、`Public/ViewModels` 旧路径，第二批开始再迁入 `Public/UI/...` 目标目录即可
+* 当前这批类已不再只是预留空壳，已经能承接首轮 Battle HUD
+* 现有 `FinalBattleWidgetController + FinalBattleHUDViewModel` 仍作为聚合入口
+* 旧 `Public/Controllers`、`Public/ViewModels` 与新 `Public/UI/...` 当前并存，后续再逐步迁移
 
 #### 首批目标
 * 把输入转成 `PlayCard` / `EndTurn` 命令
@@ -191,10 +193,13 @@
 #### 必建文件
 * `Source/FinalRun/FinalRun.Build.cs`
 * `Source/FinalRun/Private/FinalRunModule.cpp`
+* `Source/FinalRun/Public/Events/FinalRunEvent.h`
 * `Source/FinalRun/Public/Runtime/FinalRunState.h`
 * `Source/FinalRun/Public/Runtime/FinalRunPersistentCharacterState.h`
 * `Source/FinalRun/Public/Commands/FinalRunCommand.h`
 * `Source/FinalRun/Public/Facade/FinalRunSession.h`
+* `Source/FinalRun/Public/Queries/FinalRunQueryTypes.h`
+* `Source/FinalRun/Public/Queries/FinalRunSnapshot.h`
 * `Source/FinalRun/Public/Requests/FinalBattleStartRequest.h`
 * `Source/FinalRun/Public/Requests/FinalBattleResult.h`
 
@@ -203,6 +208,7 @@
 * 作为进入战斗前的唯一队伍与牌组输入来源
 * 接收战斗结果并回写最小单局状态
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口，但首批只保留空壳接口
+* 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
 * 完整事件解析器
@@ -236,7 +242,7 @@
 ### 6.4 FinalApp
 * `Source/FinalApp/Public/UI/Screens/FinalOverlayScreenBase.h`
 * `Source/FinalApp/Public/UI/Screens/FinalModalScreenBase.h`
-* `Source/FinalApp/Public/UI/Screens/Battle/FinalBattleRootScreen.h`
+* `Source/FinalApp/Public/UI/Root/FinalUIRootLayout.h` 的通用 Overlay / Modal 容器能力
 * `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleTopBarPanel.h`
 * `Source/FinalApp/Public/UI/Panels/Battle/FinalBattlePartyPanel.h`
 * `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleEnemyListPanel.h`
@@ -295,6 +301,7 @@
 * 先机与 Break 的顺序符合 [Battle_Rules.md](Battle_Rules.md)
 * UI 通过 ViewModel 读状态，而不是直接改规则状态
 * UI 页面层级与输入模式由 `FinalApp` 集中管理，不由单个 Widget 各自切换
+* `FinalApp` 只消费 Battle / Run 的公开查询与事件，不直接访问规则层私有状态
 
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`

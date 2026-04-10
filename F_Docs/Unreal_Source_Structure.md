@@ -177,11 +177,11 @@ FinalBattle      FinalRun
 * `RunFlowSubsystem`
 * `UISubsystem`
 * `UIRootLayout`
-* `ScreenStack`
 * `SaveGameCoordinator`
 * `BattleGameMode`
 * `BattlePlayerController`
 * `BattleDirector`
+* `BattleHUDScreen`
 * `ScreenBase`
 * `PanelWidgetBase`
 * `WidgetBase`
@@ -203,10 +203,12 @@ FinalBattle      FinalRun
 * `Slate` 只用于 `UMG` 难以承载的少量自定义控件或编辑器工具
 * 默认不把 `CommonUI` 作为首版基础框架
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
+* 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen`，但通用 `ScreenStack / Overlay / Modal` 仍属于下一阶段通用化目标
 
 #### 4.5.1 FinalApp/UI 推荐分层
-* `UISubsystem` 负责根布局、页面栈、输入模式、焦点恢复、`Tooltip / Toast / Modal`
-* `RootScreen` 承载常驻 HUD
+* `UISubsystem` 当前负责根布局、Battle HUD 创建、输入模式与焦点切换；后续再扩成通用页面栈
+* `RootScreen` / `UIRootLayout` 承载常驻 HUD
+* `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
 * `ModalScreen` 处理确认类阻断交互
 * `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / Log / UltimateBar` 这类 HUD 区块复用
@@ -256,9 +258,11 @@ FinalBattle      FinalRun
 #### FinalBattle/Public
 只暴露：
 * `BattleSession`
-* `BattleSnapshot` 或只读查询接口
+* `BattleSnapshot`
+* `BattleQueryTypes`
 * `BattleCommand`
 * `BattleEvent`
+* `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
 * 少量供 UI / App 读取的查询结构
 
 不暴露：
@@ -270,9 +274,12 @@ FinalBattle      FinalRun
 #### FinalRun/Public
 只暴露：
 * `RunSession`
-* `RunState` 只读查询接口
+* `RunSnapshot`
+* `RunQueryTypes`
+* `RunEvent`
 * `RunCommand`
 * 进入战斗与战后结算的桥接请求结构
+* `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
 
 #### FinalApp/Public
 只暴露：
@@ -446,6 +453,7 @@ Source
 * 上述是 `FinalApp/UI` 的目标目录形态
 * 首批已经存在的 `Public/Controllers`、`Public/ViewModels` 可作为过渡目录暂存
 * 当 `UISubsystem / RootLayout / ScreenBase` 基座落地后，再逐步迁移到 `Public/UI/Controllers` 与 `Public/UI/ViewModels`
+* 当前代码已经落地 `Public/UI/...` 与旧 `Public/Controllers`、`Public/ViewModels` 并存的过渡形态
 
 ---
 
@@ -485,6 +493,12 @@ Source
 * `UFinalShopResolver`
 * `UFinalGrowthResolver`
 
+当前稳定公开面：
+* `RunSnapshot`
+* `RunEvent`
+* `RunQueryTypes`
+* `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
+
 ### 8.4 App 层桥接
 推荐：
 * `UFinalGameFlowSubsystem`
@@ -493,6 +507,7 @@ Source
 * `AFinalBattleDirector`
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`
+* `UFinalBattleHUDScreen`
 
 ### 8.5 UI 基类
 推荐：
@@ -512,6 +527,7 @@ Source
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
 * `ViewModel` 不保存权威运行时结构副本
+* 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`
 
 ---
 
@@ -556,7 +572,8 @@ Source
 * 跑通一场普通战：打牌、伤害、削韧、Break、先机、敌人行动、奥义释放
 
 ### 10.2 第二批
-* 建立 `UISubsystem / UIRootLayout / ScreenStack`
+* 在现有 `UISubsystem / UIRootLayout` 基础上补通用 `ScreenStack`
+* 补 `Overlay / Modal / Tooltip / Toast` 通用容器与生命周期
 * 补状态、被动、遗物触发
 * 补崩溃与苏醒
 * 补 FinalRun 的事件、奖励、商店与成长链
