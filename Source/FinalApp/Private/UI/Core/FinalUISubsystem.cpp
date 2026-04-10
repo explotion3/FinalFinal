@@ -3,9 +3,15 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Controllers/FinalBattleWidgetController.h"
+#include "Facade/FinalRunSession.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
+#include "Subsystems/FinalGameFlowSubsystem.h"
 #include "UI/Root/FinalUIRootLayout.h"
+#include "UI/Screens/FinalScreenBase.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
+#include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
+#include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
 void UFinalUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -28,6 +34,11 @@ void UFinalUISubsystem::Deinitialize()
 	BattleHUDScreen = nullptr;
 	BattleWidgetController = nullptr;
 	BattleHUDViewModel = nullptr;
+	OverlayScreenStack.Reset();
+	ModalScreenStack.Reset();
+	RewardOverlayScreen = nullptr;
+	NodeOverlayScreen = nullptr;
+	PlaceholderModalScreen = nullptr;
 	RootLayout = nullptr;
 	PrimaryPlayerController = nullptr;
 
@@ -45,6 +56,7 @@ void UFinalUISubsystem::RegisterPrimaryPlayerController(APlayerController* InPla
 	EnsureRootLayout();
 	EnsureBattleBridge();
 	EnsureBattleHUD();
+	EnsureFlowScreens();
 	ApplyGameplayHudInputMode();
 }
 
@@ -101,6 +113,184 @@ void UFinalUISubsystem::SetBattleHUDVisibility(bool bVisible)
 	}
 }
 
+void UFinalUISubsystem::OpenOverlayScreen(UFinalScreenBase* Screen, const bool bReplaceExisting)
+{
+	if (Screen == nullptr)
+	{
+		return;
+	}
+
+	EnsureRootLayout();
+	if (RootLayout == nullptr || Screen->GetScreenLayer() != EFinalUIScreenLayer::Overlay)
+	{
+		return;
+	}
+
+	OverlayScreenStack.Remove(Screen);
+	if (bReplaceExisting)
+	{
+		for (UFinalScreenBase* ExistingScreen : OverlayScreenStack)
+		{
+			if (ExistingScreen)
+			{
+				ExistingScreen->HandleScreenClosed();
+			}
+		}
+		OverlayScreenStack.Reset();
+	}
+
+	OverlayScreenStack.Add(Screen);
+	Screen->HandleScreenOpened();
+	RebuildScreenLayer(EFinalUIScreenLayer::Overlay);
+	ApplyTopScreenInputMode();
+}
+
+void UFinalUISubsystem::CloseOverlayScreen(UFinalScreenBase* Screen)
+{
+	if (OverlayScreenStack.Num() == 0)
+	{
+		return;
+	}
+
+	UFinalScreenBase* ScreenToClose = Screen;
+	if (ScreenToClose == nullptr)
+	{
+		ScreenToClose = OverlayScreenStack.Last().Get();
+	}
+	if (ScreenToClose == nullptr)
+	{
+		return;
+	}
+
+	if (OverlayScreenStack.Remove(ScreenToClose) > 0)
+	{
+		ScreenToClose->HandleScreenClosed();
+		RebuildScreenLayer(EFinalUIScreenLayer::Overlay);
+		ApplyTopScreenInputMode();
+	}
+}
+
+void UFinalUISubsystem::OpenModalScreen(UFinalScreenBase* Screen, const bool bReplaceExisting)
+{
+	if (Screen == nullptr)
+	{
+		return;
+	}
+
+	EnsureRootLayout();
+	if (RootLayout == nullptr || Screen->GetScreenLayer() != EFinalUIScreenLayer::Modal)
+	{
+		return;
+	}
+
+	ModalScreenStack.Remove(Screen);
+	if (bReplaceExisting)
+	{
+		for (UFinalScreenBase* ExistingScreen : ModalScreenStack)
+		{
+			if (ExistingScreen)
+			{
+				ExistingScreen->HandleScreenClosed();
+			}
+		}
+		ModalScreenStack.Reset();
+	}
+
+	ModalScreenStack.Add(Screen);
+	Screen->HandleScreenOpened();
+	RebuildScreenLayer(EFinalUIScreenLayer::Modal);
+	ApplyTopScreenInputMode();
+}
+
+void UFinalUISubsystem::CloseModalScreen(UFinalScreenBase* Screen)
+{
+	if (ModalScreenStack.Num() == 0)
+	{
+		return;
+	}
+
+	UFinalScreenBase* ScreenToClose = Screen;
+	if (ScreenToClose == nullptr)
+	{
+		ScreenToClose = ModalScreenStack.Last().Get();
+	}
+	if (ScreenToClose == nullptr)
+	{
+		return;
+	}
+
+	if (ModalScreenStack.Remove(ScreenToClose) > 0)
+	{
+		ScreenToClose->HandleScreenClosed();
+		RebuildScreenLayer(EFinalUIScreenLayer::Modal);
+		ApplyTopScreenInputMode();
+	}
+}
+
+void UFinalUISubsystem::ShowBattleRewardOverlayPlaceholder()
+{
+	EnsureFlowScreens();
+	if (RewardOverlayScreen == nullptr)
+	{
+		return;
+	}
+
+	FFinalRunSnapshot RunSnapshot;
+	if (const UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
+	{
+		if (const UFinalRunSession* RunSession = GameFlowSubsystem->GetRunSession())
+		{
+			RunSnapshot = RunSession->GetSnapshot();
+		}
+	}
+
+	RewardOverlayScreen->ConfigureFromRunSnapshot(RunSnapshot);
+	OpenOverlayScreen(RewardOverlayScreen, true);
+}
+
+void UFinalUISubsystem::ShowNodeProgressOverlayPlaceholder()
+{
+	EnsureFlowScreens();
+	if (NodeOverlayScreen == nullptr)
+	{
+		return;
+	}
+
+	FFinalRunSnapshot RunSnapshot;
+	if (const UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
+	{
+		if (const UFinalRunSession* RunSession = GameFlowSubsystem->GetRunSession())
+		{
+			RunSnapshot = RunSession->GetSnapshot();
+		}
+	}
+
+	NodeOverlayScreen->ConfigureFromRunSnapshot(RunSnapshot);
+	OpenOverlayScreen(NodeOverlayScreen, true);
+}
+
+void UFinalUISubsystem::ShowPlaceholderModal(const FText& Title, const FText& Body)
+{
+	EnsureFlowScreens();
+	if (PlaceholderModalScreen == nullptr)
+	{
+		return;
+	}
+
+	PlaceholderModalScreen->ConfigureModal(Title, Body);
+	OpenModalScreen(PlaceholderModalScreen, true);
+}
+
+UFinalScreenBase* UFinalUISubsystem::GetActiveOverlayScreen() const
+{
+	return OverlayScreenStack.Num() > 0 ? OverlayScreenStack.Last() : nullptr;
+}
+
+UFinalScreenBase* UFinalUISubsystem::GetActiveModalScreen() const
+{
+	return ModalScreenStack.Num() > 0 ? ModalScreenStack.Last() : nullptr;
+}
+
 UFinalUIRootLayout* UFinalUISubsystem::GetRootLayout() const
 {
 	return RootLayout;
@@ -155,6 +345,103 @@ void UFinalUISubsystem::EnsureBattleBridge()
 			BattleWidgetController->BindToBattleFlow(BattleFlowSubsystem);
 		}
 	}
+}
+
+void UFinalUISubsystem::EnsureFlowScreens()
+{
+	if (PrimaryPlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (RewardOverlayScreen == nullptr)
+	{
+		RewardOverlayScreen = CreateWidget<UFinalRunRewardOverlayScreen>(PrimaryPlayerController, UFinalRunRewardOverlayScreen::StaticClass());
+	}
+
+	if (NodeOverlayScreen == nullptr)
+	{
+		NodeOverlayScreen = CreateWidget<UFinalRunNodeOverlayScreen>(PrimaryPlayerController, UFinalRunNodeOverlayScreen::StaticClass());
+	}
+
+	if (PlaceholderModalScreen == nullptr)
+	{
+		PlaceholderModalScreen = CreateWidget<UFinalPlaceholderModalScreen>(PrimaryPlayerController, UFinalPlaceholderModalScreen::StaticClass());
+	}
+}
+
+void UFinalUISubsystem::RebuildScreenLayer(const EFinalUIScreenLayer Layer)
+{
+	if (RootLayout == nullptr)
+	{
+		return;
+	}
+
+	RootLayout->ClearLayer(Layer);
+
+	UFinalScreenBase* ActiveScreen = nullptr;
+	switch (Layer)
+	{
+	case EFinalUIScreenLayer::Overlay:
+		ActiveScreen = GetActiveOverlayScreen();
+		break;
+
+	case EFinalUIScreenLayer::Modal:
+		ActiveScreen = GetActiveModalScreen();
+		break;
+
+	default:
+		break;
+	}
+
+	if (ActiveScreen)
+	{
+		RootLayout->AddScreenToLayer(ActiveScreen, Layer);
+		ActiveScreen->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void UFinalUISubsystem::ApplyInputConfig(const FFinalUIInputConfig& InputConfig, UFinalScreenBase* FocusScreen) const
+{
+	if (PrimaryPlayerController == nullptr)
+	{
+		return;
+	}
+
+	switch (InputConfig.InputMode)
+	{
+	case EFinalUIInputMode::GameOnly:
+		UWidgetBlueprintLibrary::SetInputMode_GameOnly(PrimaryPlayerController);
+		break;
+
+	case EFinalUIInputMode::UIOnly:
+		UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PrimaryPlayerController, FocusScreen, EMouseLockMode::DoNotLock, InputConfig.bHideCursorDuringCapture);
+		break;
+
+	case EFinalUIInputMode::GameAndUI:
+	default:
+		UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(PrimaryPlayerController, FocusScreen, EMouseLockMode::DoNotLock, InputConfig.bHideCursorDuringCapture, false);
+		break;
+	}
+
+	PrimaryPlayerController->SetShowMouseCursor(InputConfig.bShowMouseCursor);
+}
+
+void UFinalUISubsystem::ApplyTopScreenInputMode() const
+{
+	if (UFinalScreenBase* ActiveModalScreen = GetActiveModalScreen())
+	{
+		ApplyInputConfig(ActiveModalScreen->GetDesiredInputConfig(), ActiveModalScreen);
+		return;
+	}
+
+	if (UFinalScreenBase* ActiveOverlayScreen = GetActiveOverlayScreen())
+	{
+		ApplyInputConfig(ActiveOverlayScreen->GetDesiredInputConfig(), ActiveOverlayScreen);
+		return;
+	}
+
+	ApplyGameplayHudInputMode();
 }
 
 void UFinalUISubsystem::ApplyGameplayHudInputMode() const

@@ -14,7 +14,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	EFinalUIScreenLayer GetScreenLayer() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	FFinalUIInputConfig GetDesiredInputConfig() const;
+
+	virtual void HandleScreenOpened();
+	virtual void HandleScreenClosed();
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|UI")
 	EFinalUIScreenLayer ScreenLayer = EFinalUIScreenLayer::HUD;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|UI")
+	FFinalUIInputConfig DesiredInputConfig;
 };

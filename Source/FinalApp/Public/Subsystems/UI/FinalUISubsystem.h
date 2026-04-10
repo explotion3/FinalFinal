@@ -2,13 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "UI/Core/FinalUITypes.h"
 #include "FinalUISubsystem.generated.h"
 
 class APlayerController;
 class UFinalBattleHUDScreen;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
+class UFinalPlaceholderModalScreen;
+class UFinalRunNodeOverlayScreen;
+class UFinalRunRewardOverlayScreen;
 class UFinalUIRootLayout;
+class UFinalScreenBase;
 
 UCLASS()
 class FINALAPP_API UFinalUISubsystem : public UGameInstanceSubsystem
@@ -31,6 +36,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void SetBattleHUDVisibility(bool bVisible);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenOverlayScreen(UFinalScreenBase* Screen, bool bReplaceExisting = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void CloseOverlayScreen(UFinalScreenBase* Screen = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenModalScreen(UFinalScreenBase* Screen, bool bReplaceExisting = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void CloseModalScreen(UFinalScreenBase* Screen = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowBattleRewardOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowNodeProgressOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowPlaceholderModal(const FText& Title, const FText& Body);
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalScreenBase* GetActiveOverlayScreen() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalScreenBase* GetActiveModalScreen() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalUIRootLayout* GetRootLayout() const;
 
@@ -46,6 +78,10 @@ public:
 private:
 	void EnsureRootLayout();
 	void EnsureBattleBridge();
+	void EnsureFlowScreens();
+	void RebuildScreenLayer(EFinalUIScreenLayer Layer);
+	void ApplyInputConfig(const FFinalUIInputConfig& InputConfig, UFinalScreenBase* FocusScreen) const;
+	void ApplyTopScreenInputMode() const;
 	void ApplyGameplayHudInputMode() const;
 
 	UPROPERTY(Transient)
@@ -62,4 +98,19 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleWidgetController> BattleWidgetController;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UFinalScreenBase>> OverlayScreenStack;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UFinalScreenBase>> ModalScreenStack;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunRewardOverlayScreen> RewardOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunNodeOverlayScreen> NodeOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalPlaceholderModalScreen> PlaceholderModalScreen;
 };

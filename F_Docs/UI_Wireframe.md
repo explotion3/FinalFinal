@@ -6,6 +6,7 @@
   * `UIRootLayout`
   * `Screen / Panel / Widget / WidgetController / ViewModel` 基类
   * 代码生成的 `BattleHUDScreen`
+  * 常驻 `HUD / Overlay / Modal / Tooltip / Toast` 分层
 * 当前 Battle HUD 通过 `FinalBattleWidgetController` 订阅 `FinalBattleFlowSubsystem`
 * 当前 Battle HUD 已打通：
   * `Snapshot / Event -> WidgetController -> ViewModel -> HUD`
@@ -15,6 +16,14 @@
   * `1~6` 快捷出牌
   * 点击 / `Enter / Space` 结束回合
 * 当前 Battle HUD 已开始消费 Battle / Run 公开查询字段，但仍只做只读展示与命令转发，不承载规则结算
+* 当前 `UISubsystem` 已补齐外层流程承接能力：
+  * `OpenOverlayScreen / CloseOverlayScreen`
+  * `OpenModalScreen / CloseModalScreen`
+  * `FinalOverlayScreenBase`
+  * `FinalModalScreenBase`
+  * `FinalRunRewardOverlayScreen`（战后奖励页最小原型）
+  * `FinalRunNodeOverlayScreen`（节点推进页最小原型）
+  * `FinalPlaceholderModalScreen`（确认类模态占位）
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
@@ -46,7 +55,10 @@
   * 关键词 / 规则文本
 * 底部右侧：结束回合按钮
 * 右下：三名角色奥义快捷按钮
-* 中央覆盖层：奖励、事件、商店、变体、节点选择、章节完成/失败
+* 中央覆盖层：
+  * 当前已落地 `Overlay` 原型：战后奖励页、节点推进页
+  * 当前已落地 `Modal` 骨架：流程确认占位
+  * 未来继续承接：事件、商店、变体、章节完成/失败
 
 ## 2. 当前输入映射
 * `1~6`：按手牌序号出牌
@@ -55,6 +67,15 @@
 * 点击敌人：切换当前目标
 * 点击手牌：打出该牌
 * 点击奥义按钮：转发 `PlayUltimate`
+
+## 2.1 RootLayout 分层口径
+* `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
+* `Overlay Layer`：承接奖励页、节点页、事件页、商店页这类整页流程界面；当前同一时刻只显示栈顶页
+* `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
+* `Tooltip / Toast Layer`：当前保留为后续扩展挂点
+* 输入优先级：
+  * `Modal > Overlay > Battle HUD`
+  * Overlay / Modal 关闭后恢复到常驻 HUD 输入模式
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动
@@ -111,6 +132,7 @@
 * 手牌所属单位显示名
 
 ## 4. 当前缺口字段 / 需要 Battle 或 Run 提供的接口
+### 4.1 Battle HUD
 当前这轮 Battle HUD 主链路所需的新增公开字段已全部接入，当前没有新增的阻塞性接口缺口。
 
 当前实现口径：
@@ -121,11 +143,45 @@
 * 奥义“本战已释放”来自 `FFinalBattleUltimateViewData.bUsedThisBattle`
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
 
+### 4.2 Run 外层流程页
+当前 `FinalApp` 已经具备承接奖励页 / 节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward` 与 `Progression`。
+
+当前已接入字段：
+* `PendingBattleReward.bHasPendingReward`
+* `PendingBattleReward.SourceNodeId`
+* `PendingBattleReward.SourceEncounterId`
+* `PendingBattleReward.SourceBattleOutcome`
+* `PendingBattleReward.RewardGold`
+* `Progression.FlowStage`
+* `Progression.CurrentNodeId`
+* `Progression.CurrentNodeType`
+* `Progression.bCanClaimPendingBattleReward`
+* `Progression.bCanAdvanceToNextNode`
+* `Progression.AvailableNextNodes`
+
+战后奖励页仍缺：
+* `RewardEntries` 或等价的结构化奖励列表
+* 奖励项显示数据（名称、类型、数量、稀有度、描述）
+* 多奖励选择、替换、跳过等 richer reward flow 的结构化状态
+
+节点推进页仍缺：
+* `CurrentChapter / CurrentFloor` 或等价章节进度字段
+* 节点显示名、节点图标、章节/路线布局信息
+* 节点是否已访问、是否锁定等 richer 展示状态
+* `Battle / Elite / Boss / Event / Shop / Rest` 之外的更完整节点类型扩展
+
+当前实现口径：
+* 占位页只消费现有 `FFinalRunSnapshot`
+* 奖励页当前以 `PendingBattleReward` 为主展示口径，并可直接转发 `RunSession::ClaimPendingBattleReward()`
+* 节点页当前以 `Progression` 为主展示口径，并可直接转发 `RunSession::AdvanceToNode(NodeId)`
+* `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性
+
 ## 5. 必须显示的信息
 * `EP` 必须独立显示当前值与上限
 * 当 `EP` 足以释放某角色奥义时，该角色奥义按钮必须显示为可用
 * 顶部必须保留一条短反馈，用于显示 `EP 不足 / 角色崩溃 / 无合法目标 / 奥义已释放 / 战斗未初始化 / 命令不支持` 这类即时结果
 * `Team Status` 只显示团队状态
 * `Character Status` 只显示角色私有状态
-* 奖励 / 事件 / 商店 / 节点选择使用全屏覆盖面板，不隐藏顶部关键资源信息
+* 奖励 / 事件 / 商店 / 节点选择使用 `Overlay Layer` 承接，不直接销毁常驻 `Battle HUD`
+* 阻断确认类交互使用 `Modal Layer`，优先级高于 `Overlay`
 * 节点选择中的战斗类节点至少区分 `Battle / Elite / Boss`
