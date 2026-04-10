@@ -88,6 +88,7 @@ void ApplySelection(FFinalBattleEnemyState& EnemyState, const int32 SelectedInde
 	{
 		EnemyState.CurrentIntentDefinition = nullptr;
 		EnemyState.CurrentIntentIndex = INDEX_NONE;
+		EnemyState.CurrentIntentId = NAME_None;
 		EnemyState.CurrentIntentText = FText::Format(
 			NSLOCTEXT("FinalEnemyIntentService", "FallbackEnemyIntent", "Attack {0}"),
 			FText::AsNumber(EnemyState.RuntimeDamagePower));
@@ -96,6 +97,7 @@ void ApplySelection(FFinalBattleEnemyState& EnemyState, const int32 SelectedInde
 
 	EnemyState.CurrentIntentIndex = SelectedIndex;
 	EnemyState.CurrentIntentDefinition = EnemyState.IntentRuntimeStates[SelectedIndex].Definition;
+	EnemyState.CurrentIntentId = EnemyState.IntentRuntimeStates[SelectedIndex].IntentId;
 	EnemyState.CurrentIntentText = EnemyState.CurrentIntentDefinition != nullptr && !EnemyState.CurrentIntentDefinition->PreviewText.IsEmpty()
 		? EnemyState.CurrentIntentDefinition->PreviewText
 		: (EnemyState.CurrentIntentDefinition != nullptr

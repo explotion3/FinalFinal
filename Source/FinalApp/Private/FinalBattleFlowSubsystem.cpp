@@ -100,6 +100,7 @@ void UFinalBattleFlowSubsystem::ClearActiveBattleSession()
 	ActiveBattleSession = nullptr;
 	LastCommandEvent = FFinalBattleEvent{};
 	BroadcastBattleLogCount = 0;
+	OnBattleSnapshotChanged.Broadcast(FFinalBattleSnapshot{});
 }
 
 FFinalBattleSnapshot UFinalBattleFlowSubsystem::GetCurrentSnapshot() const

@@ -1,9 +1,12 @@
 #include "World/FinalBattlePlayerController.h"
 
 #include "App/FinalGameInstance.h"
+#include "Controllers/FinalBattleWidgetController.h"
 #include "Engine/GameInstance.h"
+#include "InputCoreTypes.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattlePlayerController, Log, All);
 
@@ -34,11 +37,47 @@ const TCHAR* LexToString(const EFinalBattleEventType EventType)
 }
 }
 
+void AFinalBattlePlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	RegisterUIBridge();
+}
+
+void AFinalBattlePlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	if (InputComponent == nullptr)
+	{
+		return;
+	}
+
+	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot1);
+	InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot2);
+	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot3);
+	InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot4);
+	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot5);
+	InputComponent->BindKey(EKeys::Six, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot6);
+	InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AFinalBattlePlayerController::HandleQuickEndTurn);
+	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AFinalBattlePlayerController::HandleQuickEndTurn);
+}
+
 bool AFinalBattlePlayerController::StartTestBattle()
 {
 	if (UFinalGameInstance* FinalGameInstance = Cast<UFinalGameInstance>(GetGameInstance()))
 	{
-		return FinalGameInstance->StartTestBattle();
+		const bool bStarted = FinalGameInstance->StartTestBattle();
+		RegisterUIBridge();
+
+		if (bStarted)
+		{
+			if (UFinalUISubsystem* UISubsystem = GetGameInstance()->GetSubsystem<UFinalUISubsystem>())
+			{
+				UISubsystem->RefreshBattleHUD();
+			}
+		}
+
+		return bStarted;
 	}
 
 	return false;
@@ -150,6 +189,30 @@ bool AFinalBattlePlayerController::DumpBattleLogToLog() const
 
 bool AFinalBattlePlayerController::PlayFirstHandCard()
 {
+	return PlayHandCardByIndex(0);
+}
+
+bool AFinalBattlePlayerController::PlayHandCardByIndex(int32 HandIndex)
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		if (UFinalBattleWidgetController* Controller = UISubsystem->GetBattleWidgetController())
+		{
+			const bool bAccepted = Controller->PlayCardByHandIndex(HandIndex);
+			const FText Feedback = Controller->GetLastInteractionFeedback();
+			if (bAccepted)
+			{
+				UE_LOG(LogFinalBattlePlayerController, Log, TEXT("PlayHandCardByIndex(%d) | %s"), HandIndex, *Feedback.ToString());
+			}
+			else
+			{
+				UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("PlayHandCardByIndex(%d) | %s"), HandIndex, *Feedback.ToString());
+			}
+
+			return bAccepted;
+		}
+	}
+
 	UGameInstance* GameInstance = GetGameInstance();
 	UFinalGameFlowSubsystem* GameFlowSubsystem = GameInstance ? GameInstance->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr;
 	UFinalBattleFlowSubsystem* BattleFlowSubsystem = GameInstance ? GameInstance->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
@@ -160,9 +223,9 @@ bool AFinalBattlePlayerController::PlayFirstHandCard()
 	}
 
 	const FFinalBattleSnapshot Snapshot = GameFlowSubsystem->GetCurrentBattleSnapshot();
-	if (Snapshot.HandCards.Num() == 0)
+	if (!Snapshot.HandCards.IsValidIndex(HandIndex))
 	{
-		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("No cards are currently in hand."));
+		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("No card is available at hand index %d."), HandIndex);
 		return false;
 	}
 
@@ -180,7 +243,7 @@ bool AFinalBattlePlayerController::PlayFirstHandCard()
 
 	FFinalBattleCommand Command;
 	Command.CommandType = EFinalBattleCommandType::PlayCard;
-	Command.CardInstanceId = Snapshot.HandCards[0].CardInstanceId;
+	Command.CardInstanceId = Snapshot.HandCards[HandIndex].CardInstanceId;
 	Command.TargetUnitId = TargetEnemy->RuntimeUnitId;
 
 	const bool bAccepted = BattleFlowSubsystem->SubmitBattleCommand(Command);
@@ -232,6 +295,12 @@ bool AFinalBattlePlayerController::CompleteResolvedBattle()
 		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("CompleteResolvedBattle | %s"), *Feedback.ToString());
 	}
 
+	RegisterUIBridge();
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance()->GetSubsystem<UFinalUISubsystem>())
+	{
+		UISubsystem->RefreshBattleHUD();
+	}
+
 	return bCompleted;
 }
 
@@ -250,6 +319,14 @@ bool AFinalBattlePlayerController::SubmitBattleCommand(const FFinalBattleCommand
 
 bool AFinalBattlePlayerController::EndPlayerTurn()
 {
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		if (UFinalBattleWidgetController* Controller = UISubsystem->GetBattleWidgetController())
+		{
+			return Controller->EndTurn();
+		}
+	}
+
 	FFinalBattleCommand Command;
 	Command.CommandType = EFinalBattleCommandType::EndTurn;
 	return SubmitBattleCommand(Command);
@@ -326,4 +403,50 @@ void AFinalBattlePlayerController::FinalEndTurnCommand()
 void AFinalBattlePlayerController::FinalCompleteResolvedBattle()
 {
 	CompleteResolvedBattle();
+}
+
+void AFinalBattlePlayerController::RegisterUIBridge()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UFinalUISubsystem* UISubsystem = GameInstance->GetSubsystem<UFinalUISubsystem>())
+		{
+			UISubsystem->RegisterPrimaryPlayerController(this);
+		}
+	}
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot1()
+{
+	PlayHandCardByIndex(0);
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot2()
+{
+	PlayHandCardByIndex(1);
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot3()
+{
+	PlayHandCardByIndex(2);
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot4()
+{
+	PlayHandCardByIndex(3);
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot5()
+{
+	PlayHandCardByIndex(4);
+}
+
+void AFinalBattlePlayerController::HandlePlayCardSlot6()
+{
+	PlayHandCardByIndex(5);
+}
+
+void AFinalBattlePlayerController::HandleQuickEndTurn()
+{
+	EndPlayerTurn();
 }

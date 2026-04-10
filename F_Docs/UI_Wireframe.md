@@ -1,5 +1,20 @@
 # 战斗 UI 线框
 
+## 0. 当前实现状态（2026-04-10）
+* 当前 `FinalApp` 已补上首轮 `UI` 基座：
+  * `UISubsystem`
+  * `UIRootLayout`
+  * `Screen / Panel / Widget / WidgetController / ViewModel` 基类
+  * 代码生成的 `BattleHUDScreen`
+* 当前 Battle HUD 通过 `FinalBattleWidgetController` 订阅 `FinalBattleFlowSubsystem`
+* 当前 Battle HUD 已打通：
+  * `Snapshot -> ViewModel -> HUD`
+  * 敌人目标选择
+  * 点击手牌出牌
+  * `1~6` 快捷出牌
+  * 点击 / `Enter / Space` 结束回合
+* 当前 Battle HUD 仍属于首轮桥接，不代表规则层字段已经齐全
+
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
 * 左上：回合、遭遇名、阶段进度、`AP`、`EP`、队伍生命、护盾、金币、牌堆计数、战斗反馈
@@ -24,12 +39,63 @@
 ## 2. 当前输入映射
 * `1~6`：按手牌序号出牌
 * `Enter / Space`：结束回合
-* `F1 / F2 / F3`：释放霍断岳 / 叶半夏 / 沈清弦奥义
+* `F1 / F2 / F3`：预留为霍断岳 / 叶半夏 / 沈清弦奥义
 * 点击敌人：切换当前目标
 * 点击手牌：打出该牌
-* 点击奥义按钮：释放对应角色奥义
+* 点击奥义按钮：当前仅显示占位，不在首轮启用
 
-## 3. 必须显示的信息
+## 3. 当前已桥接字段
+### 3.1 Battle Snapshot 已可直接驱动
+* 回合数
+* 当前 `AP`
+* 当前 `EP`
+* 队伍当前生命 / 最大生命
+* 队伍护盾
+* 角色运行时单位 `RuntimeUnitId`
+* 角色 `CharacterId`
+* 角色当前压力
+* 角色是否崩溃
+* 敌人名称
+* 敌人当前生命 / 护盾 / Break / 先机
+* 敌人当前意图文案
+* 手牌实例 `CardInstanceId`
+* 手牌 `CardId`
+* 手牌当前消耗 `AP`
+* 最近战斗日志文本
+
+### 3.2 FinalApp 通过 Data / Run 补出的展示字段
+* 遭遇名
+* 当前金币
+* `EP` 上限
+* 角色显示名
+* 角色压力上限
+* 卡牌显示名
+* 卡牌规则文本
+
+## 4. 当前缺口字段 / 需要 Battle 或 Run 提供的接口
+以下字段当前不能由 `FinalApp/UI` 安全推导，不能在 UI 层硬补：
+* `Team Status` 列表
+* `Character Status` 列表
+* 角色苏醒进度
+* 角色崩溃次数的战斗内实时显示值
+* 奥义当前消耗
+* 奥义是否可释放
+* 奥义是否本战已释放
+* 当前手牌所属角色的稳定公开映射
+* 抽牌堆 / 弃牌堆 / 消耗区计数
+* 当前阶段进度的公开查询值
+* 更细粒度的即时反馈类型（如 `EP 不足 / 无合法目标 / 奥义已释放` 的结构化原因）
+
+建议后续由 Battle / Run 公开以下稳定查询结构，而不是让 UI 猜：
+* `BattleSnapshot.TeamStatuses`
+* `BattleSnapshot.CharacterStatuses`
+* `BattleSnapshot.CharacterAwakenProgress`
+* `BattleSnapshot.CharacterCollapseCount`
+* `BattleSnapshot.UltimateEntries`
+* `BattleSnapshot.DeckCounters`
+* `BattleSnapshot.PhaseProgress`
+* `BattleCommandResult.ReasonTag` 或同等可枚举失败原因
+## 5. 必须显示的信息
 * `EP` 必须独立显示当前值与上限
 * 当 `EP` 足以释放某角色奥义时，该角色奥义按钮必须显示为可用
 * 顶部必须保留一条短反馈，用于显示 `EP 不足 / 角色崩溃 / 无合法目标 / 奥义已释放` 这类即时结果

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
+#include "Requests/FinalBattleResult.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "FinalRunState.generated.h"
 
@@ -21,6 +22,18 @@ struct FINALRUN_API FFinalRunState
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 Gold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bHasPendingBattleStart = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalEncounterId LastResolvedEncounterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalBattleOutcome LastBattleOutcome = EFinalBattleOutcome::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 LastBattleRewardGold = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunPersistentCharacterState> Characters;

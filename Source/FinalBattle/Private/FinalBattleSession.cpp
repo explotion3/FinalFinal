@@ -61,6 +61,30 @@ TArray<FFinalBattleEvent> UFinalBattleSession::GetBattleLogEntries() const
 	return State != nullptr ? State->BattleLogEntries : TArray<FFinalBattleEvent>{};
 }
 
+TArray<FFinalBattleEvent> UFinalBattleSession::GetBattleEventsSince(const int32 LastSeenEventSequence) const
+{
+	if (State == nullptr)
+	{
+		return {};
+	}
+
+	TArray<FFinalBattleEvent> Events;
+	for (const FFinalBattleEvent& Event : State->BattleLogEntries)
+	{
+		if (Event.EventSequence > LastSeenEventSequence)
+		{
+			Events.Add(Event);
+		}
+	}
+
+	return Events;
+}
+
+int32 UFinalBattleSession::GetLatestBattleEventSequence() const
+{
+	return State != nullptr ? State->LastEventSequence : 0;
+}
+
 void UFinalBattleSession::ResetSession()
 {
 	delete State;
