@@ -39,6 +39,8 @@ FFinalBattleEvent UFinalBattleSession::SubmitCommand(const FFinalBattleCommand& 
 	{
 		FFinalBattleEvent Event;
 		Event.EventType = EFinalBattleEventType::CommandRejected;
+		Event.RejectReason = EFinalBattleCommandRejectReason::BattleNotInitialized;
+		Event.ReasonTag = TEXT("battle.not_initialized");
 		Event.Message = FText::FromString(TEXT("Battle session is not initialized."));
 		return Event;
 	}

@@ -43,6 +43,21 @@ struct FINALBATTLE_API FFinalBattleCharacterViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattlePhaseProgressViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 CurrentPhaseNumber = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 TotalPhases = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	float ProgressWithinPhase = 0.0f;
+};
+
+USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleEnemyViewData
 {
 	GENERATED_BODY()
@@ -82,6 +97,9 @@ struct FINALBATTLE_API FFinalBattleEnemyViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FName CurrentIntentId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalBattlePhaseProgressViewData PhaseProgress;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FText IntentText;
@@ -151,6 +169,21 @@ struct FINALBATTLE_API FFinalBattleStatusViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattleCharacterStatusesViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName OwnerUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalCharacterId CharacterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleStatusViewData> StatusEntries;
+};
+
+USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleUltimateViewData
 {
 	GENERATED_BODY()
@@ -178,6 +211,9 @@ struct FINALBATTLE_API FFinalBattleUltimateViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	bool bCanActivate = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bUsedThisBattle = false;
 };
 
 USTRUCT(BlueprintType)
