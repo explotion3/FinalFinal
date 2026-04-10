@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Ids/FinalIds.h"
 #include "Queries/FinalBattleQueryTypes.h"
 #include "FinalBattleSnapshot.generated.h"
 
@@ -10,6 +11,18 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FGuid BattleId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalEncounterId EncounterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalRuleConfigId RuleConfigId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText EncounterDisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 CurrentRound = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
@@ -17,6 +30,9 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 CurrentEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 MaxEP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 TeamCurrentHP = 0;
@@ -34,10 +50,22 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 	bool bPlayerVictory = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName CurrentTargetUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalBattleDeckViewData DeckState;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleCharacterViewData> Characters;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleUltimateViewData> CharacterUltimates;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleEnemyViewData> Enemies;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleStatusViewData> Statuses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleCardViewData> HandCards;

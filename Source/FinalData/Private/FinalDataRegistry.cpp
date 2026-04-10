@@ -4,6 +4,10 @@
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
+#include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
+#include "Battle/Definitions/FinalUltimateDefinition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalDataRegistry, Log, All);
 
@@ -13,8 +17,12 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 
 	CharacterDefinitions.Reset();
 	CardDefinitions.Reset();
+	EnemyDefinitions.Reset();
+	EnemyIntentDefinitions.Reset();
 	EncounterDefinitions.Reset();
 	RuleConfigs.Reset();
+	StatusDefinitions.Reset();
+	UltimateDefinitions.Reset();
 }
 
 void UFinalDataRegistry::RegisterCharacterDefinition(UFinalCharacterDefinition* Definition)
@@ -37,6 +45,26 @@ void UFinalDataRegistry::RegisterCardDefinition(UFinalCardDefinition* Definition
 	CardDefinitions.Add(Definition->CardId.Value, Definition);
 }
 
+void UFinalDataRegistry::RegisterEnemyDefinition(UFinalEnemyDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->EnemyId.IsValid())
+	{
+		return;
+	}
+
+	EnemyDefinitions.Add(Definition->EnemyId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterEnemyIntentDefinition(UFinalEnemyIntentDefinition* Definition)
+{
+	if (!IsValid(Definition) || Definition->IntentId.IsNone())
+	{
+		return;
+	}
+
+	EnemyIntentDefinitions.Add(Definition->IntentId, Definition);
+}
+
 void UFinalDataRegistry::RegisterEncounterDefinition(UFinalBattleEncounterDefinition* Definition)
 {
 	if (!IsValid(Definition) || !Definition->EncounterId.IsValid())
@@ -55,6 +83,26 @@ void UFinalDataRegistry::RegisterRuleConfig(UFinalBattleRuleConfig* Definition)
 	}
 
 	RuleConfigs.Add(Definition->RuleConfigId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterStatusDefinition(UFinalStatusDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->StatusId.IsValid())
+	{
+		return;
+	}
+
+	StatusDefinitions.Add(Definition->StatusId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterUltimateDefinition(UFinalUltimateDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->UltimateId.IsValid())
+	{
+		return;
+	}
+
+	UltimateDefinitions.Add(Definition->UltimateId.Value, Definition);
 }
 
 UFinalCharacterDefinition* UFinalDataRegistry::FindCharacterDefinition(const FFinalCharacterId& CharacterId) const
@@ -79,6 +127,28 @@ UFinalCardDefinition* UFinalDataRegistry::FindCardDefinition(const FFinalCardId&
 	return nullptr;
 }
 
+UFinalEnemyDefinition* UFinalDataRegistry::FindEnemyDefinition(const FFinalEnemyId& EnemyId) const
+{
+	if (const TObjectPtr<UFinalEnemyDefinition>* Found = EnemyDefinitions.Find(EnemyId.Value))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("EnemyDefinition not found for id %s"), *EnemyId.ToString());
+	return nullptr;
+}
+
+UFinalEnemyIntentDefinition* UFinalDataRegistry::FindEnemyIntentDefinition(const FName& IntentId) const
+{
+	if (const TObjectPtr<UFinalEnemyIntentDefinition>* Found = EnemyIntentDefinitions.Find(IntentId))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("EnemyIntentDefinition not found for id %s"), *IntentId.ToString());
+	return nullptr;
+}
+
 UFinalBattleEncounterDefinition* UFinalDataRegistry::FindEncounterDefinition(const FFinalEncounterId& EncounterId) const
 {
 	if (const TObjectPtr<UFinalBattleEncounterDefinition>* Found = EncounterDefinitions.Find(EncounterId.Value))
@@ -98,5 +168,27 @@ UFinalBattleRuleConfig* UFinalDataRegistry::FindRuleConfig(const FFinalRuleConfi
 	}
 
 	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("BattleRuleConfig not found for id %s"), *RuleConfigId.ToString());
+	return nullptr;
+}
+
+UFinalStatusDefinition* UFinalDataRegistry::FindStatusDefinition(const FFinalStatusId& StatusId) const
+{
+	if (const TObjectPtr<UFinalStatusDefinition>* Found = StatusDefinitions.Find(StatusId.Value))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("StatusDefinition not found for id %s"), *StatusId.ToString());
+	return nullptr;
+}
+
+UFinalUltimateDefinition* UFinalDataRegistry::FindUltimateDefinition(const FFinalUltimateId& UltimateId) const
+{
+	if (const TObjectPtr<UFinalUltimateDefinition>* Found = UltimateDefinitions.Find(UltimateId.Value))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("UltimateDefinition not found for id %s"), *UltimateId.ToString());
 	return nullptr;
 }
