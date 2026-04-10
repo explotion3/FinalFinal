@@ -276,10 +276,19 @@
 
 ## 7. 表现与外层接入
 
-### 7.1 UI 视图模型
+### 7.1 UI 编排与视图模型
 职责：
+* 在 `FinalApp` 中维护运行时 UI 根布局与页面层级
+* 采用“常驻 HUD + Overlay + Modal + Tooltip + Toast”分层
 * 把权威状态转成 UI 可读数据
 * 不在 Widget 中做规则推导
+* 优先事件驱动刷新，不依赖 Tick 或 Blueprint Binding 轮询权威状态
+
+最低要求：
+* `UISubsystem` 负责根布局、页面栈、输入模式与焦点恢复
+* `WidgetController` 负责订阅 `BattleSnapshot / BattleEvent / RunQuery` 并组装 `ViewModel`
+* `ViewModel` 不绑定某一版具体布局
+* `Widget` 只读 `ViewModel`，不直接访问 `BattleState / RunState` 私有结构
 
 优先级：
 * `P0`
@@ -298,6 +307,8 @@
 * 承接战斗内的手牌点击、目标选择、结束回合输入
 * 把战斗内输入转换成 `BattleCommand`
 * 把事件、奖励、商店、成长等单局外输入转换成 `RunCommand`
+* 明确 `GameOnly / GameAndUI / UIOnly` 的切换时机
+* 在覆盖页、模态页打开与关闭时恢复焦点，不让单个 Widget 各自持有输入模式真相
 
 优先级：
 * `P0`
@@ -402,6 +413,7 @@
 | 事件系统 | `FinalRun` | 事件解析器 | Widget |
 | 奖励与商店 | `FinalRun` | 奖励 / 商店解析器 | `FinalBattle` |
 | 角色成长入口 | `FinalRun` | 成长解析器 | `FinalBattle` |
+| UI 页面栈与根布局 | `FinalApp` | `UISubsystem / RootLayout` | `FinalBattle`、`FinalRun` |
 | UI 视图模型 | `FinalApp` | Widget Controller / ViewModel | `FinalBattle` 内部服务 |
 | 世界桥接 | `FinalApp` | Flow Subsystem / Director | `FinalBattle` |
 | Save / Load | `FinalApp` | Save 协调器 | `FinalBattle` 内部类 |
@@ -483,6 +495,8 @@
 
 ### 12.3 表现层
 * ViewModel 不绑定某一版 UI 布局
+* Root HUD 与 `Overlay / Modal` 分层必须可扩展，不因新增页面而改动 Battle / Run 规则层
+* UI 页面栈、输入模式、焦点恢复必须集中由 `FinalApp` 管理
 * 战斗事件日志必须能继续服务动画、音效、调试面板和回放
 * 世界桥接层必须允许替换表现 Actor 而不影响规则层
 

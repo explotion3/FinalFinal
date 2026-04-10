@@ -55,7 +55,7 @@
 | `FinalData` | Runtime | `FinalCore` `Engine` | 静态定义、规则配置、定义查询 |
 | `FinalBattle` | Runtime | `FinalCore` `FinalData` `Engine` | 战斗状态、命令、结算、状态窗口、敌人行动 |
 | `FinalRun` | Runtime | `FinalCore` `FinalData` `Engine` | 单局持久状态、Run 命令入口、战斗前后桥接 |
-| `FinalApp` | Runtime | `FinalCore` `FinalData` `FinalBattle` `FinalRun` `UMG` `EnhancedInput` | 世界桥接、输入转命令、基础 UI 接口 |
+| `FinalApp` | Runtime | `FinalCore` `FinalData` `FinalBattle` `FinalRun` `UMG` `Slate` `SlateCore` `EnhancedInput` | 世界桥接、输入转命令、基础 UI 接口 |
 
 ---
 
@@ -162,6 +162,20 @@
 * `Source/FinalApp/Public/ViewModels/FinalBattleHUDViewModel.h`
 * `Source/FinalApp/Public/Controllers/FinalBattleWidgetController.h`
 
+#### 建议同步预留的 UI 基座（允许空壳）
+* `Source/FinalApp/Public/Subsystems/UI/FinalUISubsystem.h`
+* `Source/FinalApp/Public/UI/Core/FinalUITypes.h`
+* `Source/FinalApp/Public/UI/Root/FinalUIRootLayout.h`
+* `Source/FinalApp/Public/UI/Screens/FinalScreenBase.h`
+* `Source/FinalApp/Public/UI/Panels/FinalPanelWidgetBase.h`
+* `Source/FinalApp/Public/UI/Controllers/FinalWidgetControllerBase.h`
+* `Source/FinalApp/Public/UI/ViewModels/FinalViewModelBase.h`
+
+说明：
+* 首批允许这些类先做空壳，不要求一开始就把 Battle HUD 拆成大量 Panel
+* 现有 `FinalBattleWidgetController + FinalBattleHUDViewModel` 可先作为聚合入口
+* 若首批仍沿用 `Public/Controllers`、`Public/ViewModels` 旧路径，第二批开始再迁入 `Public/UI/...` 目标目录即可
+
 #### 首批目标
 * 把输入转成 `PlayCard` / `EndTurn` 命令
 * 创建并持有 `BattleSession`
@@ -219,6 +233,17 @@
 * `Source/FinalRun/Private/Shops/FinalShopResolver.h`
 * `Source/FinalRun/Private/Growth/FinalGrowthResolver.h`
 
+### 6.4 FinalApp
+* `Source/FinalApp/Public/UI/Screens/FinalOverlayScreenBase.h`
+* `Source/FinalApp/Public/UI/Screens/FinalModalScreenBase.h`
+* `Source/FinalApp/Public/UI/Screens/Battle/FinalBattleRootScreen.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleTopBarPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattlePartyPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleEnemyListPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleHandPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleLogPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleUltimateBarPanel.h`
+
 ---
 
 ## 7. 第三批补充文件
@@ -226,7 +251,13 @@
 ### 7.1 FinalApp
 * `FinalRunFlowSubsystem.h`
 * `FinalSaveGameCoordinator.h`
-* 更多 HUD / Hand / Enemy 细分 ViewModel
+* `FinalBattleRewardScreen.h`
+* `FinalBattleEventScreen.h`
+* `FinalBattleShopScreen.h`
+* `FinalBattleNodeSelectScreen.h`
+* `FinalToastWidgetBase.h`
+* `FinalTooltipWidgetBase.h`
+* 更多 HUD / Hand / Enemy 细分 `WidgetController / ViewModel`
 
 ### 7.2 FinalEditor
 * `Source/FinalEditor/FinalEditor.Build.cs`
@@ -263,6 +294,7 @@
 * 伤害与削韧从定义数据读
 * 先机与 Break 的顺序符合 [Battle_Rules.md](Battle_Rules.md)
 * UI 通过 ViewModel 读状态，而不是直接改规则状态
+* UI 页面层级与输入模式由 `FinalApp` 集中管理，不由单个 Widget 各自切换
 
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`

@@ -167,17 +167,26 @@ FinalBattle      FinalRun
 ### 4.5 FinalApp
 职责：
 * 连接 Unreal 世界与运行时系统
-* 持有 Subsystem、GameMode、PlayerController、Widget Controller、ViewModel
-* 组织输入、场景生成、UI 刷新、表现桥接、存档调用
+* 持有 Subsystem、UISubsystem、GameMode、PlayerController、Root Layout、Widget Controller、ViewModel
+* 组织输入、场景生成、UI 刷新、页面层级、表现桥接、存档调用
+* 作为 `FinalBattle / FinalRun -> UI` 的唯一桥接层
 
 放入：
 * `GameInstanceSubsystem`
 * `BattleFlowSubsystem`
 * `RunFlowSubsystem`
+* `UISubsystem`
+* `UIRootLayout`
+* `ScreenStack`
 * `SaveGameCoordinator`
 * `BattleGameMode`
 * `BattlePlayerController`
 * `BattleDirector`
+* `ScreenBase`
+* `PanelWidgetBase`
+* `WidgetBase`
+* `WidgetControllerBase`
+* `ViewModelBase`
 * `WidgetController`
 * `BattleHUDViewModel`
 * `HandPanelViewModel`
@@ -187,6 +196,23 @@ FinalBattle      FinalRun
 不放：
 * 权威战斗规则
 * DataAsset 定义
+* 直接访问 `BattleState / RunState` 私有结构的 Widget
+
+运行时 UI 默认结论：
+* 运行时主 UI 默认采用 `UMG`
+* `Slate` 只用于 `UMG` 难以承载的少量自定义控件或编辑器工具
+* 默认不把 `CommonUI` 作为首版基础框架
+* 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
+
+#### 4.5.1 FinalApp/UI 推荐分层
+* `UISubsystem` 负责根布局、页面栈、输入模式、焦点恢复、`Tooltip / Toast / Modal`
+* `RootScreen` 承载常驻 HUD
+* `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
+* `ModalScreen` 处理确认类阻断交互
+* `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / Log / UltimateBar` 这类 HUD 区块复用
+* `Widget` 用于卡牌、状态 Chip、资源条、敌人意图等原子控件
+* `WidgetController` 负责订阅 `Snapshot / Event / Query` 并组装 `ViewModel`
+* `ViewModel` 只保存展示数据，不做权威结算，也不承担命令合法性判定
 
 ### 4.6 FinalEditor
 职责：
@@ -251,8 +277,17 @@ FinalBattle      FinalRun
 #### FinalApp/Public
 只暴露：
 * 游戏入口 Subsystem
-* Widget Controller
+* `UISubsystem`
+* `ScreenBase / PanelWidgetBase / WidgetBase`
+* `WidgetControllerBase`
+* `ViewModelBase`
+* `WidgetController`
 * 对 Blueprint 必须开放的类
+
+不暴露：
+* `ScreenStack` 内部实现
+* Widget 工厂与焦点恢复 helper
+* 任何跨层临时缓存的权威状态副本
 
 ---
 
@@ -376,12 +411,27 @@ Source
 ├─ FinalApp
 │  ├─ Public
 │  │  ├─ Subsystems
+│  │  │  └─ UI
+│  │  ├─ UI
+│  │  │  ├─ Core
+│  │  │  ├─ Root
+│  │  │  ├─ Screens
+│  │  │  ├─ Panels
+│  │  │  ├─ Widgets
+│  │  │  ├─ Controllers
+│  │  │  └─ ViewModels
 │  │  ├─ World
-│  │  ├─ Controllers
-│  │  ├─ ViewModels
 │  │  └─ Save
 │  └─ Private
-│     ├─ Presentation
+│     ├─ UI
+│     │  ├─ Internal
+│     │  ├─ Core
+│     │  ├─ Root
+│     │  ├─ Screens
+│     │  ├─ Panels
+│     │  ├─ Widgets
+│     │  ├─ Controllers
+│     │  └─ ViewModels
 │     ├─ BattleBridge
 │     └─ RunBridge
 └─ FinalEditor
@@ -391,6 +441,11 @@ Source
       ├─ Tools
       └─ Menus
 ```
+
+说明：
+* 上述是 `FinalApp/UI` 的目标目录形态
+* 首批已经存在的 `Public/Controllers`、`Public/ViewModels` 可作为过渡目录暂存
+* 当 `UISubsystem / RootLayout / ScreenBase` 基座落地后，再逐步迁移到 `Public/UI/Controllers` 与 `Public/UI/ViewModels`
 
 ---
 
@@ -439,6 +494,25 @@ Source
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`
 
+### 8.5 UI 基类
+推荐：
+* `UFinalUISubsystem`
+* `UFinalUIRootLayout`
+* `UFinalScreenBase`
+* `UFinalOverlayScreenBase`
+* `UFinalModalScreenBase`
+* `UFinalPanelWidgetBase`
+* `UFinalWidgetBase`
+* `UFinalWidgetControllerBase`
+* `UFinalViewModelBase`
+
+规则：
+* `Screen` 只能通过 `UISubsystem` 进入和退出页面栈
+* `Panel` 不直接控制输入模式和页面栈
+* `Widget` 只做展示与轻交互，不直接接触权威状态
+* `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
+* `ViewModel` 不保存权威运行时结构副本
+
 ---
 
 ## 9. C++ 与 Blueprint 分工
@@ -482,11 +556,13 @@ Source
 * 跑通一场普通战：打牌、伤害、削韧、Break、先机、敌人行动、奥义释放
 
 ### 10.2 第二批
+* 建立 `UISubsystem / UIRootLayout / ScreenStack`
 * 补状态、被动、遗物触发
 * 补崩溃与苏醒
 * 补 FinalRun 的事件、奖励、商店与成长链
 
 ### 10.3 第三批
+* 拆更多 Battle `Panel / Screen / WidgetController / ViewModel`
 * 补事件、商店、角色成长
 * 补 Save / Load
 * 补调试工具与编辑器校验
@@ -498,6 +574,8 @@ Source
 * GAS 作为规则核心
 * 依赖 Tick 的战斗规则驱动
 * 让 UI 直接读写 BattleState
+* 默认引入 `CommonUI` 作为首版基础框架
+* 用 `Slate` 重写整套运行时主 HUD
 * 单模块塞满所有运行时代码
 * 把 DataAsset 定义散落在 Battle、Run、UI 各层
 * 用 `CardId == xxx` 大量硬编码特例

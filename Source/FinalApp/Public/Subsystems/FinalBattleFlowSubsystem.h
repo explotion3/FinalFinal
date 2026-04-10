@@ -13,6 +13,9 @@
 class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFinalBattleSnapshotChangedSignature, const FFinalBattleSnapshot&, Snapshot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFinalBattleEventBroadcastSignature, const FFinalBattleEvent&, BattleEvent);
+
 UCLASS()
 class FINALAPP_API UFinalBattleFlowSubsystem : public UGameInstanceSubsystem
 {
@@ -45,8 +48,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	TArray<FFinalBattleEvent> GetBattleLogEntries() const;
 
+	UPROPERTY(BlueprintAssignable, Category = "Final|Battle")
+	FFinalBattleSnapshotChangedSignature OnBattleSnapshotChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Final|Battle")
+	FFinalBattleEventBroadcastSignature OnBattleEventBroadcast;
+
 private:
 	bool BuildInitContext(const FFinalBattleStartRequest& StartRequest, FFinalBattleInitContext& OutInitContext);
+	void BroadcastPendingBattleEvents();
+	void BroadcastSnapshot();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleSession> ActiveBattleSession;
@@ -59,4 +70,7 @@ private:
 
 	UPROPERTY(Transient)
 	FFinalBattleEvent LastCommandEvent;
+
+	UPROPERTY(Transient)
+	int32 BroadcastBattleLogCount = 0;
 };

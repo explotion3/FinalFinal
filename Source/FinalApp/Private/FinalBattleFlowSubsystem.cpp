@@ -11,6 +11,7 @@ void UFinalBattleFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	LastCommandEvent = FFinalBattleEvent{};
+	BroadcastBattleLogCount = 0;
 }
 
 UFinalBattleSession* UFinalBattleFlowSubsystem::CreateBattleSessionFromStartRequest(const FFinalBattleStartRequest& StartRequest)
@@ -63,6 +64,9 @@ UFinalBattleSession* UFinalBattleFlowSubsystem::CreateBattleSessionFromStartRequ
 
 	ActiveBattleSession = NewObject<UFinalBattleSession>(this);
 	ActiveBattleSession->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+	BroadcastBattleLogCount = 0;
+	BroadcastPendingBattleEvents();
+	BroadcastSnapshot();
 	return ActiveBattleSession;
 }
 
@@ -81,6 +85,8 @@ bool UFinalBattleFlowSubsystem::SubmitBattleCommand(const FFinalBattleCommand& C
 	LastFailureReason = LastCommandEvent.EventType == EFinalBattleEventType::CommandRejected
 		? LastCommandEvent.Message
 		: FText::GetEmpty();
+	BroadcastPendingBattleEvents();
+	BroadcastSnapshot();
 	return LastCommandEvent.EventType != EFinalBattleEventType::CommandRejected;
 }
 
@@ -93,6 +99,7 @@ void UFinalBattleFlowSubsystem::ClearActiveBattleSession()
 
 	ActiveBattleSession = nullptr;
 	LastCommandEvent = FFinalBattleEvent{};
+	BroadcastBattleLogCount = 0;
 }
 
 FFinalBattleSnapshot UFinalBattleFlowSubsystem::GetCurrentSnapshot() const
@@ -118,6 +125,34 @@ FFinalBattleEvent UFinalBattleFlowSubsystem::GetLastCommandEvent() const
 TArray<FFinalBattleEvent> UFinalBattleFlowSubsystem::GetBattleLogEntries() const
 {
 	return ActiveBattleSession ? ActiveBattleSession->GetBattleLogEntries() : TArray<FFinalBattleEvent>{};
+}
+
+void UFinalBattleFlowSubsystem::BroadcastPendingBattleEvents()
+{
+	if (ActiveBattleSession == nullptr)
+	{
+		BroadcastBattleLogCount = 0;
+		return;
+	}
+
+	const TArray<FFinalBattleEvent> BattleLogEntries = ActiveBattleSession->GetBattleLogEntries();
+	const int32 SafeStartIndex = FMath::Clamp(BroadcastBattleLogCount, 0, BattleLogEntries.Num());
+	for (int32 EventIndex = SafeStartIndex; EventIndex < BattleLogEntries.Num(); ++EventIndex)
+	{
+		OnBattleEventBroadcast.Broadcast(BattleLogEntries[EventIndex]);
+	}
+
+	BroadcastBattleLogCount = BattleLogEntries.Num();
+}
+
+void UFinalBattleFlowSubsystem::BroadcastSnapshot()
+{
+	if (ActiveBattleSession == nullptr)
+	{
+		return;
+	}
+
+	OnBattleSnapshotChanged.Broadcast(ActiveBattleSession->GetSnapshot());
 }
 
 bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest& StartRequest, FFinalBattleInitContext& OutInitContext)
