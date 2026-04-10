@@ -29,11 +29,35 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScree
 {
 	OwningBattleHUDScreen = InOwningScreen;
 	HandIndex = InHandIndex;
+	TArray<FString> MetaSegments;
+	if (InEntry.bRetained)
+	{
+		MetaSegments.Add(TEXT("保留"));
+	}
+
+	if (InEntry.bCollapsedCard)
+	{
+		MetaSegments.Add(TEXT("崩溃牌"));
+	}
+
+	if (!InEntry.RulesText.IsEmpty())
+	{
+		MetaSegments.Add(InEntry.RulesText.ToString());
+	}
+
+	const FText MetaText = MetaSegments.Num() > 0
+		? FText::FromString(FString::Join(MetaSegments, TEXT(" | ")))
+		: NSLOCTEXT("FinalBattleHUD", "NoCardRules", "无额外说明");
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "CardEntryFormat", "{0}\nAP {1}\n{2}"),
+		NSLOCTEXT("FinalBattleHUD", "CardEntryFormat", "{0}\n{1} | AP {2} | Owner {3}\n{4}\n{5}"),
 		InEntry.DisplayName,
+		InEntry.TypeText,
 		FText::AsNumber(InEntry.RuntimeCostAP),
-		InEntry.RulesText);
+		!InEntry.OwnerDisplayName.IsEmpty() ? InEntry.OwnerDisplayName : NSLOCTEXT("FinalBattleHUD", "UnknownCardOwner", "未知"),
+		!InEntry.KeywordText.IsEmpty()
+			? InEntry.KeywordText
+			: NSLOCTEXT("FinalBattleHUD", "NoCardKeywords", "无关键词"),
+		MetaText);
 	RebuildVisual();
 }
 

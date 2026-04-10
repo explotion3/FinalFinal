@@ -21,6 +21,26 @@ enum class EFinalBattleEventType : uint8
 	BattleResolved
 };
 
+UENUM(BlueprintType)
+enum class EFinalBattleCommandRejectReason : uint8
+{
+	None,
+	BattleAlreadyResolved,
+	BattleNotInitialized,
+	CardInstanceNotFound,
+	CardDefinitionMissing,
+	CardNotInHand,
+	NotEnoughAP,
+	UnsupportedCardEffects,
+	UltimateOwnerNotFound,
+	UltimateBlockedByCollapse,
+	UltimateAlreadyUsed,
+	UltimateDefinitionUnavailable,
+	NotEnoughEP,
+	InvalidTarget,
+	UnsupportedCommand
+};
+
 USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleEvent
 {
@@ -31,6 +51,9 @@ struct FINALBATTLE_API FFinalBattleEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	EFinalBattleEventType EventType = EFinalBattleEventType::Info;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalBattleCommandRejectReason RejectReason = EFinalBattleCommandRejectReason::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FGuid BattleId;
@@ -49,6 +72,9 @@ struct FINALBATTLE_API FFinalBattleEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FName RelatedTag = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName ReasonTag = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FGuid CardInstanceId;

@@ -24,4 +24,5 @@ struct FFinalBattleCharacterState
 	FText UltimateDisplayName;
 	int32 UltimateCostEP = 0;
 	UFinalUltimateDefinition* UltimateDefinition = nullptr;
+	bool bUltimateUsedThisBattle = false;
 };

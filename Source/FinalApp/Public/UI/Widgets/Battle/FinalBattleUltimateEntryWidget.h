@@ -30,6 +30,9 @@ private:
 	int32 CharacterIndex = INDEX_NONE;
 	FText CachedLabel;
 	bool bEnabled = false;
+	bool bBlockedByCollapse = false;
+	bool bDefinitionReady = false;
+	bool bUsedThisBattle = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> UltimateButton;

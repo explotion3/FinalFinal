@@ -21,6 +21,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleResolver, Log, All);
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const FName RejectBattleResolvedTag(TEXT("battle.already_resolved"));
+const FName RejectCardInstanceMissingTag(TEXT("battle.card_instance_missing"));
+const FName RejectCardDefinitionMissingTag(TEXT("battle.card_definition_missing"));
+const FName RejectCardNotInHandTag(TEXT("battle.card_not_in_hand"));
+const FName RejectNotEnoughAPTag(TEXT("battle.not_enough_ap"));
+const FName RejectUnsupportedCardEffectsTag(TEXT("battle.unsupported_card_effects"));
+const FName RejectUltimateOwnerMissingTag(TEXT("battle.ultimate_owner_missing"));
+const FName RejectUltimateBlockedByCollapseTag(TEXT("battle.ultimate_blocked_by_collapse"));
+const FName RejectUltimateAlreadyUsedTag(TEXT("battle.ultimate_already_used"));
+const FName RejectUltimateDefinitionMissingTag(TEXT("battle.ultimate_definition_unavailable"));
+const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
+const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
+const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 
 struct FFinalEffectExecutionSummary
 {
@@ -153,8 +166,39 @@ bool CanActivateUltimate(const FFinalBattleState& State, const FFinalBattleChara
 {
 	return CharacterState.UltimateDefinition != nullptr
 		&& !CharacterState.bCollapsed
+		&& !CharacterState.bUltimateUsedThisBattle
 		&& CharacterState.UltimateId.IsValid()
 		&& State.CurrentEP >= CharacterState.UltimateCostEP;
+}
+
+void SetRejectReason(FFinalBattleEvent& Event, const EFinalBattleCommandRejectReason RejectReason, const FName ReasonTag)
+{
+	Event.RejectReason = RejectReason;
+	Event.ReasonTag = ReasonTag;
+}
+
+FFinalBattlePhaseProgressViewData BuildPhaseProgress(const FFinalBattleEnemyState& EnemyState)
+{
+	FFinalBattlePhaseProgressViewData PhaseProgress;
+	PhaseProgress.TotalPhases = EnemyState.PhaseSequence.Num();
+
+	if (!EnemyState.PhaseSequence.IsValidIndex(EnemyState.CurrentPhaseIndex) || EnemyState.MaxHP <= 0)
+	{
+		return PhaseProgress;
+	}
+
+	PhaseProgress.CurrentPhaseNumber = EnemyState.CurrentPhaseIndex + 1;
+
+	const float CurrentHpPercent = FMath::Clamp(static_cast<float>(EnemyState.CurrentHP) / static_cast<float>(EnemyState.MaxHP), 0.0f, 1.0f);
+	const float UpperBound = EnemyState.CurrentPhaseIndex > 0
+		? EnemyState.PhaseSequence[EnemyState.CurrentPhaseIndex - 1].MaxHpPercent
+		: 1.0f;
+	const float LowerBound = EnemyState.CurrentPhaseIndex + 1 < EnemyState.PhaseSequence.Num()
+		? EnemyState.PhaseSequence[EnemyState.CurrentPhaseIndex + 1].MaxHpPercent
+		: 0.0f;
+	const float PhaseSpan = FMath::Max(UpperBound - LowerBound, KINDA_SMALL_NUMBER);
+	PhaseProgress.ProgressWithinPhase = FMath::Clamp((UpperBound - CurrentHpPercent) / PhaseSpan, 0.0f, 1.0f);
+	return PhaseProgress;
 }
 
 void DrawCards(FFinalBattleState& State, const int32 DrawCount)
@@ -686,6 +730,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 	if (State.bBattleEnded)
 	{
 		Event.EventType = EFinalBattleEventType::CommandRejected;
+		SetRejectReason(Event, EFinalBattleCommandRejectReason::BattleAlreadyResolved, RejectBattleResolvedTag);
 		Event.Message = FText::FromString(TEXT("Battle is already resolved."));
 		return FinalizeBattleEvent(State, Event);
 	}
@@ -698,6 +743,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (CardInstance == nullptr)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::CardInstanceNotFound, RejectCardInstanceMissingTag);
 				Event.CardInstanceId = Command.CardInstanceId;
 				Event.Message = FText::FromString(TEXT("Card instance was not found."));
 				return FinalizeBattleEvent(State, Event);
@@ -706,6 +752,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (CardInstance->SourceDefinition == nullptr)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::CardDefinitionMissing, RejectCardDefinitionMissingTag);
 				Event.CardInstanceId = Command.CardInstanceId;
 				Event.CardId = CardInstance->CardId;
 				Event.Message = FText::FromString(TEXT("Card definition is missing for the selected card."));
@@ -715,6 +762,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (!State.DeckState.HandCardInstanceIds.Contains(Command.CardInstanceId))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::CardNotInHand, RejectCardNotInHandTag);
 				Event.CardInstanceId = Command.CardInstanceId;
 				Event.CardId = CardInstance->CardId;
 				Event.Message = FText::FromString(TEXT("Card instance is not in hand."));
@@ -724,6 +772,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (State.CurrentAP < CardInstance->RuntimeCostAP)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::NotEnoughAP, RejectNotEnoughAPTag);
 				Event.CardInstanceId = Command.CardInstanceId;
 				Event.CardId = CardInstance->CardId;
 				Event.PrimaryValue = CardInstance->RuntimeCostAP;
@@ -735,6 +784,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (!HasSupportedEffect(CardInstance->SourceDefinition))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::UnsupportedCardEffects, RejectUnsupportedCardEffectsTag);
 				Event.CardInstanceId = Command.CardInstanceId;
 				Event.CardId = CardInstance->CardId;
 				Event.Message = FText::FromString(TEXT("Selected card has no supported effects."));
@@ -786,6 +836,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (OwnerCharacterState == nullptr)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::UltimateOwnerNotFound, RejectUltimateOwnerMissingTag);
 				Event.SourceUnitId = Command.UltimateOwnerUnitId;
 				Event.Message = FText::FromString(TEXT("Ultimate owner was not found."));
 				return FinalizeBattleEvent(State, Event);
@@ -797,13 +848,23 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (OwnerCharacterState->bCollapsed)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::UltimateBlockedByCollapse, RejectUltimateBlockedByCollapseTag);
 				Event.Message = FText::FromString(TEXT("Collapsed characters cannot use ultimates."));
+				return FinalizeBattleEvent(State, Event);
+			}
+
+			if (OwnerCharacterState->bUltimateUsedThisBattle)
+			{
+				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::UltimateAlreadyUsed, RejectUltimateAlreadyUsedTag);
+				Event.Message = FText::FromString(TEXT("Ultimate was already used this battle."));
 				return FinalizeBattleEvent(State, Event);
 			}
 
 			if (OwnerCharacterState->UltimateDefinition == nullptr || !HasSupportedEffect(OwnerCharacterState->UltimateDefinition))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::UltimateDefinitionUnavailable, RejectUltimateDefinitionMissingTag);
 				Event.Message = FText::FromString(TEXT("Ultimate definition is unavailable or has no supported effects."));
 				return FinalizeBattleEvent(State, Event);
 			}
@@ -811,6 +872,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (State.CurrentEP < OwnerCharacterState->UltimateCostEP)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::NotEnoughEP, RejectNotEnoughEPTag);
 				Event.PrimaryValue = OwnerCharacterState->UltimateCostEP;
 				Event.SecondaryValue = State.CurrentEP;
 				Event.Message = FText::FromString(TEXT("Not enough EP to use the selected ultimate."));
@@ -826,6 +888,14 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			Event.TargetUnitId = Command.TargetUnitId != NAME_None ? Command.TargetUnitId : State.CurrentTargetUnitId;
 			Event.PrimaryValue = Summary.TotalDamageToEnemies;
 			Event.SecondaryValue = Summary.TotalTeamShieldGained;
+			if (FFinalBattleCharacterState* MutableOwnerCharacterState = State.Characters.FindByPredicate(
+				[&Command](const FFinalBattleCharacterState& Candidate)
+				{
+					return Candidate.RuntimeUnitId == Command.UltimateOwnerUnitId;
+				}))
+			{
+				MutableOwnerCharacterState->bUltimateUsedThisBattle = true;
+			}
 
 			if (AreAllEnemiesDefeated(State))
 			{
@@ -933,6 +1003,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			if (SelectedEnemy == nullptr || SelectedEnemy->CurrentHP <= 0)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
+				SetRejectReason(Event, EFinalBattleCommandRejectReason::InvalidTarget, RejectInvalidTargetTag);
 				Event.TargetUnitId = Command.TargetUnitId;
 				Event.Message = FText::FromString(TEXT("Target is not a valid living enemy."));
 				return FinalizeBattleEvent(State, Event);
@@ -947,6 +1018,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 	default:
 		Event.EventType = EFinalBattleEventType::CommandRejected;
+		SetRejectReason(Event, EFinalBattleCommandRejectReason::UnsupportedCommand, RejectUnsupportedCommandTag);
 		Event.Message = FText::FromString(TEXT("Unsupported command."));
 		break;
 	}
@@ -1001,6 +1073,7 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 		UltimateView.bDefinitionReady = CharacterState.UltimateDefinition != nullptr;
 		UltimateView.bBlockedByCollapse = CharacterState.bCollapsed;
 		UltimateView.bCanActivate = CanActivateUltimate(State, CharacterState);
+		UltimateView.bUsedThisBattle = CharacterState.bUltimateUsedThisBattle;
 		Snapshot.CharacterUltimates.Add(MoveTemp(UltimateView));
 	}
 
@@ -1019,9 +1092,18 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 		EnemyView.CurrentInitiative = EnemyState.CurrentInitiative;
 		EnemyView.CurrentPhaseTag = EnemyState.CurrentPhaseTag;
 		EnemyView.CurrentIntentId = EnemyState.CurrentIntentId;
+		EnemyView.PhaseProgress = BuildPhaseProgress(EnemyState);
 		EnemyView.IntentText = EnemyState.CurrentIntentText;
 		EnemyView.bActedThisRound = EnemyState.bActedThisRound;
 		Snapshot.Enemies.Add(MoveTemp(EnemyView));
+	}
+
+	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
+	{
+		FFinalBattleCharacterStatusesViewData CharacterStatusEntry;
+		CharacterStatusEntry.OwnerUnitId = CharacterState.RuntimeUnitId;
+		CharacterStatusEntry.CharacterId = CharacterState.CharacterId;
+		Snapshot.CharacterStatuses.Add(MoveTemp(CharacterStatusEntry));
 	}
 
 	for (const FFinalBattleStatusInstance& StatusInstance : State.StatusInstances)
@@ -1034,6 +1116,21 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 		StatusView.DisplayName = FText::FromName(StatusInstance.StatusId.Value);
 		StatusView.CurrentStacks = StatusInstance.CurrentStacks;
 		StatusView.RemainingDuration = StatusInstance.RemainingDuration;
+		if (StatusInstance.OwnerUnitId == TeamPlayerUnitId)
+		{
+			Snapshot.TeamStatuses.Add(StatusView);
+		}
+		else
+		{
+			if (FFinalBattleCharacterStatusesViewData* CharacterStatuses = Snapshot.CharacterStatuses.FindByPredicate(
+				[&StatusInstance](const FFinalBattleCharacterStatusesViewData& Candidate)
+				{
+					return Candidate.OwnerUnitId == StatusInstance.OwnerUnitId;
+				}))
+			{
+				CharacterStatuses->StatusEntries.Add(StatusView);
+			}
+		}
 		Snapshot.Statuses.Add(MoveTemp(StatusView));
 	}
 
