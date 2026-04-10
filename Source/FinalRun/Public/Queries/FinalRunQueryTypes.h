@@ -2,45 +2,49 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
-#include "Requests/FinalBattleResult.h"
-#include "Runtime/FinalRunPersistentCharacterState.h"
-#include "FinalRunState.generated.h"
+#include "FinalRunQueryTypes.generated.h"
 
 USTRUCT(BlueprintType)
-struct FINALRUN_API FFinalRunState
+struct FINALRUN_API FFinalRunCharacterViewData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalEncounterId CurrentEncounterId;
+	FFinalCharacterId CharacterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalRuleConfigId CurrentRuleConfigId;
+	int32 CurrentStress = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	int32 TeamCurrentHP = 0;
+	bool bCollapsed = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	int32 Gold = 0;
+	int32 CurrentAwakenCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 CollapseCount = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunBattleBridgeViewData
+{
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bHasPendingBattleStart = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalEncounterId LastResolvedEncounterId;
+	FFinalEncounterId EncounterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	EFinalBattleOutcome LastBattleOutcome = EFinalBattleOutcome::None;
+	FFinalRuleConfigId RuleConfigId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	int32 LastBattleRewardGold = 0;
+	int32 TeamCurrentHP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalRunPersistentCharacterState> Characters;
+	int32 PartyCount = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalCardId> RunDeck;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalRelicId> Relics;
+	int32 DeckCount = 0;
 };

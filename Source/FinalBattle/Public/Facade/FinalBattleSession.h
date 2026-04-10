@@ -33,6 +33,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	TArray<FFinalBattleEvent> GetBattleLogEntries() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	TArray<FFinalBattleEvent> GetBattleEventsSince(int32 LastSeenEventSequence) const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	int32 GetLatestBattleEventSequence() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();
 

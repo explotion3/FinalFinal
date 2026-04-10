@@ -4,10 +4,12 @@
 
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
+class UFinalUltimateDefinition;
 
 struct FINALBATTLE_API FFinalBattleCharacterInitData
 {
 	UFinalCharacterDefinition* CharacterDefinition = nullptr;
+	UFinalUltimateDefinition* UltimateDefinition = nullptr;
 	int32 CurrentStress = 0;
 	bool bCollapsed = false;
 	int32 CurrentAwakenCount = 0;

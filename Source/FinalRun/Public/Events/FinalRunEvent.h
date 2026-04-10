@@ -3,44 +3,48 @@
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "Requests/FinalBattleResult.h"
-#include "Runtime/FinalRunPersistentCharacterState.h"
-#include "FinalRunState.generated.h"
+#include "FinalRunEvent.generated.h"
+
+UENUM(BlueprintType)
+enum class EFinalRunEventType : uint8
+{
+	Info,
+	RunInitialized,
+	BattleStartConfigured,
+	RunCommandAccepted,
+	RunCommandRejected,
+	BattleResultApplied
+};
 
 USTRUCT(BlueprintType)
-struct FINALRUN_API FFinalRunState
+struct FINALRUN_API FFinalRunEvent
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalEncounterId CurrentEncounterId;
+	int32 EventSequence = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalRuleConfigId CurrentRuleConfigId;
+	EFinalRunEventType EventType = EFinalRunEventType::Info;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalEncounterId EncounterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRuleConfigId RuleConfigId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName PayloadId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalBattleOutcome BattleOutcome = EFinalBattleOutcome::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 TeamCurrentHP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	int32 Gold = 0;
+	int32 RewardGold = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	bool bHasPendingBattleStart = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	FFinalEncounterId LastResolvedEncounterId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	EFinalBattleOutcome LastBattleOutcome = EFinalBattleOutcome::None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	int32 LastBattleRewardGold = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalRunPersistentCharacterState> Characters;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalCardId> RunDeck;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalRelicId> Relics;
+	FText Message;
 };

@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Commands/FinalRunCommand.h"
+#include "Events/FinalRunEvent.h"
+#include "Queries/FinalRunSnapshot.h"
 #include "Requests/FinalBattleResult.h"
 #include "Requests/FinalBattleStartRequest.h"
 #include "Runtime/FinalRunState.h"
@@ -33,9 +35,28 @@ public:
 	void ApplyBattleResult(const FFinalBattleResult& Result);
 
 	UFUNCTION(BlueprintPure, Category = "Final|Run")
+	FFinalRunSnapshot GetSnapshot() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Run")
 	FFinalRunState GetRunState() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Run")
+	TArray<FFinalRunEvent> GetRunLogEntries() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Run")
+	TArray<FFinalRunEvent> GetRunEventsSince(int32 LastSeenEventSequence) const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Run")
+	int32 GetLatestRunEventSequence() const;
+
 private:
+	void AppendEvent(const FFinalRunEvent& Event);
+
 	UPROPERTY(Transient)
 	FFinalRunState CurrentState;
+
+	UPROPERTY(Transient)
+	TArray<FFinalRunEvent> RunLogEntries;
+
+	int32 LastEventSequence = 0;
 };

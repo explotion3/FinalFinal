@@ -10,6 +10,7 @@ class UFinalEnemyIntentDefinition;
 struct FFinalBattleEnemyIntentRuntimeState
 {
 	UFinalEnemyIntentDefinition* Definition = nullptr;
+	FName IntentId = NAME_None;
 	int32 UseCount = 0;
 	int32 NextAvailableRound = 1;
 };
@@ -25,6 +26,7 @@ struct FFinalBattleEnemyState
 	int32 MaxHP = 0;
 	int32 CurrentHP = 0;
 	int32 CurrentShield = 0;
+	int32 MaxBreakValue = 0;
 	int32 CurrentBreakValue = 0;
 	int32 CurrentInitiative = 0;
 	int32 RuntimeDamagePower = 0;
@@ -32,6 +34,7 @@ struct FFinalBattleEnemyState
 	TArray<FFinalEnemyPhaseDefinition> PhaseSequence;
 	int32 CurrentPhaseIndex = INDEX_NONE;
 	FName CurrentPhaseTag = NAME_None;
+	FName CurrentIntentId = NAME_None;
 	FText CurrentIntentText;
 	UFinalEnemyIntentDefinition* CurrentIntentDefinition = nullptr;
 	TArray<FFinalBattleEnemyIntentRuntimeState> IntentRuntimeStates;
