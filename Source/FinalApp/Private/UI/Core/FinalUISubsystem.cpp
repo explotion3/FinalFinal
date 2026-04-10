@@ -6,6 +6,7 @@
 #include "Facade/FinalRunSession.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
 #include "UI/Root/FinalUIRootLayout.h"
 #include "UI/Screens/FinalScreenBase.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
@@ -58,6 +59,11 @@ void UFinalUISubsystem::RegisterPrimaryPlayerController(APlayerController* InPla
 	EnsureBattleHUD();
 	EnsureFlowScreens();
 	ApplyGameplayHudInputMode();
+
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
+	{
+		RunFlowSubsystem->RefreshRunFlow(true);
+	}
 }
 
 void UFinalUISubsystem::EnsureBattleHUD()

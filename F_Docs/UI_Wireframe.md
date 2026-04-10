@@ -24,6 +24,10 @@
   * `FinalRunRewardOverlayScreen`（战后奖励页最小原型）
   * `FinalRunNodeOverlayScreen`（节点推进页最小原型）
   * `FinalPlaceholderModalScreen`（确认类模态占位）
+* 当前 `FinalApp` 已新增 `RunFlowSubsystem`：
+  * 读取 `RunSession`
+  * 增量消费 `RunEvent`
+  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调奖励页、节点页与常驻 HUD
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
@@ -76,6 +80,14 @@
 * 输入优先级：
   * `Modal > Overlay > Battle HUD`
   * Overlay / Modal 关闭后恢复到常驻 HUD 输入模式
+
+## 2.2 Run 外层流程编排口径
+* `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
+* Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
+  * 进入 `PendingBattleReward` 时打开奖励页
+  * 进入 `AwaitingNodeAdvance` 时切到节点页
+  * 进入 `PreparingBattle / None / RunEnded` 时关闭不该停留的外层页
+* `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动
@@ -172,8 +184,9 @@
 
 当前实现口径：
 * 占位页只消费现有 `FFinalRunSnapshot`
-* 奖励页当前以 `PendingBattleReward` 为主展示口径，并可直接转发 `RunSession::ClaimPendingBattleReward()`
-* 节点页当前以 `Progression` 为主展示口径，并可直接转发 `RunSession::AdvanceToNode(NodeId)`
+* 奖励页当前以 `PendingBattleReward` 为主展示口径，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 节点页当前以 `Progression` 为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
+* `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性
 
 ## 5. 必须显示的信息

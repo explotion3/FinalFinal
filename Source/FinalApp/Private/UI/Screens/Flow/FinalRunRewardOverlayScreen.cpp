@@ -5,10 +5,8 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
-#include "Events/FinalRunEvent.h"
-#include "Facade/FinalRunSession.h"
 #include "Styling/CoreStyle.h"
-#include "Subsystems/FinalGameFlowSubsystem.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 
 namespace
@@ -44,7 +42,7 @@ UTextBlock* CreateRewardOverlayLabel(UWidgetTree* WidgetTree, const TCHAR* Name,
 	return Text;
 }
 
-UFinalRunSession* ResolveRewardOverlayRunSession(UUserWidget* Widget)
+UFinalRunFlowSubsystem* ResolveRewardOverlayRunFlowSubsystem(UUserWidget* Widget)
 {
 	if (Widget == nullptr)
 	{
@@ -57,32 +55,7 @@ UFinalRunSession* ResolveRewardOverlayRunSession(UUserWidget* Widget)
 		return nullptr;
 	}
 
-	if (UFinalGameFlowSubsystem* GameFlowSubsystem = GameInstance->GetSubsystem<UFinalGameFlowSubsystem>())
-	{
-		return GameFlowSubsystem->GetRunSession();
-	}
-
-	return nullptr;
-}
-
-FText ResolveRewardOverlayLatestRunFeedback(UFinalRunSession* RunSession, const FText& Fallback)
-{
-	if (RunSession == nullptr)
-	{
-		return Fallback;
-	}
-
-	const TArray<FFinalRunEvent> RunEvents = RunSession->GetRunLogEntries();
-	if (RunEvents.Num() > 0)
-	{
-		const FFinalRunEvent& LastEvent = RunEvents.Last();
-		if (!LastEvent.Message.IsEmpty())
-		{
-			return LastEvent.Message;
-		}
-	}
-
-	return Fallback;
+	return GameInstance->GetSubsystem<UFinalRunFlowSubsystem>();
 }
 }
 
@@ -102,19 +75,19 @@ void UFinalRunRewardOverlayScreen::ConfigureFromRunSnapshot(const FFinalRunSnaps
 
 void UFinalRunRewardOverlayScreen::HandleClaimRewardClicked()
 {
-	UFinalRunSession* RunSession = ResolveRewardOverlayRunSession(this);
-	if (RunSession == nullptr)
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRewardOverlayRunFlowSubsystem(this);
+	if (RunFlowSubsystem == nullptr)
 	{
-		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "RewardNoRunSession", "当前无法访问 RunSession，无法领取待领奖励。");
+		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "RewardNoRunFlowSubsystem", "当前无法访问 RunFlowSubsystem，无法领取待领奖励。");
 		RebuildVisual();
 		return;
 	}
 
-	const bool bClaimed = RunSession->ClaimPendingBattleReward();
-	CachedSnapshot = RunSession->GetSnapshot();
-	LastActionFeedback = ResolveRewardOverlayLatestRunFeedback(
-		RunSession,
-		bClaimed
+	const bool bClaimed = RunFlowSubsystem->ClaimPendingBattleReward();
+	CachedSnapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
+	LastActionFeedback = !RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bClaimed
 			? NSLOCTEXT("FinalFlowUI", "RewardClaimSucceeded", "已转发 ClaimPendingBattleReward。")
 			: NSLOCTEXT("FinalFlowUI", "RewardClaimFailed", "ClaimPendingBattleReward 执行失败。"));
 	RebuildVisual();
@@ -252,7 +225,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 	{
 		FeedbackText->SetText(!LastActionFeedback.IsEmpty()
 			? LastActionFeedback
-			: NSLOCTEXT("FinalFlowUI", "RewardOverlayFeedbackDefault", "当前页面会直接转发 RunSession::ClaimPendingBattleReward()。"));
+			: NSLOCTEXT("FinalFlowUI", "RewardOverlayFeedbackDefault", "当前页面会把领取奖励意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。"));
 	}
 
 	if (ClaimRewardButton)

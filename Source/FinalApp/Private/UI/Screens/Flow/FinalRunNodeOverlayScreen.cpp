@@ -5,10 +5,8 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
-#include "Events/FinalRunEvent.h"
-#include "Facade/FinalRunSession.h"
 #include "Styling/CoreStyle.h"
-#include "Subsystems/FinalGameFlowSubsystem.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 
 namespace
@@ -70,7 +68,7 @@ UTextBlock* CreateNodeOverlayLabel(UWidgetTree* WidgetTree, const TCHAR* Name, c
 	return Text;
 }
 
-UFinalRunSession* ResolveNodeOverlayRunSession(UUserWidget* Widget)
+UFinalRunFlowSubsystem* ResolveNodeOverlayRunFlowSubsystem(UUserWidget* Widget)
 {
 	if (Widget == nullptr)
 	{
@@ -83,32 +81,7 @@ UFinalRunSession* ResolveNodeOverlayRunSession(UUserWidget* Widget)
 		return nullptr;
 	}
 
-	if (UFinalGameFlowSubsystem* GameFlowSubsystem = GameInstance->GetSubsystem<UFinalGameFlowSubsystem>())
-	{
-		return GameFlowSubsystem->GetRunSession();
-	}
-
-	return nullptr;
-}
-
-FText ResolveNodeOverlayLatestRunFeedback(UFinalRunSession* RunSession, const FText& Fallback)
-{
-	if (RunSession == nullptr)
-	{
-		return Fallback;
-	}
-
-	const TArray<FFinalRunEvent> RunEvents = RunSession->GetRunLogEntries();
-	if (RunEvents.Num() > 0)
-	{
-		const FFinalRunEvent& LastEvent = RunEvents.Last();
-		if (!LastEvent.Message.IsEmpty())
-		{
-			return LastEvent.Message;
-		}
-	}
-
-	return Fallback;
+	return GameInstance->GetSubsystem<UFinalRunFlowSubsystem>();
 }
 }
 
@@ -177,21 +150,21 @@ void UFinalRunNodeOverlayScreen::HandleAdvanceSelectedNodeClicked()
 		return;
 	}
 
-	UFinalRunSession* RunSession = ResolveNodeOverlayRunSession(this);
-	if (RunSession == nullptr)
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveNodeOverlayRunFlowSubsystem(this);
+	if (RunFlowSubsystem == nullptr)
 	{
-		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "NodeNoRunSession", "当前无法访问 RunSession，无法推进节点。");
+		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "NodeNoRunFlowSubsystem", "当前无法访问 RunFlowSubsystem，无法推进节点。");
 		RebuildVisual();
 		return;
 	}
 
 	const FFinalRunNodeOptionViewData& SelectedNode = AvailableNextNodes[SelectedNodeIndex];
-	const bool bAdvanced = RunSession->AdvanceToNode(SelectedNode.NodeId);
-	CachedSnapshot = RunSession->GetSnapshot();
+	const bool bAdvanced = RunFlowSubsystem->AdvanceToNode(SelectedNode.NodeId);
+	CachedSnapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
 	ClampSelectedNodeIndex();
-	LastActionFeedback = ResolveNodeOverlayLatestRunFeedback(
-		RunSession,
-		bAdvanced
+	LastActionFeedback = !RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bAdvanced
 			? NSLOCTEXT("FinalFlowUI", "NodeAdvanceSucceeded", "已转发 AdvanceToNode。")
 			: NSLOCTEXT("FinalFlowUI", "NodeAdvanceFailed", "AdvanceToNode 执行失败。"));
 	RebuildVisual();
@@ -405,7 +378,7 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 	{
 		FeedbackText->SetText(!LastActionFeedback.IsEmpty()
 			? LastActionFeedback
-			: NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会直接转发 RunSession::AdvanceToNode(NodeId)。"));
+			: NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会把推进节点意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。"));
 	}
 
 	const bool bHasAvailableNodes = CachedSnapshot.Progression.AvailableNextNodes.Num() > 0;

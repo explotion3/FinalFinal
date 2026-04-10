@@ -2,6 +2,7 @@
 
 #include "Facade/FinalRunSession.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
 
 void UFinalGameFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -13,6 +14,12 @@ UFinalRunSession* UFinalGameFlowSubsystem::BootstrapNewRun()
 	LastFlowFailureReason = FText::GetEmpty();
 	RunSession = NewObject<UFinalRunSession>(this);
 	RunSession->InitializeRun();
+
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
+	{
+		RunFlowSubsystem->HandleRunSessionChanged();
+	}
+
 	return RunSession;
 }
 
@@ -44,6 +51,10 @@ UFinalBattleSession* UFinalGameFlowSubsystem::StartBattleFromRunSession()
 	{
 		LastFlowFailureReason = BattleFlowSubsystem->GetLastFailureReason();
 	}
+	else if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
+	{
+		RunFlowSubsystem->RefreshRunFlow(true);
+	}
 
 	return BattleSession;
 }
@@ -73,6 +84,12 @@ bool UFinalGameFlowSubsystem::CompleteBattleAndApplyResult(const FFinalBattleRes
 
 	RunSession->ApplyBattleResult(Result);
 	BattleFlowSubsystem->ClearActiveBattleSession();
+
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
+	{
+		RunFlowSubsystem->RefreshRunFlow(true);
+	}
+
 	return true;
 }
 
