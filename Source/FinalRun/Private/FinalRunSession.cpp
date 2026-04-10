@@ -1,5 +1,10 @@
 #include "Facade/FinalRunSession.h"
 
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "Queries/FinalDataRegistry.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+
 namespace
 {
 FFinalRunCharacterViewData MakeCharacterView(const FFinalRunPersistentCharacterState& CharacterState)
@@ -168,13 +173,57 @@ int32 GetRewardGoldTotal(const TArray<FFinalRunRewardEntry>& RewardEntries)
 	return GoldTotal;
 }
 
+int32 GetRewardEntryGrantCount(const FFinalRunRewardEntry& RewardEntry)
+{
+	return RewardEntry.Value > 0 ? RewardEntry.Value : 1;
+}
+
+FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+		return RewardEntry.GrantedCardId.IsValid() ? RewardEntry.GrantedCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::RelicGrant:
+		return RewardEntry.GrantedRelicId.IsValid() ? RewardEntry.GrantedRelicId.Value : NAME_None;
+
+	default:
+		return NAME_None;
+	}
+}
+
+FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+		return RewardEntry.GrantedCardId.IsValid()
+			? FText::FromName(RewardEntry.GrantedCardId.Value)
+			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
+
+	case EFinalRunRewardType::RelicGrant:
+		return RewardEntry.GrantedRelicId.IsValid()
+			? FText::FromName(RewardEntry.GrantedRelicId.Value)
+			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
+
+	default:
+		return GetDefaultRewardDisplayName(RewardEntry.RewardType);
+	}
+}
+
 void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const bool bClaimable)
 {
 	for (FFinalRunRewardEntry& Entry : RewardEntries)
 	{
+		if (Entry.DisplayId.IsNone())
+		{
+			Entry.DisplayId = GetRewardEntryDefaultDisplayId(Entry);
+		}
+
 		if (Entry.DisplayName.IsEmpty())
 		{
-			Entry.DisplayName = GetDefaultRewardDisplayName(Entry.RewardType);
+			Entry.DisplayName = GetRewardEntryDefaultDisplayName(Entry);
 		}
 
 		Entry.bCanClaim = bClaimable;
@@ -216,7 +265,101 @@ TArray<FFinalRunRewardEntry> BuildBattleRewardEntries(const FFinalBattleResult& 
 	return RewardEntries;
 }
 
-void ApplyRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntries, FFinalRunState& RunState)
+const UFinalDataRegistry* ResolveDataRegistry(const UFinalRunSession* RunSession)
+{
+	if (RunSession == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (const UGameInstance* GameInstance = RunSession->GetTypedOuter<UGameInstance>())
+	{
+		return GameInstance->GetSubsystem<UFinalDataRegistry>();
+	}
+
+	if (const UGameInstanceSubsystem* GameInstanceSubsystem = RunSession->GetTypedOuter<UGameInstanceSubsystem>())
+	{
+		if (UGameInstance* GameInstance = GameInstanceSubsystem->GetGameInstance())
+		{
+			return GameInstance->GetSubsystem<UFinalDataRegistry>();
+		}
+	}
+
+	if (const UWorld* World = RunSession->GetWorld())
+	{
+		if (const UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			return GameInstance->GetSubsystem<UFinalDataRegistry>();
+		}
+	}
+
+	return nullptr;
+}
+
+bool ValidateRewardEntryForApplication(
+	const FFinalRunRewardEntry& RewardEntry,
+	const UFinalDataRegistry* DataRegistry,
+	EFinalRunCommandRejectReason& OutRejectReason,
+	FText& OutFailureMessage)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return true;
+
+	case EFinalRunRewardType::CardGrant:
+		if (!RewardEntry.GrantedCardId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingGrantedCardId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingGrantedCardId", "Reward entry {0} is missing GrantedCardId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (DataRegistry == nullptr || DataRegistry->FindCardDefinition(RewardEntry.GrantedCardId) == nullptr)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardCardDefinitionUnavailable;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "RewardCardDefinitionUnavailable", "Card reward {0} cannot be applied because card definition {1} is unavailable."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.GrantedCardId.Value));
+			return false;
+		}
+
+		return true;
+
+	case EFinalRunRewardType::RelicGrant:
+		if (!RewardEntry.GrantedRelicId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingGrantedRelicId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingGrantedRelicId", "Reward entry {0} is missing GrantedRelicId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		return true;
+
+	case EFinalRunRewardType::RemoveCard:
+	case EFinalRunRewardType::UpgradeCard:
+	case EFinalRunRewardType::Growth:
+	case EFinalRunRewardType::None:
+	default:
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedRewardType;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "UnsupportedRewardType", "Reward entry {0} uses reward type {1}, which does not yet have RunState landing support."),
+			FText::FromName(RewardEntry.RewardId),
+			FText::AsNumber(static_cast<int32>(RewardEntry.RewardType)));
+		return false;
+	}
+}
+
+bool ValidateRewardEntriesForApplication(
+	const TArray<FFinalRunRewardEntry>& RewardEntries,
+	const UFinalDataRegistry* DataRegistry,
+	EFinalRunCommandRejectReason& OutRejectReason,
+	FText& OutFailureMessage)
 {
 	for (const FFinalRunRewardEntry& Entry : RewardEntries)
 	{
@@ -225,9 +368,46 @@ void ApplyRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntr
 			continue;
 		}
 
-		if (Entry.RewardType == EFinalRunRewardType::Gold)
+		if (!ValidateRewardEntryForApplication(Entry, DataRegistry, OutRejectReason, OutFailureMessage))
 		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void ApplyValidatedRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntries, FFinalRunState& RunState)
+{
+	for (const FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		if (!Entry.IsClaimable())
+		{
+			continue;
+		}
+
+		switch (Entry.RewardType)
+		{
+		case EFinalRunRewardType::Gold:
 			RunState.Gold += Entry.Value;
+			break;
+
+		case EFinalRunRewardType::CardGrant:
+			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryGrantCount(Entry); ++GrantIndex)
+			{
+				RunState.RunDeck.Add(Entry.GrantedCardId);
+			}
+			break;
+
+		case EFinalRunRewardType::RelicGrant:
+			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryGrantCount(Entry); ++GrantIndex)
+			{
+				RunState.Relics.Add(Entry.GrantedRelicId);
+			}
+			break;
+
+		default:
+			break;
 		}
 	}
 }
@@ -670,8 +850,13 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 		return false;
 	}
 
+	if (!ValidateRewardEntriesForApplication(PendingRewardEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	{
+		return false;
+	}
+
 	TArray<FFinalRunRewardEntry> ClaimedEntries = MakeClaimedRewardEntries(PendingRewardEntries);
-	ApplyRewardEntriesToRunState(PendingRewardEntries, CurrentState);
+	ApplyValidatedRewardEntriesToRunState(PendingRewardEntries, CurrentState);
 
 	CurrentState.LastBattleRewardGold = GetRewardGoldTotal(PendingRewardEntries);
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
@@ -717,7 +902,12 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
-	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	{
+		return false;
+	}
+
+	ApplyValidatedRewardEntriesToRunState(PreviewEntries, CurrentState);
 	MarkCurrentNodeResolved();
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
 
@@ -779,7 +969,12 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOption->RewardEntries);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
-	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	{
+		return false;
+	}
+
+	ApplyValidatedRewardEntriesToRunState(PreviewEntries, CurrentState);
 	MarkCurrentNodeResolved();
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
 
@@ -853,8 +1048,13 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOffer->RewardEntries);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	{
+		return false;
+	}
+
 	CurrentState.Gold -= SelectedOffer->Price;
-	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	ApplyValidatedRewardEntriesToRunState(PreviewEntries, CurrentState);
 	MarkCurrentNodeResolved();
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
 

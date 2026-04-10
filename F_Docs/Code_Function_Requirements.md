@@ -235,6 +235,9 @@
 * 生成战后奖励
 * 管理删牌、购牌、买遗物、恢复、重铸等行为
 * 维护单局构筑修正路径
+* 奖励协议中的“真正授予对象”应使用稳定的 typed payload 标识，例如 `GrantedCardId / GrantedRelicId`，不能长期把 `DisplayId` 当作权威玩法身份
+* 当前 `RunState` 至少应真实承接：`Gold -> Gold`、`CardGrant -> RunDeck`、`RelicGrant -> Relics`
+* `RemoveCard / UpgradeCard / Growth` 若协议仍不足，当前阶段应明确拒绝而不是伪造成功
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
 * 非战斗节点查询面至少公开 `PendingRewardNode / PendingEventNode / PendingShopNode` 的最小结构化内容，供 UI 读取标题、简介、选项、商品与可执行状态
 
@@ -532,6 +535,7 @@
 ### 12.2 单局外侧
 * `RunSession` 必须允许扩展事件、商店、遗物、角色成长
 * 奖励系统必须允许后续加入“删牌、加牌、升级牌、角色成长分支”
+* 已落地的奖励类型需要在 `RunState` 内真实反映，而不是只停留在 Snapshot 展示层
 * 节点推进必须允许后续加入特殊节点类型
 
 ### 12.3 表现层

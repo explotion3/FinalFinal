@@ -48,6 +48,10 @@ enum class EFinalRunCommandRejectReason : uint8
 	UnknownShopOffer,
 	ShopOfferUnavailable,
 	InsufficientGold,
+	MissingGrantedCardId,
+	MissingGrantedRelicId,
+	RewardCardDefinitionUnavailable,
+	UnsupportedRewardType,
 	EventNodeResolutionNotImplemented,
 	ShopNodeResolutionNotImplemented,
 	RunEnded
