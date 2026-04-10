@@ -8,7 +8,7 @@
 
 namespace
 {
-FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
+FText JoinEnemyStatusTextArray(const TArray<FText>& Texts, const FText& EmptyText)
 {
 	if (Texts.Num() == 0)
 	{
@@ -61,7 +61,7 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScre
 		InEntry.bActedThisRound
 			? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyIntentActed", "{0} | 本回合已行动"), InEntry.IntentText)
 			: InEntry.IntentText,
-		JoinTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
+		JoinEnemyStatusTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
 	bSelected = InEntry.bSelected;
 	RebuildVisual();
 }
