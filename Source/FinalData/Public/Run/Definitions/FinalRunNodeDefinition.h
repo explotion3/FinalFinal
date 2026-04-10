@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
+#include "Run/Definitions/FinalRunNodeContentDefinition.h"
 #include "FinalRunNodeDefinition.generated.h"
 
 UENUM(BlueprintType)
@@ -53,6 +54,15 @@ struct FINALDATA_API FFinalRunNodeDefinition
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FName> NextNodeIds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunRewardNodeContentDefinition RewardContent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunEventNodeContentDefinition EventContent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunShopNodeContentDefinition ShopContent;
 
 	bool IsValid() const
 	{

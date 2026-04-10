@@ -236,6 +236,7 @@
 * 管理删牌、购牌、买遗物、恢复、重铸等行为
 * 维护单局构筑修正路径
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
+* 非战斗节点查询面至少公开 `PendingRewardNode / PendingEventNode / PendingShopNode` 的最小结构化内容，供 UI 读取标题、简介、选项、商品与可执行状态
 
 优先级：
 * `P1`
@@ -483,6 +484,13 @@
 * `CompleteBattleAndApplyResult(Result)`
 * `ClaimPendingBattleReward()`
 * `AdvanceToNextNode(NodeId)`
+
+### 11.2.1 首批必须有的 Run 只读查询面
+* `RunSnapshot.PendingBattleReward`
+* `RunSnapshot.PendingRewardNode`
+* `RunSnapshot.PendingEventNode`
+* `RunSnapshot.PendingShopNode`
+* `RunSnapshot.Progression`
 
 ### 11.3 首批必须有的最小状态
 * `RunState`
