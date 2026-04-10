@@ -96,6 +96,9 @@
 * `Source/FinalData/Public/Battle/Definitions/FinalStatusDefinition.h`
 * `Source/FinalData/Public/Battle/Definitions/FinalBattleEncounterDefinition.h`
 * `Source/FinalData/Public/Battle/Effects/FinalBattleEffectDefinition.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
+* `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
 
 #### 首批目标
@@ -202,7 +205,8 @@
 * 维护最小单局持久状态
 * 作为进入战斗前的唯一队伍与牌组输入来源
 * 接收战斗结果并回写最小单局状态
-* 提供事件 / 奖励 / 商店等单局外命令的统一入口，但首批只保留空壳接口
+* 提供事件 / 奖励 / 商店等单局外命令的统一入口
+* 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 
 #### 暂不创建
 * 完整事件解析器

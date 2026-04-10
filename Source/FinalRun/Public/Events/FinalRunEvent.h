@@ -19,6 +19,9 @@ enum class EFinalRunEventType : uint8
 	BattleResultApplied,
 	PendingBattleRewardGenerated,
 	PendingBattleRewardClaimed,
+	RewardNodeResolved,
+	EventNodeResolved,
+	ShopOfferPurchased,
 	NodeAdvanced
 };
 
@@ -36,6 +39,15 @@ enum class EFinalRunCommandRejectReason : uint8
 	UnsupportedTargetNodeType,
 	TargetNodeMissingBattleConfig,
 	CurrentNodeRequiresResolution,
+	MissingRewardNodeContent,
+	MissingEventNodeContent,
+	MissingShopNodeContent,
+	MissingPayloadId,
+	UnknownEventOption,
+	EventOptionDisabled,
+	UnknownShopOffer,
+	ShopOfferUnavailable,
+	InsufficientGold,
 	EventNodeResolutionNotImplemented,
 	ShopNodeResolutionNotImplemented,
 	RunEnded
@@ -96,6 +108,9 @@ struct FINALRUN_API FFinalRunEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 RewardGold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 SpentGold = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;

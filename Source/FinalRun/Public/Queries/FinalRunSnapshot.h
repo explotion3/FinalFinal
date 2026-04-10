@@ -17,6 +17,15 @@ struct FINALRUN_API FFinalRunSnapshot
 	FFinalRunPendingBattleRewardViewData PendingBattleReward;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunPendingRewardNodeViewData PendingRewardNode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunPendingEventNodeViewData PendingEventNode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunPendingShopNodeViewData PendingShopNode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalRunProgressionViewData Progression;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")

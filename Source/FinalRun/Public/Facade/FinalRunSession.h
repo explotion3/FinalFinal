@@ -60,13 +60,20 @@ public:
 
 private:
 	bool TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	bool TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	bool TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	bool TryExecuteResolveShopNode(const FName& OfferId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	const FFinalRunNodeDefinition* FindNodeDefinition(const FName& NodeId) const;
 	TArray<FFinalRunNodeOptionViewData> BuildAvailableNextNodeViews() const;
+	FFinalRunPendingRewardNodeViewData BuildPendingRewardNodeView() const;
+	FFinalRunPendingEventNodeViewData BuildPendingEventNodeView() const;
+	FFinalRunPendingShopNodeViewData BuildPendingShopNodeView() const;
 	void ApplyNodeContextFromNode(const FFinalRunNodeDefinition& NodeDefinition);
 	void ClearBattleStartContext();
 	void PopulateNodeEventMetadata(FFinalRunEvent& Event, const FFinalRunNodeDefinition& NodeDefinition) const;
 	void PopulateNodeViewMetadata(FFinalRunNodeOptionViewData& View, const FFinalRunNodeDefinition& NodeDefinition) const;
+	void MarkCurrentNodeResolved();
 	bool HasPendingBattleReward() const;
 	int32 GetPendingBattleRewardGold() const;
 	FText GetCurrentNodeStateMessage() const;
@@ -81,6 +88,7 @@ private:
 
 	TArray<FFinalRunNodeDefinition> ConfiguredRunNodes;
 	TSet<FName> VisitedNodeIds;
+	TSet<FName> ResolvedNodeIds;
 	FName CurrentNodeId = NAME_None;
 	EFinalRunFlowStage CurrentFlowStage = EFinalRunFlowStage::None;
 	FName PendingRewardSourceNodeId = NAME_None;

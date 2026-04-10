@@ -22,7 +22,10 @@ bool IsBattleNodeType(const EFinalRunNodeType NodeType)
 
 bool HasImplementedNodeResolver(const EFinalRunNodeType NodeType)
 {
-	return IsBattleNodeType(NodeType);
+	return IsBattleNodeType(NodeType)
+		|| NodeType == EFinalRunNodeType::Reward
+		|| NodeType == EFinalRunNodeType::Event
+		|| NodeType == EFinalRunNodeType::Shop;
 }
 
 FText GetBattleOutcomeText(const EFinalBattleOutcome Outcome)
@@ -70,6 +73,24 @@ FText GetDefaultNodeDisplayName(const EFinalRunNodeType NodeType)
 	}
 }
 
+FText GetDefaultNodeSummary(const EFinalRunNodeType NodeType)
+{
+	switch (NodeType)
+	{
+	case EFinalRunNodeType::Reward:
+		return NSLOCTEXT("FinalRunSession", "RewardNodeSummaryDefault", "Choose and confirm this node's configured rewards.");
+
+	case EFinalRunNodeType::Event:
+		return NSLOCTEXT("FinalRunSession", "EventNodeSummaryDefault", "Review the event text and resolve one option.");
+
+	case EFinalRunNodeType::Shop:
+		return NSLOCTEXT("FinalRunSession", "ShopNodeSummaryDefault", "Inspect the current shop offers and resolve one purchase.");
+
+	default:
+		return FText::GetEmpty();
+	}
+}
+
 FName GetDefaultNodeDisplayLabel(const EFinalRunNodeType NodeType)
 {
 	switch (NodeType)
@@ -97,6 +118,33 @@ FName GetDefaultNodeDisplayLabel(const EFinalRunNodeType NodeType)
 	}
 }
 
+FText GetDefaultRewardDisplayName(const EFinalRunRewardType RewardType)
+{
+	switch (RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayGold", "Gold");
+
+	case EFinalRunRewardType::CardGrant:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayCard", "Card");
+
+	case EFinalRunRewardType::RelicGrant:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayRelic", "Relic");
+
+	case EFinalRunRewardType::RemoveCard:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayRemoveCard", "Remove Card");
+
+	case EFinalRunRewardType::UpgradeCard:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayUpgradeCard", "Upgrade Card");
+
+	case EFinalRunRewardType::Growth:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayGrowth", "Growth");
+
+	default:
+		return NSLOCTEXT("FinalRunSession", "RewardDisplayUnknown", "Reward");
+	}
+}
+
 bool DoesFlowStageBlockNodeAdvance(const EFinalRunFlowStage FlowStage)
 {
 	return FlowStage == EFinalRunFlowStage::PreparingBattle
@@ -120,16 +168,32 @@ int32 GetRewardGoldTotal(const TArray<FFinalRunRewardEntry>& RewardEntries)
 	return GoldTotal;
 }
 
+void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const bool bClaimable)
+{
+	for (FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		if (Entry.DisplayName.IsEmpty())
+		{
+			Entry.DisplayName = GetDefaultRewardDisplayName(Entry.RewardType);
+		}
+
+		Entry.bCanClaim = bClaimable;
+		Entry.bClaimed = !bClaimable;
+	}
+}
+
 TArray<FFinalRunRewardEntry> MakeClaimedRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries)
 {
 	TArray<FFinalRunRewardEntry> ClaimedEntries = RewardEntries;
-	for (FFinalRunRewardEntry& Entry : ClaimedEntries)
-	{
-		Entry.bCanClaim = false;
-		Entry.bClaimed = true;
-	}
-
+	NormalizeRewardEntries(ClaimedEntries, false);
 	return ClaimedEntries;
+}
+
+TArray<FFinalRunRewardEntry> MakePreviewRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	TArray<FFinalRunRewardEntry> PreviewEntries = RewardEntries;
+	NormalizeRewardEntries(PreviewEntries, true);
+	return PreviewEntries;
 }
 
 TArray<FFinalRunRewardEntry> BuildBattleRewardEntries(const FFinalBattleResult& Result)
@@ -151,6 +215,66 @@ TArray<FFinalRunRewardEntry> BuildBattleRewardEntries(const FFinalBattleResult& 
 
 	return RewardEntries;
 }
+
+void ApplyRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntries, FFinalRunState& RunState)
+{
+	for (const FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		if (!Entry.IsClaimable())
+		{
+			continue;
+		}
+
+		if (Entry.RewardType == EFinalRunRewardType::Gold)
+		{
+			RunState.Gold += Entry.Value;
+		}
+	}
+}
+
+EFinalRunFlowStage GetFlowStageForNode(const FFinalRunNodeDefinition& NodeDefinition, const bool bNodeResolved, const bool bHasPendingBattleStart)
+{
+	if (NodeDefinition.IsBattleNode())
+	{
+		return bHasPendingBattleStart ? EFinalRunFlowStage::PreparingBattle : EFinalRunFlowStage::AwaitingNodeAdvance;
+	}
+
+	if (bNodeResolved)
+	{
+		return EFinalRunFlowStage::AwaitingNodeAdvance;
+	}
+
+	switch (NodeDefinition.NodeType)
+	{
+	case EFinalRunNodeType::Reward:
+		return EFinalRunFlowStage::PendingRewardNode;
+
+	case EFinalRunNodeType::Event:
+		return EFinalRunFlowStage::PendingEventNode;
+
+	case EFinalRunNodeType::Shop:
+		return EFinalRunFlowStage::PendingShopNode;
+
+	default:
+		return EFinalRunFlowStage::AwaitingNodeAdvance;
+	}
+}
+
+const FFinalRunEventOptionDefinition* FindEventOptionDefinition(const FFinalRunNodeDefinition& NodeDefinition, const FName OptionId)
+{
+	return NodeDefinition.EventContent.Options.FindByPredicate([&OptionId](const FFinalRunEventOptionDefinition& Option)
+	{
+		return Option.OptionId == OptionId;
+	});
+}
+
+const FFinalRunShopOfferDefinition* FindShopOfferDefinition(const FFinalRunNodeDefinition& NodeDefinition, const FName OfferId)
+{
+	return NodeDefinition.ShopContent.Offers.FindByPredicate([&OfferId](const FFinalRunShopOfferDefinition& Offer)
+	{
+		return Offer.OfferId == OfferId;
+	});
+}
 }
 
 void UFinalRunSession::InitializeRun()
@@ -162,6 +286,7 @@ void UFinalRunSession::InitializeRun()
 	RunLogEntries.Reset();
 	ConfiguredRunNodes.Reset();
 	VisitedNodeIds.Reset();
+	ResolvedNodeIds.Reset();
 	CurrentNodeId = NAME_None;
 	CurrentFlowStage = EFinalRunFlowStage::None;
 	PendingRewardSourceNodeId = NAME_None;
@@ -209,31 +334,7 @@ void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinitio
 	}
 	else if (CurrentNode != nullptr)
 	{
-		if (IsBattleNodeType(CurrentNode->NodeType))
-		{
-			CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
-		}
-		else
-		{
-			switch (CurrentNode->NodeType)
-			{
-			case EFinalRunNodeType::Reward:
-				CurrentFlowStage = EFinalRunFlowStage::PendingRewardNode;
-				break;
-
-			case EFinalRunNodeType::Event:
-				CurrentFlowStage = EFinalRunFlowStage::PendingEventNode;
-				break;
-
-			case EFinalRunNodeType::Shop:
-				CurrentFlowStage = EFinalRunFlowStage::PendingShopNode;
-				break;
-
-			default:
-				CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
-				break;
-			}
-		}
+		CurrentFlowStage = GetFlowStageForNode(*CurrentNode, ResolvedNodeIds.Contains(CurrentNodeId), CurrentState.bHasPendingBattleStart);
 	}
 	else
 	{
@@ -286,7 +387,7 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 	FFinalRunEvent CommandEvent;
 	CommandEvent.CommandType = Command.CommandType;
 	CommandEvent.PayloadId = Command.PayloadId;
-	CommandEvent.NodeId = !Command.TargetNodeId.IsNone() ? Command.TargetNodeId : Command.PayloadId;
+	CommandEvent.NodeId = !Command.TargetNodeId.IsNone() ? Command.TargetNodeId : CurrentNodeId;
 	CommandEvent.TeamCurrentHP = CurrentState.TeamCurrentHP;
 
 	FFinalRunEvent DetailEvent;
@@ -304,30 +405,16 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 		bAccepted = TryExecuteClaimPendingBattleReward(DetailEvent, RejectReason, FailureMessage);
 		break;
 
+	case EFinalRunCommandType::ResolveReward:
+		bAccepted = TryExecuteResolveRewardNode(DetailEvent, RejectReason, FailureMessage);
+		break;
+
 	case EFinalRunCommandType::ResolveEvent:
-		if (CurrentFlowStage == EFinalRunFlowStage::PendingEventNode)
-		{
-			RejectReason = EFinalRunCommandRejectReason::EventNodeResolutionNotImplemented;
-			FailureMessage = FText::FromString(TEXT("Event node resolution is not implemented in the current prototype."));
-		}
-		else
-		{
-			RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
-			FailureMessage = FText::FromString(TEXT("ResolveEvent is only valid while the run is on an event node."));
-		}
+		bAccepted = TryExecuteResolveEventNode(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
 		break;
 
 	case EFinalRunCommandType::ResolveShop:
-		if (CurrentFlowStage == EFinalRunFlowStage::PendingShopNode)
-		{
-			RejectReason = EFinalRunCommandRejectReason::ShopNodeResolutionNotImplemented;
-			FailureMessage = FText::FromString(TEXT("Shop node resolution is not implemented in the current prototype."));
-		}
-		else
-		{
-			RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
-			FailureMessage = FText::FromString(TEXT("ResolveShop is only valid while the run is on a shop node."));
-		}
+		bAccepted = TryExecuteResolveShopNode(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
 		break;
 
 	default:
@@ -488,6 +575,10 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 			: SourceNode->DisplayLabel;
 	}
 
+	Snapshot.PendingRewardNode = BuildPendingRewardNodeView();
+	Snapshot.PendingEventNode = BuildPendingEventNodeView();
+	Snapshot.PendingShopNode = BuildPendingShopNodeView();
+
 	Snapshot.Progression.FlowStage = CurrentFlowStage;
 	Snapshot.Progression.CurrentNodeId = CurrentNodeId;
 	Snapshot.Progression.CurrentNodeType = GetCurrentNodeType();
@@ -580,18 +671,7 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 	}
 
 	TArray<FFinalRunRewardEntry> ClaimedEntries = MakeClaimedRewardEntries(PendingRewardEntries);
-	for (const FFinalRunRewardEntry& Entry : PendingRewardEntries)
-	{
-		if (!Entry.IsClaimable())
-		{
-			continue;
-		}
-
-		if (Entry.RewardType == EFinalRunRewardType::Gold)
-		{
-			CurrentState.Gold += Entry.Value;
-		}
-	}
+	ApplyRewardEntriesToRunState(PendingRewardEntries, CurrentState);
 
 	CurrentState.LastBattleRewardGold = GetRewardGoldTotal(PendingRewardEntries);
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
@@ -615,6 +695,181 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 	PendingRewardSourceEncounterId = FFinalEncounterId{};
 	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
 	PendingRewardEntries.Reset();
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	if (CurrentFlowStage != EFinalRunFlowStage::PendingRewardNode)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+		OutFailureMessage = FText::FromString(TEXT("ResolveReward is only valid while the run is on a reward node."));
+		return false;
+	}
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Reward)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingRewardNodeContent;
+		OutFailureMessage = FText::FromString(TEXT("The current reward node does not provide reward content."));
+		return false;
+	}
+
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
+	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	MarkCurrentNodeResolved();
+	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+
+	OutDetailEvent.EventType = EFinalRunEventType::RewardNodeResolved;
+	OutDetailEvent.NodeId = CurrentNodeId;
+	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
+	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
+	OutDetailEvent.Message = CurrentNode->RewardContent.Summary.IsEmpty()
+		? FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardNodeResolved", "Resolved reward node {0}."),
+			OutDetailEvent.NodeDisplayName)
+		: CurrentNode->RewardContent.Summary;
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	if (CurrentFlowStage != EFinalRunFlowStage::PendingEventNode)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+		OutFailureMessage = FText::FromString(TEXT("ResolveEvent is only valid while the run is on an event node."));
+		return false;
+	}
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Event)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingEventNodeContent;
+		OutFailureMessage = FText::FromString(TEXT("The current event node does not provide event content."));
+		return false;
+	}
+
+	if (OptionId.IsNone())
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPayloadId;
+		OutFailureMessage = FText::FromString(TEXT("ResolveEvent requires an event option id in PayloadId."));
+		return false;
+	}
+
+	const FFinalRunEventOptionDefinition* SelectedOption = FindEventOptionDefinition(*CurrentNode, OptionId);
+	if (SelectedOption == nullptr)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnknownEventOption;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "UnknownEventOption", "Event option {0} is not defined on the current node."),
+			FText::FromName(OptionId));
+		return false;
+	}
+
+	if (SelectedOption->bStartsDisabled)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::EventOptionDisabled;
+		OutFailureMessage = SelectedOption->DisabledReason.IsEmpty()
+			? FText::FromString(TEXT("The selected event option is currently disabled."))
+			: SelectedOption->DisabledReason;
+		return false;
+	}
+
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOption->RewardEntries);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
+	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	MarkCurrentNodeResolved();
+	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+
+	OutDetailEvent.EventType = EFinalRunEventType::EventNodeResolved;
+	OutDetailEvent.NodeId = CurrentNodeId;
+	OutDetailEvent.PayloadId = OptionId;
+	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
+	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
+	OutDetailEvent.Message = SelectedOption->OutcomeSummary.IsEmpty()
+		? FText::Format(
+			NSLOCTEXT("FinalRunSession", "EventNodeResolved", "Resolved event node {0} with option {1}."),
+			OutDetailEvent.NodeDisplayName,
+			FText::FromName(OptionId))
+		: SelectedOption->OutcomeSummary;
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	if (CurrentFlowStage != EFinalRunFlowStage::PendingShopNode)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+		OutFailureMessage = FText::FromString(TEXT("ResolveShop is only valid while the run is on a shop node."));
+		return false;
+	}
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Shop)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingShopNodeContent;
+		OutFailureMessage = FText::FromString(TEXT("The current shop node does not provide shop content."));
+		return false;
+	}
+
+	if (OfferId.IsNone())
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPayloadId;
+		OutFailureMessage = FText::FromString(TEXT("ResolveShop requires a shop offer id in PayloadId."));
+		return false;
+	}
+
+	const FFinalRunShopOfferDefinition* SelectedOffer = FindShopOfferDefinition(*CurrentNode, OfferId);
+	if (SelectedOffer == nullptr)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnknownShopOffer;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "UnknownShopOffer", "Shop offer {0} is not defined on the current node."),
+			FText::FromName(OfferId));
+		return false;
+	}
+
+	if (SelectedOffer->bStartsUnavailable)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::ShopOfferUnavailable;
+		OutFailureMessage = SelectedOffer->UnavailableReason.IsEmpty()
+			? FText::FromString(TEXT("The selected shop offer is currently unavailable."))
+			: SelectedOffer->UnavailableReason;
+		return false;
+	}
+
+	if (CurrentState.Gold < SelectedOffer->Price)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::InsufficientGold;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "InsufficientGold", "The selected shop offer costs {0} gold, but the run only has {1}."),
+			FText::AsNumber(SelectedOffer->Price),
+			FText::AsNumber(CurrentState.Gold));
+		return false;
+	}
+
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOffer->RewardEntries);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
+	CurrentState.Gold -= SelectedOffer->Price;
+	ApplyRewardEntriesToRunState(PreviewEntries, CurrentState);
+	MarkCurrentNodeResolved();
+	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+
+	OutDetailEvent.EventType = EFinalRunEventType::ShopOfferPurchased;
+	OutDetailEvent.NodeId = CurrentNodeId;
+	OutDetailEvent.PayloadId = OfferId;
+	OutDetailEvent.SpentGold = SelectedOffer->Price;
+	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
+	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
+	OutDetailEvent.Message = SelectedOffer->Description.IsEmpty()
+		? FText::Format(
+			NSLOCTEXT("FinalRunSession", "ShopOfferPurchased", "Purchased shop offer {0}."),
+			SelectedOffer->DisplayName.IsEmpty() ? FText::FromName(OfferId) : SelectedOffer->DisplayName)
+		: SelectedOffer->Description;
 	return true;
 }
 
@@ -700,32 +955,7 @@ bool UFinalRunSession::TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinal
 	CurrentNodeId = TargetNodeId;
 	VisitedNodeIds.Add(TargetNodeId);
 	ApplyNodeContextFromNode(*TargetNode);
-
-	if (IsBattleNodeType(TargetNode->NodeType))
-	{
-		CurrentFlowStage = CurrentState.bHasPendingBattleStart ? EFinalRunFlowStage::PreparingBattle : EFinalRunFlowStage::AwaitingNodeAdvance;
-	}
-	else
-	{
-		switch (TargetNode->NodeType)
-		{
-		case EFinalRunNodeType::Reward:
-			CurrentFlowStage = EFinalRunFlowStage::PendingRewardNode;
-			break;
-
-		case EFinalRunNodeType::Event:
-			CurrentFlowStage = EFinalRunFlowStage::PendingEventNode;
-			break;
-
-		case EFinalRunNodeType::Shop:
-			CurrentFlowStage = EFinalRunFlowStage::PendingShopNode;
-			break;
-
-		default:
-			CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
-			break;
-		}
-	}
+	CurrentFlowStage = GetFlowStageForNode(*TargetNode, ResolvedNodeIds.Contains(TargetNodeId), CurrentState.bHasPendingBattleStart);
 
 	OutDetailEvent.EventType = EFinalRunEventType::NodeAdvanced;
 	OutDetailEvent.NodeId = TargetNodeId;
@@ -812,6 +1042,149 @@ TArray<FFinalRunNodeOptionViewData> UFinalRunSession::BuildAvailableNextNodeView
 	return Views;
 }
 
+FFinalRunPendingRewardNodeViewData UFinalRunSession::BuildPendingRewardNodeView() const
+{
+	FFinalRunPendingRewardNodeViewData View;
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Reward)
+	{
+		return View;
+	}
+
+	const bool bResolved = ResolvedNodeIds.Contains(CurrentNodeId);
+	View.bHasPendingContent = true;
+	View.NodeId = CurrentNodeId;
+	View.Title = CurrentNode->RewardContent.Title.IsEmpty()
+		? (CurrentNode->DisplayName.IsEmpty() ? GetDefaultNodeDisplayName(CurrentNode->NodeType) : CurrentNode->DisplayName)
+		: CurrentNode->RewardContent.Title;
+	View.Summary = CurrentNode->RewardContent.Summary.IsEmpty()
+		? GetDefaultNodeSummary(CurrentNode->NodeType)
+		: CurrentNode->RewardContent.Summary;
+	View.bCanResolve = CurrentFlowStage == EFinalRunFlowStage::PendingRewardNode;
+	View.bResolved = bResolved;
+	View.RewardEntries = bResolved
+		? MakeClaimedRewardEntries(MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries))
+		: MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries);
+	return View;
+}
+
+FFinalRunPendingEventNodeViewData UFinalRunSession::BuildPendingEventNodeView() const
+{
+	FFinalRunPendingEventNodeViewData View;
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Event)
+	{
+		return View;
+	}
+
+	const bool bResolved = ResolvedNodeIds.Contains(CurrentNodeId);
+	View.bHasPendingContent = true;
+	View.NodeId = CurrentNodeId;
+	View.Title = CurrentNode->EventContent.Title.IsEmpty()
+		? (CurrentNode->DisplayName.IsEmpty() ? GetDefaultNodeDisplayName(CurrentNode->NodeType) : CurrentNode->DisplayName)
+		: CurrentNode->EventContent.Title;
+	View.Summary = CurrentNode->EventContent.Summary.IsEmpty()
+		? GetDefaultNodeSummary(CurrentNode->NodeType)
+		: CurrentNode->EventContent.Summary;
+	View.bResolved = bResolved;
+
+	for (const FFinalRunEventOptionDefinition& Option : CurrentNode->EventContent.Options)
+	{
+		FFinalRunEventOptionViewData OptionView;
+		OptionView.OptionId = Option.OptionId;
+		OptionView.DisplayText = Option.DisplayText.IsEmpty()
+			? FText::FromName(Option.OptionId)
+			: Option.DisplayText;
+		OptionView.OutcomeSummary = Option.OutcomeSummary;
+		OptionView.RewardEntries = MakePreviewRewardEntries(Option.RewardEntries);
+		OptionView.bSelectable = !bResolved && !Option.bStartsDisabled;
+		OptionView.AvailabilityMessage = Option.bStartsDisabled
+			? (Option.DisabledReason.IsEmpty() ? FText::FromString(TEXT("This option is currently unavailable.")) : Option.DisabledReason)
+			: FText::GetEmpty();
+		if (bResolved)
+		{
+			OptionView.bSelectable = false;
+			OptionView.AvailabilityMessage = FText::FromString(TEXT("This event node has already been resolved."));
+		}
+
+		if (OptionView.bSelectable)
+		{
+			View.bCanResolve = true;
+		}
+
+		View.Options.Add(OptionView);
+	}
+
+	return View;
+}
+
+FFinalRunPendingShopNodeViewData UFinalRunSession::BuildPendingShopNodeView() const
+{
+	FFinalRunPendingShopNodeViewData View;
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Shop)
+	{
+		return View;
+	}
+
+	const bool bResolved = ResolvedNodeIds.Contains(CurrentNodeId);
+	View.bHasPendingContent = true;
+	View.NodeId = CurrentNodeId;
+	View.Title = CurrentNode->ShopContent.Title.IsEmpty()
+		? (CurrentNode->DisplayName.IsEmpty() ? GetDefaultNodeDisplayName(CurrentNode->NodeType) : CurrentNode->DisplayName)
+		: CurrentNode->ShopContent.Title;
+	View.Summary = CurrentNode->ShopContent.Summary.IsEmpty()
+		? GetDefaultNodeSummary(CurrentNode->NodeType)
+		: CurrentNode->ShopContent.Summary;
+	View.bResolved = bResolved;
+
+	for (const FFinalRunShopOfferDefinition& Offer : CurrentNode->ShopContent.Offers)
+	{
+		FFinalRunShopOfferViewData OfferView;
+		OfferView.OfferId = Offer.OfferId;
+		OfferView.DisplayId = Offer.DisplayId;
+		OfferView.DisplayName = Offer.DisplayName.IsEmpty()
+			? FText::FromName(Offer.OfferId)
+			: Offer.DisplayName;
+		OfferView.Description = Offer.Description;
+		OfferView.Price = Offer.Price;
+		OfferView.bPurchased = bResolved;
+		OfferView.RewardEntries = MakePreviewRewardEntries(Offer.RewardEntries);
+
+		if (bResolved)
+		{
+			OfferView.bPurchasable = false;
+			OfferView.AvailabilityMessage = FText::FromString(TEXT("This shop node has already been resolved."));
+		}
+		else if (Offer.bStartsUnavailable)
+		{
+			OfferView.bPurchasable = false;
+			OfferView.AvailabilityMessage = Offer.UnavailableReason.IsEmpty()
+				? FText::FromString(TEXT("This offer is currently unavailable."))
+				: Offer.UnavailableReason;
+		}
+		else if (CurrentState.Gold < Offer.Price)
+		{
+			OfferView.bPurchasable = false;
+			OfferView.AvailabilityMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "ShopOfferNeedsMoreGold", "Requires {0} gold."),
+				FText::AsNumber(Offer.Price));
+		}
+		else
+		{
+			OfferView.bPurchasable = true;
+			View.bCanResolve = true;
+		}
+
+		View.Offers.Add(OfferView);
+	}
+
+	return View;
+}
+
 void UFinalRunSession::ApplyNodeContextFromNode(const FFinalRunNodeDefinition& NodeDefinition)
 {
 	if (NodeDefinition.IsBattleNode())
@@ -868,6 +1241,14 @@ void UFinalRunSession::PopulateNodeViewMetadata(FFinalRunNodeOptionViewData& Vie
 	View.bHasImplementedResolver = HasImplementedNodeResolver(NodeDefinition.NodeType);
 }
 
+void UFinalRunSession::MarkCurrentNodeResolved()
+{
+	if (!CurrentNodeId.IsNone())
+	{
+		ResolvedNodeIds.Add(CurrentNodeId);
+	}
+}
+
 bool UFinalRunSession::HasPendingBattleReward() const
 {
 	return PendingRewardEntries.Num() > 0;
@@ -889,13 +1270,13 @@ FText UFinalRunSession::GetCurrentNodeStateMessage() const
 		return FText::FromString(TEXT("Claim the pending battle reward before selecting another node."));
 
 	case EFinalRunFlowStage::PendingRewardNode:
-		return FText::FromString(TEXT("Reward nodes are not implemented in the current prototype."));
+		return FText::FromString(TEXT("Resolve the current reward node before selecting another node."));
 
 	case EFinalRunFlowStage::PendingEventNode:
-		return FText::FromString(TEXT("Event nodes are not implemented in the current prototype."));
+		return FText::FromString(TEXT("Resolve the current event node before selecting another node."));
 
 	case EFinalRunFlowStage::PendingShopNode:
-		return FText::FromString(TEXT("Shop nodes are not implemented in the current prototype."));
+		return FText::FromString(TEXT("Resolve the current shop node before selecting another node."));
 
 	case EFinalRunFlowStage::RunEnded:
 		return FText::FromString(TEXT("The run can no longer advance."));
