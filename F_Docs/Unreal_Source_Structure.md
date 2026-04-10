@@ -205,10 +205,12 @@ FinalBattle      FinalRun
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
+* 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
 * `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页还是关闭外层页
+* 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
@@ -530,6 +532,7 @@ Source
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
 * `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页以 `RewardEntries` 为主展示，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 并只转发对应的 `Resolve*` 命令
+* `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`
 

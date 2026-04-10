@@ -32,6 +32,9 @@
   * 读取 `RunSession`
   * 增量消费 `RunEvent`
   * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD
+* 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
+  * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
+  * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
@@ -94,6 +97,11 @@
   * 进入 `PendingEventNode` 时切到事件节点页
   * 进入 `PendingShopNode` 时切到商店节点页
   * 进入 `PreparingBattle / None / RunEnded` 时关闭不该停留的外层页
+* 当 `RunSession` 进入 `PreparingBattle`，且：
+  * `HasValidBattleStartState == true`
+  * 当前没有 `ActiveBattleSession`
+  * `RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`
+* 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 
 ## 3. 当前已桥接字段

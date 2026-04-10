@@ -3,6 +3,7 @@
 #include "Facade/FinalRunSession.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
+#include "Templates/UnrealTemplate.h"
 
 void UFinalGameFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -12,6 +13,12 @@ void UFinalGameFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 UFinalRunSession* UFinalGameFlowSubsystem::BootstrapNewRun()
 {
 	LastFlowFailureReason = FText::GetEmpty();
+
+	if (UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr)
+	{
+		BattleFlowSubsystem->ClearActiveBattleSession();
+	}
+
 	RunSession = NewObject<UFinalRunSession>(this);
 	RunSession->InitializeRun();
 
@@ -57,6 +64,41 @@ UFinalBattleSession* UFinalGameFlowSubsystem::StartBattleFromRunSession()
 	}
 
 	return BattleSession;
+}
+
+bool UFinalGameFlowSubsystem::TryAutoStartPreparedBattleFromRun()
+{
+	if (bAutoStartingPreparedBattle || RunSession == nullptr)
+	{
+		return false;
+	}
+
+	UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
+	if (BattleFlowSubsystem == nullptr)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("FinalBattleFlowSubsystem is unavailable."));
+		return false;
+	}
+
+	if (BattleFlowSubsystem->GetActiveBattleSession() != nullptr)
+	{
+		return false;
+	}
+
+	const FFinalRunSnapshot Snapshot = RunSession->GetSnapshot();
+	if (Snapshot.Progression.FlowStage != EFinalRunFlowStage::PreparingBattle)
+	{
+		return false;
+	}
+
+	if (!RunSession->HasValidBattleStartState())
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("RunSession entered PreparingBattle without a valid battle start state."));
+		return false;
+	}
+
+	TGuardValue<bool> AutoStartGuard(bAutoStartingPreparedBattle, true);
+	return StartBattleFromRunSession() != nullptr;
 }
 
 bool UFinalGameFlowSubsystem::CompleteBattleAndApplyResult(const FFinalBattleResult& Result)
