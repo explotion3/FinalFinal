@@ -63,7 +63,13 @@ private:
 	bool TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	const FFinalRunNodeDefinition* FindNodeDefinition(const FName& NodeId) const;
 	TArray<FFinalRunNodeOptionViewData> BuildAvailableNextNodeViews() const;
-	void ApplyBattleStartContextFromNode(const FFinalRunNodeDefinition& NodeDefinition);
+	void ApplyNodeContextFromNode(const FFinalRunNodeDefinition& NodeDefinition);
+	void ClearBattleStartContext();
+	void PopulateNodeEventMetadata(FFinalRunEvent& Event, const FFinalRunNodeDefinition& NodeDefinition) const;
+	void PopulateNodeViewMetadata(FFinalRunNodeOptionViewData& View, const FFinalRunNodeDefinition& NodeDefinition) const;
+	bool HasPendingBattleReward() const;
+	int32 GetPendingBattleRewardGold() const;
+	FText GetCurrentNodeStateMessage() const;
 	EFinalRunNodeType GetCurrentNodeType() const;
 	void AppendEvent(const FFinalRunEvent& Event);
 
@@ -74,12 +80,13 @@ private:
 	TArray<FFinalRunEvent> RunLogEntries;
 
 	TArray<FFinalRunNodeDefinition> ConfiguredRunNodes;
+	TSet<FName> VisitedNodeIds;
 	FName CurrentNodeId = NAME_None;
 	EFinalRunFlowStage CurrentFlowStage = EFinalRunFlowStage::None;
 	FName PendingRewardSourceNodeId = NAME_None;
 	FFinalEncounterId PendingRewardSourceEncounterId;
 	EFinalBattleOutcome PendingRewardBattleOutcome = EFinalBattleOutcome::None;
-	int32 PendingRewardGold = 0;
+	TArray<FFinalRunRewardEntry> PendingRewardEntries;
 
 	int32 LastEventSequence = 0;
 };

@@ -13,6 +13,18 @@ FFinalRunCharacterViewData MakeCharacterView(const FFinalRunPersistentCharacterS
 	return View;
 }
 
+bool IsBattleNodeType(const EFinalRunNodeType NodeType)
+{
+	return NodeType == EFinalRunNodeType::Battle
+		|| NodeType == EFinalRunNodeType::EliteBattle
+		|| NodeType == EFinalRunNodeType::BossBattle;
+}
+
+bool HasImplementedNodeResolver(const EFinalRunNodeType NodeType)
+{
+	return IsBattleNodeType(NodeType);
+}
+
 FText GetBattleOutcomeText(const EFinalBattleOutcome Outcome)
 {
 	switch (Outcome)
@@ -30,6 +42,115 @@ FText GetBattleOutcomeText(const EFinalBattleOutcome Outcome)
 		return FText::FromString(TEXT("Unknown"));
 	}
 }
+
+FText GetDefaultNodeDisplayName(const EFinalRunNodeType NodeType)
+{
+	switch (NodeType)
+	{
+	case EFinalRunNodeType::Battle:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayBattle", "Battle");
+
+	case EFinalRunNodeType::EliteBattle:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayEliteBattle", "Elite Battle");
+
+	case EFinalRunNodeType::BossBattle:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayBossBattle", "Boss Battle");
+
+	case EFinalRunNodeType::Event:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayEvent", "Event");
+
+	case EFinalRunNodeType::Shop:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayShop", "Shop");
+
+	case EFinalRunNodeType::Reward:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayReward", "Reward");
+
+	default:
+		return NSLOCTEXT("FinalRunSession", "NodeDisplayUnknown", "Unknown Node");
+	}
+}
+
+FName GetDefaultNodeDisplayLabel(const EFinalRunNodeType NodeType)
+{
+	switch (NodeType)
+	{
+	case EFinalRunNodeType::Battle:
+		return TEXT("RunNode.Battle");
+
+	case EFinalRunNodeType::EliteBattle:
+		return TEXT("RunNode.EliteBattle");
+
+	case EFinalRunNodeType::BossBattle:
+		return TEXT("RunNode.BossBattle");
+
+	case EFinalRunNodeType::Event:
+		return TEXT("RunNode.Event");
+
+	case EFinalRunNodeType::Shop:
+		return TEXT("RunNode.Shop");
+
+	case EFinalRunNodeType::Reward:
+		return TEXT("RunNode.Reward");
+
+	default:
+		return TEXT("RunNode.Unknown");
+	}
+}
+
+bool DoesFlowStageBlockNodeAdvance(const EFinalRunFlowStage FlowStage)
+{
+	return FlowStage == EFinalRunFlowStage::PreparingBattle
+		|| FlowStage == EFinalRunFlowStage::PendingBattleReward
+		|| FlowStage == EFinalRunFlowStage::PendingRewardNode
+		|| FlowStage == EFinalRunFlowStage::PendingEventNode
+		|| FlowStage == EFinalRunFlowStage::PendingShopNode;
+}
+
+int32 GetRewardGoldTotal(const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	int32 GoldTotal = 0;
+	for (const FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		if (Entry.RewardType == EFinalRunRewardType::Gold)
+		{
+			GoldTotal += Entry.Value;
+		}
+	}
+
+	return GoldTotal;
+}
+
+TArray<FFinalRunRewardEntry> MakeClaimedRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	TArray<FFinalRunRewardEntry> ClaimedEntries = RewardEntries;
+	for (FFinalRunRewardEntry& Entry : ClaimedEntries)
+	{
+		Entry.bCanClaim = false;
+		Entry.bClaimed = true;
+	}
+
+	return ClaimedEntries;
+}
+
+TArray<FFinalRunRewardEntry> BuildBattleRewardEntries(const FFinalBattleResult& Result)
+{
+	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	if (Result.Outcome == EFinalBattleOutcome::Victory && Result.RewardGold > 0)
+	{
+		FFinalRunRewardEntry GoldEntry;
+		GoldEntry.RewardId = TEXT("BattleReward.Gold");
+		GoldEntry.RewardType = EFinalRunRewardType::Gold;
+		GoldEntry.Value = Result.RewardGold;
+		GoldEntry.DisplayId = TEXT("Currency.Gold");
+		GoldEntry.DisplayName = NSLOCTEXT("FinalRunSession", "RewardDisplayGold", "Gold");
+		GoldEntry.bCanClaim = true;
+		GoldEntry.bClaimed = false;
+		RewardEntries.Add(GoldEntry);
+	}
+
+	return RewardEntries;
+}
 }
 
 void UFinalRunSession::InitializeRun()
@@ -40,12 +161,13 @@ void UFinalRunSession::InitializeRun()
 	CurrentState.bHasPendingBattleStart = false;
 	RunLogEntries.Reset();
 	ConfiguredRunNodes.Reset();
+	VisitedNodeIds.Reset();
 	CurrentNodeId = NAME_None;
 	CurrentFlowStage = EFinalRunFlowStage::None;
 	PendingRewardSourceNodeId = NAME_None;
 	PendingRewardSourceEncounterId = FFinalEncounterId{};
 	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
-	PendingRewardGold = 0;
+	PendingRewardEntries.Reset();
 	LastEventSequence = 0;
 
 	FFinalRunEvent Event;
@@ -59,19 +181,21 @@ void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinitio
 	ConfiguredRunNodes = NodeDefinitions;
 	CurrentNodeId = InCurrentNodeId;
 
-	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
+	if (!CurrentNodeId.IsNone())
 	{
-		if (CurrentNode->NodeType == EFinalRunNodeType::Battle)
-		{
-			if (!CurrentState.CurrentEncounterId.IsValid())
-			{
-				CurrentState.CurrentEncounterId = CurrentNode->EncounterId;
-			}
+		VisitedNodeIds.Add(CurrentNodeId);
+	}
 
-			if (!CurrentState.CurrentRuleConfigId.IsValid())
-			{
-				CurrentState.CurrentRuleConfigId = CurrentNode->RuleConfigId;
-			}
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode != nullptr)
+	{
+		if (CurrentNode->IsBattleNode() && !HasPendingBattleReward())
+		{
+			ApplyNodeContextFromNode(*CurrentNode);
+		}
+		else if (!CurrentNode->IsBattleNode())
+		{
+			ClearBattleStartContext();
 		}
 	}
 
@@ -79,13 +203,41 @@ void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinitio
 	{
 		CurrentFlowStage = EFinalRunFlowStage::PreparingBattle;
 	}
-	else if (PendingRewardGold > 0)
+	else if (HasPendingBattleReward())
 	{
 		CurrentFlowStage = EFinalRunFlowStage::PendingBattleReward;
 	}
-	else if (!CurrentNodeId.IsNone())
+	else if (CurrentNode != nullptr)
 	{
-		CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+		if (IsBattleNodeType(CurrentNode->NodeType))
+		{
+			CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+		}
+		else
+		{
+			switch (CurrentNode->NodeType)
+			{
+			case EFinalRunNodeType::Reward:
+				CurrentFlowStage = EFinalRunFlowStage::PendingRewardNode;
+				break;
+
+			case EFinalRunNodeType::Event:
+				CurrentFlowStage = EFinalRunFlowStage::PendingEventNode;
+				break;
+
+			case EFinalRunNodeType::Shop:
+				CurrentFlowStage = EFinalRunFlowStage::PendingShopNode;
+				break;
+
+			default:
+				CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+				break;
+			}
+		}
+	}
+	else
+	{
+		CurrentFlowStage = EFinalRunFlowStage::None;
 	}
 }
 
@@ -96,7 +248,10 @@ void UFinalRunSession::ConfigureBattleStartState(const FFinalEncounterId& Encoun
 	CurrentState.Characters = PartyStates;
 	CurrentState.RunDeck = DeckCardIds;
 	CurrentState.TeamCurrentHP = InTeamCurrentHP;
-	CurrentState.bHasPendingBattleStart = EncounterId.IsValid() && PartyStates.Num() > 0 && DeckCardIds.Num() > 0;
+	CurrentState.bHasPendingBattleStart = EncounterId.IsValid()
+		&& RuleConfigId.IsValid()
+		&& PartyStates.Num() > 0
+		&& DeckCardIds.Num() > 0;
 	CurrentFlowStage = CurrentState.bHasPendingBattleStart ? EFinalRunFlowStage::PreparingBattle : EFinalRunFlowStage::None;
 
 	FFinalRunEvent Event;
@@ -150,9 +305,29 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 		break;
 
 	case EFinalRunCommandType::ResolveEvent:
+		if (CurrentFlowStage == EFinalRunFlowStage::PendingEventNode)
+		{
+			RejectReason = EFinalRunCommandRejectReason::EventNodeResolutionNotImplemented;
+			FailureMessage = FText::FromString(TEXT("Event node resolution is not implemented in the current prototype."));
+		}
+		else
+		{
+			RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+			FailureMessage = FText::FromString(TEXT("ResolveEvent is only valid while the run is on an event node."));
+		}
+		break;
+
 	case EFinalRunCommandType::ResolveShop:
-		RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
-		FailureMessage = FText::FromString(TEXT("This run command is not implemented in the current prototype."));
+		if (CurrentFlowStage == EFinalRunFlowStage::PendingShopNode)
+		{
+			RejectReason = EFinalRunCommandRejectReason::ShopNodeResolutionNotImplemented;
+			FailureMessage = FText::FromString(TEXT("Shop node resolution is not implemented in the current prototype."));
+		}
+		else
+		{
+			RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+			FailureMessage = FText::FromString(TEXT("ResolveShop is only valid while the run is on a shop node."));
+		}
 		break;
 
 	default:
@@ -211,27 +386,29 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 
 void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 {
+	const FFinalRuleConfigId ResolvedRuleConfigId = CurrentState.CurrentRuleConfigId;
 	CurrentState.LastResolvedEncounterId = Result.EncounterId;
 	CurrentState.LastBattleOutcome = Result.Outcome;
 	CurrentState.LastBattleRewardGold = Result.RewardGold;
 	CurrentState.TeamCurrentHP = Result.TeamCurrentHP;
-	CurrentState.bHasPendingBattleStart = false;
+	ClearBattleStartContext();
 	PendingRewardSourceNodeId = NAME_None;
 	PendingRewardSourceEncounterId = FFinalEncounterId{};
 	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
-	PendingRewardGold = 0;
+	PendingRewardEntries.Reset();
 
 	if (Result.UpdatedCharacterStates.Num() > 0)
 	{
 		CurrentState.Characters = Result.UpdatedCharacterStates;
 	}
 
-	if (Result.Outcome == EFinalBattleOutcome::Victory && Result.RewardGold > 0)
+	PendingRewardEntries = BuildBattleRewardEntries(Result);
+
+	if (PendingRewardEntries.Num() > 0)
 	{
 		PendingRewardSourceNodeId = CurrentNodeId;
 		PendingRewardSourceEncounterId = Result.EncounterId;
 		PendingRewardBattleOutcome = Result.Outcome;
-		PendingRewardGold = Result.RewardGold;
 		CurrentFlowStage = EFinalRunFlowStage::PendingBattleReward;
 	}
 	else if (Result.Outcome == EFinalBattleOutcome::Victory)
@@ -246,17 +423,22 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	FFinalRunEvent Event;
 	Event.EventType = EFinalRunEventType::BattleResultApplied;
 	Event.EncounterId = Result.EncounterId;
-	Event.RuleConfigId = CurrentState.CurrentRuleConfigId;
+	Event.RuleConfigId = ResolvedRuleConfigId;
 	Event.NodeId = CurrentNodeId;
 	Event.BattleOutcome = Result.Outcome;
 	Event.TeamCurrentHP = Result.TeamCurrentHP;
-	Event.RewardGold = Result.RewardGold;
+	Event.RewardGold = GetRewardGoldTotal(PendingRewardEntries);
+	Event.RewardEntries = PendingRewardEntries;
+	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
+	{
+		PopulateNodeEventMetadata(Event, *CurrentNode);
+	}
 	Event.Message = FText::Format(
 		NSLOCTEXT("FinalRunSession", "BattleResultApplied", "Applied battle result: {0}."),
 		GetBattleOutcomeText(Result.Outcome));
 	AppendEvent(Event);
 
-	if (PendingRewardGold > 0)
+	if (HasPendingBattleReward())
 	{
 		FFinalRunEvent RewardEvent;
 		RewardEvent.EventType = EFinalRunEventType::PendingBattleRewardGenerated;
@@ -264,10 +446,15 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 		RewardEvent.SourceNodeId = CurrentNodeId;
 		RewardEvent.EncounterId = Result.EncounterId;
 		RewardEvent.BattleOutcome = Result.Outcome;
-		RewardEvent.RewardGold = PendingRewardGold;
+		RewardEvent.RewardGold = GetPendingBattleRewardGold();
+		RewardEvent.RewardEntries = PendingRewardEntries;
+		if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
+		{
+			PopulateNodeEventMetadata(RewardEvent, *CurrentNode);
+		}
 		RewardEvent.Message = FText::Format(
-			NSLOCTEXT("FinalRunSession", "PendingBattleRewardGenerated", "Generated a pending battle reward worth {0} gold."),
-			FText::AsNumber(PendingRewardGold));
+			NSLOCTEXT("FinalRunSession", "PendingBattleRewardGenerated", "Generated {0} pending battle reward entries."),
+			FText::AsNumber(PendingRewardEntries.Num()));
 		AppendEvent(RewardEvent);
 	}
 }
@@ -281,20 +468,64 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.PendingBattle.TeamCurrentHP = CurrentState.TeamCurrentHP;
 	Snapshot.PendingBattle.PartyCount = CurrentState.Characters.Num();
 	Snapshot.PendingBattle.DeckCount = CurrentState.RunDeck.Num();
-	Snapshot.PendingBattleReward.bHasPendingReward = PendingRewardGold > 0;
+
+	Snapshot.PendingBattleReward.bHasPendingReward = HasPendingBattleReward();
 	Snapshot.PendingBattleReward.SourceNodeId = PendingRewardSourceNodeId;
 	Snapshot.PendingBattleReward.SourceEncounterId = PendingRewardSourceEncounterId;
 	Snapshot.PendingBattleReward.SourceBattleOutcome = PendingRewardBattleOutcome;
-	Snapshot.PendingBattleReward.RewardGold = PendingRewardGold;
+	Snapshot.PendingBattleReward.RewardGold = GetPendingBattleRewardGold();
+	Snapshot.PendingBattleReward.bCanClaim = HasPendingBattleReward();
+	Snapshot.PendingBattleReward.RewardEntries = PendingRewardEntries;
+
+	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
+	{
+		Snapshot.PendingBattleReward.SourceNodeType = SourceNode->NodeType;
+		Snapshot.PendingBattleReward.SourceNodeDisplayName = SourceNode->DisplayName.IsEmpty()
+			? GetDefaultNodeDisplayName(SourceNode->NodeType)
+			: SourceNode->DisplayName;
+		Snapshot.PendingBattleReward.SourceNodeDisplayLabel = SourceNode->DisplayLabel.IsNone()
+			? GetDefaultNodeDisplayLabel(SourceNode->NodeType)
+			: SourceNode->DisplayLabel;
+	}
+
 	Snapshot.Progression.FlowStage = CurrentFlowStage;
 	Snapshot.Progression.CurrentNodeId = CurrentNodeId;
 	Snapshot.Progression.CurrentNodeType = GetCurrentNodeType();
-	Snapshot.Progression.bCanClaimPendingBattleReward = PendingRewardGold > 0;
+	Snapshot.Progression.bCurrentNodeVisited = !CurrentNodeId.IsNone() && VisitedNodeIds.Contains(CurrentNodeId);
+	Snapshot.Progression.bCurrentNodeNeedsResolution =
+		CurrentFlowStage != EFinalRunFlowStage::None
+		&& CurrentFlowStage != EFinalRunFlowStage::AwaitingNodeAdvance
+		&& CurrentFlowStage != EFinalRunFlowStage::RunEnded;
+	Snapshot.Progression.bCurrentNodeHasImplementedResolver = HasImplementedNodeResolver(Snapshot.Progression.CurrentNodeType);
+	Snapshot.Progression.CurrentNodeStateMessage = GetCurrentNodeStateMessage();
+	Snapshot.Progression.bCanClaimPendingBattleReward = HasPendingBattleReward();
 	Snapshot.Progression.AvailableNextNodes = BuildAvailableNextNodeViews();
+
+	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
+	{
+		Snapshot.Progression.CurrentNodeDisplayName = CurrentNode->DisplayName.IsEmpty()
+			? GetDefaultNodeDisplayName(CurrentNode->NodeType)
+			: CurrentNode->DisplayName;
+		Snapshot.Progression.CurrentNodeDisplayLabel = CurrentNode->DisplayLabel.IsNone()
+			? GetDefaultNodeDisplayLabel(CurrentNode->NodeType)
+			: CurrentNode->DisplayLabel;
+		Snapshot.Progression.CurrentChapter = CurrentNode->ChapterIndex;
+		Snapshot.Progression.CurrentFloor = CurrentNode->FloorIndex;
+	}
+
+	int32 UnlockedNextNodeCount = 0;
+	for (const FFinalRunNodeOptionViewData& NextNode : Snapshot.Progression.AvailableNextNodes)
+	{
+		if (!NextNode.bLocked)
+		{
+			++UnlockedNextNodeCount;
+		}
+	}
+
 	Snapshot.Progression.bCanAdvanceToNextNode =
-		CurrentFlowStage != EFinalRunFlowStage::PendingBattleReward
-		&& CurrentFlowStage != EFinalRunFlowStage::RunEnded
-		&& Snapshot.Progression.AvailableNextNodes.Num() > 0;
+		CurrentFlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
+		&& UnlockedNextNodeCount > 0;
+
 	Snapshot.Gold = CurrentState.Gold;
 	Snapshot.RelicCount = CurrentState.Relics.Num();
 	Snapshot.DeckCount = CurrentState.RunDeck.Num();
@@ -341,16 +572,28 @@ int32 UFinalRunSession::GetLatestRunEventSequence() const
 
 bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
-	if (PendingRewardGold <= 0)
+	if (!HasPendingBattleReward())
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::MissingPendingBattleReward;
 		OutFailureMessage = FText::FromString(TEXT("There is no pending battle reward to claim."));
 		return false;
 	}
 
-	const int32 ClaimedRewardGold = PendingRewardGold;
-	CurrentState.Gold += ClaimedRewardGold;
-	CurrentState.LastBattleRewardGold = ClaimedRewardGold;
+	TArray<FFinalRunRewardEntry> ClaimedEntries = MakeClaimedRewardEntries(PendingRewardEntries);
+	for (const FFinalRunRewardEntry& Entry : PendingRewardEntries)
+	{
+		if (!Entry.IsClaimable())
+		{
+			continue;
+		}
+
+		if (Entry.RewardType == EFinalRunRewardType::Gold)
+		{
+			CurrentState.Gold += Entry.Value;
+		}
+	}
+
+	CurrentState.LastBattleRewardGold = GetRewardGoldTotal(PendingRewardEntries);
 	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
 
 	OutDetailEvent.EventType = EFinalRunEventType::PendingBattleRewardClaimed;
@@ -358,21 +601,26 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 	OutDetailEvent.SourceNodeId = PendingRewardSourceNodeId;
 	OutDetailEvent.EncounterId = PendingRewardSourceEncounterId;
 	OutDetailEvent.BattleOutcome = PendingRewardBattleOutcome;
-	OutDetailEvent.RewardGold = ClaimedRewardGold;
+	OutDetailEvent.RewardGold = GetRewardGoldTotal(ClaimedEntries);
+	OutDetailEvent.RewardEntries = ClaimedEntries;
+	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
+	{
+		PopulateNodeEventMetadata(OutDetailEvent, *SourceNode);
+	}
 	OutDetailEvent.Message = FText::Format(
-		NSLOCTEXT("FinalRunSession", "PendingBattleRewardClaimed", "Claimed the pending battle reward for {0} gold."),
-		FText::AsNumber(ClaimedRewardGold));
+		NSLOCTEXT("FinalRunSession", "PendingBattleRewardClaimed", "Claimed {0} pending battle reward entries."),
+		FText::AsNumber(ClaimedEntries.Num()));
 
 	PendingRewardSourceNodeId = NAME_None;
 	PendingRewardSourceEncounterId = FFinalEncounterId{};
 	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
-	PendingRewardGold = 0;
+	PendingRewardEntries.Reset();
 	return true;
 }
 
 bool UFinalRunSession::TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
-	if (CurrentFlowStage == EFinalRunFlowStage::PendingBattleReward)
+	if (HasPendingBattleReward())
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::PendingBattleRewardMustBeClaimed;
 		OutFailureMessage = FText::FromString(TEXT("Claim the pending battle reward before advancing to another node."));
@@ -383,6 +631,13 @@ bool UFinalRunSession::TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinal
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::RunEnded;
 		OutFailureMessage = FText::FromString(TEXT("The run can no longer advance."));
+		return false;
+	}
+
+	if (DoesFlowStageBlockNodeAdvance(CurrentFlowStage))
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::CurrentNodeRequiresResolution;
+		OutFailureMessage = GetCurrentNodeStateMessage();
 		return false;
 	}
 
@@ -418,31 +673,69 @@ bool UFinalRunSession::TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinal
 		}
 	}
 
-	if (TargetNode->NodeType != EFinalRunNodeType::Battle)
+	if (TargetNode->bStartsLocked)
 	{
-		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedTargetNodeType;
-		OutFailureMessage = FText::FromString(TEXT("Only battle nodes are supported by the current run progression prototype."));
+		OutRejectReason = EFinalRunCommandRejectReason::TargetNodeLocked;
+		OutFailureMessage = TargetNode->LockedReason.IsEmpty()
+			? FText::FromString(TEXT("The target run node is locked."))
+			: TargetNode->LockedReason;
 		return false;
 	}
 
-	if (!TargetNode->EncounterId.IsValid() || !TargetNode->RuleConfigId.IsValid())
+	if (IsBattleNodeType(TargetNode->NodeType) && (!TargetNode->EncounterId.IsValid() || !TargetNode->RuleConfigId.IsValid()))
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::TargetNodeMissingBattleConfig;
 		OutFailureMessage = FText::FromString(TEXT("The target battle node is missing encounter or rule config data."));
 		return false;
 	}
 
+	if (TargetNode->NodeType == EFinalRunNodeType::None)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedTargetNodeType;
+		OutFailureMessage = FText::FromString(TEXT("The target run node does not have a supported node type."));
+		return false;
+	}
+
+	const FName PreviousNodeId = CurrentNodeId;
 	CurrentNodeId = TargetNodeId;
-	ApplyBattleStartContextFromNode(*TargetNode);
-	CurrentFlowStage = CurrentState.bHasPendingBattleStart ? EFinalRunFlowStage::PreparingBattle : EFinalRunFlowStage::AwaitingNodeAdvance;
+	VisitedNodeIds.Add(TargetNodeId);
+	ApplyNodeContextFromNode(*TargetNode);
+
+	if (IsBattleNodeType(TargetNode->NodeType))
+	{
+		CurrentFlowStage = CurrentState.bHasPendingBattleStart ? EFinalRunFlowStage::PreparingBattle : EFinalRunFlowStage::AwaitingNodeAdvance;
+	}
+	else
+	{
+		switch (TargetNode->NodeType)
+		{
+		case EFinalRunNodeType::Reward:
+			CurrentFlowStage = EFinalRunFlowStage::PendingRewardNode;
+			break;
+
+		case EFinalRunNodeType::Event:
+			CurrentFlowStage = EFinalRunFlowStage::PendingEventNode;
+			break;
+
+		case EFinalRunNodeType::Shop:
+			CurrentFlowStage = EFinalRunFlowStage::PendingShopNode;
+			break;
+
+		default:
+			CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+			break;
+		}
+	}
 
 	OutDetailEvent.EventType = EFinalRunEventType::NodeAdvanced;
 	OutDetailEvent.NodeId = TargetNodeId;
-	OutDetailEvent.EncounterId = TargetNode->EncounterId;
-	OutDetailEvent.RuleConfigId = TargetNode->RuleConfigId;
+	OutDetailEvent.SourceNodeId = PreviousNodeId;
+	PopulateNodeEventMetadata(OutDetailEvent, *TargetNode);
 	OutDetailEvent.Message = FText::Format(
 		NSLOCTEXT("FinalRunSession", "NodeAdvanced", "Advanced to run node {0}."),
-		FText::FromName(TargetNodeId));
+		TargetNode->DisplayName.IsEmpty()
+			? GetDefaultNodeDisplayName(TargetNode->NodeType)
+			: TargetNode->DisplayName);
 	return true;
 }
 
@@ -464,16 +757,53 @@ TArray<FFinalRunNodeOptionViewData> UFinalRunSession::BuildAvailableNextNodeView
 		return Views;
 	}
 
+	const bool bMustClaimBattleReward = HasPendingBattleReward();
+	const bool bCurrentNodeBlocksAdvance = DoesFlowStageBlockNodeAdvance(CurrentFlowStage);
+	const bool bRunEnded = CurrentFlowStage == EFinalRunFlowStage::RunEnded;
+	const FText CurrentNodeStateMessage = GetCurrentNodeStateMessage();
+
 	for (const FName& NextNodeId : CurrentNode->NextNodeIds)
 	{
 		FFinalRunNodeOptionViewData View;
 		View.NodeId = NextNodeId;
+		View.bVisited = VisitedNodeIds.Contains(NextNodeId);
 
 		if (const FFinalRunNodeDefinition* NextNode = FindNodeDefinition(NextNodeId))
 		{
-			View.NodeType = NextNode->NodeType;
-			View.EncounterId = NextNode->EncounterId;
-			View.RuleConfigId = NextNode->RuleConfigId;
+			PopulateNodeViewMetadata(View, *NextNode);
+
+			if (bRunEnded)
+			{
+				View.bLocked = true;
+				View.AvailabilityReason = EFinalRunNodeAvailabilityReason::RunEnded;
+				View.AvailabilityMessage = FText::FromString(TEXT("The run can no longer advance."));
+			}
+			else if (bMustClaimBattleReward)
+			{
+				View.bLocked = true;
+				View.AvailabilityReason = EFinalRunNodeAvailabilityReason::PendingBattleRewardMustBeClaimed;
+				View.AvailabilityMessage = FText::FromString(TEXT("Claim the pending battle reward before selecting another node."));
+			}
+			else if (bCurrentNodeBlocksAdvance)
+			{
+				View.bLocked = true;
+				View.AvailabilityReason = EFinalRunNodeAvailabilityReason::CurrentNodeRequiresResolution;
+				View.AvailabilityMessage = CurrentNodeStateMessage;
+			}
+			else if (NextNode->bStartsLocked)
+			{
+				View.bLocked = true;
+				View.AvailabilityReason = EFinalRunNodeAvailabilityReason::DefinitionLocked;
+				View.AvailabilityMessage = NextNode->LockedReason.IsEmpty()
+					? FText::FromString(TEXT("This node is locked."))
+					: NextNode->LockedReason;
+			}
+			else if (IsBattleNodeType(NextNode->NodeType) && (!NextNode->EncounterId.IsValid() || !NextNode->RuleConfigId.IsValid()))
+			{
+				View.bLocked = true;
+				View.AvailabilityReason = EFinalRunNodeAvailabilityReason::MissingBattleConfig;
+				View.AvailabilityMessage = FText::FromString(TEXT("This battle node is missing encounter or rule config data."));
+			}
 		}
 
 		Views.Add(View);
@@ -482,15 +812,97 @@ TArray<FFinalRunNodeOptionViewData> UFinalRunSession::BuildAvailableNextNodeView
 	return Views;
 }
 
-void UFinalRunSession::ApplyBattleStartContextFromNode(const FFinalRunNodeDefinition& NodeDefinition)
+void UFinalRunSession::ApplyNodeContextFromNode(const FFinalRunNodeDefinition& NodeDefinition)
 {
-	CurrentState.CurrentEncounterId = NodeDefinition.EncounterId;
-	CurrentState.CurrentRuleConfigId = NodeDefinition.RuleConfigId;
-	CurrentState.bHasPendingBattleStart =
-		NodeDefinition.EncounterId.IsValid()
-		&& NodeDefinition.RuleConfigId.IsValid()
-		&& CurrentState.Characters.Num() > 0
-		&& CurrentState.RunDeck.Num() > 0;
+	if (NodeDefinition.IsBattleNode())
+	{
+		CurrentState.CurrentEncounterId = NodeDefinition.EncounterId;
+		CurrentState.CurrentRuleConfigId = NodeDefinition.RuleConfigId;
+		CurrentState.bHasPendingBattleStart =
+			NodeDefinition.EncounterId.IsValid()
+			&& NodeDefinition.RuleConfigId.IsValid()
+			&& CurrentState.Characters.Num() > 0
+			&& CurrentState.RunDeck.Num() > 0;
+	}
+	else
+	{
+		ClearBattleStartContext();
+	}
+}
+
+void UFinalRunSession::ClearBattleStartContext()
+{
+	CurrentState.CurrentEncounterId = FFinalEncounterId{};
+	CurrentState.CurrentRuleConfigId = FFinalRuleConfigId{};
+	CurrentState.bHasPendingBattleStart = false;
+}
+
+void UFinalRunSession::PopulateNodeEventMetadata(FFinalRunEvent& Event, const FFinalRunNodeDefinition& NodeDefinition) const
+{
+	Event.NodeType = NodeDefinition.NodeType;
+	Event.NodeDisplayName = NodeDefinition.DisplayName.IsEmpty()
+		? GetDefaultNodeDisplayName(NodeDefinition.NodeType)
+		: NodeDefinition.DisplayName;
+	Event.NodeDisplayLabel = NodeDefinition.DisplayLabel.IsNone()
+		? GetDefaultNodeDisplayLabel(NodeDefinition.NodeType)
+		: NodeDefinition.DisplayLabel;
+	Event.ChapterIndex = NodeDefinition.ChapterIndex;
+	Event.FloorIndex = NodeDefinition.FloorIndex;
+	Event.EncounterId = NodeDefinition.EncounterId.IsValid() ? NodeDefinition.EncounterId : Event.EncounterId;
+	Event.RuleConfigId = NodeDefinition.RuleConfigId.IsValid() ? NodeDefinition.RuleConfigId : Event.RuleConfigId;
+}
+
+void UFinalRunSession::PopulateNodeViewMetadata(FFinalRunNodeOptionViewData& View, const FFinalRunNodeDefinition& NodeDefinition) const
+{
+	View.NodeType = NodeDefinition.NodeType;
+	View.DisplayName = NodeDefinition.DisplayName.IsEmpty()
+		? GetDefaultNodeDisplayName(NodeDefinition.NodeType)
+		: NodeDefinition.DisplayName;
+	View.DisplayLabel = NodeDefinition.DisplayLabel.IsNone()
+		? GetDefaultNodeDisplayLabel(NodeDefinition.NodeType)
+		: NodeDefinition.DisplayLabel;
+	View.ChapterIndex = NodeDefinition.ChapterIndex;
+	View.FloorIndex = NodeDefinition.FloorIndex;
+	View.EncounterId = NodeDefinition.EncounterId;
+	View.RuleConfigId = NodeDefinition.RuleConfigId;
+	View.bHasImplementedResolver = HasImplementedNodeResolver(NodeDefinition.NodeType);
+}
+
+bool UFinalRunSession::HasPendingBattleReward() const
+{
+	return PendingRewardEntries.Num() > 0;
+}
+
+int32 UFinalRunSession::GetPendingBattleRewardGold() const
+{
+	return GetRewardGoldTotal(PendingRewardEntries);
+}
+
+FText UFinalRunSession::GetCurrentNodeStateMessage() const
+{
+	switch (CurrentFlowStage)
+	{
+	case EFinalRunFlowStage::PreparingBattle:
+		return FText::FromString(TEXT("Finish the current battle node before selecting another node."));
+
+	case EFinalRunFlowStage::PendingBattleReward:
+		return FText::FromString(TEXT("Claim the pending battle reward before selecting another node."));
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		return FText::FromString(TEXT("Reward nodes are not implemented in the current prototype."));
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return FText::FromString(TEXT("Event nodes are not implemented in the current prototype."));
+
+	case EFinalRunFlowStage::PendingShopNode:
+		return FText::FromString(TEXT("Shop nodes are not implemented in the current prototype."));
+
+	case EFinalRunFlowStage::RunEnded:
+		return FText::FromString(TEXT("The run can no longer advance."));
+
+	default:
+		return FText::GetEmpty();
+	}
 }
 
 EFinalRunNodeType UFinalRunSession::GetCurrentNodeType() const
