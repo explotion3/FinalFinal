@@ -4,6 +4,7 @@
 #include "Ids/FinalIds.h"
 #include "Requests/FinalBattleResult.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
+#include "Run/Rewards/FinalRunRewardTypes.h"
 #include "FinalRunQueryTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -13,6 +14,20 @@ enum class EFinalRunFlowStage : uint8
 	PreparingBattle,
 	PendingBattleReward,
 	AwaitingNodeAdvance,
+	PendingRewardNode,
+	PendingEventNode,
+	PendingShopNode,
+	RunEnded
+};
+
+UENUM(BlueprintType)
+enum class EFinalRunNodeAvailabilityReason : uint8
+{
+	None,
+	DefinitionLocked,
+	PendingBattleRewardMustBeClaimed,
+	CurrentNodeRequiresResolution,
+	MissingBattleConfig,
 	RunEnded
 };
 
@@ -49,6 +64,15 @@ struct FINALRUN_API FFinalRunPendingBattleRewardViewData
 	FName SourceNodeId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunNodeType SourceNodeType = EFinalRunNodeType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText SourceNodeDisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName SourceNodeDisplayLabel = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalEncounterId SourceEncounterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
@@ -56,6 +80,12 @@ struct FINALRUN_API FFinalRunPendingBattleRewardViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 RewardGold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCanClaim = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntry> RewardEntries;
 };
 
 USTRUCT(BlueprintType)
@@ -70,10 +100,37 @@ struct FINALRUN_API FFinalRunNodeOptionViewData
 	EFinalRunNodeType NodeType = EFinalRunNodeType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName DisplayLabel = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 ChapterIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 FloorIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalEncounterId EncounterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalRuleConfigId RuleConfigId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bVisited = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bLocked = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunNodeAvailabilityReason AvailabilityReason = EFinalRunNodeAvailabilityReason::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText AvailabilityMessage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bHasImplementedResolver = false;
 };
 
 USTRUCT(BlueprintType)
@@ -89,6 +146,30 @@ struct FINALRUN_API FFinalRunProgressionViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	EFinalRunNodeType CurrentNodeType = EFinalRunNodeType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText CurrentNodeDisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName CurrentNodeDisplayLabel = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 CurrentChapter = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 CurrentFloor = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCurrentNodeVisited = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCurrentNodeNeedsResolution = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCurrentNodeHasImplementedResolver = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText CurrentNodeStateMessage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bCanClaimPendingBattleReward = false;

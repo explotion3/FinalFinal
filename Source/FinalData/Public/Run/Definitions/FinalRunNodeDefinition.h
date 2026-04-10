@@ -11,7 +11,9 @@ enum class EFinalRunNodeType : uint8
 	Battle,
 	Event,
 	Shop,
-	Reward
+	Reward,
+	EliteBattle,
+	BossBattle
 };
 
 USTRUCT(BlueprintType)
@@ -26,6 +28,24 @@ struct FINALDATA_API FFinalRunNodeDefinition
 	EFinalRunNodeType NodeType = EFinalRunNodeType::Battle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName DisplayLabel = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 ChapterIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 FloorIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bStartsLocked = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText LockedReason;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalEncounterId EncounterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
@@ -37,5 +57,12 @@ struct FINALDATA_API FFinalRunNodeDefinition
 	bool IsValid() const
 	{
 		return !NodeId.IsNone();
+	}
+
+	bool IsBattleNode() const
+	{
+		return NodeType == EFinalRunNodeType::Battle
+			|| NodeType == EFinalRunNodeType::EliteBattle
+			|| NodeType == EFinalRunNodeType::BossBattle;
 	}
 };

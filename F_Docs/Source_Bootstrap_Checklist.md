@@ -305,6 +305,7 @@
 * UI 通过 ViewModel 读状态，而不是直接改规则状态
 * UI 页面层级与输入模式由 `FinalApp` 集中管理，不由单个 Widget 各自切换
 * `FinalApp` 只消费 Battle / Run 的公开查询与事件，不直接访问规则层私有状态
+* Run 外层查询面至少公开结构化奖励条目和节点展示字段，不要求第一批就完成事件 / 商店 / 成长解析器
 
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
