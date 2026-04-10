@@ -18,10 +18,7 @@ public:
 
 private:
 	UFUNCTION()
-	void HandleOpenNodeSelectClicked();
-
-	UFUNCTION()
-	void HandleOpenModalClicked();
+	void HandleResolveRewardClicked();
 
 	UFUNCTION()
 	void HandleCloseClicked();
@@ -33,19 +30,13 @@ private:
 	TObjectPtr<UTextBlock> CurrentNodeText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MissingFieldsText;
+	TObjectPtr<UTextBlock> RewardEntriesText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenNodeSelectButton;
+	TObjectPtr<UButton> ResolveRewardButton;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenNodeSelectButtonText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenModalButton;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenModalButtonText;
+	TObjectPtr<UTextBlock> ResolveRewardButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> CloseButton;

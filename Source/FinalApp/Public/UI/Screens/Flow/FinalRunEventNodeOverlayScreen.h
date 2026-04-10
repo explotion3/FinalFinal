@@ -18,38 +18,54 @@ public:
 
 private:
 	UFUNCTION()
-	void HandleOpenNodeSelectClicked();
+	void HandlePreviousOptionClicked();
 
 	UFUNCTION()
-	void HandleOpenModalClicked();
+	void HandleNextOptionClicked();
+
+	UFUNCTION()
+	void HandleResolveOptionClicked();
 
 	UFUNCTION()
 	void HandleCloseClicked();
 
 	void EnsureWidgetTree();
 	void RebuildVisual();
+	void NormalizeSelectedOptionIndex();
+	void StepSelectedOption(int32 Direction);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CurrentNodeText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MissingFieldsText;
+	TObjectPtr<UTextBlock> OptionsListText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenNodeSelectButton;
+	TObjectPtr<UTextBlock> SelectedOptionText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenNodeSelectButtonText;
+	TObjectPtr<UButton> PreviousOptionButton;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenModalButton;
+	TObjectPtr<UTextBlock> PreviousOptionButtonText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenModalButtonText;
+	TObjectPtr<UButton> NextOptionButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> NextOptionButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ResolveOptionButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ResolveOptionButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> CloseButton;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CloseButtonText;
+
+	int32 SelectedOptionIndex = INDEX_NONE;
 };

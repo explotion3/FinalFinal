@@ -18,38 +18,54 @@ public:
 
 private:
 	UFUNCTION()
-	void HandleOpenNodeSelectClicked();
+	void HandlePreviousOfferClicked();
 
 	UFUNCTION()
-	void HandleOpenModalClicked();
+	void HandleNextOfferClicked();
+
+	UFUNCTION()
+	void HandlePurchaseOfferClicked();
 
 	UFUNCTION()
 	void HandleCloseClicked();
 
 	void EnsureWidgetTree();
 	void RebuildVisual();
+	void NormalizeSelectedOfferIndex();
+	void StepSelectedOffer(int32 Direction);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CurrentNodeText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MissingFieldsText;
+	TObjectPtr<UTextBlock> OffersListText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenNodeSelectButton;
+	TObjectPtr<UTextBlock> SelectedOfferText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenNodeSelectButtonText;
+	TObjectPtr<UButton> PreviousOfferButton;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenModalButton;
+	TObjectPtr<UTextBlock> PreviousOfferButtonText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenModalButtonText;
+	TObjectPtr<UButton> NextOfferButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> NextOfferButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> PurchaseOfferButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PurchaseOfferButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> CloseButton;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CloseButtonText;
+
+	int32 SelectedOfferIndex = INDEX_NONE;
 };

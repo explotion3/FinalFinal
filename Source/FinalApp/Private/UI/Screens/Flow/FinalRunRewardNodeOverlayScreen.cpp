@@ -3,6 +3,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
 
@@ -21,22 +22,24 @@ void UFinalRunRewardNodeOverlayScreen::ConfigureFromRunSnapshot(const FFinalRunS
 	RebuildVisual();
 }
 
-void UFinalRunRewardNodeOverlayScreen::HandleOpenNodeSelectClicked()
+void UFinalRunRewardNodeOverlayScreen::HandleResolveRewardClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
 	{
-		UISubsystem->ShowNodeSelectOverlayPlaceholder();
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RewardNodeMissingRunFlow", "当前无法访问 RunFlowSubsystem，无法确认奖励节点。"));
+		RebuildVisual();
+		return;
 	}
-}
 
-void UFinalRunRewardNodeOverlayScreen::HandleOpenModalClicked()
-{
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->ShowPlaceholderModal(
-			NSLOCTEXT("FinalFlowUI", "RewardNodeModalTitle", "奖励节点页占位"),
-			NSLOCTEXT("FinalFlowUI", "RewardNodeModalBody", "当前已拆出独立的奖励节点页挂点。后续若 FinalRun 提供奖励节点专用查询和 RunCommand，这一页应承接奖励节点自身的选择与确认流程。"));
-	}
+	const bool bResolved = RunFlowSubsystem->ResolveRewardNode();
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bResolved
+			? NSLOCTEXT("FinalFlowUI", "RewardNodeResolveSucceeded", "已转发 ResolveReward。")
+			: NSLOCTEXT("FinalFlowUI", "RewardNodeResolveFailed", "ResolveReward 执行失败。")));
+	RebuildVisual();
 }
 
 void UFinalRunRewardNodeOverlayScreen::HandleCloseClicked()
@@ -61,32 +64,21 @@ void UFinalRunRewardNodeOverlayScreen::EnsureWidgetTree()
 		ContentBox->InsertChildAt(2, CurrentNodeText);
 	}
 
-	if (MissingFieldsText == nullptr)
+	if (RewardEntriesText == nullptr)
 	{
-		MissingFieldsText = CreateStageLabel(TEXT("RewardNodeOverlayMissingFields"), 13);
-		ContentBox->InsertChildAt(3, MissingFieldsText);
+		RewardEntriesText = CreateStageLabel(TEXT("RewardNodeOverlayRewardEntries"), 13);
+		ContentBox->InsertChildAt(3, RewardEntriesText);
 	}
 
-	if (OpenNodeSelectButton == nullptr)
+	if (ResolveRewardButton == nullptr)
 	{
-		OpenNodeSelectButton = CreateStageButton(
-			TEXT("RewardNodeOverlayNodeSelectButton"),
-			TEXT("RewardNodeOverlayNodeSelectButtonText"),
-			NSLOCTEXT("FinalFlowUI", "RewardNodeOpenNodeSelectButton", "打开节点选择页"),
-			OpenNodeSelectButtonText);
-		OpenNodeSelectButton->OnClicked.AddDynamic(this, &UFinalRunRewardNodeOverlayScreen::HandleOpenNodeSelectClicked);
-		ContentBox->AddChildToVerticalBox(OpenNodeSelectButton);
-	}
-
-	if (OpenModalButton == nullptr)
-	{
-		OpenModalButton = CreateStageButton(
-			TEXT("RewardNodeOverlayModalButton"),
-			TEXT("RewardNodeOverlayModalButtonText"),
-			NSLOCTEXT("FinalFlowUI", "RewardNodeOpenModalButton", "打开奖励节点说明模态"),
-			OpenModalButtonText);
-		OpenModalButton->OnClicked.AddDynamic(this, &UFinalRunRewardNodeOverlayScreen::HandleOpenModalClicked);
-		ContentBox->AddChildToVerticalBox(OpenModalButton);
+		ResolveRewardButton = CreateStageButton(
+			TEXT("RewardNodeOverlayResolveButton"),
+			TEXT("RewardNodeOverlayResolveButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButton", "确认奖励节点"),
+			ResolveRewardButtonText);
+		ResolveRewardButton->OnClicked.AddDynamic(this, &UFinalRunRewardNodeOverlayScreen::HandleResolveRewardClicked);
+		ContentBox->AddChildToVerticalBox(ResolveRewardButton);
 	}
 
 	if (CloseButton == nullptr)
@@ -104,22 +96,30 @@ void UFinalRunRewardNodeOverlayScreen::EnsureWidgetTree()
 void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 {
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
+	const FFinalRunPendingRewardNodeViewData& PendingRewardNode = Snapshot.PendingRewardNode;
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
 
 	if (TitleText)
 	{
-		TitleText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayTitleText", "奖励节点页"));
+		TitleText->SetText(FormatOptionalText(
+			PendingRewardNode.Title,
+			NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayTitleText", "奖励节点页")));
 	}
 
 	if (SummaryText)
 	{
 		SummaryText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RewardNodeOverlaySummaryText", "流程阶段: {0}\n当前金币: {1} | 遗物数: {2} | 牌库数: {3}\n可推进下一节点: {4}"),
+			NSLOCTEXT("FinalFlowUI", "RewardNodeOverlaySummaryText", "流程阶段: {0}\n节点标题: {1}\n节点摘要: {2}\n节点内容存在: {3}\n可解析: {4}\n已解析: {5}\n奖励条目数: {6}\n当前金币: {7} | 遗物数: {8} | 牌库数: {9}"),
 			FormatFlowStageText(Progression.FlowStage),
+			FormatOptionalText(PendingRewardNode.Title, NSLOCTEXT("FinalFlowUI", "RewardNodeNoTitle", "未公开标题")),
+			FormatOptionalText(PendingRewardNode.Summary, NSLOCTEXT("FinalFlowUI", "RewardNodeNoSummary", "当前没有额外摘要说明。")),
+			FormatBool(PendingRewardNode.bHasPendingContent),
+			FormatBool(PendingRewardNode.bCanResolve),
+			FormatBool(PendingRewardNode.bResolved),
+			FText::AsNumber(PendingRewardNode.RewardEntries.Num()),
 			FText::AsNumber(Snapshot.Gold),
 			FText::AsNumber(Snapshot.RelicCount),
-			FText::AsNumber(Snapshot.DeckCount),
-			FormatBool(Progression.bCanAdvanceToNextNode)));
+			FText::AsNumber(Snapshot.DeckCount)));
 	}
 
 	if (CurrentNodeText)
@@ -127,12 +127,11 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 		CurrentNodeText->SetText(BuildCurrentNodeSummaryText(Progression));
 	}
 
-	if (MissingFieldsText)
+	if (RewardEntriesText)
 	{
-		MissingFieldsText->SetText(NSLOCTEXT(
-			"FinalFlowUI",
-			"RewardNodeOverlayMissingFieldsText",
-			"当前奖励节点页已经从“节点选择页”拆出，但仍缺奖励节点专用查询：候选奖励条目、确认领取/放弃/替换命令、以及奖励节点专用展示元数据。"));
+		RewardEntriesText->SetText(FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayRewardEntriesText", "奖励节点条目:\n{0}"),
+			FText::FromString(BuildRewardEntriesSummaryString(PendingRewardNode.RewardEntries))));
 	}
 
 	if (GapText)
@@ -140,16 +139,36 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardNodeOverlayGapText",
-			"这是一张结构化占位页：它已经按流程阶段单独承接 PendingRewardNode，但不会在 FinalApp 内伪造奖励节点规则真相。"));
+			"当前页已真实消费 PendingRewardNode 的标题、摘要、解析状态与奖励条目。剩余缺口主要是奖励图标、稀有度、二次确认和多步奖励交互等 richer 呈现。"));
 	}
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayFeedbackDefault", "等待 Reward Node 专用查询与命令接入。")));
+		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayFeedbackDefault", "当前页面会把 ResolveReward 意图转发给 RunFlowSubsystem，由它统一刷新或切页。")));
 	}
 
-	if (OpenNodeSelectButton)
+	if (ResolveRewardButton)
 	{
-		OpenNodeSelectButton->SetIsEnabled(Progression.AvailableNextNodes.Num() > 0 || Progression.bCanAdvanceToNextNode);
+		ResolveRewardButton->SetIsEnabled(PendingRewardNode.bHasPendingContent && PendingRewardNode.bCanResolve && !PendingRewardNode.bResolved);
+	}
+
+	if (ResolveRewardButtonText)
+	{
+		if (!PendingRewardNode.bHasPendingContent)
+		{
+			ResolveRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButtonMissing", "当前没有待处理奖励节点内容"));
+		}
+		else if (PendingRewardNode.bResolved)
+		{
+			ResolveRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButtonResolved", "当前奖励节点已解析"));
+		}
+		else if (!PendingRewardNode.bCanResolve)
+		{
+			ResolveRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButtonBlocked", "当前奖励节点暂不可确认"));
+		}
+		else
+		{
+			ResolveRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButton", "确认奖励节点"));
+		}
 	}
 }

@@ -24,9 +24,9 @@
   * `FinalRunStageOverlayScreenBase`
   * `FinalRunRewardOverlayScreen`（战后奖励页）
   * `FinalRunNodeOverlayScreen`（节点选择页）
-  * `FinalRunRewardNodeOverlayScreen`（奖励节点页占位）
-  * `FinalRunEventNodeOverlayScreen`（事件节点页占位）
-  * `FinalRunShopNodeOverlayScreen`（商店节点页占位）
+  * `FinalRunRewardNodeOverlayScreen`（奖励节点页）
+  * `FinalRunEventNodeOverlayScreen`（事件节点页）
+  * `FinalRunShopNodeOverlayScreen`（商店节点页）
   * `FinalPlaceholderModalScreen`（确认类模态占位）
 * 当前 `FinalApp` 已新增 `RunFlowSubsystem`：
   * 读取 `RunSession`
@@ -163,7 +163,7 @@
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
 
 ### 4.2 Run 外层流程页
-当前 `FinalApp` 已经具备承接战后奖励页 / 节点选择页 / 奖励节点页 / 事件节点页 / 商店节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward` 与 `Progression`。
+当前 `FinalApp` 已经具备承接战后奖励页 / 节点选择页 / 奖励节点页 / 事件节点页 / 商店节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。
 
 当前已接入字段：
 * `PendingBattleReward.bHasPendingReward`
@@ -201,6 +201,37 @@
 * `Progression.AvailableNextNodes[*].bLocked`
 * `Progression.AvailableNextNodes[*].AvailabilityMessage`
 * `Progression.AvailableNextNodes[*].bHasImplementedResolver`
+* `PendingRewardNode.Title`
+* `PendingRewardNode.Summary`
+* `PendingRewardNode.bCanResolve`
+* `PendingRewardNode.bResolved`
+* `PendingRewardNode.RewardEntries[*].RewardType`
+* `PendingRewardNode.RewardEntries[*].DisplayName`
+* `PendingRewardNode.RewardEntries[*].Value`
+* `PendingRewardNode.RewardEntries[*].bCanClaim`
+* `PendingRewardNode.RewardEntries[*].bClaimed`
+* `PendingEventNode.Title`
+* `PendingEventNode.Summary`
+* `PendingEventNode.bCanResolve`
+* `PendingEventNode.bResolved`
+* `PendingEventNode.Options[*].OptionId`
+* `PendingEventNode.Options[*].DisplayText`
+* `PendingEventNode.Options[*].OutcomeSummary`
+* `PendingEventNode.Options[*].bSelectable`
+* `PendingEventNode.Options[*].AvailabilityMessage`
+* `PendingEventNode.Options[*].RewardEntries`
+* `PendingShopNode.Title`
+* `PendingShopNode.Summary`
+* `PendingShopNode.bCanResolve`
+* `PendingShopNode.bResolved`
+* `PendingShopNode.Offers[*].OfferId`
+* `PendingShopNode.Offers[*].DisplayName`
+* `PendingShopNode.Offers[*].Description`
+* `PendingShopNode.Offers[*].Price`
+* `PendingShopNode.Offers[*].bPurchasable`
+* `PendingShopNode.Offers[*].bPurchased`
+* `PendingShopNode.Offers[*].AvailabilityMessage`
+* `PendingShopNode.Offers[*].RewardEntries`
 
 战后奖励页仍缺：
 * 奖励项的图标、稀有度、描述、来源说明等 richer 展示元数据
@@ -212,15 +243,16 @@
 * 更完整的节点类型扩展与对应专用展示
 
 奖励节点 / 事件节点 / 商店节点页仍缺：
-* 各自的专用详情查询与确认流
-* 节点进入后的 resolver 级细节 UI，而不只是当前占位页摘要
-* 专用的按钮集、内容布局与二次确认模态
+* richer 布局、图标、长文本滚动、分页和更细的视觉层次
+* 二次确认、离开节点、刷新商店等更完整的次级交互
+* 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
-* 占位页只消费现有 `FFinalRunSnapshot`
 * 战后奖励页当前以 `PendingBattleReward.RewardEntries` 为主展示口径，`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
-* 奖励节点页、事件节点页、商店节点页当前是结构化占位页：它们会真实消费当前节点展示字段与状态消息，但不会在 `FinalApp` 内伪造专用规则或结算
+* 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntries`，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
+* 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*]`，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
+* 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*]`，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
 * `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会分别路由到对应的专用页，而不是继续挤在节点选择页
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性

@@ -163,6 +163,37 @@ inline FText FormatRewardClaimStateText(const FFinalRunRewardEntry& RewardEntry)
 	return NSLOCTEXT("FinalFlowUI", "RunFlowRewardEntryCannotClaim", "暂不可领取");
 }
 
+inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	if (RewardEntries.Num() <= 0)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardEntriesEmptyShared", "当前没有公开的结构化奖励条目。").ToString();
+	}
+
+	FString RewardEntrySummary;
+	for (int32 Index = 0; Index < RewardEntries.Num(); ++Index)
+	{
+		const FFinalRunRewardEntry& RewardEntry = RewardEntries[Index];
+		RewardEntrySummary += FString::Printf(
+			TEXT("[%d] %s | 类型: %s | 数值: %d | 状态: %s"),
+			Index + 1,
+			*FormatRewardEntryName(RewardEntry).ToString(),
+			*FormatRewardTypeText(RewardEntry.RewardType).ToString(),
+			RewardEntry.Value,
+			*FormatRewardClaimStateText(RewardEntry).ToString());
+
+		if (RewardEntry.RewardId != NAME_None)
+		{
+			RewardEntrySummary += FString::Printf(TEXT(" | RewardId: %s"), *RewardEntry.RewardId.ToString());
+		}
+
+		RewardEntrySummary += TEXT("\n");
+	}
+
+	RewardEntrySummary.TrimEndInline();
+	return RewardEntrySummary;
+}
+
 inline FText BuildCurrentNodeSummaryText(const FFinalRunProgressionViewData& Progression)
 {
 	return FText::Format(

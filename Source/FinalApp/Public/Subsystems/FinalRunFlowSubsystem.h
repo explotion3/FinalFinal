@@ -37,6 +37,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
 	bool AdvanceToNode(FName NodeId);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool ResolveRewardNode();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool ResolveEventOption(FName OptionId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool ResolveShopOffer(FName OfferId);
+
 	UFUNCTION(BlueprintPure, Category = "Final|RunFlow")
 	FFinalRunSnapshot GetCurrentRunSnapshot() const;
 
@@ -52,6 +61,7 @@ private:
 	void CloseActiveFlowModal() const;
 	void CloseActiveFlowOverlay() const;
 	EFinalRunPresentedOverlay DetermineDesiredOverlay(const FFinalRunSnapshot& Snapshot) const;
+	bool SubmitRunCommand(EFinalRunCommandType CommandType, FName PayloadId, const FText& MissingSessionMessage);
 	class UFinalRunSession* ResolveRunSession() const;
 	class UFinalUISubsystem* ResolveUISubsystem() const;
 

@@ -114,6 +114,30 @@ bool UFinalRunFlowSubsystem::AdvanceToNode(const FName NodeId)
 	return bAccepted;
 }
 
+bool UFinalRunFlowSubsystem::ResolveRewardNode()
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveReward,
+		NAME_None,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveReward", "当前无法访问 RunSession，无法确认奖励节点。"));
+}
+
+bool UFinalRunFlowSubsystem::ResolveEventOption(const FName OptionId)
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveEvent,
+		OptionId,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveEvent", "当前无法访问 RunSession，无法提交事件节点选项。"));
+}
+
+bool UFinalRunFlowSubsystem::ResolveShopOffer(const FName OfferId)
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveShop,
+		OfferId,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveShop", "当前无法访问 RunSession，无法提交商店节点购买请求。"));
+}
+
 FFinalRunSnapshot UFinalRunFlowSubsystem::GetCurrentRunSnapshot() const
 {
 	if (const UFinalRunSession* RunSession = ResolveRunSession())
@@ -132,6 +156,24 @@ FFinalRunEvent UFinalRunFlowSubsystem::GetLastProcessedRunEvent() const
 FText UFinalRunFlowSubsystem::GetLastFlowMessage() const
 {
 	return LastFlowMessage;
+}
+
+bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType CommandType, const FName PayloadId, const FText& MissingSessionMessage)
+{
+	UFinalRunSession* RunSession = ResolveRunSession();
+	if (RunSession == nullptr)
+	{
+		LastFlowMessage = MissingSessionMessage;
+		return false;
+	}
+
+	FFinalRunCommand Command;
+	Command.CommandType = CommandType;
+	Command.PayloadId = PayloadId;
+
+	const bool bAccepted = RunSession->SubmitRunCommand(Command);
+	RefreshRunFlow(true);
+	return bAccepted;
 }
 
 void UFinalRunFlowSubsystem::ResetFlowState()
