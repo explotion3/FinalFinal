@@ -56,6 +56,9 @@ private:
 	TObjectPtr<UTextBlock> FeedbackText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ContextText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GapText;
 
 	UPROPERTY(Transient)

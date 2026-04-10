@@ -11,6 +11,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Controllers/FinalBattleWidgetController.h"
+#include "Styling/CoreStyle.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
@@ -30,8 +31,25 @@ UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, int32 FontSi
 {
 	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
 	Text->SetAutoWrapText(true);
-	Text->SetFont(FSlateFontInfo(TEXT("/Engine/EngineFonts/Roboto"), FontSize));
+	Text->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), FontSize));
 	return Text;
+}
+
+FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
+{
+	if (Texts.Num() == 0)
+	{
+		return EmptyText;
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(Texts.Num());
+	for (const FText& Entry : Texts)
+	{
+		Segments.Add(Entry.ToString());
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
 }
 }
 
@@ -130,6 +148,11 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	FeedbackBorder->SetContent(FeedbackText);
 	RootBox->AddChildToVerticalBox(FeedbackBorder);
 
+	UBorder* ContextBorder = CreateSection(WidgetTree, TEXT("ContextBorder"), FLinearColor(0.08f, 0.11f, 0.12f, 0.92f));
+	ContextText = CreateLabel(WidgetTree, TEXT("ContextText"), 12);
+	ContextBorder->SetContent(ContextText);
+	RootBox->AddChildToVerticalBox(ContextBorder);
+
 	UBorder* GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
 	GapText = CreateLabel(WidgetTree, TEXT("GapText"), 12);
 	GapBorder->SetContent(GapText);
@@ -203,12 +226,13 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 	{
 		HeaderText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleHeader", "Battle HUD ready. No active battle session."));
 		FeedbackText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleFeedback", "通过控制台命令或地图按钮启动测试战斗后，这里会自动刷新。"));
+		ContextText->SetText(FText::GetEmpty());
 		GapText->SetText(FText::GetEmpty());
 	}
 	else
 	{
 		HeaderText->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "HeaderFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7} | Gold {8}"),
+			NSLOCTEXT("FinalBattleHUD", "HeaderFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7} | Gold {8} | Relics {9}"),
 			Presentation.EncounterName,
 			FText::AsNumber(Presentation.CurrentRound),
 			FText::AsNumber(Presentation.CurrentAP),
@@ -217,8 +241,19 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			FText::AsNumber(Presentation.TeamCurrentHP),
 			FText::AsNumber(Presentation.TeamMaxHP),
 			FText::AsNumber(Presentation.TeamShield),
-			FText::AsNumber(Presentation.Gold)));
+			FText::AsNumber(Presentation.Gold),
+			FText::AsNumber(Presentation.RelicCount)));
 		FeedbackText->SetText(Presentation.FeedbackText);
+		ContextText->SetText(FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5} | RunDeck {6}\nTeam Status: {7}"),
+			Presentation.CurrentTargetText,
+			FText::AsNumber(Presentation.DrawPileCount),
+			FText::AsNumber(Presentation.HandCount),
+			FText::AsNumber(Presentation.DiscardPileCount),
+			FText::AsNumber(Presentation.OngoingZoneCount),
+			FText::AsNumber(Presentation.ConsumePileCount),
+			FText::AsNumber(Presentation.RunDeckCount),
+			JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无"))));
 
 		if (Presentation.MissingFieldNotices.Num() > 0)
 		{
@@ -262,11 +297,16 @@ void UFinalBattleHUDScreen::RebuildCharacterPanel()
 	{
 		UTextBlock* Label = CreateLabel(WidgetTree, *FString::Printf(TEXT("Character_%s"), *Entry.RuntimeUnitId.ToString()));
 		Label->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "CharacterEntryFormat", "{0}\nStress {1}/{2}\n{3}"),
+			NSLOCTEXT("FinalBattleHUD", "CharacterEntryFormat", "{0}\nStress {1}/{2} | Vital {3}\nAwaken {4}/{5} | Collapse {6}\n{7}\nStatus: {8}"),
 			Entry.DisplayName,
 			FText::AsNumber(Entry.CurrentStress),
 			FText::AsNumber(Entry.StressCap),
-			Entry.StateText));
+			FText::AsNumber(Entry.VitalShare),
+			FText::AsNumber(Entry.CurrentAwakenCount),
+			FText::AsNumber(Entry.CurrentAwakenThreshold),
+			FText::AsNumber(Entry.CollapseCount),
+			Entry.StateText,
+			JoinTextArray(Entry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无"))));
 		CharacterListBox->AddChildToVerticalBox(Label);
 	}
 }

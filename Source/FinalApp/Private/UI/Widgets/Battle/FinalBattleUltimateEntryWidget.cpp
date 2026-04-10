@@ -6,6 +6,26 @@
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
+namespace
+{
+FText JoinTextArray(const TArray<FText>& Texts)
+{
+	TArray<FString> Segments;
+	Segments.Reserve(Texts.Num());
+	for (const FText& Entry : Texts)
+	{
+		if (!Entry.IsEmpty())
+		{
+			Segments.Add(Entry.ToString());
+		}
+	}
+
+	return Segments.Num() > 0
+		? FText::FromString(FString::Join(Segments, TEXT(" | ")))
+		: FText::GetEmpty();
+}
+}
+
 void UFinalBattleUltimateEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -29,11 +49,29 @@ void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleHUDScreen* InOwningS
 {
 	OwningBattleHUDScreen = InOwningScreen;
 	CharacterIndex = InCharacterIndex;
+	bEnabled = InEntry.bEnabled;
+	bBlockedByCollapse = InEntry.bBlockedByCollapse;
+	bDefinitionReady = InEntry.bDefinitionReady;
+
+	TArray<FText> DetailTexts;
+	DetailTexts.Reserve(3);
+	DetailTexts.Add(FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "UltimateCostText", "EP 消耗 {0}"),
+		FText::AsNumber(InEntry.CostEP)));
+	DetailTexts.Add(InEntry.StatusText);
+	if (InEntry.bBlockedByCollapse)
+	{
+		DetailTexts.Add(NSLOCTEXT("FinalBattleHUD", "UltimateBlockedByCollapse", "角色崩溃中"));
+	}
+	else if (!InEntry.bDefinitionReady)
+	{
+		DetailTexts.Add(NSLOCTEXT("FinalBattleHUD", "UltimateDefinitionMissing", "定义未就绪"));
+	}
+
 	CachedLabel = FText::Format(
 		NSLOCTEXT("FinalBattleHUD", "UltimateEntryFormat", "{0}\n{1}"),
 		InEntry.DisplayName,
-		InEntry.StatusText);
-	bEnabled = InEntry.bEnabled;
+		JoinTextArray(DetailTexts));
 	RebuildVisual();
 }
 
@@ -55,6 +93,21 @@ void UFinalBattleUltimateEntryWidget::RebuildVisual()
 	if (UltimateButton)
 	{
 		UltimateButton->SetIsEnabled(bEnabled);
-		UltimateButton->SetBackgroundColor(bEnabled ? FLinearColor(0.28f, 0.45f, 0.23f, 1.0f) : FLinearColor(0.16f, 0.16f, 0.16f, 1.0f));
+		if (bEnabled)
+		{
+			UltimateButton->SetBackgroundColor(FLinearColor(0.28f, 0.45f, 0.23f, 1.0f));
+		}
+		else if (bBlockedByCollapse)
+		{
+			UltimateButton->SetBackgroundColor(FLinearColor(0.34f, 0.18f, 0.18f, 1.0f));
+		}
+		else if (!bDefinitionReady)
+		{
+			UltimateButton->SetBackgroundColor(FLinearColor(0.34f, 0.26f, 0.14f, 1.0f));
+		}
+		else
+		{
+			UltimateButton->SetBackgroundColor(FLinearColor(0.16f, 0.16f, 0.16f, 1.0f));
+		}
 	}
 }

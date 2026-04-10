@@ -6,6 +6,25 @@
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
+namespace
+{
+FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
+{
+	if (Texts.Num() == 0)
+	{
+		return EmptyText;
+	}
+
+	TArray<FString> Segments;
+	for (const FText& Entry : Texts)
+	{
+		Segments.Add(Entry.ToString());
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+}
+
 void UFinalBattleEnemyEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -30,13 +49,19 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScre
 	OwningBattleHUDScreen = InOwningScreen;
 	RuntimeUnitId = InEntry.RuntimeUnitId;
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "{0}\nHP {1}  Shield {2}  Break {3}  Init {4}\n{5}"),
+		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "#{0} {1}\nHP {2}/{3}  Shield {4}  Break {5}/{6}  Init {7}\n{8}\nStatus: {9}"),
+		FText::AsNumber(InEntry.PositionIndex),
 		InEntry.DisplayName,
 		FText::AsNumber(InEntry.CurrentHP),
+		FText::AsNumber(InEntry.MaxHP),
 		FText::AsNumber(InEntry.CurrentShield),
 		FText::AsNumber(InEntry.CurrentBreakValue),
+		FText::AsNumber(InEntry.MaxBreakValue),
 		FText::AsNumber(InEntry.CurrentInitiative),
-		InEntry.IntentText);
+		InEntry.bActedThisRound
+			? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyIntentActed", "{0} | 本回合已行动"), InEntry.IntentText)
+			: InEntry.IntentText,
+		JoinTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
 	bSelected = InEntry.bSelected;
 	RebuildVisual();
 }
