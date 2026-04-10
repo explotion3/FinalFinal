@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Queries/FinalRunSnapshot.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UI/Core/FinalUITypes.h"
 #include "FinalUISubsystem.generated.h"
@@ -9,9 +10,13 @@ class APlayerController;
 class UFinalBattleHUDScreen;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
+class UFinalRunStageOverlayScreenBase;
 class UFinalPlaceholderModalScreen;
+class UFinalRunEventNodeOverlayScreen;
 class UFinalRunNodeOverlayScreen;
+class UFinalRunRewardNodeOverlayScreen;
 class UFinalRunRewardOverlayScreen;
+class UFinalRunShopNodeOverlayScreen;
 class UFinalUIRootLayout;
 class UFinalScreenBase;
 
@@ -55,6 +60,18 @@ public:
 	void ShowNodeProgressOverlayPlaceholder();
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowNodeSelectOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowRewardNodeOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowEventNodeOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowShopNodeOverlayPlaceholder();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void ShowPlaceholderModal(const FText& Title, const FText& Body);
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -79,6 +96,8 @@ private:
 	void EnsureRootLayout();
 	void EnsureBattleBridge();
 	void EnsureFlowScreens();
+	FFinalRunSnapshot GetCurrentRunSnapshot() const;
+	void ConfigureAndOpenRunOverlay(UFinalRunStageOverlayScreenBase* Screen);
 	void RebuildScreenLayer(EFinalUIScreenLayer Layer);
 	void ApplyInputConfig(const FFinalUIInputConfig& InputConfig, UFinalScreenBase* FocusScreen) const;
 	void ApplyTopScreenInputMode() const;
@@ -110,6 +129,15 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunNodeOverlayScreen> NodeOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunRewardNodeOverlayScreen> RewardNodeOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunEventNodeOverlayScreen> EventNodeOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunShopNodeOverlayScreen> ShopNodeOverlayScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalPlaceholderModalScreen> PlaceholderModalScreen;

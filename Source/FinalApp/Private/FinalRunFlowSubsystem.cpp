@@ -4,24 +4,18 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
-#include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
-#include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
 
 namespace
 {
-bool IsNodeOverlayFlowStage(const EFinalRunFlowStage FlowStage)
-{
-	return FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
-		|| FlowStage == EFinalRunFlowStage::PendingRewardNode
-		|| FlowStage == EFinalRunFlowStage::PendingEventNode
-		|| FlowStage == EFinalRunFlowStage::PendingShopNode;
-}
-
 FText BuildSnapshotFlowMessage(const FFinalRunSnapshot& Snapshot)
 {
 	if (!Snapshot.Progression.CurrentNodeStateMessage.IsEmpty()
 		&& (Snapshot.PendingBattleReward.bHasPendingReward
-			|| IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage)
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingRewardNode
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingEventNode
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingShopNode
 			|| Snapshot.Progression.bCurrentNodeNeedsResolution))
 	{
 		return Snapshot.Progression.CurrentNodeStateMessage;
@@ -120,6 +114,30 @@ bool UFinalRunFlowSubsystem::AdvanceToNode(const FName NodeId)
 	return bAccepted;
 }
 
+bool UFinalRunFlowSubsystem::ResolveRewardNode()
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveReward,
+		NAME_None,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveReward", "当前无法访问 RunSession，无法确认奖励节点。"));
+}
+
+bool UFinalRunFlowSubsystem::ResolveEventOption(const FName OptionId)
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveEvent,
+		OptionId,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveEvent", "当前无法访问 RunSession，无法提交事件节点选项。"));
+}
+
+bool UFinalRunFlowSubsystem::ResolveShopOffer(const FName OfferId)
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::ResolveShop,
+		OfferId,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveShop", "当前无法访问 RunSession，无法提交商店节点购买请求。"));
+}
+
 FFinalRunSnapshot UFinalRunFlowSubsystem::GetCurrentRunSnapshot() const
 {
 	if (const UFinalRunSession* RunSession = ResolveRunSession())
@@ -138,6 +156,24 @@ FFinalRunEvent UFinalRunFlowSubsystem::GetLastProcessedRunEvent() const
 FText UFinalRunFlowSubsystem::GetLastFlowMessage() const
 {
 	return LastFlowMessage;
+}
+
+bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType CommandType, const FName PayloadId, const FText& MissingSessionMessage)
+{
+	UFinalRunSession* RunSession = ResolveRunSession();
+	if (RunSession == nullptr)
+	{
+		LastFlowMessage = MissingSessionMessage;
+		return false;
+	}
+
+	FFinalRunCommand Command;
+	Command.CommandType = CommandType;
+	Command.PayloadId = PayloadId;
+
+	const bool bAccepted = RunSession->SubmitRunCommand(Command);
+	RefreshRunFlow(true);
+	return bAccepted;
 }
 
 void UFinalRunFlowSubsystem::ResetFlowState()
@@ -165,12 +201,24 @@ void UFinalRunFlowSubsystem::ApplyPresentationForSnapshot(const FFinalRunSnapsho
 
 	switch (DesiredOverlay)
 	{
-	case EFinalRunPresentedOverlay::Reward:
+	case EFinalRunPresentedOverlay::BattleReward:
 		UISubsystem->ShowBattleRewardOverlayPlaceholder();
 		break;
 
-	case EFinalRunPresentedOverlay::Node:
-		UISubsystem->ShowNodeProgressOverlayPlaceholder();
+	case EFinalRunPresentedOverlay::NodeSelect:
+		UISubsystem->ShowNodeSelectOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::RewardNode:
+		UISubsystem->ShowRewardNodeOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::EventNode:
+		UISubsystem->ShowEventNodeOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::ShopNode:
+		UISubsystem->ShowShopNodeOverlayPlaceholder();
 		break;
 
 	case EFinalRunPresentedOverlay::None:
@@ -208,8 +256,7 @@ void UFinalRunFlowSubsystem::CloseActiveFlowOverlay() const
 	{
 		if (UFinalScreenBase* ActiveOverlayScreen = UISubsystem->GetActiveOverlayScreen())
 		{
-			if (Cast<UFinalRunRewardOverlayScreen>(ActiveOverlayScreen) != nullptr
-				|| Cast<UFinalRunNodeOverlayScreen>(ActiveOverlayScreen) != nullptr)
+			if (Cast<UFinalRunStageOverlayScreenBase>(ActiveOverlayScreen) != nullptr)
 			{
 				UISubsystem->CloseOverlayScreen(ActiveOverlayScreen);
 			}
@@ -222,22 +269,48 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
-		return EFinalRunPresentedOverlay::Reward;
+		return EFinalRunPresentedOverlay::BattleReward;
 	}
 
-	if (IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage))
+	switch (Snapshot.Progression.FlowStage)
 	{
-		return EFinalRunPresentedOverlay::Node;
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		return EFinalRunPresentedOverlay::NodeSelect;
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		return EFinalRunPresentedOverlay::RewardNode;
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return EFinalRunPresentedOverlay::EventNode;
+
+	case EFinalRunFlowStage::PendingShopNode:
+		return EFinalRunPresentedOverlay::ShopNode;
+
+	default:
+		break;
 	}
 
 	if (Snapshot.Progression.bCurrentNodeNeedsResolution)
 	{
-		return EFinalRunPresentedOverlay::Node;
+		switch (Snapshot.Progression.CurrentNodeType)
+		{
+		case EFinalRunNodeType::Reward:
+			return EFinalRunPresentedOverlay::RewardNode;
+
+		case EFinalRunNodeType::Event:
+			return EFinalRunPresentedOverlay::EventNode;
+
+		case EFinalRunNodeType::Shop:
+			return EFinalRunPresentedOverlay::ShopNode;
+
+		default:
+			return EFinalRunPresentedOverlay::NodeSelect;
+		}
 	}
 
 	if (Snapshot.Progression.bCanAdvanceToNextNode)
 	{
-		return EFinalRunPresentedOverlay::Node;
+		return EFinalRunPresentedOverlay::NodeSelect;
 	}
 
 	return EFinalRunPresentedOverlay::None;

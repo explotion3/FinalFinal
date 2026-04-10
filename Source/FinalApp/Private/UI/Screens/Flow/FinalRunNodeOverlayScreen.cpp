@@ -1,92 +1,16 @@
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
 
-#include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
-#include "Styling/CoreStyle.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
+#include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
+
+using namespace FinalRunFlowScreenUtils;
 
 namespace
 {
-FText FormatNodeOverlayOptionalName(const FName Name, const FText& Fallback)
-{
-	return Name != NAME_None ? FText::FromName(Name) : Fallback;
-}
-
-FText FormatNodeOverlayOptionalText(const FText& Value, const FText& Fallback)
-{
-	return !Value.IsEmpty() ? Value : Fallback;
-}
-
-FText FormatNodeOverlayBool(const bool bValue)
-{
-	return bValue
-		? NSLOCTEXT("FinalFlowUI", "NodeBoolYes", "是")
-		: NSLOCTEXT("FinalFlowUI", "NodeBoolNo", "否");
-}
-
-FText FormatFlowStageText(const EFinalRunFlowStage FlowStage)
-{
-	switch (FlowStage)
-	{
-	case EFinalRunFlowStage::PreparingBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePreparingBattle", "战前准备");
-
-	case EFinalRunFlowStage::PendingBattleReward:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingReward", "待领奖励");
-
-	case EFinalRunFlowStage::AwaitingNodeAdvance:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStageAwaitingNodeAdvance", "等待推进节点");
-
-	case EFinalRunFlowStage::PendingRewardNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingRewardNode", "待处理奖励节点");
-
-	case EFinalRunFlowStage::PendingEventNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingEventNode", "待处理事件节点");
-
-	case EFinalRunFlowStage::PendingShopNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingShopNode", "待处理商店节点");
-
-	case EFinalRunFlowStage::RunEnded:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStageRunEnded", "本局结束");
-
-	case EFinalRunFlowStage::None:
-	default:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStageNone", "未初始化");
-	}
-}
-
-FText FormatNodeTypeText(const EFinalRunNodeType NodeType)
-{
-	switch (NodeType)
-	{
-	case EFinalRunNodeType::Battle:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeBattle", "Battle");
-
-	case EFinalRunNodeType::Event:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeEvent", "Event");
-
-	case EFinalRunNodeType::Shop:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeShop", "Shop");
-
-	case EFinalRunNodeType::Reward:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeReward", "Reward");
-
-	case EFinalRunNodeType::EliteBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeEliteBattle", "Elite Battle");
-
-	case EFinalRunNodeType::BossBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeBossBattle", "Boss Battle");
-
-	case EFinalRunNodeType::None:
-	default:
-		return NSLOCTEXT("FinalFlowUI", "RunNodeTypeNone", "None");
-	}
-}
-
 FString BuildAvailableNodeSummary(const TArray<FFinalRunNodeOptionViewData>& AvailableNextNodes, const int32 SelectedNodeIndex)
 {
 	if (AvailableNextNodes.Num() <= 0)
@@ -99,10 +23,10 @@ FString BuildAvailableNodeSummary(const TArray<FFinalRunNodeOptionViewData>& Ava
 	{
 		const FFinalRunNodeOptionViewData& NodeOption = AvailableNextNodes[Index];
 		const FString Prefix = Index == SelectedNodeIndex ? TEXT("> ") : TEXT("  ");
-		const FString DisplayName = FormatNodeOverlayOptionalText(
+		const FString DisplayName = FormatOptionalText(
 			NodeOption.DisplayName,
-			FormatNodeOverlayOptionalName(NodeOption.NodeId, NSLOCTEXT("FinalFlowUI", "NodeOptionFallbackName", "未命名节点"))).ToString();
-		const FString DisplayLabel = FormatNodeOverlayOptionalName(
+			FormatOptionalName(NodeOption.NodeId, NSLOCTEXT("FinalFlowUI", "NodeOptionFallbackName", "未命名节点"))).ToString();
+		const FString DisplayLabel = FormatOptionalName(
 			NodeOption.DisplayLabel,
 			NSLOCTEXT("FinalFlowUI", "NodeOptionFallbackLabel", "无")).ToString();
 		const FString AvailabilityMessage = !NodeOption.AvailabilityMessage.IsEmpty()
@@ -134,30 +58,6 @@ FString BuildAvailableNodeSummary(const TArray<FFinalRunNodeOptionViewData>& Ava
 	NodeSummary.TrimEndInline();
 	return NodeSummary;
 }
-
-UTextBlock* CreateNodeOverlayLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize)
-{
-	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
-	Text->SetAutoWrapText(true);
-	Text->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), FontSize));
-	return Text;
-}
-
-UFinalRunFlowSubsystem* ResolveNodeOverlayRunFlowSubsystem(UUserWidget* Widget)
-{
-	if (Widget == nullptr)
-	{
-		return nullptr;
-	}
-
-	UGameInstance* GameInstance = Widget->GetGameInstance();
-	if (GameInstance == nullptr)
-	{
-		return nullptr;
-	}
-
-	return GameInstance->GetSubsystem<UFinalRunFlowSubsystem>();
-}
 }
 
 void UFinalRunNodeOverlayScreen::NativeOnInitialized()
@@ -169,127 +69,107 @@ void UFinalRunNodeOverlayScreen::NativeOnInitialized()
 
 void UFinalRunNodeOverlayScreen::ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot)
 {
-	CachedSnapshot = InSnapshot;
-	LastActionFeedback = FText::GetEmpty();
+	Super::ConfigureFromRunSnapshot(InSnapshot);
 	ClampSelectedNodeIndex();
 	RebuildVisual();
 }
 
 void UFinalRunNodeOverlayScreen::HandleSelectPreviousNodeClicked()
 {
-	const int32 AvailableNodeCount = CachedSnapshot.Progression.AvailableNextNodes.Num();
+	const int32 AvailableNodeCount = GetCachedSnapshot().Progression.AvailableNextNodes.Num();
 	if (AvailableNodeCount <= 0)
 	{
 		return;
 	}
 
-	if (SelectedNodeIndex == INDEX_NONE)
-	{
-		SelectedNodeIndex = 0;
-	}
-	else
-	{
-		SelectedNodeIndex = (SelectedNodeIndex - 1 + AvailableNodeCount) % AvailableNodeCount;
-	}
+	SelectedNodeIndex = SelectedNodeIndex == INDEX_NONE
+		? 0
+		: (SelectedNodeIndex - 1 + AvailableNodeCount) % AvailableNodeCount;
 
 	RebuildVisual();
 }
 
 void UFinalRunNodeOverlayScreen::HandleSelectNextNodeClicked()
 {
-	const int32 AvailableNodeCount = CachedSnapshot.Progression.AvailableNextNodes.Num();
+	const int32 AvailableNodeCount = GetCachedSnapshot().Progression.AvailableNextNodes.Num();
 	if (AvailableNodeCount <= 0)
 	{
 		return;
 	}
 
-	if (SelectedNodeIndex == INDEX_NONE)
-	{
-		SelectedNodeIndex = 0;
-	}
-	else
-	{
-		SelectedNodeIndex = (SelectedNodeIndex + 1) % AvailableNodeCount;
-	}
+	SelectedNodeIndex = SelectedNodeIndex == INDEX_NONE
+		? 0
+		: (SelectedNodeIndex + 1) % AvailableNodeCount;
 
 	RebuildVisual();
 }
 
 void UFinalRunNodeOverlayScreen::HandleAdvanceSelectedNodeClicked()
 {
-	const TArray<FFinalRunNodeOptionViewData>& AvailableNextNodes = CachedSnapshot.Progression.AvailableNextNodes;
+	const TArray<FFinalRunNodeOptionViewData>& AvailableNextNodes = GetCachedSnapshot().Progression.AvailableNextNodes;
 	if (!AvailableNextNodes.IsValidIndex(SelectedNodeIndex))
 	{
-		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "NodeNoSelection", "当前没有可推进的目标节点。");
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "NodeNoSelection", "当前没有可推进的目标节点。"));
 		RebuildVisual();
 		return;
 	}
 
-	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveNodeOverlayRunFlowSubsystem(this);
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
 	if (RunFlowSubsystem == nullptr)
 	{
-		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "NodeNoRunFlowSubsystem", "当前无法访问 RunFlowSubsystem，无法推进节点。");
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "NodeNoRunFlowSubsystem", "当前无法访问 RunFlowSubsystem，无法推进节点。"));
 		RebuildVisual();
 		return;
 	}
 
 	const FFinalRunNodeOptionViewData& SelectedNode = AvailableNextNodes[SelectedNodeIndex];
 	const bool bAdvanced = RunFlowSubsystem->AdvanceToNode(SelectedNode.NodeId);
-	CachedSnapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
-	ClampSelectedNodeIndex();
-	LastActionFeedback = !RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
 		? RunFlowSubsystem->GetLastFlowMessage()
 		: (bAdvanced
 			? NSLOCTEXT("FinalFlowUI", "NodeAdvanceSucceeded", "已转发 AdvanceToNode。")
-			: NSLOCTEXT("FinalFlowUI", "NodeAdvanceFailed", "AdvanceToNode 执行失败。"));
+			: NSLOCTEXT("FinalFlowUI", "NodeAdvanceFailed", "AdvanceToNode 执行失败。")));
+	ClampSelectedNodeIndex();
 	RebuildVisual();
 }
 
 void UFinalRunNodeOverlayScreen::HandleOpenRewardPageClicked()
 {
-	if (UGameInstance* GameInstance = GetGameInstance())
+	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
 	{
-		if (UFinalUISubsystem* UISubsystem = GameInstance->GetSubsystem<UFinalUISubsystem>())
-		{
-			UISubsystem->ShowBattleRewardOverlayPlaceholder();
-		}
+		UISubsystem->ShowBattleRewardOverlayPlaceholder();
 	}
 }
 
 void UFinalRunNodeOverlayScreen::HandleCloseClicked()
 {
-	if (UGameInstance* GameInstance = GetGameInstance())
+	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
 	{
-		if (UFinalUISubsystem* UISubsystem = GameInstance->GetSubsystem<UFinalUISubsystem>())
-		{
-			UISubsystem->CloseOverlayScreen(this);
-		}
+		UISubsystem->CloseOverlayScreen(this);
 	}
 }
 
 void UFinalRunNodeOverlayScreen::HandleOpenModalClicked()
 {
-	if (UGameInstance* GameInstance = GetGameInstance())
+	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
 	{
-		if (UFinalUISubsystem* UISubsystem = GameInstance->GetSubsystem<UFinalUISubsystem>())
-		{
-			UISubsystem->ShowPlaceholderModal(
-				NSLOCTEXT("FinalFlowUI", "NodeModalTitle", "节点确认占位"),
-				NSLOCTEXT("FinalFlowUI", "NodeModalBody", "后续节点选择确认、离开当前页、返回地图等阻断交互，应该落在 Modal 层，不影响常驻 Battle HUD。"));
-		}
+		UISubsystem->ShowPlaceholderModal(
+			NSLOCTEXT("FinalFlowUI", "NodeModalTitle", "节点选择页占位"),
+			NSLOCTEXT("FinalFlowUI", "NodeModalBody", "当前节点选择页已经专门承接 AwaitingNodeAdvance。后续若需要节点地图确认、离开页面确认等阻断交互，应继续落在 Modal 层。"));
 	}
 }
 
 void UFinalRunNodeOverlayScreen::ClampSelectedNodeIndex()
 {
-	const int32 AvailableNodeCount = CachedSnapshot.Progression.AvailableNextNodes.Num();
+	const int32 AvailableNodeCount = GetCachedSnapshot().Progression.AvailableNextNodes.Num();
 	if (AvailableNodeCount <= 0)
 	{
 		SelectedNodeIndex = INDEX_NONE;
 		return;
 	}
 
-	if (!CachedSnapshot.Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex))
+	if (!GetCachedSnapshot().Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex))
 	{
 		SelectedNodeIndex = 0;
 	}
@@ -297,132 +177,124 @@ void UFinalRunNodeOverlayScreen::ClampSelectedNodeIndex()
 
 void UFinalRunNodeOverlayScreen::EnsureWidgetTree()
 {
-	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	EnsureBaseWidgetTree(FLinearColor(0.08f, 0.09f, 0.06f, 0.96f), TEXT("NodeOverlayRoot"), TEXT("NodeOverlayContent"));
+	if (ContentBox == nullptr)
 	{
 		return;
 	}
 
-	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("NodeOverlayRoot"));
-	RootBorder->SetBrushColor(FLinearColor(0.08f, 0.09f, 0.06f, 0.96f));
-	RootBorder->SetPadding(FMargin(24.0f));
-	WidgetTree->RootWidget = RootBorder;
+	if (CurrentNodeText == nullptr)
+	{
+		CurrentNodeText = CreateStageLabel(TEXT("NodeOverlayCurrentNode"), 13);
+		ContentBox->InsertChildAt(2, CurrentNodeText);
+	}
 
-	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("NodeOverlayContent"));
-	RootBorder->SetContent(ContentBox);
+	if (AvailableNodesText == nullptr)
+	{
+		AvailableNodesText = CreateStageLabel(TEXT("NodeOverlayAvailableNodes"), 13);
+		ContentBox->InsertChildAt(3, AvailableNodesText);
+	}
 
-	TitleText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayTitle"), 22);
-	ContentBox->AddChildToVerticalBox(TitleText);
+	if (PreviousNodeButton == nullptr)
+	{
+		PreviousNodeButton = CreateStageButton(
+			TEXT("NodeOverlayPreviousButton"),
+			TEXT("NodeOverlayPreviousButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodePreviousButton", "上一个候选节点"),
+			PreviousNodeButtonText);
+		PreviousNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleSelectPreviousNodeClicked);
+		ContentBox->AddChildToVerticalBox(PreviousNodeButton);
+	}
 
-	SummaryText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlaySummary"), 14);
-	ContentBox->AddChildToVerticalBox(SummaryText);
+	if (NextNodeButton == nullptr)
+	{
+		NextNodeButton = CreateStageButton(
+			TEXT("NodeOverlayNextButton"),
+			TEXT("NodeOverlayNextButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodeNextButton", "下一个候选节点"),
+			NextNodeButtonText);
+		NextNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleSelectNextNodeClicked);
+		ContentBox->AddChildToVerticalBox(NextNodeButton);
+	}
 
-	CurrentNodeText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayCurrentNode"), 13);
-	ContentBox->AddChildToVerticalBox(CurrentNodeText);
+	if (AdvanceNodeButton == nullptr)
+	{
+		AdvanceNodeButton = CreateStageButton(
+			TEXT("NodeOverlayAdvanceButton"),
+			TEXT("NodeOverlayAdvanceButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodeAdvanceButtonDisabled", "当前没有可推进节点"),
+			AdvanceNodeButtonText);
+		AdvanceNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleAdvanceSelectedNodeClicked);
+		ContentBox->AddChildToVerticalBox(AdvanceNodeButton);
+	}
 
-	AvailableNodesText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayAvailableNodes"), 13);
-	ContentBox->AddChildToVerticalBox(AvailableNodesText);
+	if (OpenRewardPageButton == nullptr)
+	{
+		OpenRewardPageButton = CreateStageButton(
+			TEXT("NodeOverlayRewardButton"),
+			TEXT("NodeOverlayRewardButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodeRewardButton", "查看战后奖励页"),
+			OpenRewardPageButtonText);
+		OpenRewardPageButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleOpenRewardPageClicked);
+		ContentBox->AddChildToVerticalBox(OpenRewardPageButton);
+	}
 
-	GapText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayGap"), 12);
-	ContentBox->AddChildToVerticalBox(GapText);
+	if (OpenModalButton == nullptr)
+	{
+		OpenModalButton = CreateStageButton(
+			TEXT("NodeOverlayModalButton"),
+			TEXT("NodeOverlayModalButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodeModalButton", "打开节点选择说明模态"),
+			OpenModalButtonText);
+		OpenModalButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleOpenModalClicked);
+		ContentBox->AddChildToVerticalBox(OpenModalButton);
+	}
 
-	FeedbackText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayFeedback"), 12);
-	ContentBox->AddChildToVerticalBox(FeedbackText);
-
-	PreviousNodeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayPreviousButton"));
-	PreviousNodeButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayPreviousButtonText"), 13);
-	PreviousNodeButtonText->SetText(NSLOCTEXT("FinalFlowUI", "NodePreviousButton", "上一个候选节点"));
-	PreviousNodeButton->AddChild(PreviousNodeButtonText);
-	PreviousNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleSelectPreviousNodeClicked);
-	ContentBox->AddChildToVerticalBox(PreviousNodeButton);
-
-	NextNodeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayNextButton"));
-	NextNodeButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayNextButtonText"), 13);
-	NextNodeButtonText->SetText(NSLOCTEXT("FinalFlowUI", "NodeNextButton", "下一个候选节点"));
-	NextNodeButton->AddChild(NextNodeButtonText);
-	NextNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleSelectNextNodeClicked);
-	ContentBox->AddChildToVerticalBox(NextNodeButton);
-
-	AdvanceNodeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayAdvanceButton"));
-	AdvanceNodeButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayAdvanceButtonText"), 13);
-	AdvanceNodeButton->AddChild(AdvanceNodeButtonText);
-	AdvanceNodeButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleAdvanceSelectedNodeClicked);
-	ContentBox->AddChildToVerticalBox(AdvanceNodeButton);
-
-	OpenRewardPageButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayRewardButton"));
-	OpenRewardPageButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayRewardButtonText"), 13);
-	OpenRewardPageButtonText->SetText(NSLOCTEXT("FinalFlowUI", "NodeRewardButton", "查看待领奖励页"));
-	OpenRewardPageButton->AddChild(OpenRewardPageButtonText);
-	OpenRewardPageButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleOpenRewardPageClicked);
-	ContentBox->AddChildToVerticalBox(OpenRewardPageButton);
-
-	OpenModalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayModalButton"));
-	OpenModalButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayModalButtonText"), 13);
-	OpenModalButtonText->SetText(NSLOCTEXT("FinalFlowUI", "NodeModalButton", "打开节点说明模态"));
-	OpenModalButton->AddChild(OpenModalButtonText);
-	OpenModalButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleOpenModalClicked);
-	ContentBox->AddChildToVerticalBox(OpenModalButton);
-
-	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NodeOverlayCloseButton"));
-	CloseButtonText = CreateNodeOverlayLabel(WidgetTree, TEXT("NodeOverlayCloseButtonText"), 13);
-	CloseButtonText->SetText(NSLOCTEXT("FinalFlowUI", "NodeCloseButton", "关闭节点页"));
-	CloseButton->AddChild(CloseButtonText);
-	CloseButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleCloseClicked);
-	ContentBox->AddChildToVerticalBox(CloseButton);
+	if (CloseButton == nullptr)
+	{
+		CloseButton = CreateStageButton(
+			TEXT("NodeOverlayCloseButton"),
+			TEXT("NodeOverlayCloseButtonText"),
+			NSLOCTEXT("FinalFlowUI", "NodeCloseButton", "关闭节点选择页"),
+			CloseButtonText);
+		CloseButton->OnClicked.AddDynamic(this, &UFinalRunNodeOverlayScreen::HandleCloseClicked);
+		ContentBox->AddChildToVerticalBox(CloseButton);
+	}
 }
 
 void UFinalRunNodeOverlayScreen::RebuildVisual()
 {
+	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
+	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
+
 	if (TitleText)
 	{
-		TitleText->SetText(NSLOCTEXT("FinalFlowUI", "NodeOverlayTitleText", "节点推进页"));
+		TitleText->SetText(NSLOCTEXT("FinalFlowUI", "NodeOverlayTitleText", "节点选择页"));
 	}
 
 	if (SummaryText)
 	{
-		const FFinalRunProgressionViewData& Progression = CachedSnapshot.Progression;
 		SummaryText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "NodeOverlaySummaryText", "流程阶段: {0}\n可领奖励: {1}\n可推进节点: {2}\n待战斗桥接: {3}\n当前金币: {4} | 遗物数: {5} | 牌库数: {6}"),
 			FormatFlowStageText(Progression.FlowStage),
-			Progression.bCanClaimPendingBattleReward
-				? NSLOCTEXT("FinalFlowUI", "NodeCanClaimReward", "是")
-				: NSLOCTEXT("FinalFlowUI", "NodeCannotClaimReward", "否"),
-			Progression.bCanAdvanceToNextNode
-				? NSLOCTEXT("FinalFlowUI", "NodeCanAdvance", "是")
-				: NSLOCTEXT("FinalFlowUI", "NodeCannotAdvance", "否"),
-			CachedSnapshot.PendingBattle.bHasPendingBattleStart
-				? NSLOCTEXT("FinalFlowUI", "NodeHasPendingBattle", "已配置")
-				: NSLOCTEXT("FinalFlowUI", "NodeNoPendingBattle", "无"),
-			FText::AsNumber(CachedSnapshot.Gold),
-			FText::AsNumber(CachedSnapshot.RelicCount),
-			FText::AsNumber(CachedSnapshot.DeckCount)));
+			FormatBool(Progression.bCanClaimPendingBattleReward),
+			FormatBool(Progression.bCanAdvanceToNextNode),
+			FormatBool(Snapshot.PendingBattle.bHasPendingBattleStart),
+			FText::AsNumber(Snapshot.Gold),
+			FText::AsNumber(Snapshot.RelicCount),
+			FText::AsNumber(Snapshot.DeckCount)));
 	}
 
 	if (CurrentNodeText)
 	{
-		const FFinalRunProgressionViewData& Progression = CachedSnapshot.Progression;
-		CurrentNodeText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "NodeOverlayCurrentNodeText", "当前节点: {0}\n显示标签: {1}\nNodeId: {2}\n当前节点类型: {3}\n章节/楼层: {4}/{5}\n已访问: {6}\n需要解析: {7}\n已有解析器: {8}\n当前节点状态: {9}"),
-			FormatNodeOverlayOptionalText(
-				Progression.CurrentNodeDisplayName,
-				FormatNodeOverlayOptionalName(Progression.CurrentNodeId, NSLOCTEXT("FinalFlowUI", "NodeCurrentNodeNone", "无"))),
-			FormatNodeOverlayOptionalName(Progression.CurrentNodeDisplayLabel, NSLOCTEXT("FinalFlowUI", "NodeCurrentNodeLabelNone", "无")),
-			FormatNodeOverlayOptionalName(Progression.CurrentNodeId, NSLOCTEXT("FinalFlowUI", "NodeCurrentNodeIdNone", "无")),
-			FormatNodeTypeText(Progression.CurrentNodeType),
-			FText::AsNumber(Progression.CurrentChapter),
-			FText::AsNumber(Progression.CurrentFloor),
-			FormatNodeOverlayBool(Progression.bCurrentNodeVisited),
-			FormatNodeOverlayBool(Progression.bCurrentNodeNeedsResolution),
-			FormatNodeOverlayBool(Progression.bCurrentNodeHasImplementedResolver),
-			FormatNodeOverlayOptionalText(
-				Progression.CurrentNodeStateMessage,
-				NSLOCTEXT("FinalFlowUI", "NodeCurrentNodeStateDefault", "当前没有额外状态说明。"))));
+		CurrentNodeText->SetText(BuildCurrentNodeSummaryText(Progression));
 	}
 
 	if (AvailableNodesText)
 	{
 		AvailableNodesText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "NodeAvailableNodesSummary", "可选下一节点:\n{0}"),
-			FText::FromString(BuildAvailableNodeSummary(CachedSnapshot.Progression.AvailableNextNodes, SelectedNodeIndex))));
+			FText::FromString(BuildAvailableNodeSummary(Progression.AvailableNextNodes, SelectedNodeIndex))));
 	}
 
 	if (GapText)
@@ -430,26 +302,15 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"NodeOverlayGapText",
-			"当前页已真实消费章节/楼层、节点显示名/标签、访问状态、锁定状态、可达说明与解析器实现状态。剩余缺口主要是地图布局、节点图标、以及事件/商店/奖励节点的专用详情页。"));
+			"当前页只承接 AwaitingNodeAdvance。奖励节点、事件节点、商店节点已拆到独立 Overlay 页，不再继续挤在这里。"));
 	}
 
 	if (FeedbackText)
 	{
-		if (!LastActionFeedback.IsEmpty())
-		{
-			FeedbackText->SetText(LastActionFeedback);
-		}
-		else if (!CachedSnapshot.Progression.CurrentNodeStateMessage.IsEmpty())
-		{
-			FeedbackText->SetText(CachedSnapshot.Progression.CurrentNodeStateMessage);
-		}
-		else
-		{
-			FeedbackText->SetText(NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会把推进节点意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。"));
-		}
+		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会把推进节点意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。")));
 	}
 
-	const bool bHasAvailableNodes = CachedSnapshot.Progression.AvailableNextNodes.Num() > 0;
+	const bool bHasAvailableNodes = Progression.AvailableNextNodes.Num() > 0;
 	if (PreviousNodeButton)
 	{
 		PreviousNodeButton->SetIsEnabled(bHasAvailableNodes);
@@ -462,21 +323,21 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 
 	if (AdvanceNodeButton)
 	{
-		const bool bHasSelectedNode = CachedSnapshot.Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex);
-		const bool bSelectedNodeUnlocked = bHasSelectedNode ? !CachedSnapshot.Progression.AvailableNextNodes[SelectedNodeIndex].bLocked : false;
-		AdvanceNodeButton->SetIsEnabled(CachedSnapshot.Progression.bCanAdvanceToNextNode && bHasAvailableNodes && bHasSelectedNode && bSelectedNodeUnlocked);
+		const bool bHasSelectedNode = Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex);
+		const bool bSelectedNodeUnlocked = bHasSelectedNode ? !Progression.AvailableNextNodes[SelectedNodeIndex].bLocked : false;
+		AdvanceNodeButton->SetIsEnabled(Progression.bCanAdvanceToNextNode && bHasAvailableNodes && bHasSelectedNode && bSelectedNodeUnlocked);
 	}
 
 	if (AdvanceNodeButtonText)
 	{
-		if (CachedSnapshot.Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex))
+		if (Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex))
 		{
-			const FFinalRunNodeOptionViewData& SelectedNode = CachedSnapshot.Progression.AvailableNextNodes[SelectedNodeIndex];
+			const FFinalRunNodeOptionViewData& SelectedNode = Progression.AvailableNextNodes[SelectedNodeIndex];
 			if (SelectedNode.bLocked)
 			{
 				AdvanceNodeButtonText->SetText(FText::Format(
 					NSLOCTEXT("FinalFlowUI", "NodeAdvanceButtonLocked", "当前选中节点不可推进: {0}"),
-					FormatNodeOverlayOptionalText(
+					FormatOptionalText(
 						SelectedNode.AvailabilityMessage,
 						NSLOCTEXT("FinalFlowUI", "NodeAdvanceButtonLockedFallback", "该节点当前不可进入。"))));
 			}
@@ -484,9 +345,9 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 			{
 				AdvanceNodeButtonText->SetText(FText::Format(
 					NSLOCTEXT("FinalFlowUI", "NodeAdvanceButton", "推进到选中节点: {0}"),
-					FormatNodeOverlayOptionalText(
+					FormatOptionalText(
 						SelectedNode.DisplayName,
-						FormatNodeOverlayOptionalName(SelectedNode.NodeId, NSLOCTEXT("FinalFlowUI", "NodeAdvanceButtonFallback", "未命名节点")))));
+						FormatOptionalName(SelectedNode.NodeId, NSLOCTEXT("FinalFlowUI", "NodeAdvanceButtonFallback", "未命名节点")))));
 			}
 		}
 		else
@@ -497,6 +358,6 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 
 	if (OpenRewardPageButton)
 	{
-		OpenRewardPageButton->SetIsEnabled(CachedSnapshot.Progression.bCanClaimPendingBattleReward || CachedSnapshot.PendingBattleReward.bHasPendingReward);
+		OpenRewardPageButton->SetIsEnabled(Progression.bCanClaimPendingBattleReward || Snapshot.PendingBattleReward.bHasPendingReward);
 	}
 }
