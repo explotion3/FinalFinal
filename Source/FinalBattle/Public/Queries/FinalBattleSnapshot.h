@@ -65,6 +65,12 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 	TArray<FFinalBattleEnemyViewData> Enemies;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleStatusViewData> TeamStatuses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleCharacterStatusesViewData> CharacterStatuses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleStatusViewData> Statuses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
