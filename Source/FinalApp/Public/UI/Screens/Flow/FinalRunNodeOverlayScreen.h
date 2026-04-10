@@ -1,23 +1,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Queries/FinalRunSnapshot.h"
-#include "UI/Screens/FinalOverlayScreenBase.h"
+#include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
 #include "FinalRunNodeOverlayScreen.generated.h"
 
 class UButton;
 class UTextBlock;
 
 UCLASS()
-class FINALAPP_API UFinalRunNodeOverlayScreen : public UFinalOverlayScreenBase
+class FINALAPP_API UFinalRunNodeOverlayScreen : public UFinalRunStageOverlayScreenBase
 {
 	GENERATED_BODY()
 
 public:
 	virtual void NativeOnInitialized() override;
 
-	UFUNCTION(BlueprintCallable, Category = "Final|UI")
-	void ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot);
+	virtual void ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot) override;
 
 private:
 	UFUNCTION()
@@ -43,25 +41,10 @@ private:
 	void RebuildVisual();
 
 	UPROPERTY(Transient)
-	FFinalRunSnapshot CachedSnapshot;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> TitleText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> SummaryText;
-
-	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CurrentNodeText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> AvailableNodesText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> GapText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> FeedbackText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> PreviousNodeButton;
@@ -98,9 +81,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CloseButtonText;
-
-	UPROPERTY(Transient)
-	FText LastActionFeedback;
 
 	UPROPERTY(Transient)
 	int32 SelectedNodeIndex = INDEX_NONE;

@@ -21,13 +21,17 @@
   * `OpenModalScreen / CloseModalScreen`
   * `FinalOverlayScreenBase`
   * `FinalModalScreenBase`
-  * `FinalRunRewardOverlayScreen`（战后奖励页最小原型）
-  * `FinalRunNodeOverlayScreen`（节点推进页最小原型）
+  * `FinalRunStageOverlayScreenBase`
+  * `FinalRunRewardOverlayScreen`（战后奖励页）
+  * `FinalRunNodeOverlayScreen`（节点选择页）
+  * `FinalRunRewardNodeOverlayScreen`（奖励节点页占位）
+  * `FinalRunEventNodeOverlayScreen`（事件节点页占位）
+  * `FinalRunShopNodeOverlayScreen`（商店节点页占位）
   * `FinalPlaceholderModalScreen`（确认类模态占位）
 * 当前 `FinalApp` 已新增 `RunFlowSubsystem`：
   * 读取 `RunSession`
   * 增量消费 `RunEvent`
-  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调奖励页、节点页与常驻 HUD
+  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
@@ -60,7 +64,7 @@
 * 底部右侧：结束回合按钮
 * 右下：三名角色奥义快捷按钮
 * 中央覆盖层：
-  * 当前已落地 `Overlay` 原型：战后奖励页、节点推进页
+  * 当前已落地 `Overlay` 原型：战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页
   * 当前已落地 `Modal` 骨架：流程确认占位
   * 未来继续承接：事件、商店、变体、章节完成/失败
 
@@ -74,7 +78,7 @@
 
 ## 2.1 RootLayout 分层口径
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
-* `Overlay Layer`：承接奖励页、节点页、事件页、商店页这类整页流程界面；当前同一时刻只显示栈顶页
+* `Overlay Layer`：承接战后奖励、节点选择、奖励节点、事件节点、商店节点这类整页流程界面；当前同一时刻只显示栈顶页
 * `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
 * `Tooltip / Toast Layer`：当前保留为后续扩展挂点
 * 输入优先级：
@@ -84,11 +88,13 @@
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
 * Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
-  * 进入 `PendingBattleReward` 时打开奖励页
-  * 进入 `AwaitingNodeAdvance` 时切到节点页
-  * 进入 `PendingRewardNode / PendingEventNode / PendingShopNode` 时继续保留节点页，并明确显示“当前节点需要解析但原型尚未实现”的状态说明
+  * 进入 `PendingBattleReward` 时打开战后奖励页
+  * 进入 `AwaitingNodeAdvance` 时切到节点选择页
+  * 进入 `PendingRewardNode` 时切到奖励节点页
+  * 进入 `PendingEventNode` 时切到事件节点页
+  * 进入 `PendingShopNode` 时切到商店节点页
   * 进入 `PreparingBattle / None / RunEnded` 时关闭不该停留的外层页
-* `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
+* `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动
@@ -157,7 +163,7 @@
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
 
 ### 4.2 Run 外层流程页
-当前 `FinalApp` 已经具备承接奖励页 / 节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward` 与 `Progression`。
+当前 `FinalApp` 已经具备承接战后奖励页 / 节点选择页 / 奖励节点页 / 事件节点页 / 商店节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward` 与 `Progression`。
 
 当前已接入字段：
 * `PendingBattleReward.bHasPendingReward`
@@ -201,18 +207,22 @@
 * 多奖励选择、替换、跳过等 richer reward flow 的结构化状态
 * 奖励条目分组、卡片化布局、二次确认交互
 
-节点推进页仍缺：
+节点选择页仍缺：
 * 节点图标、章节路线布局、地图空间关系
-* 事件 / 商店 / 奖励节点的专用详情页与确认流
 * 更完整的节点类型扩展与对应专用展示
+
+奖励节点 / 事件节点 / 商店节点页仍缺：
+* 各自的专用详情查询与确认流
 * 节点进入后的 resolver 级细节 UI，而不只是当前占位页摘要
+* 专用的按钮集、内容布局与二次确认模态
 
 当前实现口径：
 * 占位页只消费现有 `FFinalRunSnapshot`
-* 奖励页当前以 `PendingBattleReward.RewardEntries` 为主展示口径，`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
-* 节点页当前以 `Progression` 的章节/楼层/显示名/状态字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
+* 战后奖励页当前以 `PendingBattleReward.RewardEntries` 为主展示口径，`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
+* 奖励节点页、事件节点页、商店节点页当前是结构化占位页：它们会真实消费当前节点展示字段与状态消息，但不会在 `FinalApp` 内伪造专用规则或结算
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
-* `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会继续停留在节点页，并明确展示“节点待解析但原型尚未实现”的状态消息
+* `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会分别路由到对应的专用页，而不是继续挤在节点选择页
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性
 
 ## 5. 必须显示的信息

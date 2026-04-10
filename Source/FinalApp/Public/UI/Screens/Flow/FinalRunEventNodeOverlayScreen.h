@@ -2,51 +2,44 @@
 
 #include "CoreMinimal.h"
 #include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
-#include "FinalRunRewardOverlayScreen.generated.h"
+#include "FinalRunEventNodeOverlayScreen.generated.h"
 
 class UButton;
 class UTextBlock;
 
 UCLASS()
-class FINALAPP_API UFinalRunRewardOverlayScreen : public UFinalRunStageOverlayScreenBase
+class FINALAPP_API UFinalRunEventNodeOverlayScreen : public UFinalRunStageOverlayScreenBase
 {
 	GENERATED_BODY()
 
 public:
 	virtual void NativeOnInitialized() override;
-
 	virtual void ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot) override;
 
 private:
 	UFUNCTION()
-	void HandleClaimRewardClicked();
-
-	UFUNCTION()
-	void HandleOpenNodePageClicked();
-
-	UFUNCTION()
-	void HandleCloseClicked();
+	void HandleOpenNodeSelectClicked();
 
 	UFUNCTION()
 	void HandleOpenModalClicked();
+
+	UFUNCTION()
+	void HandleCloseClicked();
 
 	void EnsureWidgetTree();
 	void RebuildVisual();
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> RewardEntriesText;
+	TObjectPtr<UTextBlock> CurrentNodeText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> ClaimRewardButton;
+	TObjectPtr<UTextBlock> MissingFieldsText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> ClaimRewardButtonText;
+	TObjectPtr<UButton> OpenNodeSelectButton;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UButton> OpenNodePageButton;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> OpenNodePageButtonText;
+	TObjectPtr<UTextBlock> OpenNodeSelectButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> OpenModalButton;

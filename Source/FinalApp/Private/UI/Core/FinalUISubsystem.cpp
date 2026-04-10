@@ -11,8 +11,12 @@
 #include "UI/Screens/FinalScreenBase.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
+#include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunRewardNodeOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunShopNodeOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
 void UFinalUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -39,6 +43,9 @@ void UFinalUISubsystem::Deinitialize()
 	ModalScreenStack.Reset();
 	RewardOverlayScreen = nullptr;
 	NodeOverlayScreen = nullptr;
+	RewardNodeOverlayScreen = nullptr;
+	EventNodeOverlayScreen = nullptr;
+	ShopNodeOverlayScreen = nullptr;
 	PlaceholderModalScreen = nullptr;
 	RootLayout = nullptr;
 	PrimaryPlayerController = nullptr;
@@ -236,43 +243,36 @@ void UFinalUISubsystem::CloseModalScreen(UFinalScreenBase* Screen)
 void UFinalUISubsystem::ShowBattleRewardOverlayPlaceholder()
 {
 	EnsureFlowScreens();
-	if (RewardOverlayScreen == nullptr)
-	{
-		return;
-	}
-
-	FFinalRunSnapshot RunSnapshot;
-	if (const UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
-	{
-		if (const UFinalRunSession* RunSession = GameFlowSubsystem->GetRunSession())
-		{
-			RunSnapshot = RunSession->GetSnapshot();
-		}
-	}
-
-	RewardOverlayScreen->ConfigureFromRunSnapshot(RunSnapshot);
-	OpenOverlayScreen(RewardOverlayScreen, true);
+	ConfigureAndOpenRunOverlay(RewardOverlayScreen);
 }
 
 void UFinalUISubsystem::ShowNodeProgressOverlayPlaceholder()
 {
+	ShowNodeSelectOverlayPlaceholder();
+}
+
+void UFinalUISubsystem::ShowNodeSelectOverlayPlaceholder()
+{
 	EnsureFlowScreens();
-	if (NodeOverlayScreen == nullptr)
-	{
-		return;
-	}
+	ConfigureAndOpenRunOverlay(NodeOverlayScreen);
+}
 
-	FFinalRunSnapshot RunSnapshot;
-	if (const UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
-	{
-		if (const UFinalRunSession* RunSession = GameFlowSubsystem->GetRunSession())
-		{
-			RunSnapshot = RunSession->GetSnapshot();
-		}
-	}
+void UFinalUISubsystem::ShowRewardNodeOverlayPlaceholder()
+{
+	EnsureFlowScreens();
+	ConfigureAndOpenRunOverlay(RewardNodeOverlayScreen);
+}
 
-	NodeOverlayScreen->ConfigureFromRunSnapshot(RunSnapshot);
-	OpenOverlayScreen(NodeOverlayScreen, true);
+void UFinalUISubsystem::ShowEventNodeOverlayPlaceholder()
+{
+	EnsureFlowScreens();
+	ConfigureAndOpenRunOverlay(EventNodeOverlayScreen);
+}
+
+void UFinalUISubsystem::ShowShopNodeOverlayPlaceholder()
+{
+	EnsureFlowScreens();
+	ConfigureAndOpenRunOverlay(ShopNodeOverlayScreen);
 }
 
 void UFinalUISubsystem::ShowPlaceholderModal(const FText& Title, const FText& Body)
@@ -370,10 +370,49 @@ void UFinalUISubsystem::EnsureFlowScreens()
 		NodeOverlayScreen = CreateWidget<UFinalRunNodeOverlayScreen>(PrimaryPlayerController, UFinalRunNodeOverlayScreen::StaticClass());
 	}
 
+	if (RewardNodeOverlayScreen == nullptr)
+	{
+		RewardNodeOverlayScreen = CreateWidget<UFinalRunRewardNodeOverlayScreen>(PrimaryPlayerController, UFinalRunRewardNodeOverlayScreen::StaticClass());
+	}
+
+	if (EventNodeOverlayScreen == nullptr)
+	{
+		EventNodeOverlayScreen = CreateWidget<UFinalRunEventNodeOverlayScreen>(PrimaryPlayerController, UFinalRunEventNodeOverlayScreen::StaticClass());
+	}
+
+	if (ShopNodeOverlayScreen == nullptr)
+	{
+		ShopNodeOverlayScreen = CreateWidget<UFinalRunShopNodeOverlayScreen>(PrimaryPlayerController, UFinalRunShopNodeOverlayScreen::StaticClass());
+	}
+
 	if (PlaceholderModalScreen == nullptr)
 	{
 		PlaceholderModalScreen = CreateWidget<UFinalPlaceholderModalScreen>(PrimaryPlayerController, UFinalPlaceholderModalScreen::StaticClass());
 	}
+}
+
+FFinalRunSnapshot UFinalUISubsystem::GetCurrentRunSnapshot() const
+{
+	if (const UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
+	{
+		if (const UFinalRunSession* RunSession = GameFlowSubsystem->GetRunSession())
+		{
+			return RunSession->GetSnapshot();
+		}
+	}
+
+	return FFinalRunSnapshot{};
+}
+
+void UFinalUISubsystem::ConfigureAndOpenRunOverlay(UFinalRunStageOverlayScreenBase* Screen)
+{
+	if (Screen == nullptr)
+	{
+		return;
+	}
+
+	Screen->ConfigureFromRunSnapshot(GetCurrentRunSnapshot());
+	OpenOverlayScreen(Screen, true);
 }
 
 void UFinalUISubsystem::RebuildScreenLayer(const EFinalUIScreenLayer Layer)

@@ -4,24 +4,18 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
-#include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
-#include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
 
 namespace
 {
-bool IsNodeOverlayFlowStage(const EFinalRunFlowStage FlowStage)
-{
-	return FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
-		|| FlowStage == EFinalRunFlowStage::PendingRewardNode
-		|| FlowStage == EFinalRunFlowStage::PendingEventNode
-		|| FlowStage == EFinalRunFlowStage::PendingShopNode;
-}
-
 FText BuildSnapshotFlowMessage(const FFinalRunSnapshot& Snapshot)
 {
 	if (!Snapshot.Progression.CurrentNodeStateMessage.IsEmpty()
 		&& (Snapshot.PendingBattleReward.bHasPendingReward
-			|| IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage)
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingRewardNode
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingEventNode
+			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingShopNode
 			|| Snapshot.Progression.bCurrentNodeNeedsResolution))
 	{
 		return Snapshot.Progression.CurrentNodeStateMessage;
@@ -165,12 +159,24 @@ void UFinalRunFlowSubsystem::ApplyPresentationForSnapshot(const FFinalRunSnapsho
 
 	switch (DesiredOverlay)
 	{
-	case EFinalRunPresentedOverlay::Reward:
+	case EFinalRunPresentedOverlay::BattleReward:
 		UISubsystem->ShowBattleRewardOverlayPlaceholder();
 		break;
 
-	case EFinalRunPresentedOverlay::Node:
-		UISubsystem->ShowNodeProgressOverlayPlaceholder();
+	case EFinalRunPresentedOverlay::NodeSelect:
+		UISubsystem->ShowNodeSelectOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::RewardNode:
+		UISubsystem->ShowRewardNodeOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::EventNode:
+		UISubsystem->ShowEventNodeOverlayPlaceholder();
+		break;
+
+	case EFinalRunPresentedOverlay::ShopNode:
+		UISubsystem->ShowShopNodeOverlayPlaceholder();
 		break;
 
 	case EFinalRunPresentedOverlay::None:
@@ -208,8 +214,7 @@ void UFinalRunFlowSubsystem::CloseActiveFlowOverlay() const
 	{
 		if (UFinalScreenBase* ActiveOverlayScreen = UISubsystem->GetActiveOverlayScreen())
 		{
-			if (Cast<UFinalRunRewardOverlayScreen>(ActiveOverlayScreen) != nullptr
-				|| Cast<UFinalRunNodeOverlayScreen>(ActiveOverlayScreen) != nullptr)
+			if (Cast<UFinalRunStageOverlayScreenBase>(ActiveOverlayScreen) != nullptr)
 			{
 				UISubsystem->CloseOverlayScreen(ActiveOverlayScreen);
 			}
@@ -222,22 +227,48 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
-		return EFinalRunPresentedOverlay::Reward;
+		return EFinalRunPresentedOverlay::BattleReward;
 	}
 
-	if (IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage))
+	switch (Snapshot.Progression.FlowStage)
 	{
-		return EFinalRunPresentedOverlay::Node;
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		return EFinalRunPresentedOverlay::NodeSelect;
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		return EFinalRunPresentedOverlay::RewardNode;
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return EFinalRunPresentedOverlay::EventNode;
+
+	case EFinalRunFlowStage::PendingShopNode:
+		return EFinalRunPresentedOverlay::ShopNode;
+
+	default:
+		break;
 	}
 
 	if (Snapshot.Progression.bCurrentNodeNeedsResolution)
 	{
-		return EFinalRunPresentedOverlay::Node;
+		switch (Snapshot.Progression.CurrentNodeType)
+		{
+		case EFinalRunNodeType::Reward:
+			return EFinalRunPresentedOverlay::RewardNode;
+
+		case EFinalRunNodeType::Event:
+			return EFinalRunPresentedOverlay::EventNode;
+
+		case EFinalRunNodeType::Shop:
+			return EFinalRunPresentedOverlay::ShopNode;
+
+		default:
+			return EFinalRunPresentedOverlay::NodeSelect;
+		}
 	}
 
 	if (Snapshot.Progression.bCanAdvanceToNextNode)
 	{
-		return EFinalRunPresentedOverlay::Node;
+		return EFinalRunPresentedOverlay::NodeSelect;
 	}
 
 	return EFinalRunPresentedOverlay::None;

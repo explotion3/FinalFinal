@@ -9,8 +9,11 @@
 enum class EFinalRunPresentedOverlay : uint8
 {
 	None,
-	Reward,
-	Node
+	BattleReward,
+	NodeSelect,
+	RewardNode,
+	EventNode,
+	ShopNode
 };
 
 UCLASS()
