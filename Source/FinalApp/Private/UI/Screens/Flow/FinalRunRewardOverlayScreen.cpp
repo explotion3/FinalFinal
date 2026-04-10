@@ -13,7 +13,7 @@
 
 namespace
 {
-FText FormatOptionalName(const FName Name, const FText& Fallback)
+FText FormatRewardOptionalName(const FName Name, const FText& Fallback)
 {
 	return Name != NAME_None ? FText::FromName(Name) : Fallback;
 }
@@ -36,7 +36,7 @@ FText FormatBattleOutcomeText(const EFinalBattleOutcome Outcome)
 	}
 }
 
-UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize)
+UTextBlock* CreateRewardOverlayLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize)
 {
 	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
 	Text->SetAutoWrapText(true);
@@ -44,7 +44,7 @@ UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 
 	return Text;
 }
 
-UFinalRunSession* ResolveRunSession(UUserWidget* Widget)
+UFinalRunSession* ResolveRewardOverlayRunSession(UUserWidget* Widget)
 {
 	if (Widget == nullptr)
 	{
@@ -65,7 +65,7 @@ UFinalRunSession* ResolveRunSession(UUserWidget* Widget)
 	return nullptr;
 }
 
-FText ResolveLatestRunFeedback(UFinalRunSession* RunSession, const FText& Fallback)
+FText ResolveRewardOverlayLatestRunFeedback(UFinalRunSession* RunSession, const FText& Fallback)
 {
 	if (RunSession == nullptr)
 	{
@@ -102,7 +102,7 @@ void UFinalRunRewardOverlayScreen::ConfigureFromRunSnapshot(const FFinalRunSnaps
 
 void UFinalRunRewardOverlayScreen::HandleClaimRewardClicked()
 {
-	UFinalRunSession* RunSession = ResolveRunSession(this);
+	UFinalRunSession* RunSession = ResolveRewardOverlayRunSession(this);
 	if (RunSession == nullptr)
 	{
 		LastActionFeedback = NSLOCTEXT("FinalFlowUI", "RewardNoRunSession", "当前无法访问 RunSession，无法领取待领奖励。");
@@ -112,7 +112,7 @@ void UFinalRunRewardOverlayScreen::HandleClaimRewardClicked()
 
 	const bool bClaimed = RunSession->ClaimPendingBattleReward();
 	CachedSnapshot = RunSession->GetSnapshot();
-	LastActionFeedback = ResolveLatestRunFeedback(
+	LastActionFeedback = ResolveRewardOverlayLatestRunFeedback(
 		RunSession,
 		bClaimed
 			? NSLOCTEXT("FinalFlowUI", "RewardClaimSucceeded", "已转发 ClaimPendingBattleReward。")
@@ -170,40 +170,40 @@ void UFinalRunRewardOverlayScreen::EnsureWidgetTree()
 	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardOverlayContent"));
 	RootBorder->SetContent(ContentBox);
 
-	TitleText = CreateLabel(WidgetTree, TEXT("RewardOverlayTitle"), 22);
+	TitleText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayTitle"), 22);
 	ContentBox->AddChildToVerticalBox(TitleText);
 
-	SummaryText = CreateLabel(WidgetTree, TEXT("RewardOverlaySummary"), 14);
+	SummaryText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlaySummary"), 14);
 	ContentBox->AddChildToVerticalBox(SummaryText);
 
-	GapText = CreateLabel(WidgetTree, TEXT("RewardOverlayGap"), 12);
+	GapText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayGap"), 12);
 	ContentBox->AddChildToVerticalBox(GapText);
 
-	FeedbackText = CreateLabel(WidgetTree, TEXT("RewardOverlayFeedback"), 12);
+	FeedbackText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayFeedback"), 12);
 	ContentBox->AddChildToVerticalBox(FeedbackText);
 
 	ClaimRewardButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RewardOverlayClaimButton"));
-	ClaimRewardButtonText = CreateLabel(WidgetTree, TEXT("RewardOverlayClaimButtonText"), 13);
+	ClaimRewardButtonText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayClaimButtonText"), 13);
 	ClaimRewardButton->AddChild(ClaimRewardButtonText);
 	ClaimRewardButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleClaimRewardClicked);
 	ContentBox->AddChildToVerticalBox(ClaimRewardButton);
 
 	OpenNodePageButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RewardOverlayNodeButton"));
-	OpenNodePageButtonText = CreateLabel(WidgetTree, TEXT("RewardOverlayNodeButtonText"), 13);
+	OpenNodePageButtonText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayNodeButtonText"), 13);
 	OpenNodePageButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeButton", "查看节点推进页"));
 	OpenNodePageButton->AddChild(OpenNodePageButtonText);
 	OpenNodePageButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleOpenNodePageClicked);
 	ContentBox->AddChildToVerticalBox(OpenNodePageButton);
 
 	OpenModalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RewardOverlayModalButton"));
-	OpenModalButtonText = CreateLabel(WidgetTree, TEXT("RewardOverlayModalButtonText"), 13);
+	OpenModalButtonText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayModalButtonText"), 13);
 	OpenModalButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardModalButton", "打开奖励说明模态"));
 	OpenModalButton->AddChild(OpenModalButtonText);
 	OpenModalButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleOpenModalClicked);
 	ContentBox->AddChildToVerticalBox(OpenModalButton);
 
 	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RewardOverlayCloseButton"));
-	CloseButtonText = CreateLabel(WidgetTree, TEXT("RewardOverlayCloseButtonText"), 13);
+	CloseButtonText = CreateRewardOverlayLabel(WidgetTree, TEXT("RewardOverlayCloseButtonText"), 13);
 	CloseButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardCloseButton", "关闭奖励页"));
 	CloseButton->AddChild(CloseButtonText);
 	CloseButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleCloseClicked);
@@ -226,7 +226,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 			PendingReward.bHasPendingReward
 				? NSLOCTEXT("FinalFlowUI", "RewardHasPendingReward", "是")
 				: NSLOCTEXT("FinalFlowUI", "RewardHasNoPendingReward", "否"),
-			FormatOptionalName(PendingReward.SourceNodeId, NSLOCTEXT("FinalFlowUI", "RewardNoNode", "无")),
+			FormatRewardOptionalName(PendingReward.SourceNodeId, NSLOCTEXT("FinalFlowUI", "RewardNoNode", "无")),
 			PendingReward.SourceEncounterId.IsValid()
 				? FText::FromName(PendingReward.SourceEncounterId.Value)
 				: NSLOCTEXT("FinalFlowUI", "RewardNoEncounter", "无"),

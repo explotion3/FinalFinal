@@ -10,7 +10,7 @@
 
 namespace
 {
-UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize)
+UTextBlock* CreatePlaceholderModalLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize)
 {
 	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
 	Text->SetAutoWrapText(true);
@@ -59,14 +59,14 @@ void UFinalPlaceholderModalScreen::EnsureWidgetTree()
 	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PlaceholderModalContent"));
 	RootBorder->SetContent(ContentBox);
 
-	TitleText = CreateLabel(WidgetTree, TEXT("PlaceholderModalTitle"), 20);
+	TitleText = CreatePlaceholderModalLabel(WidgetTree, TEXT("PlaceholderModalTitle"), 20);
 	ContentBox->AddChildToVerticalBox(TitleText);
 
-	BodyText = CreateLabel(WidgetTree, TEXT("PlaceholderModalBody"), 13);
+	BodyText = CreatePlaceholderModalLabel(WidgetTree, TEXT("PlaceholderModalBody"), 13);
 	ContentBox->AddChildToVerticalBox(BodyText);
 
 	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PlaceholderModalCloseButton"));
-	CloseButtonText = CreateLabel(WidgetTree, TEXT("PlaceholderModalCloseButtonText"), 13);
+	CloseButtonText = CreatePlaceholderModalLabel(WidgetTree, TEXT("PlaceholderModalCloseButtonText"), 13);
 	CloseButtonText->SetText(NSLOCTEXT("FinalFlowUI", "PlaceholderModalCloseButton", "关闭模态"));
 	CloseButton->AddChild(CloseButtonText);
 	CloseButton->OnClicked.AddDynamic(this, &UFinalPlaceholderModalScreen::HandleCloseClicked);
