@@ -25,3 +25,14 @@ FFinalBattleEvent UFinalBattleHUDViewModel::GetLatestPhaseChangedEvent() const
 {
 	return LatestPhaseChangedEvent;
 }
+
+void UFinalBattleHUDViewModel::ApplyPresentation(const FFinalBattleHUDPresentationData& InPresentation)
+{
+	Presentation = InPresentation;
+	BroadcastViewModelChanged();
+}
+
+FFinalBattleHUDPresentationData UFinalBattleHUDViewModel::GetPresentation() const
+{
+	return Presentation;
+}

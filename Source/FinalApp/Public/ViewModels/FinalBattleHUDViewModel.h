@@ -3,13 +3,175 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Queries/FinalBattleSnapshot.h"
-#include "UObject/Object.h"
+#include "UI/ViewModels/FinalViewModelBase.h"
 #include "FinalBattleHUDViewModel.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFinalPhaseChangedPresentationSignature, const FFinalBattleEvent&, BattleEvent);
 
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCharacterEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName RuntimeUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentStress = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 StressCap = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bCollapsed = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText StateText;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDEnemyEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName RuntimeUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentHP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentShield = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentBreakValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentInitiative = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText IntentText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bSelected = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCardEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FGuid CardInstanceId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RuntimeCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText RulesText;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDUltimateEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName RuntimeUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText StatusText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bEnabled = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDLogEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalBattleEventType EventType = EFinalBattleEventType::Info;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 Round = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText Message;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDPresentationData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bHasActiveBattle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText EncounterName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentRound = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 MaxEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 TeamCurrentHP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 TeamMaxHP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 TeamShield = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 Gold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText FeedbackText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDCharacterEntry> Characters;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDEnemyEntry> Enemies;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDCardEntry> HandCards;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDUltimateEntry> Ultimates;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDLogEntry> LogEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FText> MissingFieldNotices;
+};
+
 UCLASS(BlueprintType)
-class FINALAPP_API UFinalBattleHUDViewModel : public UObject
+class FINALAPP_API UFinalBattleHUDViewModel : public UFinalViewModelBase
 {
 	GENERATED_BODY()
 
@@ -26,6 +188,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FFinalBattleEvent GetLatestPhaseChangedEvent() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ApplyPresentation(const FFinalBattleHUDPresentationData& InPresentation);
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	FFinalBattleHUDPresentationData GetPresentation() const;
+
 	UPROPERTY(BlueprintAssignable, Category = "Final|UI")
 	FFinalPhaseChangedPresentationSignature OnPhaseChangedPresentation;
 
@@ -35,4 +203,7 @@ private:
 
 	UPROPERTY(Transient)
 	FFinalBattleEvent LatestPhaseChangedEvent;
+
+	UPROPERTY(Transient)
+	FFinalBattleHUDPresentationData Presentation;
 };
