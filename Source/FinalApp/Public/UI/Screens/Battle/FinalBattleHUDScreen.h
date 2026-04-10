@@ -5,6 +5,7 @@
 #include "FinalBattleHUDScreen.generated.h"
 
 class UButton;
+class UBorder;
 class UHorizontalBox;
 class UScrollBox;
 class UTextBlock;
@@ -60,6 +61,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GapText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> GapBorder;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> CharacterListBox;

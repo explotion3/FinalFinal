@@ -16,6 +16,13 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const FName RejectBattleNotInitializedTag(TEXT("battle.not_initialized"));
+const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
+const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
+const FName RejectUltimateAlreadyUsedTag(TEXT("battle.ultimate_already_used"));
+const FName RejectUltimateBlockedByCollapseTag(TEXT("battle.ultimate_blocked_by_collapse"));
+const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
+const FName RejectNotEnoughAPTag(TEXT("battle.not_enough_ap"));
 
 FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
 {
@@ -85,6 +92,20 @@ FText FormatKeywordText(const FGameplayTagContainer& Keywords)
 		: FText::GetEmpty();
 }
 
+FText FormatEnemyPhaseProgressText(const FFinalBattlePhaseProgressViewData& PhaseProgress)
+{
+	if (PhaseProgress.TotalPhases <= 0 || PhaseProgress.CurrentPhaseNumber <= 0)
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "EnemyPhaseProgressFormat", "阶段 {0}/{1} | 本阶段 {2}%"),
+		FText::AsNumber(PhaseProgress.CurrentPhaseNumber),
+		FText::AsNumber(PhaseProgress.TotalPhases),
+		FText::AsNumber(FMath::RoundToInt(PhaseProgress.ProgressWithinPhase * 100.0f)));
+}
+
 FText ResolveTargetText(const FFinalBattleSnapshot& Snapshot)
 {
 	if (Snapshot.CurrentTargetUnitId.IsNone())
@@ -103,6 +124,15 @@ FText ResolveTargetText(const FFinalBattleSnapshot& Snapshot)
 		return FText::Format(
 			NSLOCTEXT("FinalBattleHUD", "TargetFallbackText", "目标 {0}"),
 			FText::FromName(Snapshot.CurrentTargetUnitId));
+	}
+
+	const FText PhaseProgressText = FormatEnemyPhaseProgressText(TargetEnemy->PhaseProgress);
+	if (!PhaseProgressText.IsEmpty())
+	{
+		return FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "TargetEnemyWithPhaseText", "当前目标: {0} | {1}"),
+			TargetEnemy->DisplayName,
+			PhaseProgressText);
 	}
 
 	return FText::Format(
@@ -140,6 +170,144 @@ FText ResolveUltimateDisplayName(
 
 	return !UltimateName.IsEmpty() ? UltimateName : OwnerName;
 }
+
+FFinalBattleEvent BuildLocalRejectEvent(const FText& Message, const EFinalBattleCommandRejectReason RejectReason, const FName ReasonTag)
+{
+	FFinalBattleEvent Event;
+	Event.EventType = EFinalBattleEventType::CommandRejected;
+	Event.RejectReason = RejectReason;
+	Event.ReasonTag = ReasonTag;
+	Event.Message = Message;
+	return Event;
+}
+
+FText ResolveRejectReasonLabel(const FFinalBattleEvent& Event)
+{
+	switch (Event.RejectReason)
+	{
+	case EFinalBattleCommandRejectReason::BattleNotInitialized:
+		return NSLOCTEXT("FinalBattleHUD", "RejectBattleNotInitialized", "战斗未初始化");
+
+	case EFinalBattleCommandRejectReason::InvalidTarget:
+		return NSLOCTEXT("FinalBattleHUD", "RejectInvalidTarget", "目标无效");
+
+	case EFinalBattleCommandRejectReason::UltimateAlreadyUsed:
+		return NSLOCTEXT("FinalBattleHUD", "RejectUltimateAlreadyUsed", "奥义已释放");
+
+	case EFinalBattleCommandRejectReason::UltimateBlockedByCollapse:
+		return NSLOCTEXT("FinalBattleHUD", "RejectUltimateBlockedByCollapse", "角色崩溃");
+
+	case EFinalBattleCommandRejectReason::NotEnoughEP:
+		return NSLOCTEXT("FinalBattleHUD", "RejectNotEnoughEP", "EP不足");
+
+	case EFinalBattleCommandRejectReason::NotEnoughAP:
+		return NSLOCTEXT("FinalBattleHUD", "RejectNotEnoughAP", "AP不足");
+
+	case EFinalBattleCommandRejectReason::UnsupportedCommand:
+		return NSLOCTEXT("FinalBattleHUD", "RejectUnsupportedCommand", "命令不支持");
+
+	case EFinalBattleCommandRejectReason::UltimateDefinitionUnavailable:
+		return NSLOCTEXT("FinalBattleHUD", "RejectUltimateDefinitionUnavailable", "奥义定义未就绪");
+
+	default:
+		break;
+	}
+
+	if (Event.ReasonTag == RejectBattleNotInitializedTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectBattleNotInitializedByTag", "战斗未初始化");
+	}
+
+	if (Event.ReasonTag == RejectInvalidTargetTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectInvalidTargetByTag", "目标无效");
+	}
+
+	if (Event.ReasonTag == RejectUltimateAlreadyUsedTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectUltimateAlreadyUsedByTag", "奥义已释放");
+	}
+
+	if (Event.ReasonTag == RejectUltimateBlockedByCollapseTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectUltimateBlockedByCollapseByTag", "角色崩溃");
+	}
+
+	if (Event.ReasonTag == RejectNotEnoughEPTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectNotEnoughEPByTag", "EP不足");
+	}
+
+	if (Event.ReasonTag == RejectNotEnoughAPTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectNotEnoughAPByTag", "AP不足");
+	}
+
+	if (Event.ReasonTag == RejectUnsupportedCommandTag)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RejectUnsupportedCommandByTag", "命令不支持");
+	}
+
+	return FText::GetEmpty();
+}
+
+FText ResolveFeedbackTitleText(const FFinalBattleEvent& Event, const FText& FallbackMessage)
+{
+	const FText RejectReasonLabel = ResolveRejectReasonLabel(Event);
+	if (Event.EventType == EFinalBattleEventType::CommandRejected || Event.RejectReason != EFinalBattleCommandRejectReason::None || !Event.ReasonTag.IsNone())
+	{
+		if (!RejectReasonLabel.IsEmpty() && !Event.ReasonTag.IsNone())
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalBattleHUD", "RejectFeedbackTitleWithTag", "命令拒绝 · {0} ({1})"),
+				RejectReasonLabel,
+				FText::FromName(Event.ReasonTag));
+		}
+
+		if (!RejectReasonLabel.IsEmpty())
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalBattleHUD", "RejectFeedbackTitle", "命令拒绝 · {0}"),
+				RejectReasonLabel);
+		}
+
+		return NSLOCTEXT("FinalBattleHUD", "RejectFeedbackTitleFallback", "命令拒绝");
+	}
+
+	switch (Event.EventType)
+	{
+	case EFinalBattleEventType::CommandAccepted:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackCommandAccepted", "命令已接受");
+
+	case EFinalBattleEventType::TargetChanged:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackTargetChanged", "目标切换");
+
+	case EFinalBattleEventType::CardResolved:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackCardResolved", "卡牌结算");
+
+	case EFinalBattleEventType::UltimateResolved:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackUltimateResolved", "奥义结算");
+
+	case EFinalBattleEventType::EnemyActed:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackEnemyActed", "敌方行动");
+
+	case EFinalBattleEventType::TurnTransition:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackTurnTransition", "回合切换");
+
+	case EFinalBattleEventType::PhaseChanged:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackPhaseChanged", "阶段变化");
+
+	case EFinalBattleEventType::BattleResolved:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackBattleResolved", "战斗结算");
+
+	default:
+		break;
+	}
+
+	return FallbackMessage.IsEmpty()
+		? FText::GetEmpty()
+		: NSLOCTEXT("FinalBattleHUD", "FeedbackGenericTitle", "交互反馈");
+}
 }
 
 void UFinalBattleWidgetController::Initialize(UFinalBattleHUDViewModel* InViewModel)
@@ -148,6 +316,7 @@ void UFinalBattleWidgetController::Initialize(UFinalBattleHUDViewModel* InViewMo
 	CachedSnapshot = FFinalBattleSnapshot{};
 	CachedBattleEvents.Reset();
 	LastInteractionFeedback = FText::GetEmpty();
+	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 }
 
@@ -163,6 +332,7 @@ void UFinalBattleWidgetController::BindToBattleFlow(UFinalBattleFlowSubsystem* I
 	CachedBattleEvents.Reset();
 	CachedSnapshot = FFinalBattleSnapshot{};
 	LastInteractionFeedback = FText::GetEmpty();
+	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 
 	if (BattleFlowSubsystem == nullptr)
@@ -193,6 +363,7 @@ void UFinalBattleWidgetController::UnbindFromBattleFlow()
 	CachedSnapshot = FFinalBattleSnapshot{};
 	CachedBattleEvents.Reset();
 	LastInteractionFeedback = FText::GetEmpty();
+	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 }
 
@@ -206,6 +377,7 @@ void UFinalBattleWidgetController::RefreshFromSession(UFinalBattleSession* Sessi
 	CachedSnapshot = Session->GetSnapshot();
 	CachedBattleEvents = Session->GetBattleLogEntries();
 	LastInteractionFeedback = CachedBattleEvents.Num() > 0 ? CachedBattleEvents.Last().Message : FText::GetEmpty();
+	LastInteractionEvent = CachedBattleEvents.Num() > 0 ? CachedBattleEvents.Last() : FFinalBattleEvent{};
 	RefreshSelectedEnemyFromSnapshot();
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	for (const FFinalBattleEvent& BattleEvent : CachedBattleEvents)
@@ -225,7 +397,11 @@ bool UFinalBattleWidgetController::SelectEnemyByUnitId(FName RuntimeUnitId)
 {
 	if (BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("当前没有可操作的战斗。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可操作的战斗。")),
+			EFinalBattleCommandRejectReason::BattleNotInitialized,
+			RejectBattleNotInitializedTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
@@ -238,7 +414,11 @@ bool UFinalBattleWidgetController::SelectEnemyByUnitId(FName RuntimeUnitId)
 
 	if (!bExists)
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("当前无法选择该敌人目标。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前无法选择该敌人目标。")),
+			EFinalBattleCommandRejectReason::InvalidTarget,
+			RejectInvalidTargetTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
@@ -258,14 +438,22 @@ bool UFinalBattleWidgetController::PlayCardByHandIndex(int32 HandIndex)
 {
 	if (BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("当前没有可操作的战斗。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可操作的战斗。")),
+			EFinalBattleCommandRejectReason::BattleNotInitialized,
+			RejectBattleNotInitializedTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
 
 	if (!CachedSnapshot.HandCards.IsValidIndex(HandIndex))
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("手牌索引无效。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("手牌索引无效。")),
+			EFinalBattleCommandRejectReason::UnsupportedCommand,
+			RejectUnsupportedCommandTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
@@ -273,7 +461,11 @@ bool UFinalBattleWidgetController::PlayCardByHandIndex(int32 HandIndex)
 	const FName TargetUnitId = ResolveDefaultTargetUnitId();
 	if (TargetUnitId.IsNone())
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("当前没有可选中的敌人目标。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可选中的敌人目标。")),
+			EFinalBattleCommandRejectReason::InvalidTarget,
+			RejectInvalidTargetTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
@@ -289,14 +481,22 @@ bool UFinalBattleWidgetController::PlayUltimateByCharacterIndex(int32 CharacterI
 {
 	if (BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("当前没有可操作的战斗。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可操作的战斗。")),
+			EFinalBattleCommandRejectReason::BattleNotInitialized,
+			RejectBattleNotInitializedTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
 
 	if (!CachedSnapshot.CharacterUltimates.IsValidIndex(CharacterIndex))
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("奥义索引无效。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("奥义索引无效。")),
+			EFinalBattleCommandRejectReason::UnsupportedCommand,
+			RejectUnsupportedCommandTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
@@ -341,6 +541,7 @@ void UFinalBattleWidgetController::HandleBattleSnapshotChanged(const FFinalBattl
 	{
 		CachedBattleEvents.Reset();
 		LastInteractionFeedback = FText::GetEmpty();
+		LastInteractionEvent = FFinalBattleEvent{};
 	}
 
 	RefreshSelectedEnemyFromSnapshot();
@@ -356,6 +557,7 @@ void UFinalBattleWidgetController::HandleBattleEventBroadcast(const FFinalBattle
 	}
 
 	CachedBattleEvents.Add(BattleEvent);
+	LastInteractionEvent = BattleEvent;
 	LastInteractionFeedback = BattleEvent.Message;
 	ViewModel->ApplyBattleEvent(BattleEvent);
 	RebuildPresentation();
@@ -402,14 +604,29 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	Presentation.Gold = RunSnapshot.Gold;
 	Presentation.RelicCount = RunSnapshot.RelicCount;
 	Presentation.RunDeckCount = RunSnapshot.DeckCount;
+	Presentation.FeedbackRejectReason = LastInteractionEvent.RejectReason;
+	Presentation.FeedbackReasonTag = LastInteractionEvent.ReasonTag;
+	Presentation.FeedbackTitleText = ResolveFeedbackTitleText(LastInteractionEvent, LastInteractionFeedback);
 
-	TMap<FName, TArray<FText>> StatusTextsByOwner;
-	for (const FFinalBattleStatusViewData& StatusView : CachedSnapshot.Statuses)
+	const FText EffectiveFeedbackText = !LastInteractionFeedback.IsEmpty()
+		? LastInteractionFeedback
+		: LastInteractionEvent.Message;
+	Presentation.FeedbackText = EffectiveFeedbackText;
+
+	for (const FFinalBattleStatusViewData& TeamStatusView : CachedSnapshot.TeamStatuses)
 	{
-		StatusTextsByOwner.FindOrAdd(StatusView.OwnerUnitId).Add(FormatStatusText(StatusView, DataRegistry));
+		Presentation.TeamStatusTexts.Add(FormatStatusText(TeamStatusView, DataRegistry));
 	}
 
-	Presentation.TeamStatusTexts = StatusTextsByOwner.FindRef(TeamPlayerUnitId);
+	TMap<FName, TArray<FText>> CharacterStatusTextsByOwner;
+	for (const FFinalBattleCharacterStatusesViewData& CharacterStatusesView : CachedSnapshot.CharacterStatuses)
+	{
+		TArray<FText>& CharacterStatusTexts = CharacterStatusTextsByOwner.FindOrAdd(CharacterStatusesView.OwnerUnitId);
+		for (const FFinalBattleStatusViewData& StatusView : CharacterStatusesView.StatusEntries)
+		{
+			CharacterStatusTexts.Add(FormatStatusText(StatusView, DataRegistry));
+		}
+	}
 
 	TMap<FName, FText> CharacterDisplayNameByRuntimeId;
 	for (const FFinalBattleCharacterViewData& CharacterView : CachedSnapshot.Characters)
@@ -432,8 +649,19 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		Entry.StateText = CharacterView.bCollapsed
 			? FText::FromString(TEXT("已崩溃"))
 			: FText::FromString(TEXT("可行动"));
-		Entry.StatusTexts = StatusTextsByOwner.FindRef(CharacterView.RuntimeUnitId);
+		Entry.StatusTexts = CharacterStatusTextsByOwner.FindRef(CharacterView.RuntimeUnitId);
 		Presentation.Characters.Add(Entry);
+	}
+
+	TMap<FName, TArray<FText>> EnemyStatusTextsByOwner;
+	for (const FFinalBattleStatusViewData& StatusView : CachedSnapshot.Statuses)
+	{
+		if (StatusView.OwnerUnitId == TeamPlayerUnitId || CharacterDisplayNameByRuntimeId.Contains(StatusView.OwnerUnitId))
+		{
+			continue;
+		}
+
+		EnemyStatusTextsByOwner.FindOrAdd(StatusView.OwnerUnitId).Add(FormatStatusText(StatusView, DataRegistry));
 	}
 
 	for (const FFinalBattleUltimateViewData& UltimateView : CachedSnapshot.CharacterUltimates)
@@ -447,9 +675,10 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		}
 
 		Entry.CostEP = UltimateView.CostEP;
-		Entry.bEnabled = UltimateView.bCanActivate;
+		Entry.bEnabled = UltimateView.bCanActivate && !UltimateView.bUsedThisBattle;
 		Entry.bBlockedByCollapse = UltimateView.bBlockedByCollapse;
 		Entry.bDefinitionReady = UltimateView.bDefinitionReady;
+		Entry.bUsedThisBattle = UltimateView.bUsedThisBattle;
 
 		if (!UltimateView.bDefinitionReady)
 		{
@@ -466,12 +695,20 @@ void UFinalBattleWidgetController::RebuildPresentation()
 				FText::AsNumber(CachedSnapshot.CurrentEP),
 				FText::AsNumber(UltimateView.CostEP));
 		}
-		else
+		else if (UltimateView.bUsedThisBattle)
+		{
+			Entry.StatusText = NSLOCTEXT("FinalBattleHUD", "UltimateUsedThisBattleState", "本战已释放");
+		}
+		else if (CachedSnapshot.CurrentEP < UltimateView.CostEP)
 		{
 			Entry.StatusText = FText::Format(
-				NSLOCTEXT("FinalBattleHUD", "UltimateChargeState", "充能中 | EP {0}/{1}"),
+				NSLOCTEXT("FinalBattleHUD", "UltimateInsufficientEPState", "EP不足 | EP {0}/{1}"),
 				FText::AsNumber(CachedSnapshot.CurrentEP),
 				FText::AsNumber(UltimateView.CostEP));
+		}
+		else
+		{
+			Entry.StatusText = NSLOCTEXT("FinalBattleHUD", "UltimateUnavailableState", "当前不可释放");
 		}
 
 		Presentation.Ultimates.Add(Entry);
@@ -489,10 +726,14 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		Entry.CurrentBreakValue = EnemyView.CurrentBreakValue;
 		Entry.MaxBreakValue = EnemyView.MaxBreakValue;
 		Entry.CurrentInitiative = EnemyView.CurrentInitiative;
+		Entry.CurrentPhaseNumber = EnemyView.PhaseProgress.CurrentPhaseNumber;
+		Entry.TotalPhases = EnemyView.PhaseProgress.TotalPhases;
+		Entry.PhaseProgressWithinPhase = EnemyView.PhaseProgress.ProgressWithinPhase;
+		Entry.PhaseProgressText = FormatEnemyPhaseProgressText(EnemyView.PhaseProgress);
 		Entry.IntentText = EnemyView.IntentText;
 		Entry.bSelected = EnemyView.RuntimeUnitId == SelectedEnemyUnitId;
 		Entry.bActedThisRound = EnemyView.bActedThisRound;
-		Entry.StatusTexts = StatusTextsByOwner.FindRef(EnemyView.RuntimeUnitId);
+		Entry.StatusTexts = EnemyStatusTextsByOwner.FindRef(EnemyView.RuntimeUnitId);
 		Presentation.Enemies.Add(Entry);
 	}
 
@@ -547,13 +788,6 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		Presentation.LogEntries.Add(Entry);
 	}
 
-	if (Presentation.bHasActiveBattle)
-	{
-		Presentation.MissingFieldNotices.Add(FText::FromString(TEXT("缺阶段进度公开查询")));
-		Presentation.MissingFieldNotices.Add(FText::FromString(TEXT("缺奥义“本战已释放”公开状态")));
-		Presentation.MissingFieldNotices.Add(FText::FromString(TEXT("缺结构化命令拒绝原因")));
-	}
-
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	ViewModel->ApplyPresentation(Presentation);
 }
@@ -591,13 +825,18 @@ bool UFinalBattleWidgetController::SubmitBattleCommandWithFeedback(const FFinalB
 {
 	if (BattleFlowSubsystem == nullptr)
 	{
-		LastInteractionFeedback = FText::FromString(TEXT("BattleFlowSubsystem 不可用。"));
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("BattleFlowSubsystem 不可用。")),
+			EFinalBattleCommandRejectReason::BattleNotInitialized,
+			RejectBattleNotInitializedTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
 		RebuildPresentation();
 		return false;
 	}
 
 	const bool bAccepted = BattleFlowSubsystem->SubmitBattleCommand(Command);
 	const FFinalBattleEvent Event = BattleFlowSubsystem->GetLastCommandEvent();
+	LastInteractionEvent = Event;
 	LastInteractionFeedback = Event.Message.IsEmpty() ? BattleFlowSubsystem->GetLastFailureReason() : Event.Message;
 
 	if (!bAccepted)

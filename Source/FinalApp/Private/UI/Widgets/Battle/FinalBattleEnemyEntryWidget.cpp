@@ -48,8 +48,11 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScre
 {
 	OwningBattleHUDScreen = InOwningScreen;
 	RuntimeUnitId = InEntry.RuntimeUnitId;
+	const FText PhaseText = !InEntry.PhaseProgressText.IsEmpty()
+		? InEntry.PhaseProgressText
+		: NSLOCTEXT("FinalBattleHUD", "EnemyPhaseProgressUnavailable", "阶段信息未就绪");
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "#{0} {1}\nHP {2}/{3}  Shield {4}  Break {5}/{6}  Init {7}\n{8}\nStatus: {9}"),
+		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "#{0} {1}\nHP {2}/{3}  Shield {4}  Break {5}/{6}  Init {7}\n{8}\n{9}\nStatus: {10}"),
 		FText::AsNumber(InEntry.PositionIndex),
 		InEntry.DisplayName,
 		FText::AsNumber(InEntry.CurrentHP),
@@ -61,6 +64,7 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScre
 		InEntry.bActedThisRound
 			? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyIntentActed", "{0} | 本回合已行动"), InEntry.IntentText)
 			: InEntry.IntentText,
+		PhaseText,
 		JoinEnemyStatusTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
 	bSelected = InEntry.bSelected;
 	RebuildVisual();

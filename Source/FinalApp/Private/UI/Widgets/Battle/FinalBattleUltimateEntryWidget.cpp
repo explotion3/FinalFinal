@@ -52,21 +52,14 @@ void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleHUDScreen* InOwningS
 	bEnabled = InEntry.bEnabled;
 	bBlockedByCollapse = InEntry.bBlockedByCollapse;
 	bDefinitionReady = InEntry.bDefinitionReady;
+	bUsedThisBattle = InEntry.bUsedThisBattle;
 
 	TArray<FText> DetailTexts;
-	DetailTexts.Reserve(3);
+	DetailTexts.Reserve(2);
 	DetailTexts.Add(FText::Format(
 		NSLOCTEXT("FinalBattleHUD", "UltimateCostText", "EP 消耗 {0}"),
 		FText::AsNumber(InEntry.CostEP)));
 	DetailTexts.Add(InEntry.StatusText);
-	if (InEntry.bBlockedByCollapse)
-	{
-		DetailTexts.Add(NSLOCTEXT("FinalBattleHUD", "UltimateBlockedByCollapse", "角色崩溃中"));
-	}
-	else if (!InEntry.bDefinitionReady)
-	{
-		DetailTexts.Add(NSLOCTEXT("FinalBattleHUD", "UltimateDefinitionMissing", "定义未就绪"));
-	}
 
 	CachedLabel = FText::Format(
 		NSLOCTEXT("FinalBattleHUD", "UltimateEntryFormat", "{0}\n{1}"),
@@ -100,6 +93,10 @@ void UFinalBattleUltimateEntryWidget::RebuildVisual()
 		else if (bBlockedByCollapse)
 		{
 			UltimateButton->SetBackgroundColor(FLinearColor(0.34f, 0.18f, 0.18f, 1.0f));
+		}
+		else if (bUsedThisBattle)
+		{
+			UltimateButton->SetBackgroundColor(FLinearColor(0.18f, 0.24f, 0.34f, 1.0f));
 		}
 		else if (!bDefinitionReady)
 		{

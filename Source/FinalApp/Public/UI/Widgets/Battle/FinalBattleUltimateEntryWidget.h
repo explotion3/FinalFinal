@@ -32,6 +32,7 @@ private:
 	bool bEnabled = false;
 	bool bBlockedByCollapse = false;
 	bool bDefinitionReady = false;
+	bool bUsedThisBattle = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> UltimateButton;

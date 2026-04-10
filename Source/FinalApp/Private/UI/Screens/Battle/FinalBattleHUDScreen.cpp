@@ -153,9 +153,10 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	ContextBorder->SetContent(ContextText);
 	RootBox->AddChildToVerticalBox(ContextBorder);
 
-	UBorder* GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
+	GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
 	GapText = CreateLabel(WidgetTree, TEXT("GapText"), 12);
 	GapBorder->SetContent(GapText);
+	GapBorder->SetVisibility(ESlateVisibility::Collapsed);
 	RootBox->AddChildToVerticalBox(GapBorder);
 
 	UHorizontalBox* MiddleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MiddleRow"));
@@ -228,6 +229,10 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 		FeedbackText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleFeedback", "通过控制台命令或地图按钮启动测试战斗后，这里会自动刷新。"));
 		ContextText->SetText(FText::GetEmpty());
 		GapText->SetText(FText::GetEmpty());
+		if (GapBorder)
+		{
+			GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 	else
 	{
@@ -243,7 +248,15 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			FText::AsNumber(Presentation.TeamShield),
 			FText::AsNumber(Presentation.Gold),
 			FText::AsNumber(Presentation.RelicCount)));
-		FeedbackText->SetText(Presentation.FeedbackText);
+		const FText CombinedFeedbackText = !Presentation.FeedbackTitleText.IsEmpty()
+			? (!Presentation.FeedbackText.IsEmpty()
+				? FText::Format(
+					NSLOCTEXT("FinalBattleHUD", "FeedbackWithTitleFormat", "{0}\n{1}"),
+					Presentation.FeedbackTitleText,
+					Presentation.FeedbackText)
+				: Presentation.FeedbackTitleText)
+			: Presentation.FeedbackText;
+		FeedbackText->SetText(CombinedFeedbackText);
 		ContextText->SetText(FText::Format(
 			NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5} | RunDeck {6}\nTeam Status: {7}"),
 			Presentation.CurrentTargetText,
@@ -269,10 +282,18 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			}
 
 			GapText->SetText(FText::FromString(Joined));
+			if (GapBorder)
+			{
+				GapBorder->SetVisibility(ESlateVisibility::Visible);
+			}
 		}
 		else
 		{
 			GapText->SetText(FText::GetEmpty());
+			if (GapBorder)
+			{
+				GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+			}
 		}
 	}
 

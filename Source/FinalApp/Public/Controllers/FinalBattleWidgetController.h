@@ -80,4 +80,7 @@ private:
 
 	UPROPERTY(Transient)
 	FText LastInteractionFeedback;
+
+	UPROPERTY(Transient)
+	FFinalBattleEvent LastInteractionEvent;
 };

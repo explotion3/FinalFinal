@@ -80,6 +80,18 @@ struct FINALAPP_API FFinalBattleHUDEnemyEntry
 	int32 CurrentInitiative = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentPhaseNumber = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 TotalPhases = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float PhaseProgressWithinPhase = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText PhaseProgressText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FText IntentText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
@@ -153,6 +165,9 @@ struct FINALAPP_API FFinalBattleHUDUltimateEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	bool bDefinitionReady = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bUsedThisBattle = false;
 };
 
 USTRUCT(BlueprintType)
@@ -230,7 +245,16 @@ struct FINALAPP_API FFinalBattleHUDPresentationData
 	FText CurrentTargetText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText FeedbackTitleText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FText FeedbackText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalBattleCommandRejectReason FeedbackRejectReason = EFinalBattleCommandRejectReason::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName FeedbackReasonTag = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	TArray<FText> TeamStatusTexts;

@@ -76,7 +76,9 @@ bool UFinalBattleFlowSubsystem::SubmitBattleCommand(const FFinalBattleCommand& C
 	{
 		LastCommandEvent = FFinalBattleEvent{};
 		LastCommandEvent.EventType = EFinalBattleEventType::CommandRejected;
-		LastCommandEvent.Message = FText::FromString(TEXT("No active battle session is available."));
+		LastCommandEvent.RejectReason = EFinalBattleCommandRejectReason::BattleNotInitialized;
+		LastCommandEvent.ReasonTag = TEXT("battle.not_initialized");
+		LastCommandEvent.Message = FText::FromString(TEXT("当前没有可操作的战斗。"));
 		LastFailureReason = LastCommandEvent.Message;
 		return false;
 	}
