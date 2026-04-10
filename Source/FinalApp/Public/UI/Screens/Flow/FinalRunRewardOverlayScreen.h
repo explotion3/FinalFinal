@@ -45,6 +45,9 @@ private:
 	TObjectPtr<UTextBlock> SummaryText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RewardEntriesText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GapText;
 
 	UPROPERTY(Transient)

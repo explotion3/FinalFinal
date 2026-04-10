@@ -1,6 +1,6 @@
 # 战斗 UI 线框
 
-## 0. 当前实现状态（2026-04-10）
+## 0. 当前实现状态（2026-04-11）
 * 当前 `FinalApp` 已补上首轮 `UI` 基座：
   * `UISubsystem`
   * `UIRootLayout`
@@ -86,6 +86,7 @@
 * Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
   * 进入 `PendingBattleReward` 时打开奖励页
   * 进入 `AwaitingNodeAdvance` 时切到节点页
+  * 进入 `PendingRewardNode / PendingEventNode / PendingShopNode` 时继续保留节点页，并明确显示“当前节点需要解析但原型尚未实现”的状态说明
   * 进入 `PreparingBattle / None / RunEnded` 时关闭不该停留的外层页
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 
@@ -161,32 +162,57 @@
 当前已接入字段：
 * `PendingBattleReward.bHasPendingReward`
 * `PendingBattleReward.SourceNodeId`
+* `PendingBattleReward.SourceNodeType`
+* `PendingBattleReward.SourceNodeDisplayName`
+* `PendingBattleReward.SourceNodeDisplayLabel`
 * `PendingBattleReward.SourceEncounterId`
 * `PendingBattleReward.SourceBattleOutcome`
 * `PendingBattleReward.RewardGold`
+* `PendingBattleReward.bCanClaim`
+* `PendingBattleReward.RewardEntries[*].RewardType`
+* `PendingBattleReward.RewardEntries[*].DisplayName`
+* `PendingBattleReward.RewardEntries[*].Value`
+* `PendingBattleReward.RewardEntries[*].bCanClaim`
+* `PendingBattleReward.RewardEntries[*].bClaimed`
 * `Progression.FlowStage`
 * `Progression.CurrentNodeId`
 * `Progression.CurrentNodeType`
+* `Progression.CurrentNodeDisplayName`
+* `Progression.CurrentNodeDisplayLabel`
+* `Progression.CurrentChapter`
+* `Progression.CurrentFloor`
+* `Progression.bCurrentNodeVisited`
+* `Progression.bCurrentNodeNeedsResolution`
+* `Progression.bCurrentNodeHasImplementedResolver`
+* `Progression.CurrentNodeStateMessage`
 * `Progression.bCanClaimPendingBattleReward`
 * `Progression.bCanAdvanceToNextNode`
-* `Progression.AvailableNextNodes`
+* `Progression.AvailableNextNodes[*].DisplayName`
+* `Progression.AvailableNextNodes[*].DisplayLabel`
+* `Progression.AvailableNextNodes[*].ChapterIndex`
+* `Progression.AvailableNextNodes[*].FloorIndex`
+* `Progression.AvailableNextNodes[*].bVisited`
+* `Progression.AvailableNextNodes[*].bLocked`
+* `Progression.AvailableNextNodes[*].AvailabilityMessage`
+* `Progression.AvailableNextNodes[*].bHasImplementedResolver`
 
 战后奖励页仍缺：
-* `RewardEntries` 或等价的结构化奖励列表
-* 奖励项显示数据（名称、类型、数量、稀有度、描述）
+* 奖励项的图标、稀有度、描述、来源说明等 richer 展示元数据
 * 多奖励选择、替换、跳过等 richer reward flow 的结构化状态
+* 奖励条目分组、卡片化布局、二次确认交互
 
 节点推进页仍缺：
-* `CurrentChapter / CurrentFloor` 或等价章节进度字段
-* 节点显示名、节点图标、章节/路线布局信息
-* 节点是否已访问、是否锁定等 richer 展示状态
-* `Battle / Elite / Boss / Event / Shop / Rest` 之外的更完整节点类型扩展
+* 节点图标、章节路线布局、地图空间关系
+* 事件 / 商店 / 奖励节点的专用详情页与确认流
+* 更完整的节点类型扩展与对应专用展示
+* 节点进入后的 resolver 级细节 UI，而不只是当前占位页摘要
 
 当前实现口径：
 * 占位页只消费现有 `FFinalRunSnapshot`
-* 奖励页当前以 `PendingBattleReward` 为主展示口径，并把“领取奖励”意图转发给 `RunFlowSubsystem`
-* 节点页当前以 `Progression` 为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
+* 奖励页当前以 `PendingBattleReward.RewardEntries` 为主展示口径，`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 节点页当前以 `Progression` 的章节/楼层/显示名/状态字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
+* `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会继续停留在节点页，并明确展示“节点待解析但原型尚未实现”的状态消息
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性
 
 ## 5. 必须显示的信息

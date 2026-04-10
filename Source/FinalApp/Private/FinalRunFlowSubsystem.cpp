@@ -7,6 +7,35 @@
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
 
+namespace
+{
+bool IsNodeOverlayFlowStage(const EFinalRunFlowStage FlowStage)
+{
+	return FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
+		|| FlowStage == EFinalRunFlowStage::PendingRewardNode
+		|| FlowStage == EFinalRunFlowStage::PendingEventNode
+		|| FlowStage == EFinalRunFlowStage::PendingShopNode;
+}
+
+FText BuildSnapshotFlowMessage(const FFinalRunSnapshot& Snapshot)
+{
+	if (!Snapshot.Progression.CurrentNodeStateMessage.IsEmpty()
+		&& (Snapshot.PendingBattleReward.bHasPendingReward
+			|| IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage)
+			|| Snapshot.Progression.bCurrentNodeNeedsResolution))
+	{
+		return Snapshot.Progression.CurrentNodeStateMessage;
+	}
+
+	if (Snapshot.PendingBattleReward.bHasPendingReward && !Snapshot.PendingBattleReward.bCanClaim)
+	{
+		return NSLOCTEXT("FinalRunFlow", "PendingRewardNotClaimable", "当前待领奖励已生成，但尚未满足领取条件。");
+	}
+
+	return FText::GetEmpty();
+}
+}
+
 void UFinalRunFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -56,6 +85,10 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 	}
 
 	CachedSnapshot = RunSession->GetSnapshot();
+	if (LastFlowMessage.IsEmpty())
+	{
+		LastFlowMessage = BuildSnapshotFlowMessage(CachedSnapshot);
+	}
 	ApplyPresentationForSnapshot(CachedSnapshot, bForce || bHasNewEvents);
 }
 
@@ -192,7 +225,12 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 		return EFinalRunPresentedOverlay::Reward;
 	}
 
-	if (Snapshot.Progression.FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance)
+	if (IsNodeOverlayFlowStage(Snapshot.Progression.FlowStage))
+	{
+		return EFinalRunPresentedOverlay::Node;
+	}
+
+	if (Snapshot.Progression.bCurrentNodeNeedsResolution)
 	{
 		return EFinalRunPresentedOverlay::Node;
 	}

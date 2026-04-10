@@ -204,11 +204,11 @@ FinalBattle      FinalRun
 * 默认不把 `CommonUI` 作为首版基础框架
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
-* 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调奖励页、节点页与常驻 HUD 的切换
+* 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调奖励页、节点页与常驻 HUD 的切换，并显式承接 `PendingRewardNode / PendingEventNode / PendingShopNode` 这类待解析节点阶段
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
-* `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示奖励页、节点页还是关闭外层页
+* `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示奖励页、节点页还是关闭外层页；未实现解析器的奖励/事件/商店节点仍由它保留在节点页并给出明确状态提示
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
@@ -528,7 +528,7 @@ Source
 * `Panel` 不直接控制输入模式和页面栈
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
-* `RunFlowSubsystem` 负责奖励页 / 节点页这类 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中
+* `RunFlowSubsystem` 负责奖励页 / 节点页这类 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；奖励页以 `RewardEntries` 为主展示，节点页以 `Progression` 的章节/楼层/显示字段为主展示
 * `ViewModel` 不保存权威运行时结构副本
 * 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`
 
