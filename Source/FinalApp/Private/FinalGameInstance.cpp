@@ -54,7 +54,8 @@ namespace FinalTestBootstrap
 		TArray<TObjectPtr<UObject>>& RuntimeAssets,
 		const FFinalRelicId& RelicId,
 		const FName DisplayId,
-		const FText& DisplayName)
+		const FText& DisplayName,
+		const TArray<FFinalRelicBattleStartEffectDefinition>& BattleStartEffects)
 	{
 		if (DataRegistry == nullptr || !RelicId.IsValid())
 		{
@@ -65,6 +66,7 @@ namespace FinalTestBootstrap
 		RelicDefinition->RelicId = RelicId;
 		RelicDefinition->DisplayId = DisplayId;
 		RelicDefinition->DisplayName = DisplayName;
+		RelicDefinition->BattleStartEffects = BattleStartEffects;
 		RuntimeAssets.Add(RelicDefinition);
 		DataRegistry->RegisterRelicDefinition(RelicDefinition);
 	}
@@ -293,20 +295,38 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	DataRegistry->RegisterEncounterDefinition(TestEncounterDefinition);
 
 #if FINALAPP_HAS_TEST_RELIC_DEFINITION
+	TArray<FFinalRelicBattleStartEffectDefinition> CharmBattleStartEffects;
+	{
+		FFinalRelicBattleStartEffectDefinition Effect;
+		Effect.EffectType = EFinalRelicBattleStartEffectType::GainAP;
+		Effect.Value = 1;
+		CharmBattleStartEffects.Add(Effect);
+	}
+
+	TArray<FFinalRelicBattleStartEffectDefinition> RepairKitBattleStartEffects;
+	{
+		FFinalRelicBattleStartEffectDefinition Effect;
+		Effect.EffectType = EFinalRelicBattleStartEffectType::GainShield;
+		Effect.Value = 4;
+		RepairKitBattleStartEffects.Add(Effect);
+	}
+
 	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
 		DataRegistry,
 		this,
 		RuntimeTestAssets,
 		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
 		TEXT("Relic.Test.Charm"),
-		FText::FromString(TEXT("试作护符")));
+		FText::FromString(TEXT("试作护符")),
+		CharmBattleStartEffects);
 	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
 		DataRegistry,
 		this,
 		RuntimeTestAssets,
 		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
 		TEXT("Relic.Test.RepairKit"),
-		FText::FromString(TEXT("试作修理包")));
+		FText::FromString(TEXT("试作修理包")),
+		RepairKitBattleStartEffects);
 #endif
 
 	bTestBattleBootstrapRegistered = true;

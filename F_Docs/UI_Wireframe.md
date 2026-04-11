@@ -39,11 +39,13 @@
   * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
   * 构筑观察区直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries`，作为当前牌库与遗物真相的主展示
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
+  * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
 * 左上：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
+  * 当收到 `BattleEvent.EventType == RelicTriggered` 时，顶部反馈显示触发 relic 名称与 Battle 侧原始 `Message`
 * 右上角常驻调试摘要窗：
   * 当前 `Run FlowStage`
   * 当前节点显示名、章节、楼层
@@ -52,6 +54,7 @@
   * 当前是否存在 `ActiveBattleSession`
   * 调试动作：重启 prototype run、在战斗已结束时调用 `CompleteResolvedBattle`
 * 顶部上下文区：当前目标、牌堆计数、团队状态
+  * 当前已接入一行精简 `ActiveRelics` 摘要，直接显示本场带入并生效的开场遗物
 * 左中：三名角色状态
   * 角色名
   * 压力 `Current / Cap`

@@ -31,6 +31,42 @@ FText FormatOptionalDisplayName(const FText& DisplayName, const FString& Fallbac
 	return !DisplayName.IsEmpty() ? DisplayName : FText::FromString(FallbackValue);
 }
 
+FText GetRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case EFinalRelicBattleStartEffectType::GainAP:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeGainAP", "GainAP");
+
+	case EFinalRelicBattleStartEffectType::GainShield:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeGainShield", "GainShield");
+
+	case EFinalRelicBattleStartEffectType::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeNone", "None");
+	}
+}
+
+FString BuildBattleRelicEffectSummaryString(const TArray<FFinalBattleStartRelicEffectInput>& EffectInputs)
+{
+	if (EffectInputs.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleRelicEffects", "No battle-start effects").ToString();
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(EffectInputs.Num());
+	for (const FFinalBattleStartRelicEffectInput& EffectInput : EffectInputs)
+	{
+		Segments.Add(FString::Printf(
+			TEXT("%s +%d"),
+			*GetRelicEffectTypeText(EffectInput.EffectType).ToString(),
+			EffectInput.Value));
+	}
+
+	return FString::Join(Segments, TEXT(" | "));
+}
+
 FText GetFlowStageText(const EFinalRunFlowStage FlowStage)
 {
 	switch (FlowStage)
@@ -120,6 +156,83 @@ FString BuildRelicEntriesSummaryString(const TArray<FFinalRunRelicEntryViewData>
 	}
 
 	return FString::Join(Lines, TEXT("\n"));
+}
+
+FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelicInput>& ActiveRelics)
+{
+	if (ActiveRelics.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleActiveRelics", "Battle Active Relics\n当前战斗没有公开的开场遗物。").ToString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(ActiveRelics.Num() + 1);
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "BattleActiveRelicsTitle", "Battle Active Relics").ToString());
+
+	for (const FFinalBattleStartRelicInput& RelicInput : ActiveRelics)
+	{
+		const FString RelicName = FormatOptionalDisplayName(
+			RelicInput.DisplayName,
+			RelicInput.RelicId.IsValid() ? RelicInput.RelicId.ToString() : RelicInput.DisplayId.ToString()).ToString();
+
+		Lines.Add(FString::Printf(
+			TEXT("- %s | DisplayId: %s | RelicId: %s | Effects: %s"),
+			*RelicName,
+			*RelicInput.DisplayId.ToString(),
+			*RelicInput.RelicId.ToString(),
+			*BuildBattleRelicEffectSummaryString(RelicInput.BattleStartEffects)));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
+}
+
+bool TryFindLatestRelicTriggeredEvent(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, FFinalBattleEvent& OutBattleEvent)
+{
+	if (BattleFlowSubsystem == nullptr)
+	{
+		return false;
+	}
+
+	const TArray<FFinalBattleEvent> BattleLogEntries = BattleFlowSubsystem->GetBattleLogEntries();
+	for (int32 Index = BattleLogEntries.Num() - 1; Index >= 0; --Index)
+	{
+		if (BattleLogEntries[Index].EventType == EFinalBattleEventType::RelicTriggered)
+		{
+			OutBattleEvent = BattleLogEntries[Index];
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FString BuildLatestRelicTriggeredSummaryString(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, const FFinalBattleSnapshot& BattleSnapshot)
+{
+	FFinalBattleEvent RelicEvent;
+	if (!TryFindLatestRelicTriggeredEvent(BattleFlowSubsystem, RelicEvent))
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoRelicTriggeredEvent", "Last Relic Trigger\n当前还没有收到 RelicTriggered 事件。").ToString();
+	}
+
+	const FFinalBattleStartRelicInput* RelicInput = BattleSnapshot.ActiveRelics.FindByPredicate(
+		[&RelicEvent](const FFinalBattleStartRelicInput& Candidate)
+		{
+			return Candidate.RelicId == RelicEvent.RelicId;
+		});
+
+	const FString RelicName = RelicInput != nullptr
+		? FormatOptionalDisplayName(RelicInput->DisplayName, RelicEvent.RelicId.ToString()).ToString()
+		: RelicEvent.RelicId.ToString();
+
+	const FString EffectSummary = RelicInput != nullptr
+		? BuildBattleRelicEffectSummaryString(RelicInput->BattleStartEffects)
+		: NSLOCTEXT("FinalPrototypeRunDebug", "MissingRelicEffectSummary", "Effects unavailable in snapshot").ToString();
+
+	return FString::Printf(
+		TEXT("Last Relic Trigger\n- Relic: %s\n- Effects: %s\n- Message: %s"),
+		*RelicName,
+		*EffectSummary,
+		*RelicEvent.Message.ToString());
 }
 
 FText GetRewardTypeText(const EFinalRunRewardType RewardType)
@@ -253,6 +366,7 @@ void UFinalPrototypeRunDebugScreen::NativeConstruct()
 	if (UFinalBattleFlowSubsystem* BattleFlowSubsystem = ResolveBattleFlowSubsystem())
 	{
 		BattleFlowSubsystem->OnBattleSnapshotChanged.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleBattleSnapshotChanged);
+		BattleFlowSubsystem->OnBattleEventBroadcast.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleBattleEventBroadcast);
 	}
 
 	RefreshFromSubsystems();
@@ -268,6 +382,7 @@ void UFinalPrototypeRunDebugScreen::NativeDestruct()
 	if (UFinalBattleFlowSubsystem* BattleFlowSubsystem = ResolveBattleFlowSubsystem())
 	{
 		BattleFlowSubsystem->OnBattleSnapshotChanged.RemoveDynamic(this, &UFinalPrototypeRunDebugScreen::HandleBattleSnapshotChanged);
+		BattleFlowSubsystem->OnBattleEventBroadcast.RemoveDynamic(this, &UFinalPrototypeRunDebugScreen::HandleBattleEventBroadcast);
 	}
 
 	Super::NativeDestruct();
@@ -275,13 +390,19 @@ void UFinalPrototypeRunDebugScreen::NativeDestruct()
 
 void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 {
-	if (SummaryText == nullptr || MessageText == nullptr || BuildSummaryText == nullptr || CandidateSummaryText == nullptr)
+	if (SummaryText == nullptr
+		|| MessageText == nullptr
+		|| BuildSummaryText == nullptr
+		|| CandidateSummaryText == nullptr
+		|| BattleRelicSummaryText == nullptr
+		|| BattleRelicEventText == nullptr)
 	{
 		return;
 	}
 
 	const UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
 	const UFinalGameFlowSubsystem* GameFlowSubsystem = ResolveGameFlowSubsystem();
+	const UFinalBattleFlowSubsystem* BattleFlowSubsystem = ResolveBattleFlowSubsystem();
 	const UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance();
 
 	const FFinalRunSnapshot RunSnapshot = RunFlowSubsystem ? RunFlowSubsystem->GetCurrentRunSnapshot() : FFinalRunSnapshot{};
@@ -311,6 +432,8 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	BuildSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s\n\n%s"), *DeckSummary, *RelicSummary)));
 
 	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
+	BattleRelicSummaryText->SetText(FText::FromString(BuildBattleActiveRelicsSummaryString(BattleSnapshot.ActiveRelics)));
+	BattleRelicEventText->SetText(FText::FromString(BuildLatestRelicTriggeredSummaryString(BattleFlowSubsystem, BattleSnapshot)));
 
 	if (RestartRunButton)
 	{
@@ -329,6 +452,11 @@ void UFinalPrototypeRunDebugScreen::HandleRunFlowStateChanged()
 }
 
 void UFinalPrototypeRunDebugScreen::HandleBattleSnapshotChanged(const FFinalBattleSnapshot& Snapshot)
+{
+	RefreshFromSubsystems();
+}
+
+void UFinalPrototypeRunDebugScreen::HandleBattleEventBroadcast(const FFinalBattleEvent& BattleEvent)
 {
 	RefreshFromSubsystems();
 }
@@ -404,6 +532,18 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* CandidateSlot = ContentBox->AddChildToVerticalBox(CandidateSummaryText))
 	{
 		CandidateSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	BattleRelicSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattleRelicSummary"), 10, FLinearColor(0.92f, 0.88f, 0.72f, 1.0f));
+	if (UVerticalBoxSlot* BattleRelicSummarySlot = ContentBox->AddChildToVerticalBox(BattleRelicSummaryText))
+	{
+		BattleRelicSummarySlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	BattleRelicEventText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattleRelicEvent"), 10, FLinearColor(0.95f, 0.83f, 0.62f, 1.0f));
+	if (UVerticalBoxSlot* BattleRelicEventSlot = ContentBox->AddChildToVerticalBox(BattleRelicEventText))
+	{
+		BattleRelicEventSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	RestartRunButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugRestartButton"));

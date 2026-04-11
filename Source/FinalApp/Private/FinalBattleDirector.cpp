@@ -49,6 +49,74 @@ FText BuildEnemyDetailText(const FFinalBattleEnemyViewData& EnemyView)
 		IntentText);
 }
 
+FText GetRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case EFinalRelicBattleStartEffectType::GainAP:
+		return NSLOCTEXT("FinalBattleDirector", "RelicEffectGainAP", "GainAP");
+
+	case EFinalRelicBattleStartEffectType::GainShield:
+		return NSLOCTEXT("FinalBattleDirector", "RelicEffectGainShield", "GainShield");
+
+	case EFinalRelicBattleStartEffectType::None:
+	default:
+		return NSLOCTEXT("FinalBattleDirector", "RelicEffectNone", "None");
+	}
+}
+
+FText ResolveRelicDisplayName(const FFinalBattleSnapshot& Snapshot, const FFinalRelicId& RelicId)
+{
+	const FFinalBattleStartRelicInput* RelicInput = Snapshot.ActiveRelics.FindByPredicate(
+		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
+		{
+			return Candidate.RelicId == RelicId;
+		});
+
+	if (RelicInput != nullptr)
+	{
+		if (!RelicInput->DisplayName.IsEmpty())
+		{
+			return RelicInput->DisplayName;
+		}
+
+		if (!RelicInput->DisplayId.IsNone())
+		{
+			return FText::FromName(RelicInput->DisplayId);
+		}
+	}
+
+	return RelicId.IsValid()
+		? FText::FromName(RelicId.Value)
+		: FText::GetEmpty();
+}
+
+FText BuildRelicEffectSummaryText(const FFinalBattleSnapshot& Snapshot, const FFinalRelicId& RelicId)
+{
+	const FFinalBattleStartRelicInput* RelicInput = Snapshot.ActiveRelics.FindByPredicate(
+		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
+		{
+			return Candidate.RelicId == RelicId;
+		});
+
+	if (RelicInput == nullptr || RelicInput->BattleStartEffects.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(RelicInput->BattleStartEffects.Num());
+	for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput->BattleStartEffects)
+	{
+		Segments.Add(FString::Printf(
+			TEXT("%s +%d"),
+			*GetRelicEffectTypeText(EffectInput.EffectType).ToString(),
+			EffectInput.Value));
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
 FText ResolveUnitDisplayName(const FFinalBattleSnapshot& Snapshot, const FName RuntimeUnitId)
 {
 	if (const FFinalBattleCharacterViewData* CharacterView = Snapshot.Characters.FindByPredicate(
@@ -292,9 +360,25 @@ void AFinalBattleDirector::UpdateSummaryText()
 	}
 
 	const FText CurrentTargetName = ResolveUnitDisplayName(CachedSnapshot, CachedSnapshot.CurrentTargetUnitId);
-	const FText EventMessage = !LastBattleEvent.Message.IsEmpty()
+	FText EventMessage = !LastBattleEvent.Message.IsEmpty()
 		? LastBattleEvent.Message
 		: NSLOCTEXT("FinalBattleDirector", "NoBattleEventYet", "尚无事件反馈");
+
+	if (LastBattleEvent.EventType == EFinalBattleEventType::RelicTriggered)
+	{
+		const FText RelicName = ResolveRelicDisplayName(CachedSnapshot, LastBattleEvent.RelicId);
+		const FText EffectSummary = BuildRelicEffectSummaryText(CachedSnapshot, LastBattleEvent.RelicId);
+		EventMessage = !RelicName.IsEmpty()
+			? (!EffectSummary.IsEmpty()
+				? FText::Format(
+					NSLOCTEXT("FinalBattleDirector", "RelicTriggeredShortFormat", "遗物 {0} · {1}"),
+					RelicName,
+					EffectSummary)
+				: FText::Format(
+					NSLOCTEXT("FinalBattleDirector", "RelicTriggeredNameOnlyFormat", "遗物 {0} 已触发"),
+					RelicName))
+			: EventMessage;
+	}
 
 	SummaryTextComponent->SetText(FText::Format(
 		NSLOCTEXT("FinalBattleDirector", "SummaryFormat", "{0}\nRound {1} | AP {2} | EP {3}\nTarget: {4}\nLast: {5}"),
