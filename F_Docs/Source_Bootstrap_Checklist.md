@@ -148,7 +148,9 @@
 * 跑通敌人行动
 * 跑通回合开始与回合结束
 * 暴露稳定的 `BattleSnapshot / BattleEvent / EventsSince` 公开查询面，供 `FinalApp` 只读接入
-* 第二批可补最小 relic battle-start 竖切：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入，在初始化时真实修改 AP / Shield 并写入 `BattleEvent`
+* 第二批可补最小 relic 触发深化：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入
+* 先支持 `battle-start` 的 AP / Shield 修正
+* 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
 
 #### 暂不创建
 * 遗物运行时状态

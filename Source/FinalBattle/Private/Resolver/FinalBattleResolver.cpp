@@ -37,6 +37,8 @@ const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 const FName RelicGainAPTag(TEXT("battle.relic.effect.gain_ap"));
 const FName RelicGainShieldTag(TEXT("battle.relic.effect.gain_shield"));
+const FName RelicTurnStartGainAPTag(TEXT("battle.relic.effect.turn_start_gain_ap"));
+const FName RelicTurnStartGainShieldTag(TEXT("battle.relic.effect.turn_start_gain_shield"));
 
 struct FFinalEffectExecutionSummary
 {
@@ -67,6 +69,24 @@ FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInpu
 		: NSLOCTEXT("FinalBattleResolver", "UnknownRelic", "Unknown Relic");
 }
 
+void AppendRelicTriggeredEvent(
+	FFinalBattleState& State,
+	const FFinalRelicId& RelicId,
+	const FName RelatedTag,
+	const int32 PrimaryValue,
+	const int32 SecondaryValue,
+	const FText& Message)
+{
+	FFinalBattleEvent RelicEvent;
+	RelicEvent.EventType = EFinalBattleEventType::RelicTriggered;
+	RelicEvent.RelicId = RelicId;
+	RelicEvent.RelatedTag = RelatedTag;
+	RelicEvent.PrimaryValue = PrimaryValue;
+	RelicEvent.SecondaryValue = SecondaryValue;
+	RelicEvent.Message = Message;
+	AppendBattleEvent(State, RelicEvent);
+}
+
 void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleStartRelicInput> ActiveRelics)
 {
 	State.ActiveRelics.Reset();
@@ -89,6 +109,8 @@ void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleS
 		}
 
 		TArray<FFinalBattleStartRelicEffectInput> ValidEffects;
+		TArray<FFinalBattlePlayerTurnStartRelicEffectInput> ValidTurnStartEffects;
+
 		for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput.BattleStartEffects)
 		{
 			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicBattleStartEffectType::None)
@@ -96,32 +118,34 @@ void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleS
 				continue;
 			}
 
-			FFinalBattleEvent RelicEvent;
-			RelicEvent.EventType = EFinalBattleEventType::RelicTriggered;
-			RelicEvent.RelicId = RelicInput.RelicId;
-
 			switch (EffectInput.EffectType)
 			{
 			case EFinalRelicBattleStartEffectType::GainAP:
 				State.CurrentAP += EffectInput.Value;
-				RelicEvent.RelatedTag = RelicGainAPTag;
-				RelicEvent.PrimaryValue = EffectInput.Value;
-				RelicEvent.SecondaryValue = State.CurrentAP;
-				RelicEvent.Message = FText::Format(
-					NSLOCTEXT("FinalBattleResolver", "RelicGainAP", "{0} triggered at battle start and granted {1} AP."),
-					RelicInput.DisplayName,
-					FText::AsNumber(EffectInput.Value));
+				AppendRelicTriggeredEvent(
+					State,
+					RelicInput.RelicId,
+					RelicGainAPTag,
+					EffectInput.Value,
+					State.CurrentAP,
+					FText::Format(
+						NSLOCTEXT("FinalBattleResolver", "RelicGainAP", "{0} triggered at battle start and granted {1} AP."),
+						RelicInput.DisplayName,
+						FText::AsNumber(EffectInput.Value)));
 				break;
 
 			case EFinalRelicBattleStartEffectType::GainShield:
 				State.TeamShield += EffectInput.Value;
-				RelicEvent.RelatedTag = RelicGainShieldTag;
-				RelicEvent.PrimaryValue = EffectInput.Value;
-				RelicEvent.SecondaryValue = State.TeamShield;
-				RelicEvent.Message = FText::Format(
-					NSLOCTEXT("FinalBattleResolver", "RelicGainShield", "{0} triggered at battle start and granted {1} shield."),
-					RelicInput.DisplayName,
-					FText::AsNumber(EffectInput.Value));
+				AppendRelicTriggeredEvent(
+					State,
+					RelicInput.RelicId,
+					RelicGainShieldTag,
+					EffectInput.Value,
+					State.TeamShield,
+					FText::Format(
+						NSLOCTEXT("FinalBattleResolver", "RelicGainShield", "{0} triggered at battle start and granted {1} shield."),
+						RelicInput.DisplayName,
+						FText::AsNumber(EffectInput.Value)));
 				break;
 
 			default:
@@ -129,13 +153,77 @@ void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleS
 			}
 
 			ValidEffects.Add(EffectInput);
-			AppendBattleEvent(State, RelicEvent);
 		}
 
-		if (ValidEffects.Num() > 0)
+		for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : RelicInput.PlayerTurnStartEffects)
+		{
+			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicPlayerTurnStartEffectType::None)
+			{
+				continue;
+			}
+
+			ValidTurnStartEffects.Add(EffectInput);
+		}
+
+		if (ValidEffects.Num() > 0 || ValidTurnStartEffects.Num() > 0)
 		{
 			RelicInput.BattleStartEffects = MoveTemp(ValidEffects);
+			RelicInput.PlayerTurnStartEffects = MoveTemp(ValidTurnStartEffects);
 			State.ActiveRelics.Add(MoveTemp(RelicInput));
+		}
+	}
+}
+
+void ApplyPlayerTurnStartRelicEffects(FFinalBattleState& State)
+{
+	for (const FFinalBattleStartRelicInput& RelicInput : State.ActiveRelics)
+	{
+		if (!RelicInput.RelicId.IsValid() || RelicInput.PlayerTurnStartEffects.IsEmpty())
+		{
+			continue;
+		}
+
+		const FText RelicDisplayName = ResolveBattleRelicDisplayName(RelicInput);
+		for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : RelicInput.PlayerTurnStartEffects)
+		{
+			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicPlayerTurnStartEffectType::None)
+			{
+				continue;
+			}
+
+			switch (EffectInput.EffectType)
+			{
+			case EFinalRelicPlayerTurnStartEffectType::GainAP:
+				State.CurrentAP += EffectInput.Value;
+				AppendRelicTriggeredEvent(
+					State,
+					RelicInput.RelicId,
+					RelicTurnStartGainAPTag,
+					EffectInput.Value,
+					State.CurrentAP,
+					FText::Format(
+						NSLOCTEXT("FinalBattleResolver", "RelicTurnStartGainAP", "{0} triggered at player turn start and granted {1} AP."),
+						RelicDisplayName,
+						FText::AsNumber(EffectInput.Value)));
+				break;
+
+			case EFinalRelicPlayerTurnStartEffectType::GainShield:
+				State.TeamShield += EffectInput.Value;
+				AppendRelicTriggeredEvent(
+					State,
+					RelicInput.RelicId,
+					RelicTurnStartGainShieldTag,
+					EffectInput.Value,
+					State.TeamShield,
+					FText::Format(
+						NSLOCTEXT("FinalBattleResolver", "RelicTurnStartGainShield", "{0} triggered at player turn start and granted {1} shield."),
+						RelicDisplayName,
+						FText::AsNumber(EffectInput.Value)));
+				break;
+
+			default:
+				break;
+			}
 		}
 	}
 }
@@ -1070,6 +1158,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 			++State.CurrentRound;
 			State.CurrentAP = RuleConfig ? RuleConfig->InitialAP : 0;
+			ApplyPlayerTurnStartRelicEffects(State);
 
 			for (FFinalBattleEnemyState& EnemyState : State.Enemies)
 			{

@@ -23,4 +23,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	TArray<FFinalRelicBattleStartEffectDefinition> BattleStartEffects;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
+	TArray<FFinalRelicPlayerTurnStartEffectDefinition> PlayerTurnStartEffects;
 };

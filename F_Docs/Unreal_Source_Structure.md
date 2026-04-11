@@ -216,6 +216,7 @@ FinalBattle      FinalRun
   * `BattleHUDScreen` 显示精简 `ActiveRelics` 摘要，并把 `RelicTriggered` 作为顶部交互反馈的一部分
   * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、`BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
   * `BattleDirector` 只保留简短的世界层 relic 提示，不重复堆叠完整列表
+* 当前 `ActiveRelics` 允许承载少量 battle-start / player-turn-start 遗物输入；窗口深化继续留在 `FinalBattle`，不回流到 `FinalApp`
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换

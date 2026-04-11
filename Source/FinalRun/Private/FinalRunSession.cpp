@@ -508,7 +508,7 @@ TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunS
 		}
 
 		const UFinalRelicDefinition* RelicDefinition = DataRegistry->FindRelicDefinition(RelicId);
-		if (RelicDefinition == nullptr || RelicDefinition->BattleStartEffects.Num() == 0)
+		if (RelicDefinition == nullptr)
 		{
 			continue;
 		}
@@ -531,7 +531,20 @@ TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunS
 			RelicInput.BattleStartEffects.Add(EffectInput);
 		}
 
-		if (RelicInput.BattleStartEffects.Num() > 0)
+		for (const FFinalRelicPlayerTurnStartEffectDefinition& EffectDefinition : RelicDefinition->PlayerTurnStartEffects)
+		{
+			if (EffectDefinition.EffectType == EFinalRelicPlayerTurnStartEffectType::None || EffectDefinition.Value <= 0)
+			{
+				continue;
+			}
+
+			FFinalBattlePlayerTurnStartRelicEffectInput EffectInput;
+			EffectInput.EffectType = EffectDefinition.EffectType;
+			EffectInput.Value = EffectDefinition.Value;
+			RelicInput.PlayerTurnStartEffects.Add(EffectInput);
+		}
+
+		if (RelicInput.BattleStartEffects.Num() > 0 || RelicInput.PlayerTurnStartEffects.Num() > 0)
 		{
 			BattleStartRelics.Add(MoveTemp(RelicInput));
 		}

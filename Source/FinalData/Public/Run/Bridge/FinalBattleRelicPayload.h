@@ -18,6 +18,18 @@ struct FINALDATA_API FFinalBattleStartRelicEffectInput
 };
 
 USTRUCT(BlueprintType)
+struct FINALDATA_API FFinalBattlePlayerTurnStartRelicEffectInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
+	EFinalRelicPlayerTurnStartEffectType EffectType = EFinalRelicPlayerTurnStartEffectType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
+	int32 Value = 0;
+};
+
+USTRUCT(BlueprintType)
 struct FINALDATA_API FFinalBattleStartRelicInput
 {
 	GENERATED_BODY()
@@ -33,4 +45,7 @@ struct FINALDATA_API FFinalBattleStartRelicInput
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
 	TArray<FFinalBattleStartRelicEffectInput> BattleStartEffects;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
+	TArray<FFinalBattlePlayerTurnStartRelicEffectInput> PlayerTurnStartEffects;
 };
