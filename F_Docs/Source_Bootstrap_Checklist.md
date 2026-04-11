@@ -218,6 +218,7 @@
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 在 `RunSnapshot` 中公开 `CurrentBuild` 只读构筑视图，至少能表达当前牌库条目与遗物条目
+* 在 `RunSnapshot.Characters` 中补最小可展示的持久角色 view data，至少包含角色显示名与少量展示辅助字段，不把 `RunPersistentCharacterState` 私有结构原样抬进 `Public`
 * 在保留 raw `RewardEntries` 的同时，补一层 `RewardEntryViewData` 只读展示查询，供 `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 直接输出稳定 reward 展示语义
 * `RewardEntryViewData` 至少应能补出 `PresentationKind / IconId / VisualTier / DetailText` 这类元数据，避免 `FinalApp` 自己推断奖励图标、类别与描述
 * `FinalApp` 的奖励页、奖励节点页、事件页、商店页和 prototype debug 优先直接消费 `RewardEntryViewData` 及其 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只保留为回退与调试底稿
