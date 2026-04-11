@@ -242,7 +242,8 @@
 * 当前 `RunState` 至少应真实承接：`Gold -> Gold`、`CardGrant -> RunDeck`、`RelicGrant -> Relics`、`RemoveCard -> 从 RunDeck 删除目标卡`、`UpgradeCard -> 用升级结果替换 RunDeck 中的目标卡`
 * `CardGrant / RelicGrant` 在真正落地到 `RunState` 前，应通过 `FinalDataRegistry` 校验对应 definition 是否存在；`RelicGrant` 的 `DisplayName / DisplayId` fallback 应优先来自 `RelicDefinition`
 * `RemoveCard / UpgradeCard` 落地前应校验必要 payload、对应 card definition、以及 `RunDeck` 中是否存在目标卡；`UpgradeCard` 还应校验升级结果不是无效或自指
-* `Growth` 若协议仍不足，当前阶段应明确拒绝而不是伪造成功
+* `Growth` 当前阶段可先支持锚定 `RunPersistentCharacterState` 的最小 typed payload，例如 `GrowthTargetCharacterId + GrowthEffectType + Value`，并真实落地到 `CurrentStress / CurrentAwakenCount / CollapseCount`
+* 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
 * 非战斗节点查询面至少公开 `PendingRewardNode / PendingEventNode / PendingShopNode` 的最小结构化内容，供 UI 读取标题、简介、选项、商品与可执行状态
 
