@@ -43,6 +43,15 @@ struct FINALDATA_API FFinalRunRewardEntry
 	FFinalRelicId GrantedRelicId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId RemovedCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId UpgradeFromCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId UpgradeToCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bCanClaim = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
