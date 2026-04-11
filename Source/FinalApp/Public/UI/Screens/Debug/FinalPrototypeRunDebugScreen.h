@@ -53,6 +53,12 @@ private:
 	TObjectPtr<UTextBlock> MessageText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BuildSummaryText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CandidateSummaryText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UButton> RestartRunButton;
 
 	UPROPERTY(Transient)
