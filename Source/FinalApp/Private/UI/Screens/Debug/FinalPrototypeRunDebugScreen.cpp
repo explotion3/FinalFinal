@@ -519,8 +519,21 @@ FString BuildCharacterStateSummaryString(const TArray<FFinalRunCharacterViewData
 
 	for (const FFinalRunCharacterViewData& Character : Characters)
 	{
+		const FString DisplayName = FormatOptionalDisplayName(Character.DisplayName, Character.CharacterId.ToString()).ToString();
+		const FString StateSummary = !Character.StateSummaryText.IsEmpty()
+			? Character.StateSummaryText.ToString()
+			: FString::Printf(
+				TEXT("Stress %d | Awaken %d | Collapse %d%s"),
+				Character.CurrentStress,
+				Character.CurrentAwakenCount,
+				Character.CollapseCount,
+				Character.bCollapsed ? TEXT(" | Collapsed") : TEXT(""));
+
 		Lines.Add(FString::Printf(
-			TEXT("- %s | Stress: %d | Awaken: %d | Collapse: %d"),
+			TEXT("- %s | IconId: %s | Summary: %s | CharacterId: %s | Stress: %d | Awaken: %d | Collapse: %d"),
+			*DisplayName,
+			Character.IconId != NAME_None ? *Character.IconId.ToString() : TEXT("None"),
+			*StateSummary,
 			*Character.CharacterId.ToString(),
 			Character.CurrentStress,
 			Character.CurrentAwakenCount,
