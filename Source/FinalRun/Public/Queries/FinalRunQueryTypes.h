@@ -32,6 +32,30 @@ enum class EFinalRunNodeAvailabilityReason : uint8
 	RunEnded
 };
 
+UENUM(BlueprintType)
+enum class EFinalRunRewardPresentationKind : uint8
+{
+	None,
+	Gold,
+	Card,
+	Relic,
+	DeckEdit,
+	Growth
+};
+
+UENUM(BlueprintType)
+enum class EFinalRunRewardVisualTier : uint8
+{
+	None,
+	Currency,
+	Common,
+	Rare,
+	Epic,
+	Legendary,
+	Utility,
+	Progression
+};
+
 USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunCharacterViewData
 {
@@ -114,6 +138,18 @@ struct FINALRUN_API FFinalRunRewardEntryViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 Value = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunRewardPresentationKind PresentationKind = EFinalRunRewardPresentationKind::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName IconId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunRewardVisualTier VisualTier = EFinalRunRewardVisualTier::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DetailText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalCharacterId TargetCharacterId;
