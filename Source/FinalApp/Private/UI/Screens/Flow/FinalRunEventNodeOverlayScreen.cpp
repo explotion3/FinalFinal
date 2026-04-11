@@ -42,7 +42,8 @@ FString BuildEventOptionsSummaryString(const TArray<FFinalRunEventOptionViewData
 			OptionsSummary += FString::Printf(TEXT(" | 限制: %s"), *Option.AvailabilityMessage.ToString());
 		}
 
-		OptionsSummary += FString::Printf(TEXT(" | 奖励条目数: %d\n"), Option.RewardEntries.Num());
+		const int32 RewardEntryCount = Option.RewardEntryViews.Num() > 0 ? Option.RewardEntryViews.Num() : Option.RewardEntries.Num();
+		OptionsSummary += FString::Printf(TEXT(" | 奖励条目数: %d\n"), RewardEntryCount);
 	}
 
 	OptionsSummary.TrimEndInline();
@@ -273,7 +274,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 				FormatOptionalText(SelectedOption->OutcomeSummary, NSLOCTEXT("FinalFlowUI", "EventNodeSelectedOptionNoOutcome", "当前没有公开结果摘要。")),
 				FormatBool(SelectedOption->bSelectable),
 				FormatOptionalText(SelectedOption->AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "EventNodeSelectedOptionNoAvailability", "当前没有额外限制说明。")),
-				FText::FromString(BuildRewardEntriesSummaryString(SelectedOption->RewardEntries))));
+				FText::FromString(BuildRewardPresentationSummaryString(SelectedOption->RewardEntryViews, SelectedOption->RewardEntries))));
 		}
 	}
 
@@ -282,7 +283,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"EventNodeOverlayGapText",
-			"当前页已真实消费 PendingEventNode 的标题、摘要、选项列表、可用性说明与奖励条目。剩余缺口主要是 richer 布局、长文本滚动、二次确认和更复杂的分支表现。"));
+			"当前页已优先消费 EventOption.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、长文本滚动、二次确认和更复杂的分支表现。"));
 	}
 
 	if (FeedbackText)

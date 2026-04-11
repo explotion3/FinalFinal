@@ -349,6 +349,65 @@ FString BuildRewardEntryDebugDetailString(const FFinalRunRewardEntry& Entry)
 	}
 }
 
+FText GetRewardViewPrimaryText(const FFinalRunRewardEntryViewData& EntryView)
+{
+	return !EntryView.PrimaryText.IsEmpty()
+		? EntryView.PrimaryText
+		: GetRewardTypeText(EntryView.RewardType);
+}
+
+FString BuildRewardEntryViewDebugDetailString(const FFinalRunRewardEntryViewData& EntryView)
+{
+	if (!EntryView.SecondaryText.IsEmpty())
+	{
+		return FString::Printf(TEXT(" | Detail: %s"), *EntryView.SecondaryText.ToString());
+	}
+
+	switch (EntryView.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+	case EFinalRunRewardType::RemoveCard:
+		return EntryView.CardId.IsValid()
+			? FString::Printf(TEXT(" | CardId: %s"), *EntryView.CardId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::RelicGrant:
+		return EntryView.RelicId.IsValid()
+			? FString::Printf(TEXT(" | RelicId: %s"), *EntryView.RelicId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::UpgradeCard:
+		return (EntryView.SourceCardId.IsValid() || EntryView.ResultCardId.IsValid())
+			? FString::Printf(TEXT(" | Upgrade: %s -> %s"), *EntryView.SourceCardId.ToString(), *EntryView.ResultCardId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::Growth:
+		return EntryView.TargetCharacterId.IsValid()
+			? FString::Printf(TEXT(" | Target: %s"), *EntryView.TargetCharacterId.ToString())
+			: FString();
+
+	default:
+		return FString();
+	}
+}
+
+void AppendRewardEntryViewCandidateLines(TArray<FString>& Lines, const FString& SourceLabel, const TArray<FFinalRunRewardEntryViewData>& RewardEntryViews)
+{
+	for (const FFinalRunRewardEntryViewData& EntryView : RewardEntryViews)
+	{
+		const FString DebugDetail = BuildRewardEntryViewDebugDetailString(EntryView);
+		Lines.Add(FString::Printf(
+			TEXT("- [%s] %s | Type: %s | Value: %d | Claimable: %s | Claimed: %s%s"),
+			*SourceLabel,
+			*GetRewardViewPrimaryText(EntryView).ToString(),
+			*GetRewardTypeText(EntryView.RewardType).ToString(),
+			EntryView.Value,
+			TEXT("n/a"),
+			TEXT("n/a"),
+			*DebugDetail));
+	}
+}
+
 void AppendRewardEntryCandidateLines(TArray<FString>& Lines, const FString& SourceLabel, const TArray<FFinalRunRewardEntry>& RewardEntries)
 {
 	for (const FFinalRunRewardEntry& Entry : RewardEntries)
@@ -395,15 +454,37 @@ FString BuildPendingRewardCandidatesSummary(const FFinalRunSnapshot& RunSnapshot
 	TArray<FString> Lines;
 	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "CandidateSectionTitle", "Visible Pending Reward Candidates").ToString());
 
-	AppendRewardEntryCandidateLines(Lines, TEXT("BattleReward"), RunSnapshot.PendingBattleReward.RewardEntries);
-	AppendRewardEntryCandidateLines(Lines, TEXT("RewardNode"), RunSnapshot.PendingRewardNode.RewardEntries);
+	if (RunSnapshot.PendingBattleReward.RewardEntryViews.Num() > 0)
+	{
+		AppendRewardEntryViewCandidateLines(Lines, TEXT("BattleReward"), RunSnapshot.PendingBattleReward.RewardEntryViews);
+	}
+	else
+	{
+		AppendRewardEntryCandidateLines(Lines, TEXT("BattleReward"), RunSnapshot.PendingBattleReward.RewardEntries);
+	}
+
+	if (RunSnapshot.PendingRewardNode.RewardEntryViews.Num() > 0)
+	{
+		AppendRewardEntryViewCandidateLines(Lines, TEXT("RewardNode"), RunSnapshot.PendingRewardNode.RewardEntryViews);
+	}
+	else
+	{
+		AppendRewardEntryCandidateLines(Lines, TEXT("RewardNode"), RunSnapshot.PendingRewardNode.RewardEntries);
+	}
 
 	for (const FFinalRunEventOptionViewData& Option : RunSnapshot.PendingEventNode.Options)
 	{
 		const FString OptionLabel = !Option.DisplayText.IsEmpty()
 			? Option.DisplayText.ToString()
 			: Option.OptionId.ToString();
-		AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Event:%s"), *OptionLabel), Option.RewardEntries);
+		if (Option.RewardEntryViews.Num() > 0)
+		{
+			AppendRewardEntryViewCandidateLines(Lines, FString::Printf(TEXT("Event:%s"), *OptionLabel), Option.RewardEntryViews);
+		}
+		else
+		{
+			AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Event:%s"), *OptionLabel), Option.RewardEntries);
+		}
 	}
 
 	for (const FFinalRunShopOfferViewData& Offer : RunSnapshot.PendingShopNode.Offers)
@@ -411,7 +492,14 @@ FString BuildPendingRewardCandidatesSummary(const FFinalRunSnapshot& RunSnapshot
 		const FString OfferLabel = !Offer.DisplayName.IsEmpty()
 			? Offer.DisplayName.ToString()
 			: Offer.OfferId.ToString();
-		AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Shop:%s"), *OfferLabel), Offer.RewardEntries);
+		if (Offer.RewardEntryViews.Num() > 0)
+		{
+			AppendRewardEntryViewCandidateLines(Lines, FString::Printf(TEXT("Shop:%s"), *OfferLabel), Offer.RewardEntryViews);
+		}
+		else
+		{
+			AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Shop:%s"), *OfferLabel), Offer.RewardEntries);
+		}
 	}
 
 	if (Lines.Num() == 1)
