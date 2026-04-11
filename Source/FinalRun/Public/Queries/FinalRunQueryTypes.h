@@ -65,6 +65,12 @@ struct FINALRUN_API FFinalRunCharacterViewData
 	FFinalCharacterId CharacterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName IconId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 CurrentStress = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
@@ -75,6 +81,9 @@ struct FINALRUN_API FFinalRunCharacterViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 CollapseCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText StateSummaryText;
 };
 
 USTRUCT(BlueprintType)

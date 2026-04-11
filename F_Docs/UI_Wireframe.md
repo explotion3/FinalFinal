@@ -39,7 +39,7 @@
 * 当前 `HUD Layer` 已新增一个常驻 `PrototypeRunDebugScreen`：
   * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
   * 构筑观察区直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries`，作为当前牌库与遗物真相的主展示
-  * 角色持久状态摘要直接消费 `RunSnapshot.Characters`，显示 `CharacterId / CurrentStress / CurrentAwakenCount / CollapseCount`
+  * 角色持久状态摘要直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`，并保留 `CharacterId / CurrentStress / CurrentAwakenCount / CollapseCount` 作为补充验证信息
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
   * 当候选奖励里出现 `Growth / RemoveCard / UpgradeCard` 时，会额外显示 typed payload，例如目标角色、移除目标卡、升级路径，而不是只显示奖励类型名
   * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口

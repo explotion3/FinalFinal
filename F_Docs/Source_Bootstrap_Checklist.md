@@ -218,6 +218,7 @@
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 在 `RunSnapshot` 中公开 `CurrentBuild` 只读构筑视图，至少能表达当前牌库条目与遗物条目
+* 在 `RunSnapshot.Characters` 中补最小可展示的持久角色 view data，至少包含角色显示名与少量展示辅助字段，不把 `RunPersistentCharacterState` 私有结构原样抬进 `Public`
 * 在保留 raw `RewardEntries` 的同时，补一层 `RewardEntryViewData` 只读展示查询，供 `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 直接输出稳定 reward 展示语义
 * `RewardEntryViewData` 至少应能补出 `PresentationKind / IconId / VisualTier / DetailText` 这类元数据，避免 `FinalApp` 自己推断奖励图标、类别与描述
 * `FinalApp` 的奖励页、奖励节点页、事件页、商店页和 prototype debug 优先直接消费 `RewardEntryViewData` 及其 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只保留为回退与调试底稿
@@ -334,7 +335,7 @@
 * 当前 prototype Run 图已重新接回 `RemoveCard / UpgradeCard` 奖励示例，直接使用 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，用于验证 `RunDeck -> RunSnapshot.CurrentBuild` 的真实构筑修正
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
-* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活
+* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
 * 当前瞬时测试 relic definition 已同时补 battle-start 与 player-turn-start 最小效果，用于验证同一 relic 在 Battle 开场和玩家回合开始都能经 `RelicTriggered` 反馈到 `FinalApp`
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；`RelicTriggered` 只显示简短世界提示，不替代 HUD / Debug 明细
