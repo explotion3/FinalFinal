@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Ids/FinalIds.h"
+#include "Run/Definitions/FinalRelicBattleTypes.h"
 #include "FinalRelicDefinition.generated.h"
 
 UCLASS(BlueprintType)
@@ -19,4 +20,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	FText DisplayName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
+	TArray<FFinalRelicBattleStartEffectDefinition> BattleStartEffects;
 };

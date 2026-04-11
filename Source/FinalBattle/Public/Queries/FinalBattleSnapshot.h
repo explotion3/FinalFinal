@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "Queries/FinalBattleQueryTypes.h"
+#include "Run/Bridge/FinalBattleRelicBridge.h"
 #include "FinalBattleSnapshot.generated.h"
 
 USTRUCT(BlueprintType)
@@ -60,6 +61,9 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleUltimateViewData> CharacterUltimates;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleStartRelicInput> ActiveRelics;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleEnemyViewData> Enemies;

@@ -14,6 +14,7 @@
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
+#include "Run/Bridge/FinalBattleRelicBridge.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleResolver, Log, All);
@@ -34,6 +35,8 @@ const FName RejectUltimateDefinitionMissingTag(TEXT("battle.ultimate_definition_
 const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
 const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
+const FName RelicGainAPTag(TEXT("battle.relic.effect.gain_ap"));
+const FName RelicGainShieldTag(TEXT("battle.relic.effect.gain_shield"));
 
 struct FFinalEffectExecutionSummary
 {
@@ -44,6 +47,136 @@ struct FFinalEffectExecutionSummary
 	int32 TotalCardsDrawn = 0;
 	int32 ResolvedEffectCount = 0;
 };
+
+void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
+
+FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
+{
+	if (!RelicInput.DisplayName.IsEmpty())
+	{
+		return RelicInput.DisplayName;
+	}
+
+	if (!RelicInput.DisplayId.IsNone())
+	{
+		return FText::FromName(RelicInput.DisplayId);
+	}
+
+	return RelicInput.RelicId.IsValid()
+		? FText::FromName(RelicInput.RelicId.Value)
+		: NSLOCTEXT("FinalBattleResolver", "UnknownRelic", "Unknown Relic");
+}
+
+FString BuildBattleRelicBridgeKey(const FFinalEncounterId& EncounterId, const FFinalRuleConfigId& RuleConfigId, const FFinalBattleInitContext& InitContext)
+{
+	FString BridgeKey = EncounterId.IsValid() ? EncounterId.Value.ToString() : TEXT("Encounter.None");
+	BridgeKey += TEXT("|");
+	BridgeKey += RuleConfigId.IsValid() ? RuleConfigId.Value.ToString() : TEXT("Rule.None");
+	BridgeKey += FString::Printf(TEXT("|HP:%d|Party:%d"), InitContext.TeamCurrentHP, InitContext.PartyMembers.Num());
+
+	for (const FFinalBattleCharacterInitData& PartyEntry : InitContext.PartyMembers)
+	{
+		const FString CharacterIdText =
+			PartyEntry.CharacterDefinition != nullptr && PartyEntry.CharacterDefinition->CharacterId.IsValid()
+			? PartyEntry.CharacterDefinition->CharacterId.Value.ToString()
+			: TEXT("Character.None");
+
+		BridgeKey += FString::Printf(
+			TEXT("|%s:%d:%d:%d:%d"),
+			*CharacterIdText,
+			PartyEntry.CurrentStress,
+			PartyEntry.bCollapsed ? 1 : 0,
+			PartyEntry.CurrentAwakenCount,
+			PartyEntry.CollapseCount);
+	}
+
+	BridgeKey += FString::Printf(TEXT("|Deck:%d"), InitContext.DeckDefinitions.Num());
+	for (const UFinalCardDefinition* CardDefinition : InitContext.DeckDefinitions)
+	{
+		const FString CardIdText =
+			CardDefinition != nullptr && CardDefinition->CardId.IsValid()
+			? CardDefinition->CardId.Value.ToString()
+			: TEXT("Card.None");
+
+		BridgeKey += TEXT("|");
+		BridgeKey += CardIdText;
+	}
+
+	return BridgeKey;
+}
+
+void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleStartRelicInput> ActiveRelics)
+{
+	State.ActiveRelics.Reset();
+
+	for (FFinalBattleStartRelicInput& RelicInput : ActiveRelics)
+	{
+		if (!RelicInput.RelicId.IsValid())
+		{
+			continue;
+		}
+
+		if (RelicInput.DisplayId.IsNone())
+		{
+			RelicInput.DisplayId = RelicInput.RelicId.Value;
+		}
+
+		if (RelicInput.DisplayName.IsEmpty())
+		{
+			RelicInput.DisplayName = ResolveBattleRelicDisplayName(RelicInput);
+		}
+
+		TArray<FFinalBattleStartRelicEffectInput> ValidEffects;
+		for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput.BattleStartEffects)
+		{
+			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicBattleStartEffectType::None)
+			{
+				continue;
+			}
+
+			FFinalBattleEvent RelicEvent;
+			RelicEvent.EventType = EFinalBattleEventType::RelicTriggered;
+			RelicEvent.RelicId = RelicInput.RelicId;
+
+			switch (EffectInput.EffectType)
+			{
+			case EFinalRelicBattleStartEffectType::GainAP:
+				State.CurrentAP += EffectInput.Value;
+				RelicEvent.RelatedTag = RelicGainAPTag;
+				RelicEvent.PrimaryValue = EffectInput.Value;
+				RelicEvent.SecondaryValue = State.CurrentAP;
+				RelicEvent.Message = FText::Format(
+					NSLOCTEXT("FinalBattleResolver", "RelicGainAP", "{0} triggered at battle start and granted {1} AP."),
+					RelicInput.DisplayName,
+					FText::AsNumber(EffectInput.Value));
+				break;
+
+			case EFinalRelicBattleStartEffectType::GainShield:
+				State.TeamShield += EffectInput.Value;
+				RelicEvent.RelatedTag = RelicGainShieldTag;
+				RelicEvent.PrimaryValue = EffectInput.Value;
+				RelicEvent.SecondaryValue = State.TeamShield;
+				RelicEvent.Message = FText::Format(
+					NSLOCTEXT("FinalBattleResolver", "RelicGainShield", "{0} triggered at battle start and granted {1} shield."),
+					RelicInput.DisplayName,
+					FText::AsNumber(EffectInput.Value));
+				break;
+
+			default:
+				continue;
+			}
+
+			ValidEffects.Add(EffectInput);
+			AppendBattleEvent(State, RelicEvent);
+		}
+
+		if (ValidEffects.Num() > 0)
+		{
+			RelicInput.BattleStartEffects = MoveTemp(ValidEffects);
+			State.ActiveRelics.Add(MoveTemp(RelicInput));
+		}
+	}
+}
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
 {
@@ -715,6 +848,10 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		State.EncounterDisplayName.IsEmpty() ? FText::FromName(State.EncounterId.Value) : State.EncounterDisplayName);
 	FinalizeBattleEvent(State, SessionStartedEvent);
 
+	ApplyBattleStartRelicEffects(
+		State,
+		FFinalBattleRelicBridgeStore::ConsumePayload(BuildBattleRelicBridgeKey(State.EncounterId, State.RuleConfigId, InitContext)));
+
 	UE_LOG(LogFinalBattleResolver, Log, TEXT("Initialized battle session with %d enemy entries."), State.Enemies.Num());
 }
 
@@ -1076,6 +1213,8 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 		UltimateView.bUsedThisBattle = CharacterState.bUltimateUsedThisBattle;
 		Snapshot.CharacterUltimates.Add(MoveTemp(UltimateView));
 	}
+
+	Snapshot.ActiveRelics = State.ActiveRelics;
 
 	for (const FFinalBattleEnemyState& EnemyState : State.Enemies)
 	{

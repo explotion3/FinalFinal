@@ -99,6 +99,8 @@
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRelicBattleTypes.h`
+* `Source/FinalData/Public/Run/Bridge/FinalBattleRelicBridge.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
 
@@ -146,6 +148,7 @@
 * 跑通敌人行动
 * 跑通回合开始与回合结束
 * 暴露稳定的 `BattleSnapshot / BattleEvent / EventsSince` 公开查询面，供 `FinalApp` 只读接入
+* 第二批可补最小 relic battle-start 竖切：消费 Run 桥接过来的遗物输入，在初始化时真实修改 AP / Shield 并写入 `BattleEvent`
 
 #### 暂不创建
 * 遗物运行时状态
@@ -213,6 +216,7 @@
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 在 `RunSnapshot` 中公开 `CurrentBuild` 只读构筑视图，至少能表达当前牌库条目与遗物条目
+* 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * `RemoveCard / UpgradeCard` 使用稳定 payload，例如 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，并在落地前校验必要 payload、card definition 和 `RunDeck` 中的目标

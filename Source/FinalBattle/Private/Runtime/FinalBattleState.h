@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Ids/FinalIds.h"
+#include "Run/Bridge/FinalBattleRelicBridge.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
@@ -27,6 +28,7 @@ struct FFinalBattleState
 	FName CurrentTargetUnitId = NAME_None;
 	int32 LastEventSequence = 0;
 	TArray<FFinalBattleCharacterState> Characters;
+	TArray<FFinalBattleStartRelicInput> ActiveRelics;
 	TArray<FFinalBattleEnemyState> Enemies;
 	TArray<FFinalBattleCardInstance> CardInstances;
 	TArray<FFinalBattleStatusInstance> StatusInstances;
