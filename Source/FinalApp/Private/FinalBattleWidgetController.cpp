@@ -122,6 +122,22 @@ FText FormatRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectTyp
 	}
 }
 
+FText FormatRelicTurnStartEffectTypeText(const EFinalRelicPlayerTurnStartEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case EFinalRelicPlayerTurnStartEffectType::GainAP:
+		return NSLOCTEXT("FinalBattleHUD", "RelicTurnStartEffectGainAP", "GainAP");
+
+	case EFinalRelicPlayerTurnStartEffectType::GainShield:
+		return NSLOCTEXT("FinalBattleHUD", "RelicTurnStartEffectGainShield", "GainShield");
+
+	case EFinalRelicPlayerTurnStartEffectType::None:
+	default:
+		return NSLOCTEXT("FinalBattleHUD", "RelicTurnStartEffectNone", "None");
+	}
+}
+
 FText ResolveRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
 {
 	if (!RelicInput.DisplayName.IsEmpty())
@@ -159,12 +175,33 @@ FText BuildRelicEffectSummaryText(const TArray<FFinalBattleStartRelicEffectInput
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
 }
 
+FText BuildRelicTurnStartEffectSummaryText(const TArray<FFinalBattlePlayerTurnStartRelicEffectInput>& EffectInputs)
+{
+	if (EffectInputs.Num() == 0)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RelicNoTurnStartEffect", "No turn-start effects");
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(EffectInputs.Num());
+	for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : EffectInputs)
+	{
+		Segments.Add(FString::Printf(
+			TEXT("%s +%d"),
+			*FormatRelicTurnStartEffectTypeText(EffectInput.EffectType).ToString(),
+			EffectInput.Value));
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
 FText BuildActiveRelicSummaryText(const FFinalBattleStartRelicInput& RelicInput)
 {
 	return FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "ActiveRelicSummaryFormat", "{0} ({1})"),
+		NSLOCTEXT("FinalBattleHUD", "ActiveRelicSummaryFormat", "{0} [Start: {1}] [Turn: {2}]"),
 		ResolveRelicDisplayName(RelicInput),
-		BuildRelicEffectSummaryText(RelicInput.BattleStartEffects));
+		BuildRelicEffectSummaryText(RelicInput.BattleStartEffects),
+		BuildRelicTurnStartEffectSummaryText(RelicInput.PlayerTurnStartEffects));
 }
 
 FText ResolveRelicDisplayNameById(const TArray<FFinalBattleStartRelicInput>& ActiveRelics, const FFinalRelicId& RelicId)
@@ -192,7 +229,10 @@ FText ResolveRelicEffectSummaryById(const TArray<FFinalBattleStartRelicInput>& A
 			return Candidate.RelicId == RelicId;
 		});
 	return RelicInput != nullptr
-		? BuildRelicEffectSummaryText(RelicInput->BattleStartEffects)
+		? FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "RelicEffectSummaryCombined", "Start: {0} | Turn: {1}"),
+			BuildRelicEffectSummaryText(RelicInput->BattleStartEffects),
+			BuildRelicTurnStartEffectSummaryText(RelicInput->PlayerTurnStartEffects))
 		: FText::GetEmpty();
 }
 

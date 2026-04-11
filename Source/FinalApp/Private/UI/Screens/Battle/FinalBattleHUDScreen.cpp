@@ -267,7 +267,7 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			FText::AsNumber(Presentation.ConsumePileCount),
 			FText::AsNumber(Presentation.RunDeckCount),
 			JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
-			JoinTextArray(Presentation.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无战斗期开场遗物"))));
+			JoinTextArray(Presentation.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无已激活遗物"))));
 
 		if (Presentation.MissingFieldNotices.Num() > 0)
 		{
