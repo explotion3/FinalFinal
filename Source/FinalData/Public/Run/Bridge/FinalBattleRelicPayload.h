@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "Run/Definitions/FinalRelicBattleTypes.h"
-#include "FinalBattleRelicBridge.generated.h"
+#include "FinalBattleRelicPayload.generated.h"
 
 USTRUCT(BlueprintType)
 struct FINALDATA_API FFinalBattleStartRelicEffectInput
@@ -33,11 +33,4 @@ struct FINALDATA_API FFinalBattleStartRelicInput
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
 	TArray<FFinalBattleStartRelicEffectInput> BattleStartEffects;
-};
-
-class FINALDATA_API FFinalBattleRelicBridgeStore
-{
-public:
-	static void PublishPayload(const FString& BridgeKey, TArray<FFinalBattleStartRelicInput> Payload);
-	static TArray<FFinalBattleStartRelicInput> ConsumePayload(const FString& BridgeKey);
 };

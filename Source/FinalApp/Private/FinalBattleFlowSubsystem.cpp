@@ -169,6 +169,7 @@ bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest&
 
 	OutInitContext = FFinalBattleInitContext{};
 	OutInitContext.TeamCurrentHP = StartRequest.TeamCurrentHP;
+	OutInitContext.BattleStartRelics = StartRequest.BattleStartRelics;
 
 	const TArray<FFinalRunPersistentCharacterState>& SourcePartyStates = StartRequest.PartyStates;
 	for (const FFinalRunPersistentCharacterState& PartyState : SourcePartyStates)
