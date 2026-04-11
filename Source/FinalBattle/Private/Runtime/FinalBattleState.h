@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Ids/FinalIds.h"
-#include "Run/Bridge/FinalBattleRelicBridge.h"
+#include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "Queries/FinalBattleQueryTypes.h"
-#include "Run/Bridge/FinalBattleRelicBridge.h"
+#include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "FinalBattleSnapshot.generated.h"
 
 USTRUCT(BlueprintType)
