@@ -247,6 +247,8 @@
 * `Growth` 当前阶段可先支持锚定 `RunPersistentCharacterState` 的最小 typed payload，例如 `GrowthTargetCharacterId + GrowthEffectType + Value`，并真实落地到 `CurrentStress / CurrentAwakenCount / CollapseCount`
 * 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
+* 在保留 raw `RewardEntries` 的前提下，Run 查询面还应补 `RewardEntryViewData` 一类稳定展示数据，至少能表达 `PrimaryText / SecondaryText / Value` 与必要的只读目标 id，避免 `FinalApp` 自行拼接 reward 文案
+* `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 应同时公开 raw reward 与 reward view data，两者分别服务于规则链和展示层
 * 非战斗节点查询面至少公开 `PendingRewardNode / PendingEventNode / PendingShopNode` 的最小结构化内容，供 UI 读取标题、简介、选项、商品与可执行状态
 
 优先级：
