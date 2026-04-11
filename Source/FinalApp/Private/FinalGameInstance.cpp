@@ -17,6 +17,13 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 
+#if __has_include("Run/Definitions/FinalRelicDefinition.h")
+#include "Run/Definitions/FinalRelicDefinition.h"
+#define FINALAPP_HAS_TEST_RELIC_DEFINITION 1
+#else
+#define FINALAPP_HAS_TEST_RELIC_DEFINITION 0
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
 namespace FinalTestBootstrap
@@ -39,6 +46,29 @@ namespace FinalTestBootstrap
 	const FName EventNodeId(TEXT("run.test.node.event.crossroads"));
 	const FName ShopNodeId(TEXT("run.test.node.shop.supply"));
 	const FName FollowupBattleNodeId(TEXT("run.test.node.battle.followup"));
+
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+	void RegisterTransientTestRelicDefinition(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		const FFinalRelicId& RelicId,
+		const FName DisplayId,
+		const FText& DisplayName)
+	{
+		if (DataRegistry == nullptr || !RelicId.IsValid())
+		{
+			return;
+		}
+
+		UFinalRelicDefinition* RelicDefinition = NewObject<UFinalRelicDefinition>(Outer);
+		RelicDefinition->RelicId = RelicId;
+		RelicDefinition->DisplayId = DisplayId;
+		RelicDefinition->DisplayName = DisplayName;
+		RuntimeAssets.Add(RelicDefinition);
+		DataRegistry->RegisterRelicDefinition(RelicDefinition);
+	}
+#endif
 }
 
 void UFinalGameInstance::Init()
@@ -261,6 +291,23 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	DataRegistry->RegisterCardDefinition(TestSupportShotCard);
 	DataRegistry->RegisterCardDefinition(TestSupportFocusCard);
 	DataRegistry->RegisterEncounterDefinition(TestEncounterDefinition);
+
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
+		DataRegistry,
+		this,
+		RuntimeTestAssets,
+		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
+		TEXT("Relic.Test.Charm"),
+		FText::FromString(TEXT("试作护符")));
+	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
+		DataRegistry,
+		this,
+		RuntimeTestAssets,
+		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
+		TEXT("Relic.Test.RepairKit"),
+		FText::FromString(TEXT("试作修理包")));
+#endif
 
 	bTestBattleBootstrapRegistered = true;
 
