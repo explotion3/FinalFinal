@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Ids/FinalIds.h"
+#include "Run/Definitions/FinalRelicDefinition.h"
 #include "FinalDataRegistry.generated.h"
 
 class UFinalBattleEncounterDefinition;
@@ -11,7 +12,6 @@ class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 class UFinalEnemyDefinition;
 class UFinalEnemyIntentDefinition;
-class UFinalRelicDefinition;
 class UFinalStatusDefinition;
 class UFinalUltimateDefinition;
 
