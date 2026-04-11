@@ -420,6 +420,123 @@ const UFinalDataRegistry* ResolveDataRegistry(const UFinalRunSession* RunSession
 	return nullptr;
 }
 
+FText ResolveDeckEntryDisplayName(const FFinalCardId& CardId, const UFinalDataRegistry* DataRegistry)
+{
+	if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(CardId, DataRegistry))
+	{
+		if (!CardDefinition->DisplayName.IsEmpty())
+		{
+			return CardDefinition->DisplayName;
+		}
+	}
+
+	return CardId.IsValid()
+		? FText::FromName(CardId.Value)
+		: NSLOCTEXT("FinalRunSession", "UnknownDeckCard", "Unknown Card");
+}
+
+FName ResolveRelicEntryDisplayId(const FFinalRelicId& RelicId, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && RelicId.IsValid())
+	{
+		if (const UFinalRelicDefinition* RelicDefinition = DataRegistry->FindRelicDefinition(RelicId))
+		{
+			if (!RelicDefinition->DisplayId.IsNone())
+			{
+				return RelicDefinition->DisplayId;
+			}
+		}
+	}
+
+	return RelicId.IsValid() ? RelicId.Value : NAME_None;
+}
+
+FText ResolveRelicEntryDisplayName(const FFinalRelicId& RelicId, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && RelicId.IsValid())
+	{
+		if (const UFinalRelicDefinition* RelicDefinition = DataRegistry->FindRelicDefinition(RelicId))
+		{
+			if (!RelicDefinition->DisplayName.IsEmpty())
+			{
+				return RelicDefinition->DisplayName;
+			}
+		}
+	}
+
+	const FName DisplayId = ResolveRelicEntryDisplayId(RelicId, DataRegistry);
+	if (!DisplayId.IsNone())
+	{
+		return FText::FromName(DisplayId);
+	}
+
+	return RelicId.IsValid()
+		? FText::FromName(RelicId.Value)
+		: NSLOCTEXT("FinalRunSession", "UnknownRelic", "Unknown Relic");
+}
+
+FFinalRunCurrentBuildViewData BuildCurrentBuildViewData(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
+{
+	FFinalRunCurrentBuildViewData ViewData;
+
+	TMap<FName, int32> DeckCardCounts;
+	TArray<FFinalCardId> OrderedDeckCardIds;
+	for (const FFinalCardId& CardId : RunState.RunDeck)
+	{
+		if (!CardId.IsValid())
+		{
+			continue;
+		}
+
+		int32& Count = DeckCardCounts.FindOrAdd(CardId.Value);
+		if (Count == 0)
+		{
+			OrderedDeckCardIds.Add(CardId);
+		}
+
+		++Count;
+	}
+
+	for (const FFinalCardId& CardId : OrderedDeckCardIds)
+	{
+		FFinalRunDeckEntryViewData Entry;
+		Entry.CardId = CardId;
+		Entry.DisplayName = ResolveDeckEntryDisplayName(CardId, DataRegistry);
+		Entry.Count = DeckCardCounts.FindRef(CardId.Value);
+		ViewData.DeckEntries.Add(MoveTemp(Entry));
+	}
+
+	TMap<FName, int32> RelicCounts;
+	TArray<FFinalRelicId> OrderedRelicIds;
+	for (const FFinalRelicId& RelicId : RunState.Relics)
+	{
+		if (!RelicId.IsValid())
+		{
+			continue;
+		}
+
+		int32& Count = RelicCounts.FindOrAdd(RelicId.Value);
+		if (Count == 0)
+		{
+			OrderedRelicIds.Add(RelicId);
+		}
+
+		++Count;
+	}
+
+	for (const FFinalRelicId& RelicId : OrderedRelicIds)
+	{
+		FFinalRunRelicEntryViewData Entry;
+		Entry.RelicId = RelicId;
+		Entry.DisplayId = ResolveRelicEntryDisplayId(RelicId, DataRegistry);
+		Entry.DisplayName = ResolveRelicEntryDisplayName(RelicId, DataRegistry);
+		Entry.Count = RelicCounts.FindRef(RelicId.Value);
+		ViewData.RelicEntries.Add(MoveTemp(Entry));
+	}
+
+	return ViewData;
+}
+
 void ApplyValidatedRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntries, FFinalRunState& RunState);
 
 bool ValidateRewardEntryForApplication(
@@ -1060,6 +1177,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 		CurrentFlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
 		&& UnlockedNextNodeCount > 0;
 
+	Snapshot.CurrentBuild = BuildCurrentBuildViewData(CurrentState, DataRegistry);
 	Snapshot.Gold = CurrentState.Gold;
 	Snapshot.RelicCount = CurrentState.Relics.Num();
 	Snapshot.DeckCount = CurrentState.RunDeck.Num();

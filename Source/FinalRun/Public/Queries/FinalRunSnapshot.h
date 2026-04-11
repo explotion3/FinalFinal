@@ -29,6 +29,9 @@ struct FINALRUN_API FFinalRunSnapshot
 	FFinalRunProgressionViewData Progression;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunCurrentBuildViewData CurrentBuild;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 Gold = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")

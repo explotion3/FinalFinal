@@ -54,6 +54,51 @@ struct FINALRUN_API FFinalRunCharacterViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunDeckEntryViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId CardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 Count = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunRelicEntryViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRelicId RelicId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName DisplayId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 Count = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunCurrentBuildViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunDeckEntryViewData> DeckEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRelicEntryViewData> RelicEntries;
+};
+
+USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunPendingBattleRewardViewData
 {
 	GENERATED_BODY()
