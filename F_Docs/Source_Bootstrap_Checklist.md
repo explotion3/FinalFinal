@@ -98,6 +98,7 @@
 * `Source/FinalData/Public/Battle/Effects/FinalBattleEffectDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
 
@@ -107,7 +108,6 @@
 * 不在 DataAsset 内写战斗逻辑
 
 #### 暂不创建
-* `RelicDefinition`
 * `EventDefinition`
 * `RunEffectDefinition`
 
@@ -213,6 +213,7 @@
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant` 落地到 `RunState`
+* `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
@@ -228,7 +229,6 @@
 
 ### 6.1 FinalData
 * `FinalPassiveDefinition.h`
-* `FinalRelicDefinition.h`
 * `FinalUltimateDefinition.h`
 * `FinalEventDefinition.h`
 * `FinalRunEffectDefinition.h`

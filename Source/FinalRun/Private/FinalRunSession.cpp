@@ -3,6 +3,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Queries/FinalDataRegistry.h"
+#include "Run/Definitions/FinalRelicDefinition.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 namespace
@@ -178,7 +179,17 @@ int32 GetRewardEntryGrantCount(const FFinalRunRewardEntry& RewardEntry)
 	return RewardEntry.Value > 0 ? RewardEntry.Value : 1;
 }
 
-FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry)
+const UFinalRelicDefinition* FindRewardEntryRelicDefinition(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry == nullptr || !RewardEntry.GrantedRelicId.IsValid())
+	{
+		return nullptr;
+	}
+
+	return DataRegistry->FindRelicDefinition(RewardEntry.GrantedRelicId);
+}
+
+FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
 {
 	switch (RewardEntry.RewardType)
 	{
@@ -186,6 +197,14 @@ FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry)
 		return RewardEntry.GrantedCardId.IsValid() ? RewardEntry.GrantedCardId.Value : NAME_None;
 
 	case EFinalRunRewardType::RelicGrant:
+		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
+		{
+			if (!RelicDefinition->DisplayId.IsNone())
+			{
+				return RelicDefinition->DisplayId;
+			}
+		}
+
 		return RewardEntry.GrantedRelicId.IsValid() ? RewardEntry.GrantedRelicId.Value : NAME_None;
 
 	default:
@@ -193,7 +212,7 @@ FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry)
 	}
 }
 
-FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry)
+FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
 {
 	switch (RewardEntry.RewardType)
 	{
@@ -203,6 +222,14 @@ FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry)
 			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
 
 	case EFinalRunRewardType::RelicGrant:
+		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
+		{
+			if (!RelicDefinition->DisplayName.IsEmpty())
+			{
+				return RelicDefinition->DisplayName;
+			}
+		}
+
 		return RewardEntry.GrantedRelicId.IsValid()
 			? FText::FromName(RewardEntry.GrantedRelicId.Value)
 			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
@@ -212,18 +239,18 @@ FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry)
 	}
 }
 
-void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const bool bClaimable)
+void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const bool bClaimable, const UFinalDataRegistry* DataRegistry)
 {
 	for (FFinalRunRewardEntry& Entry : RewardEntries)
 	{
 		if (Entry.DisplayId.IsNone())
 		{
-			Entry.DisplayId = GetRewardEntryDefaultDisplayId(Entry);
+			Entry.DisplayId = GetRewardEntryDefaultDisplayId(Entry, DataRegistry);
 		}
 
 		if (Entry.DisplayName.IsEmpty())
 		{
-			Entry.DisplayName = GetRewardEntryDefaultDisplayName(Entry);
+			Entry.DisplayName = GetRewardEntryDefaultDisplayName(Entry, DataRegistry);
 		}
 
 		Entry.bCanClaim = bClaimable;
@@ -231,17 +258,17 @@ void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const b
 	}
 }
 
-TArray<FFinalRunRewardEntry> MakeClaimedRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries)
+TArray<FFinalRunRewardEntry> MakeClaimedRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries, const UFinalDataRegistry* DataRegistry)
 {
 	TArray<FFinalRunRewardEntry> ClaimedEntries = RewardEntries;
-	NormalizeRewardEntries(ClaimedEntries, false);
+	NormalizeRewardEntries(ClaimedEntries, false, DataRegistry);
 	return ClaimedEntries;
 }
 
-TArray<FFinalRunRewardEntry> MakePreviewRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries)
+TArray<FFinalRunRewardEntry> MakePreviewRewardEntries(const TArray<FFinalRunRewardEntry>& RewardEntries, const UFinalDataRegistry* DataRegistry)
 {
 	TArray<FFinalRunRewardEntry> PreviewEntries = RewardEntries;
-	NormalizeRewardEntries(PreviewEntries, true);
+	NormalizeRewardEntries(PreviewEntries, true, DataRegistry);
 	return PreviewEntries;
 }
 
@@ -336,6 +363,16 @@ bool ValidateRewardEntryForApplication(
 			OutFailureMessage = FText::Format(
 				NSLOCTEXT("FinalRunSession", "MissingGrantedRelicId", "Reward entry {0} is missing GrantedRelicId."),
 				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (DataRegistry == nullptr || DataRegistry->FindRelicDefinition(RewardEntry.GrantedRelicId) == nullptr)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardRelicDefinitionUnavailable;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "RewardRelicDefinitionUnavailable", "Relic reward {0} cannot be applied because relic definition {1} is unavailable."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.GrantedRelicId.Value));
 			return false;
 		}
 
@@ -653,6 +690,7 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 
 void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	const FFinalRuleConfigId ResolvedRuleConfigId = CurrentState.CurrentRuleConfigId;
 	CurrentState.LastResolvedEncounterId = Result.EncounterId;
 	CurrentState.LastBattleOutcome = Result.Outcome;
@@ -695,7 +733,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	Event.BattleOutcome = Result.Outcome;
 	Event.TeamCurrentHP = Result.TeamCurrentHP;
 	Event.RewardGold = GetRewardGoldTotal(PendingRewardEntries);
-	Event.RewardEntries = PendingRewardEntries;
+	Event.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
 	{
 		PopulateNodeEventMetadata(Event, *CurrentNode);
@@ -714,7 +752,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 		RewardEvent.EncounterId = Result.EncounterId;
 		RewardEvent.BattleOutcome = Result.Outcome;
 		RewardEvent.RewardGold = GetPendingBattleRewardGold();
-		RewardEvent.RewardEntries = PendingRewardEntries;
+		RewardEvent.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 		if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
 		{
 			PopulateNodeEventMetadata(RewardEvent, *CurrentNode);
@@ -728,6 +766,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 
 FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	FFinalRunSnapshot Snapshot;
 	Snapshot.PendingBattle.bHasPendingBattleStart = CurrentState.bHasPendingBattleStart;
 	Snapshot.PendingBattle.EncounterId = CurrentState.CurrentEncounterId;
@@ -742,7 +781,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.PendingBattleReward.SourceBattleOutcome = PendingRewardBattleOutcome;
 	Snapshot.PendingBattleReward.RewardGold = GetPendingBattleRewardGold();
 	Snapshot.PendingBattleReward.bCanClaim = HasPendingBattleReward();
-	Snapshot.PendingBattleReward.RewardEntries = PendingRewardEntries;
+	Snapshot.PendingBattleReward.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 
 	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
 	{
@@ -843,6 +882,7 @@ int32 UFinalRunSession::GetLatestRunEventSequence() const
 
 bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	if (!HasPendingBattleReward())
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::MissingPendingBattleReward;
@@ -850,12 +890,12 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 		return false;
 	}
 
-	if (!ValidateRewardEntriesForApplication(PendingRewardEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	if (!ValidateRewardEntriesForApplication(PendingRewardEntries, DataRegistry, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
 
-	TArray<FFinalRunRewardEntry> ClaimedEntries = MakeClaimedRewardEntries(PendingRewardEntries);
+	TArray<FFinalRunRewardEntry> ClaimedEntries = MakeClaimedRewardEntries(PendingRewardEntries, DataRegistry);
 	ApplyValidatedRewardEntriesToRunState(PendingRewardEntries, CurrentState);
 
 	CurrentState.LastBattleRewardGold = GetRewardGoldTotal(PendingRewardEntries);
@@ -885,6 +925,7 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 
 bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	if (CurrentFlowStage != EFinalRunFlowStage::PendingRewardNode)
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
@@ -900,9 +941,9 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 		return false;
 	}
 
-	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries);
-	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -926,6 +967,7 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 
 bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	if (CurrentFlowStage != EFinalRunFlowStage::PendingEventNode)
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
@@ -967,9 +1009,9 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 		return false;
 	}
 
-	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOption->RewardEntries);
-	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOption->RewardEntries, DataRegistry);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(SelectedOption->RewardEntries, DataRegistry);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -995,6 +1037,7 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 
 bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	if (CurrentFlowStage != EFinalRunFlowStage::PendingShopNode)
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
@@ -1046,9 +1089,9 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 		return false;
 	}
 
-	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOffer->RewardEntries);
-	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(PreviewEntries);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, ResolveDataRegistry(this), OutRejectReason, OutFailureMessage))
+	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOffer->RewardEntries, DataRegistry);
+	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(SelectedOffer->RewardEntries, DataRegistry);
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -1244,6 +1287,7 @@ TArray<FFinalRunNodeOptionViewData> UFinalRunSession::BuildAvailableNextNodeView
 
 FFinalRunPendingRewardNodeViewData UFinalRunSession::BuildPendingRewardNodeView() const
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	FFinalRunPendingRewardNodeViewData View;
 
 	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
@@ -1264,13 +1308,14 @@ FFinalRunPendingRewardNodeViewData UFinalRunSession::BuildPendingRewardNodeView(
 	View.bCanResolve = CurrentFlowStage == EFinalRunFlowStage::PendingRewardNode;
 	View.bResolved = bResolved;
 	View.RewardEntries = bResolved
-		? MakeClaimedRewardEntries(MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries))
-		: MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries);
+		? MakeClaimedRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry)
+		: MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
 	return View;
 }
 
 FFinalRunPendingEventNodeViewData UFinalRunSession::BuildPendingEventNodeView() const
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	FFinalRunPendingEventNodeViewData View;
 
 	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
@@ -1298,7 +1343,7 @@ FFinalRunPendingEventNodeViewData UFinalRunSession::BuildPendingEventNodeView() 
 			? FText::FromName(Option.OptionId)
 			: Option.DisplayText;
 		OptionView.OutcomeSummary = Option.OutcomeSummary;
-		OptionView.RewardEntries = MakePreviewRewardEntries(Option.RewardEntries);
+		OptionView.RewardEntries = MakePreviewRewardEntries(Option.RewardEntries, DataRegistry);
 		OptionView.bSelectable = !bResolved && !Option.bStartsDisabled;
 		OptionView.AvailabilityMessage = Option.bStartsDisabled
 			? (Option.DisabledReason.IsEmpty() ? FText::FromString(TEXT("This option is currently unavailable.")) : Option.DisabledReason)
@@ -1322,6 +1367,7 @@ FFinalRunPendingEventNodeViewData UFinalRunSession::BuildPendingEventNodeView() 
 
 FFinalRunPendingShopNodeViewData UFinalRunSession::BuildPendingShopNodeView() const
 {
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	FFinalRunPendingShopNodeViewData View;
 
 	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
@@ -1352,7 +1398,7 @@ FFinalRunPendingShopNodeViewData UFinalRunSession::BuildPendingShopNodeView() co
 		OfferView.Description = Offer.Description;
 		OfferView.Price = Offer.Price;
 		OfferView.bPurchased = bResolved;
-		OfferView.RewardEntries = MakePreviewRewardEntries(Offer.RewardEntries);
+		OfferView.RewardEntries = MakePreviewRewardEntries(Offer.RewardEntries, DataRegistry);
 
 		if (bResolved)
 		{
