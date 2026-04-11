@@ -31,7 +31,7 @@ FText FormatOptionalDisplayName(const FText& DisplayName, const FString& Fallbac
 	return !DisplayName.IsEmpty() ? DisplayName : FText::FromString(FallbackValue);
 }
 
-FText GetRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+FText GetPrototypeRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
 {
 	switch (EffectType)
 	{
@@ -58,9 +58,10 @@ FString BuildBattleRelicEffectSummaryString(const TArray<FFinalBattleStartRelicE
 	Segments.Reserve(EffectInputs.Num());
 	for (const FFinalBattleStartRelicEffectInput& EffectInput : EffectInputs)
 	{
+		const FString EffectLabel = GetPrototypeRelicEffectTypeText(EffectInput.EffectType).ToString();
 		Segments.Add(FString::Printf(
 			TEXT("%s +%d"),
-			*GetRelicEffectTypeText(EffectInput.EffectType).ToString(),
+			*EffectLabel,
 			EffectInput.Value));
 	}
 
