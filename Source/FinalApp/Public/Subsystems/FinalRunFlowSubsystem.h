@@ -6,6 +6,8 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "FinalRunFlowSubsystem.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinalRunFlowStateChangedSignature);
+
 enum class EFinalRunPresentedOverlay : uint8
 {
 	None,
@@ -54,6 +56,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|RunFlow")
 	FText GetLastFlowMessage() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Final|RunFlow")
+	FFinalRunFlowStateChangedSignature OnRunFlowStateChanged;
 
 private:
 	void ResetFlowState();

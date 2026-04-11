@@ -98,6 +98,7 @@
 * `Source/FinalData/Public/Battle/Effects/FinalBattleEffectDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
 
@@ -107,7 +108,6 @@
 * 不在 DataAsset 内写战斗逻辑
 
 #### 暂不创建
-* `RelicDefinition`
 * `EventDefinition`
 * `RunEffectDefinition`
 
@@ -213,6 +213,7 @@
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant` 落地到 `RunState`
+* `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
@@ -228,7 +229,6 @@
 
 ### 6.1 FinalData
 * `FinalPassiveDefinition.h`
-* `FinalRelicDefinition.h`
 * `FinalUltimateDefinition.h`
 * `FinalEventDefinition.h`
 * `FinalRunEffectDefinition.h`
@@ -316,8 +316,10 @@
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
 * `FinalGameInstance::PrepareTestBattleRun()` 当前会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 Run 外层页与 Battle 回流闭环
+* `FinalGameInstance` 里的原型奖励条目当前直接填写 typed payload：`GrantedCardId / GrantedRelicId`，不再依赖旧结构兼容桥接
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
+* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、最近反馈与战斗是否已激活
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写

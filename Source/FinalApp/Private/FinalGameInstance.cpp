@@ -16,7 +16,13 @@
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
-#include "UObject/UnrealType.h"
+
+#if __has_include("Run/Definitions/FinalRelicDefinition.h")
+#include "Run/Definitions/FinalRelicDefinition.h"
+#define FINALAPP_HAS_TEST_RELIC_DEFINITION 1
+#else
+#define FINALAPP_HAS_TEST_RELIC_DEFINITION 0
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
@@ -41,37 +47,28 @@ namespace FinalTestBootstrap
 	const FName ShopNodeId(TEXT("run.test.node.shop.supply"));
 	const FName FollowupBattleNodeId(TEXT("run.test.node.battle.followup"));
 
-	void TrySetGrantedCardId(FFinalRunRewardEntry& Entry, const FFinalCardId& CardId)
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+	void RegisterTransientTestRelicDefinition(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		const FFinalRelicId& RelicId,
+		const FName DisplayId,
+		const FText& DisplayName)
 	{
-		if (!CardId.IsValid())
+		if (DataRegistry == nullptr || !RelicId.IsValid())
 		{
 			return;
 		}
 
-		if (FStructProperty* CardIdProperty = FindFProperty<FStructProperty>(FFinalRunRewardEntry::StaticStruct(), TEXT("GrantedCardId")))
-		{
-			if (CardIdProperty->Struct == FFinalCardId::StaticStruct())
-			{
-				*CardIdProperty->ContainerPtrToValuePtr<FFinalCardId>(&Entry) = CardId;
-			}
-		}
+		UFinalRelicDefinition* RelicDefinition = NewObject<UFinalRelicDefinition>(Outer);
+		RelicDefinition->RelicId = RelicId;
+		RelicDefinition->DisplayId = DisplayId;
+		RelicDefinition->DisplayName = DisplayName;
+		RuntimeAssets.Add(RelicDefinition);
+		DataRegistry->RegisterRelicDefinition(RelicDefinition);
 	}
-
-	void TrySetGrantedRelicId(FFinalRunRewardEntry& Entry, const FFinalRelicId& RelicId)
-	{
-		if (!RelicId.IsValid())
-		{
-			return;
-		}
-
-		if (FStructProperty* RelicIdProperty = FindFProperty<FStructProperty>(FFinalRunRewardEntry::StaticStruct(), TEXT("GrantedRelicId")))
-		{
-			if (RelicIdProperty->Struct == FFinalRelicId::StaticStruct())
-			{
-				*RelicIdProperty->ContainerPtrToValuePtr<FFinalRelicId>(&Entry) = RelicId;
-			}
-		}
-	}
+#endif
 }
 
 void UFinalGameInstance::Init()
@@ -295,6 +292,23 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	DataRegistry->RegisterCardDefinition(TestSupportFocusCard);
 	DataRegistry->RegisterEncounterDefinition(TestEncounterDefinition);
 
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
+		DataRegistry,
+		this,
+		RuntimeTestAssets,
+		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
+		TEXT("Relic.Test.Charm"),
+		FText::FromString(TEXT("试作护符")));
+	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
+		DataRegistry,
+		this,
+		RuntimeTestAssets,
+		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
+		TEXT("Relic.Test.RepairKit"),
+		FText::FromString(TEXT("试作修理包")));
+#endif
+
 	bTestBattleBootstrapRegistered = true;
 
 	UE_LOG(LogFinalGameInstance, Log, TEXT("Registered transient bootstrap data for test battle."));
@@ -370,7 +384,7 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 			1,
 			RelicId.Value,
 			DisplayName);
-		FinalTestBootstrap::TrySetGrantedRelicId(Entry, RelicId);
+		Entry.GrantedRelicId = RelicId;
 		return Entry;
 	};
 
@@ -382,7 +396,7 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 			1,
 			CardId.Value,
 			DisplayName);
-		FinalTestBootstrap::TrySetGrantedCardId(Entry, CardId);
+		Entry.GrantedCardId = CardId;
 		return Entry;
 	};
 

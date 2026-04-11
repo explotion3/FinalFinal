@@ -8,6 +8,7 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Run/Definitions/FinalRelicDefinition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalDataRegistry, Log, All);
 
@@ -20,6 +21,7 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	EnemyDefinitions.Reset();
 	EnemyIntentDefinitions.Reset();
 	EncounterDefinitions.Reset();
+	RelicDefinitions.Reset();
 	RuleConfigs.Reset();
 	StatusDefinitions.Reset();
 	UltimateDefinitions.Reset();
@@ -73,6 +75,16 @@ void UFinalDataRegistry::RegisterEncounterDefinition(UFinalBattleEncounterDefini
 	}
 
 	EncounterDefinitions.Add(Definition->EncounterId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterRelicDefinition(UFinalRelicDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->RelicId.IsValid())
+	{
+		return;
+	}
+
+	RelicDefinitions.Add(Definition->RelicId.Value, Definition);
 }
 
 void UFinalDataRegistry::RegisterRuleConfig(UFinalBattleRuleConfig* Definition)
@@ -157,6 +169,17 @@ UFinalBattleEncounterDefinition* UFinalDataRegistry::FindEncounterDefinition(con
 	}
 
 	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("BattleEncounterDefinition not found for id %s"), *EncounterId.ToString());
+	return nullptr;
+}
+
+UFinalRelicDefinition* UFinalDataRegistry::FindRelicDefinition(const FFinalRelicId& RelicId) const
+{
+	if (const TObjectPtr<UFinalRelicDefinition>* Found = RelicDefinitions.Find(RelicId.Value))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("RelicDefinition not found for id %s"), *RelicId.ToString());
 	return nullptr;
 }
 
