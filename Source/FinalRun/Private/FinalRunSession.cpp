@@ -242,6 +242,9 @@ FName GetRewardEntryDefaultCardDisplayId(const FFinalRunRewardEntry& RewardEntry
 
 		return RewardEntry.UpgradeFromCardId.IsValid() ? RewardEntry.UpgradeFromCardId.Value : NAME_None;
 
+	case EFinalRunRewardType::Growth:
+		return RewardEntry.GrowthTargetCharacterId.IsValid() ? RewardEntry.GrowthTargetCharacterId.Value : NAME_None;
+
 	default:
 		return NAME_None;
 	}
@@ -282,6 +285,14 @@ int32 FindRunDeckCardIndex(const TArray<FFinalCardId>& RunDeck, const FFinalCard
 	return RunDeck.IndexOfByPredicate([&CardId](const FFinalCardId& DeckCardId)
 	{
 		return DeckCardId == CardId;
+	});
+}
+
+int32 FindRunCharacterIndex(const TArray<FFinalRunPersistentCharacterState>& Characters, const FFinalCharacterId& CharacterId)
+{
+	return Characters.IndexOfByPredicate([&CharacterId](const FFinalRunPersistentCharacterState& CharacterState)
+	{
+		return CharacterState.CharacterId == CharacterId;
 	});
 }
 
@@ -330,6 +341,11 @@ FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry, 
 
 		return RewardEntry.GrantedRelicId.IsValid()
 			? FText::FromName(RewardEntry.GrantedRelicId.Value)
+			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
+
+	case EFinalRunRewardType::Growth:
+		return RewardEntry.GrowthTargetCharacterId.IsValid()
+			? FText::FromName(RewardEntry.GrowthTargetCharacterId.Value)
 			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
 
 	default:
@@ -742,6 +758,51 @@ bool ValidateRewardEntryForApplication(
 		return true;
 
 	case EFinalRunRewardType::Growth:
+		if (!RewardEntry.GrowthTargetCharacterId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingGrowthTargetCharacterId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingGrowthTargetCharacterId", "Growth reward {0} is missing GrowthTargetCharacterId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (FindRunCharacterIndex(RunState.Characters, RewardEntry.GrowthTargetCharacterId) == INDEX_NONE)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::UnknownGrowthTargetCharacter;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UnknownGrowthTargetCharacter", "Growth reward {0} targets character {1}, but that character is not present in the current Run state."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.GrowthTargetCharacterId.Value));
+			return false;
+		}
+
+		if (RewardEntry.Value <= 0)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::InvalidGrowthValue;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "InvalidGrowthValue", "Growth reward {0} is invalid because Value must be greater than zero."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		switch (RewardEntry.GrowthEffectType)
+		{
+		case EFinalRunGrowthEffectType::ReduceStress:
+		case EFinalRunGrowthEffectType::GainAwakenProgress:
+		case EFinalRunGrowthEffectType::ReduceCollapseCount:
+			return true;
+
+		case EFinalRunGrowthEffectType::None:
+		default:
+			OutRejectReason = EFinalRunCommandRejectReason::UnsupportedGrowthEffectType;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UnsupportedGrowthEffectType", "Growth reward {0} uses unsupported GrowthEffectType {1}."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::AsNumber(static_cast<int32>(RewardEntry.GrowthEffectType)));
+			return false;
+		}
+
 	case EFinalRunRewardType::None:
 	default:
 		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedRewardType;
@@ -832,6 +893,35 @@ void ApplyValidatedRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& R
 				}
 			}
 			break;
+
+		case EFinalRunRewardType::Growth:
+		{
+			const int32 CharacterIndex = FindRunCharacterIndex(RunState.Characters, Entry.GrowthTargetCharacterId);
+			if (CharacterIndex == INDEX_NONE)
+			{
+				break;
+			}
+
+			FFinalRunPersistentCharacterState& CharacterState = RunState.Characters[CharacterIndex];
+			switch (Entry.GrowthEffectType)
+			{
+			case EFinalRunGrowthEffectType::ReduceStress:
+				CharacterState.CurrentStress = FMath::Max(0, CharacterState.CurrentStress - Entry.Value);
+				break;
+
+			case EFinalRunGrowthEffectType::GainAwakenProgress:
+				CharacterState.CurrentAwakenCount += Entry.Value;
+				break;
+
+			case EFinalRunGrowthEffectType::ReduceCollapseCount:
+				CharacterState.CollapseCount = FMath::Max(0, CharacterState.CollapseCount - Entry.Value);
+				break;
+
+			default:
+				break;
+			}
+			break;
+		}
 
 		default:
 			break;

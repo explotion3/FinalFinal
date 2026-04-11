@@ -16,6 +16,15 @@ enum class EFinalRunRewardType : uint8
 	Growth
 };
 
+UENUM(BlueprintType)
+enum class EFinalRunGrowthEffectType : uint8
+{
+	None,
+	ReduceStress,
+	GainAwakenProgress,
+	ReduceCollapseCount
+};
+
 USTRUCT(BlueprintType)
 struct FINALDATA_API FFinalRunRewardEntry
 {
@@ -50,6 +59,12 @@ struct FINALDATA_API FFinalRunRewardEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalCardId UpgradeToCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCharacterId GrowthTargetCharacterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunGrowthEffectType GrowthEffectType = EFinalRunGrowthEffectType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bCanClaim = false;

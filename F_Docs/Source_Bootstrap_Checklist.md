@@ -217,9 +217,11 @@
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
 * 在 `RunSnapshot` 中公开 `CurrentBuild` 只读构筑视图，至少能表达当前牌库条目与遗物条目
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
-* 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard` 落地到 `RunState`
+* 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * `RemoveCard / UpgradeCard` 使用稳定 payload，例如 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，并在落地前校验必要 payload、card definition 和 `RunDeck` 中的目标
+* `Growth` 使用最小 typed payload，例如 `GrowthTargetCharacterId / GrowthEffectType / Value`，并只落地到现有 `RunPersistentCharacterState` 字段
+* `Growth` 当前最小 effect 范围控制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`，不提前扩成完整成长树
 * 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
@@ -227,7 +229,7 @@
 * 完整奖励解析器
 * 商店解析器
 * 成长解析器
-* `Growth` 的完整落地协议与结算器
+* `Growth` 的完整成长树、奥义解锁与复杂分支结算器
 
 ---
 

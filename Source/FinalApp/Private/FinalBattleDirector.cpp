@@ -49,7 +49,7 @@ FText BuildEnemyDetailText(const FFinalBattleEnemyViewData& EnemyView)
 		IntentText);
 }
 
-FText GetRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+FText GetBattleDirectorRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
 {
 	switch (EffectType)
 	{
@@ -108,9 +108,10 @@ FText BuildRelicEffectSummaryText(const FFinalBattleSnapshot& Snapshot, const FF
 	Segments.Reserve(RelicInput->BattleStartEffects.Num());
 	for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput->BattleStartEffects)
 	{
+		const FString EffectTypeString = GetBattleDirectorRelicEffectTypeText(EffectInput.EffectType).ToString();
 		Segments.Add(FString::Printf(
 			TEXT("%s +%d"),
-			*GetRelicEffectTypeText(EffectInput.EffectType).ToString(),
+			*EffectTypeString,
 			EffectInput.Value));
 	}
 
