@@ -26,6 +26,11 @@ UTextBlock* CreatePrototypeLabel(UWidgetTree* WidgetTree, const TCHAR* Name, con
 	return Text;
 }
 
+FText FormatOptionalDisplayName(const FText& DisplayName, const FString& FallbackValue)
+{
+	return !DisplayName.IsEmpty() ? DisplayName : FText::FromString(FallbackValue);
+}
+
 FText GetFlowStageText(const EFinalRunFlowStage FlowStage)
 {
 	switch (FlowStage)
@@ -68,6 +73,128 @@ FText GetNodeSummaryText(const FFinalRunProgressionViewData& Progression)
 		NodeName,
 		FText::AsNumber(Progression.CurrentChapter),
 		FText::AsNumber(Progression.CurrentFloor));
+}
+
+FString BuildDeckEntriesSummaryString(const TArray<FFinalRunDeckEntryViewData>& DeckEntries)
+{
+	if (DeckEntries.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoDeckEntries", "CurrentBuild 还没有公开任何牌库条目。").ToString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(DeckEntries.Num() + 1);
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "DeckSectionTitle", "Current Deck").ToString());
+
+	for (const FFinalRunDeckEntryViewData& Entry : DeckEntries)
+	{
+		Lines.Add(FString::Printf(
+			TEXT("- %s | CardId: %s | Count: %d"),
+			*FormatOptionalDisplayName(Entry.DisplayName, Entry.CardId.ToString()).ToString(),
+			*Entry.CardId.ToString(),
+			Entry.Count));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
+}
+
+FString BuildRelicEntriesSummaryString(const TArray<FFinalRunRelicEntryViewData>& RelicEntries)
+{
+	if (RelicEntries.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoRelicEntries", "CurrentBuild 还没有公开任何遗物条目。").ToString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(RelicEntries.Num() + 1);
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "RelicSectionTitle", "Current Relics").ToString());
+
+	for (const FFinalRunRelicEntryViewData& Entry : RelicEntries)
+	{
+		Lines.Add(FString::Printf(
+			TEXT("- %s | DisplayId: %s | RelicId: %s | Count: %d"),
+			*FormatOptionalDisplayName(Entry.DisplayName, Entry.RelicId.ToString()).ToString(),
+			*Entry.DisplayId.ToString(),
+			*Entry.RelicId.ToString(),
+			Entry.Count));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
+}
+
+FText GetRewardTypeText(const EFinalRunRewardType RewardType)
+{
+	switch (RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeGold", "Gold");
+
+	case EFinalRunRewardType::CardGrant:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeCardGrant", "CardGrant");
+
+	case EFinalRunRewardType::RelicGrant:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeRelicGrant", "RelicGrant");
+
+	case EFinalRunRewardType::RemoveCard:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeRemoveCard", "RemoveCard");
+
+	case EFinalRunRewardType::UpgradeCard:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeUpgradeCard", "UpgradeCard");
+
+	case EFinalRunRewardType::Growth:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeGrowth", "Growth");
+
+	case EFinalRunRewardType::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTypeNone", "None");
+	}
+}
+
+void AppendRewardEntryCandidateLines(TArray<FString>& Lines, const FString& SourceLabel, const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	for (const FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		Lines.Add(FString::Printf(
+			TEXT("- [%s] %s | Type: %s | Value: %d | Claimable: %s | Claimed: %s"),
+			*SourceLabel,
+			*FormatOptionalDisplayName(Entry.DisplayName, TEXT("Unnamed Reward")).ToString(),
+			*GetRewardTypeText(Entry.RewardType).ToString(),
+			Entry.Value,
+			Entry.bCanClaim ? TEXT("Yes") : TEXT("No"),
+			Entry.bClaimed ? TEXT("Yes") : TEXT("No")));
+	}
+}
+
+FString BuildPendingRewardCandidatesSummary(const FFinalRunSnapshot& RunSnapshot)
+{
+	TArray<FString> Lines;
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "CandidateSectionTitle", "Visible Pending Reward Candidates").ToString());
+
+	AppendRewardEntryCandidateLines(Lines, TEXT("BattleReward"), RunSnapshot.PendingBattleReward.RewardEntries);
+	AppendRewardEntryCandidateLines(Lines, TEXT("RewardNode"), RunSnapshot.PendingRewardNode.RewardEntries);
+
+	for (const FFinalRunEventOptionViewData& Option : RunSnapshot.PendingEventNode.Options)
+	{
+		const FString OptionLabel = !Option.DisplayText.IsEmpty()
+			? Option.DisplayText.ToString()
+			: Option.OptionId.ToString();
+		AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Event:%s"), *OptionLabel), Option.RewardEntries);
+	}
+
+	for (const FFinalRunShopOfferViewData& Offer : RunSnapshot.PendingShopNode.Offers)
+	{
+		const FString OfferLabel = !Offer.DisplayName.IsEmpty()
+			? Offer.DisplayName.ToString()
+			: Offer.OfferId.ToString();
+		AppendRewardEntryCandidateLines(Lines, FString::Printf(TEXT("Shop:%s"), *OfferLabel), Offer.RewardEntries);
+	}
+
+	if (Lines.Num() == 1)
+	{
+		Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "NoCandidateEntries", "当前没有可见的 pending reward 候选。").ToString());
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 FText GetLatestDebugMessage(
@@ -148,7 +275,7 @@ void UFinalPrototypeRunDebugScreen::NativeDestruct()
 
 void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 {
-	if (SummaryText == nullptr || MessageText == nullptr)
+	if (SummaryText == nullptr || MessageText == nullptr || BuildSummaryText == nullptr || CandidateSummaryText == nullptr)
 	{
 		return;
 	}
@@ -178,6 +305,12 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	MessageText->SetText(!LatestMessage.IsEmpty()
 		? LatestMessage
 		: NSLOCTEXT("FinalPrototypeRunDebug", "NoLatestMessage", "No recent flow feedback."));
+
+	const FString DeckSummary = BuildDeckEntriesSummaryString(RunSnapshot.CurrentBuild.DeckEntries);
+	const FString RelicSummary = BuildRelicEntriesSummaryString(RunSnapshot.CurrentBuild.RelicEntries);
+	BuildSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s\n\n%s"), *DeckSummary, *RelicSummary)));
+
+	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
 
 	if (RestartRunButton)
 	{
@@ -259,6 +392,18 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* MessageSlot = ContentBox->AddChildToVerticalBox(MessageText))
 	{
 		MessageSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	BuildSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBuildSummary"), 11, FLinearColor(0.90f, 0.95f, 1.0f, 1.0f));
+	if (UVerticalBoxSlot* BuildSlot = ContentBox->AddChildToVerticalBox(BuildSummaryText))
+	{
+		BuildSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	CandidateSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCandidateSummary"), 10, FLinearColor(0.78f, 0.82f, 0.88f, 1.0f));
+	if (UVerticalBoxSlot* CandidateSlot = ContentBox->AddChildToVerticalBox(CandidateSummaryText))
+	{
+		CandidateSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	RestartRunButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugRestartButton"));

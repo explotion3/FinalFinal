@@ -206,7 +206,7 @@ FinalBattle      FinalRun
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
-* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的只读观察入口，显示当前 FlowStage、节点摘要、Run 资源摘要、最近流程反馈与 Battle 活跃状态，并只调用 `FinalApp` 现有测试入口
+* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的只读观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口
 * 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
   * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
   * 在世界层维护一份玩家侧 / 敌方侧的 presentation roster 映射
