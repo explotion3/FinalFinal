@@ -116,7 +116,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 			FormatBool(PendingRewardNode.bHasPendingContent),
 			FormatBool(PendingRewardNode.bCanResolve),
 			FormatBool(PendingRewardNode.bResolved),
-			FText::AsNumber(PendingRewardNode.RewardEntries.Num()),
+			FText::AsNumber(PendingRewardNode.RewardEntryViews.Num() > 0 ? PendingRewardNode.RewardEntryViews.Num() : PendingRewardNode.RewardEntries.Num()),
 			FText::AsNumber(Snapshot.Gold),
 			FText::AsNumber(Snapshot.RelicCount),
 			FText::AsNumber(Snapshot.DeckCount)));
@@ -131,7 +131,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 	{
 		RewardEntriesText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayRewardEntriesText", "奖励节点条目:\n{0}"),
-			FText::FromString(BuildRewardEntriesSummaryString(PendingRewardNode.RewardEntries))));
+			FText::FromString(BuildRewardPresentationSummaryString(PendingRewardNode.RewardEntryViews, PendingRewardNode.RewardEntries))));
 	}
 
 	if (GapText)
@@ -139,7 +139,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardNodeOverlayGapText",
-			"当前页已真实消费 PendingRewardNode 的标题、摘要、解析状态与奖励条目。剩余缺口主要是奖励图标、稀有度、二次确认和多步奖励交互等 richer 呈现。"));
+			"当前页已优先消费 PendingRewardNode.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是奖励图标、稀有度、二次确认和多步奖励交互等 richer 呈现。"));
 	}
 
 	if (FeedbackText)

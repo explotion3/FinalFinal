@@ -202,11 +202,11 @@
 * `PendingBattleReward.SourceBattleOutcome`
 * `PendingBattleReward.RewardGold`
 * `PendingBattleReward.bCanClaim`
-* `PendingBattleReward.RewardEntries[*].RewardType`
-* `PendingBattleReward.RewardEntries[*].DisplayName`
-* `PendingBattleReward.RewardEntries[*].Value`
-* `PendingBattleReward.RewardEntries[*].bCanClaim`
-* `PendingBattleReward.RewardEntries[*].bClaimed`
+* `PendingBattleReward.RewardEntryViews[*].RewardType`
+* `PendingBattleReward.RewardEntryViews[*].PrimaryText`
+* `PendingBattleReward.RewardEntryViews[*].SecondaryText`
+* `PendingBattleReward.RewardEntryViews[*].Value`
+* `PendingBattleReward.RewardEntries[*]`（raw 回退）
 * `Progression.FlowStage`
 * `Progression.CurrentNodeId`
 * `Progression.CurrentNodeType`
@@ -232,11 +232,11 @@
 * `PendingRewardNode.Summary`
 * `PendingRewardNode.bCanResolve`
 * `PendingRewardNode.bResolved`
-* `PendingRewardNode.RewardEntries[*].RewardType`
-* `PendingRewardNode.RewardEntries[*].DisplayName`
-* `PendingRewardNode.RewardEntries[*].Value`
-* `PendingRewardNode.RewardEntries[*].bCanClaim`
-* `PendingRewardNode.RewardEntries[*].bClaimed`
+* `PendingRewardNode.RewardEntryViews[*].RewardType`
+* `PendingRewardNode.RewardEntryViews[*].PrimaryText`
+* `PendingRewardNode.RewardEntryViews[*].SecondaryText`
+* `PendingRewardNode.RewardEntryViews[*].Value`
+* `PendingRewardNode.RewardEntries[*]`（raw 回退）
 * `PendingEventNode.Title`
 * `PendingEventNode.Summary`
 * `PendingEventNode.bCanResolve`
@@ -246,7 +246,8 @@
 * `PendingEventNode.Options[*].OutcomeSummary`
 * `PendingEventNode.Options[*].bSelectable`
 * `PendingEventNode.Options[*].AvailabilityMessage`
-* `PendingEventNode.Options[*].RewardEntries`
+* `PendingEventNode.Options[*].RewardEntryViews`
+* `PendingEventNode.Options[*].RewardEntries`（raw 回退）
 * `PendingShopNode.Title`
 * `PendingShopNode.Summary`
 * `PendingShopNode.bCanResolve`
@@ -258,7 +259,8 @@
 * `PendingShopNode.Offers[*].bPurchasable`
 * `PendingShopNode.Offers[*].bPurchased`
 * `PendingShopNode.Offers[*].AvailabilityMessage`
-* `PendingShopNode.Offers[*].RewardEntries`
+* `PendingShopNode.Offers[*].RewardEntryViews`
+* `PendingShopNode.Offers[*].RewardEntries`（raw 回退）
 
 战后奖励页仍缺：
 * 奖励项的图标、稀有度、描述、来源说明等 richer 展示元数据
@@ -275,11 +277,11 @@
 * 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
-* 战后奖励页当前以 `PendingBattleReward.RewardEntries` 为主展示口径，`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，raw `RewardEntries` 只作回退；`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
-* 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntries`，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
-* 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*]`，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
-* 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*]`，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
+* 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
+* 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*].RewardEntryViews`，raw `RewardEntries` 只作回退，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
+* 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*].RewardEntryViews`，raw `RewardEntries` 只作回退，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
 * `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会分别路由到对应的专用页，而不是继续挤在节点选择页
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性

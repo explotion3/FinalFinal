@@ -229,6 +229,123 @@ inline FString BuildRewardEntryTypedPayloadSummaryString(const FFinalRunRewardEn
 	return FString();
 }
 
+inline FText FormatRewardEntryViewPrimaryText(const FFinalRunRewardEntryViewData& RewardEntryView)
+{
+	if (!RewardEntryView.PrimaryText.IsEmpty())
+	{
+		return RewardEntryView.PrimaryText;
+	}
+
+	switch (RewardEntryView.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardViewGoldFallback", "金币");
+
+	case EFinalRunRewardType::CardGrant:
+	case EFinalRunRewardType::RemoveCard:
+		return RewardEntryView.CardId.IsValid()
+			? FText::FromName(RewardEntryView.CardId.Value)
+			: FormatRewardTypeText(RewardEntryView.RewardType);
+
+	case EFinalRunRewardType::RelicGrant:
+		return RewardEntryView.RelicId.IsValid()
+			? FText::FromName(RewardEntryView.RelicId.Value)
+			: FormatRewardTypeText(RewardEntryView.RewardType);
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (RewardEntryView.SourceCardId.IsValid() && RewardEntryView.ResultCardId.IsValid())
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalFlowUI", "RunFlowRewardViewUpgradeFallback", "{0} -> {1}"),
+				FText::FromName(RewardEntryView.SourceCardId.Value),
+				FText::FromName(RewardEntryView.ResultCardId.Value));
+		}
+		return FormatRewardTypeText(RewardEntryView.RewardType);
+
+	case EFinalRunRewardType::Growth:
+		return RewardEntryView.TargetCharacterId.IsValid()
+			? FText::FromName(RewardEntryView.TargetCharacterId.Value)
+			: FormatRewardTypeText(RewardEntryView.RewardType);
+
+	case EFinalRunRewardType::None:
+	default:
+		return FormatRewardTypeText(RewardEntryView.RewardType);
+	}
+}
+
+inline FString BuildRewardEntryViewIdsFallbackSummaryString(const FFinalRunRewardEntryViewData& RewardEntryView)
+{
+	switch (RewardEntryView.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+	case EFinalRunRewardType::RemoveCard:
+		return RewardEntryView.CardId.IsValid()
+			? FString::Printf(TEXT(" | CardId: %s"), *RewardEntryView.CardId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::RelicGrant:
+		return RewardEntryView.RelicId.IsValid()
+			? FString::Printf(TEXT(" | RelicId: %s"), *RewardEntryView.RelicId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (RewardEntryView.SourceCardId.IsValid() || RewardEntryView.ResultCardId.IsValid())
+		{
+			return FString::Printf(
+				TEXT(" | SourceCardId: %s | ResultCardId: %s"),
+				*RewardEntryView.SourceCardId.ToString(),
+				*RewardEntryView.ResultCardId.ToString());
+		}
+		return FString();
+
+	case EFinalRunRewardType::Growth:
+		return RewardEntryView.TargetCharacterId.IsValid()
+			? FString::Printf(TEXT(" | TargetCharacterId: %s"), *RewardEntryView.TargetCharacterId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::Gold:
+	case EFinalRunRewardType::None:
+	default:
+		return FString();
+	}
+}
+
+inline FString BuildRewardEntryViewsSummaryString(const TArray<FFinalRunRewardEntryViewData>& RewardEntryViews)
+{
+	if (RewardEntryViews.Num() <= 0)
+	{
+		return FString();
+	}
+
+	FString RewardEntrySummary;
+	for (int32 Index = 0; Index < RewardEntryViews.Num(); ++Index)
+	{
+		const FFinalRunRewardEntryViewData& RewardEntryView = RewardEntryViews[Index];
+		RewardEntrySummary += FString::Printf(
+			TEXT("[%d] %s | 类型: %s | 数值: %d"),
+			Index + 1,
+			*FormatRewardEntryViewPrimaryText(RewardEntryView).ToString(),
+			*FormatRewardTypeText(RewardEntryView.RewardType).ToString(),
+			RewardEntryView.Value);
+
+		if (!RewardEntryView.SecondaryText.IsEmpty())
+		{
+			RewardEntrySummary += FString::Printf(TEXT(" | 说明: %s"), *RewardEntryView.SecondaryText.ToString());
+		}
+
+		const FString ViewIdsSummary = BuildRewardEntryViewIdsFallbackSummaryString(RewardEntryView);
+		if (!ViewIdsSummary.IsEmpty())
+		{
+			RewardEntrySummary += ViewIdsSummary;
+		}
+
+		RewardEntrySummary += TEXT("\n");
+	}
+
+	RewardEntrySummary.TrimEndInline();
+	return RewardEntrySummary;
+}
+
 inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry>& RewardEntries)
 {
 	if (RewardEntries.Num() <= 0)
@@ -264,6 +381,19 @@ inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry
 
 	RewardEntrySummary.TrimEndInline();
 	return RewardEntrySummary;
+}
+
+inline FString BuildRewardPresentationSummaryString(
+	const TArray<FFinalRunRewardEntryViewData>& RewardEntryViews,
+	const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	const FString RewardViewSummary = BuildRewardEntryViewsSummaryString(RewardEntryViews);
+	if (!RewardViewSummary.IsEmpty())
+	{
+		return RewardViewSummary;
+	}
+
+	return BuildRewardEntriesSummaryString(RewardEntries);
 }
 
 inline FText BuildCurrentNodeSummaryText(const FFinalRunProgressionViewData& Progression)

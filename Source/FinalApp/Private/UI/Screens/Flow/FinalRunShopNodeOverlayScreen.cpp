@@ -44,7 +44,8 @@ FString BuildShopOffersSummaryString(const TArray<FFinalRunShopOfferViewData>& O
 			OffersSummary += FString::Printf(TEXT(" | 限制: %s"), *Offer.AvailabilityMessage.ToString());
 		}
 
-		OffersSummary += FString::Printf(TEXT(" | 奖励条目数: %d\n"), Offer.RewardEntries.Num());
+		const int32 RewardEntryCount = Offer.RewardEntryViews.Num() > 0 ? Offer.RewardEntryViews.Num() : Offer.RewardEntries.Num();
+		OffersSummary += FString::Printf(TEXT(" | 奖励条目数: %d\n"), RewardEntryCount);
 	}
 
 	OffersSummary.TrimEndInline();
@@ -277,7 +278,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 				FormatBool(SelectedOffer->bPurchasable),
 				FormatBool(SelectedOffer->bPurchased),
 				FormatOptionalText(SelectedOffer->AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "ShopNodeSelectedOfferNoAvailability", "当前没有额外限制说明。")),
-				FText::FromString(BuildRewardEntriesSummaryString(SelectedOffer->RewardEntries))));
+				FText::FromString(BuildRewardPresentationSummaryString(SelectedOffer->RewardEntryViews, SelectedOffer->RewardEntries))));
 		}
 	}
 
@@ -286,7 +287,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"ShopNodeOverlayGapText",
-			"当前页已真实消费 PendingShopNode 的标题、摘要、商品列表、价格、可购买状态与奖励条目。剩余缺口主要是 richer 布局、商品图标、分页、刷新与二次确认表现。"));
+			"当前页已优先消费 ShopOffer.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、商品图标、分页、刷新与二次确认表现。"));
 	}
 
 	if (FeedbackText)

@@ -9,41 +9,6 @@
 
 using namespace FinalRunFlowScreenUtils;
 
-namespace
-{
-FString BuildRewardEntriesSummary(const TArray<FFinalRunRewardEntry>& RewardEntries)
-{
-	if (RewardEntries.Num() <= 0)
-	{
-		return NSLOCTEXT("FinalFlowUI", "RewardEntriesEmpty", "当前没有公开的结构化奖励条目。").ToString();
-	}
-
-	FString RewardEntrySummary;
-	for (int32 Index = 0; Index < RewardEntries.Num(); ++Index)
-	{
-		const FFinalRunRewardEntry& RewardEntry = RewardEntries[Index];
-		RewardEntrySummary += FString::Printf(
-			TEXT("[%d] %s | 类型: %s | 数值: %d | 可领取: %s | 状态: %s"),
-			Index + 1,
-			*FormatRewardEntryName(RewardEntry).ToString(),
-			*FormatRewardTypeText(RewardEntry.RewardType).ToString(),
-			RewardEntry.Value,
-			RewardEntry.bCanClaim ? TEXT("是") : TEXT("否"),
-			*FormatRewardClaimStateText(RewardEntry).ToString());
-
-		if (RewardEntry.RewardId != NAME_None)
-		{
-			RewardEntrySummary += FString::Printf(TEXT(" | RewardId: %s"), *RewardEntry.RewardId.ToString());
-		}
-
-		RewardEntrySummary += TEXT("\n");
-	}
-
-	RewardEntrySummary.TrimEndInline();
-	return RewardEntrySummary;
-}
-}
-
 void UFinalRunRewardOverlayScreen::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -190,7 +155,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 				? FText::FromName(PendingReward.SourceEncounterId.Value)
 				: NSLOCTEXT("FinalFlowUI", "RewardNoEncounter", "无"),
 			FormatBattleOutcomeText(PendingReward.SourceBattleOutcome),
-			FText::AsNumber(PendingReward.RewardEntries.Num()),
+			FText::AsNumber(PendingReward.RewardEntryViews.Num() > 0 ? PendingReward.RewardEntryViews.Num() : PendingReward.RewardEntries.Num()),
 			FText::AsNumber(PendingReward.RewardGold),
 			FormatBool(PendingReward.bCanClaim),
 			FormatBool(Progression.bCanClaimPendingBattleReward),
@@ -203,7 +168,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 	{
 		RewardEntriesText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "RewardEntriesText", "奖励条目:\n{0}"),
-			FText::FromString(BuildRewardEntriesSummary(PendingReward.RewardEntries))));
+			FText::FromString(BuildRewardPresentationSummaryString(PendingReward.RewardEntryViews, PendingReward.RewardEntries))));
 	}
 
 	if (GapText)
@@ -211,7 +176,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardOverlayGapText",
-			"当前页已真实消费 PendingBattleReward.RewardEntries、来源节点显示字段与可领取状态。剩余缺口主要是奖励图标/稀有度/描述等 richer 呈现，以及多奖励选择、替换、跳过这类更复杂流程。"));
+			"当前页已优先消费 PendingBattleReward.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是奖励图标/稀有度/描述等 richer 呈现，以及多奖励选择、替换、跳过这类更复杂流程。"));
 	}
 
 	if (FeedbackText)
