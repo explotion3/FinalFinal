@@ -51,6 +51,7 @@ enum class EFinalRunCommandRejectReason : uint8
 	MissingGrantedCardId,
 	MissingGrantedRelicId,
 	RewardCardDefinitionUnavailable,
+	RewardRelicDefinitionUnavailable,
 	UnsupportedRewardType,
 	EventNodeResolutionNotImplemented,
 	ShopNodeResolutionNotImplemented,
