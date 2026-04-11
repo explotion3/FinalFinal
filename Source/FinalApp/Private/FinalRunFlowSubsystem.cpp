@@ -4,6 +4,7 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
+#include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
 #include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
 
 namespace
@@ -27,6 +28,61 @@ FText BuildSnapshotFlowMessage(const FFinalRunSnapshot& Snapshot)
 	}
 
 	return FText::GetEmpty();
+}
+
+bool ShouldUseRewardEventFeedback(const EFinalRunEventType EventType)
+{
+	switch (EventType)
+	{
+	case EFinalRunEventType::PendingBattleRewardGenerated:
+	case EFinalRunEventType::PendingBattleRewardClaimed:
+	case EFinalRunEventType::BattleResultApplied:
+	case EFinalRunEventType::RewardNodeResolved:
+	case EFinalRunEventType::EventNodeResolved:
+	case EFinalRunEventType::ShopOfferPurchased:
+		return true;
+
+	case EFinalRunEventType::Info:
+	case EFinalRunEventType::RunInitialized:
+	case EFinalRunEventType::BattleStartConfigured:
+	case EFinalRunEventType::RunCommandAccepted:
+	case EFinalRunEventType::RunCommandRejected:
+	case EFinalRunEventType::NodeAdvanced:
+	default:
+		return false;
+	}
+}
+
+FText BuildRunEventFlowMessage(const FFinalRunEvent& RunEvent)
+{
+	if (!ShouldUseRewardEventFeedback(RunEvent.EventType))
+	{
+		return RunEvent.Message;
+	}
+
+	if (RunEvent.RewardEntryViews.IsEmpty() && RunEvent.RewardEntries.IsEmpty())
+	{
+		return RunEvent.Message;
+	}
+
+	const FString RewardSummary = FinalRunFlowScreenUtils::BuildRewardPresentationSummaryString(
+		RunEvent.RewardEntryViews,
+		RunEvent.RewardEntries);
+
+	if (RewardSummary.IsEmpty())
+	{
+		return RunEvent.Message;
+	}
+
+	if (RunEvent.Message.IsEmpty())
+	{
+		return FText::FromString(RewardSummary);
+	}
+
+	return FText::Format(
+		NSLOCTEXT("FinalRunFlow", "RunEventRewardFeedbackFormat", "{0}\n{1}"),
+		RunEvent.Message,
+		FText::FromString(RewardSummary));
 }
 }
 
@@ -68,7 +124,7 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 		if (NewRunEvents.Num() > 0)
 		{
 			LastProcessedRunEvent = NewRunEvents.Last();
-			LastFlowMessage = LastProcessedRunEvent.Message;
+			LastFlowMessage = BuildRunEventFlowMessage(LastProcessedRunEvent);
 		}
 
 		LastSeenRunEventSequence = LatestRunEventSequence;
