@@ -207,6 +207,11 @@ FinalBattle      FinalRun
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
 * 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的只读观察入口，显示当前 FlowStage、节点摘要、Run 资源摘要、最近流程反馈与 Battle 活跃状态，并只调用 `FinalApp` 现有测试入口
+* 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
+  * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
+  * 在世界层维护一份玩家侧 / 敌方侧的 presentation roster 映射
+  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈
+  * 不替代 Battle HUD，也不访问 `FinalBattle` 私有运行时结构
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
@@ -537,6 +542,7 @@ Source
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`
+* `AFinalBattleDirector` 当前承担最小世界表现桥接：读取 `BattleSnapshot / BattleEvent`，生成并刷新世界层占位表现对象；复杂演出、镜头与美术资源仍后置
 
 ---
 
