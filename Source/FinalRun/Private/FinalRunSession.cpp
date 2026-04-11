@@ -1,5 +1,6 @@
 #include "Facade/FinalRunSession.h"
 
+#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -490,6 +491,178 @@ FText ResolveRelicEntryDisplayName(const FFinalRelicId& RelicId, const UFinalDat
 	return RelicId.IsValid()
 		? FText::FromName(RelicId.Value)
 		: NSLOCTEXT("FinalRunSession", "UnknownRelic", "Unknown Relic");
+}
+
+FText ResolveRewardCharacterDisplayName(const FFinalCharacterId& CharacterId, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && CharacterId.IsValid())
+	{
+		if (const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(CharacterId))
+		{
+			if (!CharacterDefinition->DisplayName.IsEmpty())
+			{
+				return CharacterDefinition->DisplayName;
+			}
+		}
+	}
+
+	return CharacterId.IsValid()
+		? FText::FromName(CharacterId.Value)
+		: NSLOCTEXT("FinalRunSession", "UnknownGrowthCharacter", "Unknown Character");
+}
+
+FText GetRewardEntryResolvedDisplayName(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	if (!RewardEntry.DisplayName.IsEmpty())
+	{
+		return RewardEntry.DisplayName;
+	}
+
+	return GetRewardEntryDefaultDisplayName(RewardEntry, DataRegistry);
+}
+
+FText GetGrowthEffectDisplayName(const EFinalRunGrowthEffectType GrowthEffectType)
+{
+	switch (GrowthEffectType)
+	{
+	case EFinalRunGrowthEffectType::ReduceStress:
+		return NSLOCTEXT("FinalRunSession", "GrowthEffectReduceStress", "Reduce Stress");
+
+	case EFinalRunGrowthEffectType::GainAwakenProgress:
+		return NSLOCTEXT("FinalRunSession", "GrowthEffectGainAwakenProgress", "Gain Awaken Progress");
+
+	case EFinalRunGrowthEffectType::ReduceCollapseCount:
+		return NSLOCTEXT("FinalRunSession", "GrowthEffectReduceCollapseCount", "Reduce Collapse Count");
+
+	default:
+		return NSLOCTEXT("FinalRunSession", "GrowthEffectUnknown", "Growth");
+	}
+}
+
+FText BuildRewardEntryPrimaryText(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return GetRewardEntryResolvedDisplayName(RewardEntry, DataRegistry);
+
+	case EFinalRunRewardType::CardGrant:
+		return ResolveDeckEntryDisplayName(RewardEntry.GrantedCardId, DataRegistry);
+
+	case EFinalRunRewardType::RelicGrant:
+		return ResolveRelicEntryDisplayName(RewardEntry.GrantedRelicId, DataRegistry);
+
+	case EFinalRunRewardType::RemoveCard:
+		return ResolveDeckEntryDisplayName(RewardEntry.RemovedCardId, DataRegistry);
+
+	case EFinalRunRewardType::UpgradeCard:
+		return ResolveDeckEntryDisplayName(RewardEntry.UpgradeFromCardId, DataRegistry);
+
+	case EFinalRunRewardType::Growth:
+		return ResolveRewardCharacterDisplayName(RewardEntry.GrowthTargetCharacterId, DataRegistry);
+
+	default:
+		return GetRewardEntryResolvedDisplayName(RewardEntry, DataRegistry);
+	}
+}
+
+FText BuildRewardEntrySecondaryText(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	const int32 ApplicationCount = GetRewardEntryApplicationCount(RewardEntry);
+
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardViewGoldSecondary", "+{0}"),
+			FText::AsNumber(RewardEntry.Value));
+
+	case EFinalRunRewardType::CardGrant:
+		return ApplicationCount > 1
+			? FText::Format(
+				NSLOCTEXT("FinalRunSession", "RewardViewCardGrantSecondaryPlural", "Add {0} copies to deck"),
+				FText::AsNumber(ApplicationCount))
+			: NSLOCTEXT("FinalRunSession", "RewardViewCardGrantSecondarySingular", "Add to deck");
+
+	case EFinalRunRewardType::RelicGrant:
+		return ApplicationCount > 1
+			? FText::Format(
+				NSLOCTEXT("FinalRunSession", "RewardViewRelicGrantSecondaryPlural", "Gain {0} relic copies"),
+				FText::AsNumber(ApplicationCount))
+			: NSLOCTEXT("FinalRunSession", "RewardViewRelicGrantSecondarySingular", "Gain relic");
+
+	case EFinalRunRewardType::RemoveCard:
+		return ApplicationCount > 1
+			? FText::Format(
+				NSLOCTEXT("FinalRunSession", "RewardViewRemoveCardSecondaryPlural", "Remove {0} copies from deck"),
+				FText::AsNumber(ApplicationCount))
+			: NSLOCTEXT("FinalRunSession", "RewardViewRemoveCardSecondarySingular", "Remove from deck");
+
+	case EFinalRunRewardType::UpgradeCard:
+		return FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardViewUpgradeCardSecondary", "Upgrade to {0}"),
+			ResolveDeckEntryDisplayName(RewardEntry.UpgradeToCardId, DataRegistry));
+
+	case EFinalRunRewardType::Growth:
+		return FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardViewGrowthSecondary", "{0} +{1}"),
+			GetGrowthEffectDisplayName(RewardEntry.GrowthEffectType),
+			FText::AsNumber(RewardEntry.Value));
+
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+FFinalRunRewardEntryViewData BuildRewardEntryViewData(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	FFinalRunRewardEntryViewData ViewData;
+	ViewData.RewardType = RewardEntry.RewardType;
+	ViewData.PrimaryText = BuildRewardEntryPrimaryText(RewardEntry, DataRegistry);
+	ViewData.SecondaryText = BuildRewardEntrySecondaryText(RewardEntry, DataRegistry);
+	ViewData.Value = RewardEntry.Value;
+
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+		ViewData.CardId = RewardEntry.GrantedCardId;
+		break;
+
+	case EFinalRunRewardType::RelicGrant:
+		ViewData.RelicId = RewardEntry.GrantedRelicId;
+		break;
+
+	case EFinalRunRewardType::RemoveCard:
+		ViewData.CardId = RewardEntry.RemovedCardId;
+		break;
+
+	case EFinalRunRewardType::UpgradeCard:
+		ViewData.SourceCardId = RewardEntry.UpgradeFromCardId;
+		ViewData.ResultCardId = RewardEntry.UpgradeToCardId;
+		break;
+
+	case EFinalRunRewardType::Growth:
+		ViewData.TargetCharacterId = RewardEntry.GrowthTargetCharacterId;
+		break;
+
+	default:
+		break;
+	}
+
+	return ViewData;
+}
+
+TArray<FFinalRunRewardEntryViewData> BuildRewardEntryViews(const TArray<FFinalRunRewardEntry>& RewardEntries, const UFinalDataRegistry* DataRegistry)
+{
+	TArray<FFinalRunRewardEntryViewData> ViewDataEntries;
+	ViewDataEntries.Reserve(RewardEntries.Num());
+
+	for (const FFinalRunRewardEntry& RewardEntry : RewardEntries)
+	{
+		ViewDataEntries.Add(BuildRewardEntryViewData(RewardEntry, DataRegistry));
+	}
+
+	return ViewDataEntries;
 }
 
 TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
@@ -1277,6 +1450,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.PendingBattleReward.RewardGold = GetPendingBattleRewardGold();
 	Snapshot.PendingBattleReward.bCanClaim = HasPendingBattleReward();
 	Snapshot.PendingBattleReward.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
+	Snapshot.PendingBattleReward.RewardEntryViews = BuildRewardEntryViews(Snapshot.PendingBattleReward.RewardEntries, DataRegistry);
 
 	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
 	{
@@ -1806,6 +1980,7 @@ FFinalRunPendingRewardNodeViewData UFinalRunSession::BuildPendingRewardNodeView(
 	View.RewardEntries = bResolved
 		? MakeClaimedRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry)
 		: MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
+	View.RewardEntryViews = BuildRewardEntryViews(View.RewardEntries, DataRegistry);
 	return View;
 }
 
@@ -1840,6 +2015,7 @@ FFinalRunPendingEventNodeViewData UFinalRunSession::BuildPendingEventNodeView() 
 			: Option.DisplayText;
 		OptionView.OutcomeSummary = Option.OutcomeSummary;
 		OptionView.RewardEntries = MakePreviewRewardEntries(Option.RewardEntries, DataRegistry);
+		OptionView.RewardEntryViews = BuildRewardEntryViews(OptionView.RewardEntries, DataRegistry);
 		OptionView.bSelectable = !bResolved && !Option.bStartsDisabled;
 		OptionView.AvailabilityMessage = Option.bStartsDisabled
 			? (Option.DisabledReason.IsEmpty() ? FText::FromString(TEXT("This option is currently unavailable.")) : Option.DisabledReason)
@@ -1895,6 +2071,7 @@ FFinalRunPendingShopNodeViewData UFinalRunSession::BuildPendingShopNodeView() co
 		OfferView.Price = Offer.Price;
 		OfferView.bPurchased = bResolved;
 		OfferView.RewardEntries = MakePreviewRewardEntries(Offer.RewardEntries, DataRegistry);
+		OfferView.RewardEntryViews = BuildRewardEntryViews(OfferView.RewardEntries, DataRegistry);
 
 		if (bResolved)
 		{

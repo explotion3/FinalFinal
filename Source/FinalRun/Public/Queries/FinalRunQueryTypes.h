@@ -99,6 +99,39 @@ struct FINALRUN_API FFinalRunCurrentBuildViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunRewardEntryViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunRewardType RewardType = EFinalRunRewardType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText PrimaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText SecondaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 Value = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCharacterId TargetCharacterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId CardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId SourceCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId ResultCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRelicId RelicId;
+};
+
+USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunPendingBattleRewardViewData
 {
 	GENERATED_BODY()
@@ -132,6 +165,9 @@ struct FINALRUN_API FFinalRunPendingBattleRewardViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 };
 
 USTRUCT(BlueprintType)
@@ -159,6 +195,9 @@ struct FINALRUN_API FFinalRunPendingRewardNodeViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 };
 
 USTRUCT(BlueprintType)
@@ -183,6 +222,9 @@ struct FINALRUN_API FFinalRunEventOptionViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 };
 
 USTRUCT(BlueprintType)
@@ -243,6 +285,9 @@ struct FINALRUN_API FFinalRunShopOfferViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 };
 
 USTRUCT(BlueprintType)
