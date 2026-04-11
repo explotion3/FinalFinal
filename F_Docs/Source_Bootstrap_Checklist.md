@@ -221,6 +221,7 @@
 * 在 `RunSnapshot.Characters` 中补最小可展示的持久角色 view data，至少包含角色显示名与少量展示辅助字段，不把 `RunPersistentCharacterState` 私有结构原样抬进 `Public`
 * 在保留 raw `RewardEntries` 的同时，补一层 `RewardEntryViewData` 只读展示查询，供 `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 直接输出稳定 reward 展示语义
 * `RewardEntryViewData` 至少应能补出 `PresentationKind / IconId / VisualTier / DetailText` 这类元数据，避免 `FinalApp` 自己推断奖励图标、类别与描述
+* 对产出奖励结果的 `RunEvent`，也应同步输出 `RewardEntryViewData` 数组，避免后续结果 toast / 日志回到 raw reward 文本拼接
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
