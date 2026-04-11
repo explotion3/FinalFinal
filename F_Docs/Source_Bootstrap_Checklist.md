@@ -212,6 +212,7 @@
 * 接收战斗结果并回写最小单局状态
 * 提供事件 / 奖励 / 商店等单局外命令的统一入口
 * 在 `RunSnapshot` 中公开 `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode / Progression` 的最小结构化内容
+* 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant` 落地到 `RunState`
 * 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
@@ -219,6 +220,7 @@
 * 完整奖励解析器
 * 商店解析器
 * 成长解析器
+* `RemoveCard / UpgradeCard / Growth` 的完整落地协议与结算器
 
 ---
 
@@ -313,7 +315,9 @@
 
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
-* `FinalGameInstance::StartTestBattle()` 会串起 `BootstrapNewRun -> ConfigureBattleStartState -> StartBattleFromRunSession`
+* `FinalGameInstance::PrepareTestBattleRun()` 当前会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 Run 外层页与 Battle 回流闭环
+* `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
+* `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写

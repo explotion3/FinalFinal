@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Ids/FinalIds.h"
 #include "FinalRunRewardTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -34,6 +35,12 @@ struct FINALDATA_API FFinalRunRewardEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId GrantedCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRelicId GrantedRelicId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bCanClaim = false;

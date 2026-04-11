@@ -22,6 +22,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Flow")
 	UFinalBattleSession* StartBattleFromRunSession();
 
+	bool TryAutoStartPreparedBattleFromRun();
+
 	UFUNCTION(BlueprintCallable, Category = "Final|Flow")
 	bool CompleteBattleAndApplyResult(const FFinalBattleResult& Result);
 
@@ -48,4 +50,6 @@ private:
 
 	UPROPERTY(Transient)
 	FText LastFlowFailureReason;
+
+	bool bAutoStartingPreparedBattle = false;
 };

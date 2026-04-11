@@ -83,6 +83,15 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 	{
 		LastFlowMessage = BuildSnapshotFlowMessage(CachedSnapshot);
 	}
+
+	if (UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
+	{
+		if (GameFlowSubsystem->TryAutoStartPreparedBattleFromRun())
+		{
+			return;
+		}
+	}
+
 	ApplyPresentationForSnapshot(CachedSnapshot, bForce || bHasNewEvents);
 }
 
