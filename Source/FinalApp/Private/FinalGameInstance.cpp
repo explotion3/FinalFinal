@@ -55,7 +55,8 @@ namespace FinalTestBootstrap
 		const FFinalRelicId& RelicId,
 		const FName DisplayId,
 		const FText& DisplayName,
-		const TArray<FFinalRelicBattleStartEffectDefinition>& BattleStartEffects)
+		const TArray<FFinalRelicBattleStartEffectDefinition>& BattleStartEffects,
+		const TArray<FFinalRelicPlayerTurnStartEffectDefinition>& PlayerTurnStartEffects)
 	{
 		if (DataRegistry == nullptr || !RelicId.IsValid())
 		{
@@ -67,6 +68,7 @@ namespace FinalTestBootstrap
 		RelicDefinition->DisplayId = DisplayId;
 		RelicDefinition->DisplayName = DisplayName;
 		RelicDefinition->BattleStartEffects = BattleStartEffects;
+		RelicDefinition->PlayerTurnStartEffects = PlayerTurnStartEffects;
 		RuntimeAssets.Add(RelicDefinition);
 		DataRegistry->RegisterRelicDefinition(RelicDefinition);
 	}
@@ -311,6 +313,22 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 		RepairKitBattleStartEffects.Add(Effect);
 	}
 
+	TArray<FFinalRelicPlayerTurnStartEffectDefinition> CharmTurnStartEffects;
+	{
+		FFinalRelicPlayerTurnStartEffectDefinition Effect;
+		Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainAP;
+		Effect.Value = 1;
+		CharmTurnStartEffects.Add(Effect);
+	}
+
+	TArray<FFinalRelicPlayerTurnStartEffectDefinition> RepairKitTurnStartEffects;
+	{
+		FFinalRelicPlayerTurnStartEffectDefinition Effect;
+		Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainShield;
+		Effect.Value = 2;
+		RepairKitTurnStartEffects.Add(Effect);
+	}
+
 	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
 		DataRegistry,
 		this,
@@ -318,7 +336,8 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
 		TEXT("Relic.Test.Charm"),
 		FText::FromString(TEXT("试作护符")),
-		CharmBattleStartEffects);
+		CharmBattleStartEffects,
+		CharmTurnStartEffects);
 	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
 		DataRegistry,
 		this,
@@ -326,7 +345,8 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
 		TEXT("Relic.Test.RepairKit"),
 		FText::FromString(TEXT("试作修理包")),
-		RepairKitBattleStartEffects);
+		RepairKitBattleStartEffects,
+		RepairKitTurnStartEffects);
 #endif
 
 	bTestBattleBootstrapRegistered = true;

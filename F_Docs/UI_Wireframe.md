@@ -42,6 +42,7 @@
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
   * 当候选奖励里出现 `Growth` 时，会额外显示目标角色、`GrowthEffectType` 与数值，而不是只显示“成长”
   * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口
+  * 当前 battle relic 调试摘要已区分 `BattleStartEffects` 与 `PlayerTurnStartEffects`，并继续直接显示 `RelicTriggered` 的原始事件反馈
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
 ## 1. 当前最小布局
@@ -56,7 +57,7 @@
   * 当前是否存在 `ActiveBattleSession`
   * 调试动作：重启 prototype run、在战斗已结束时调用 `CompleteResolvedBattle`
 * 顶部上下文区：当前目标、牌堆计数、团队状态
-  * 当前已接入一行精简 `ActiveRelics` 摘要，直接显示本场带入并生效的开场遗物
+  * 当前已接入一行精简 `ActiveRelics` 摘要，直接区分本场遗物的 `battle-start` 与 `player-turn-start` 能力
 * 左中：三名角色状态
   * 角色名
   * 压力 `Current / Cap`

@@ -47,6 +47,22 @@ FText GetPrototypeRelicEffectTypeText(const EFinalRelicBattleStartEffectType Eff
 	}
 }
 
+FText GetPrototypeTurnStartRelicEffectTypeText(const EFinalRelicPlayerTurnStartEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case EFinalRelicPlayerTurnStartEffectType::GainAP:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeGainAP", "GainAP");
+
+	case EFinalRelicPlayerTurnStartEffectType::GainShield:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeGainShield", "GainShield");
+
+	case EFinalRelicPlayerTurnStartEffectType::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeNone", "None");
+	}
+}
+
 FString BuildBattleRelicEffectSummaryString(const TArray<FFinalBattleStartRelicEffectInput>& EffectInputs)
 {
 	if (EffectInputs.IsEmpty())
@@ -59,6 +75,27 @@ FString BuildBattleRelicEffectSummaryString(const TArray<FFinalBattleStartRelicE
 	for (const FFinalBattleStartRelicEffectInput& EffectInput : EffectInputs)
 	{
 		const FString EffectLabel = GetPrototypeRelicEffectTypeText(EffectInput.EffectType).ToString();
+		Segments.Add(FString::Printf(
+			TEXT("%s +%d"),
+			*EffectLabel,
+			EffectInput.Value));
+	}
+
+	return FString::Join(Segments, TEXT(" | "));
+}
+
+FString BuildBattleRelicTurnStartEffectSummaryString(const TArray<FFinalBattlePlayerTurnStartRelicEffectInput>& EffectInputs)
+{
+	if (EffectInputs.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoTurnStartRelicEffects", "No player-turn-start effects").ToString();
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(EffectInputs.Num());
+	for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : EffectInputs)
+	{
+		const FString EffectLabel = GetPrototypeTurnStartRelicEffectTypeText(EffectInput.EffectType).ToString();
 		Segments.Add(FString::Printf(
 			TEXT("%s +%d"),
 			*EffectLabel,
@@ -163,7 +200,7 @@ FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelic
 {
 	if (ActiveRelics.IsEmpty())
 	{
-		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleActiveRelics", "Battle Active Relics\n当前战斗没有公开的开场遗物。").ToString();
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleActiveRelics", "Battle Active Relics\n当前战斗没有公开的激活遗物。").ToString();
 	}
 
 	TArray<FString> Lines;
@@ -177,11 +214,12 @@ FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelic
 			RelicInput.RelicId.IsValid() ? RelicInput.RelicId.ToString() : RelicInput.DisplayId.ToString()).ToString();
 
 		Lines.Add(FString::Printf(
-			TEXT("- %s | DisplayId: %s | RelicId: %s | Effects: %s"),
+			TEXT("- %s | DisplayId: %s | RelicId: %s | Start: %s | Turn: %s"),
 			*RelicName,
 			*RelicInput.DisplayId.ToString(),
 			*RelicInput.RelicId.ToString(),
-			*BuildBattleRelicEffectSummaryString(RelicInput.BattleStartEffects)));
+			*BuildBattleRelicEffectSummaryString(RelicInput.BattleStartEffects),
+			*BuildBattleRelicTurnStartEffectSummaryString(RelicInput.PlayerTurnStartEffects)));
 	}
 
 	return FString::Join(Lines, TEXT("\n"));
@@ -226,7 +264,10 @@ FString BuildLatestRelicTriggeredSummaryString(const UFinalBattleFlowSubsystem* 
 		: RelicEvent.RelicId.ToString();
 
 	const FString EffectSummary = RelicInput != nullptr
-		? BuildBattleRelicEffectSummaryString(RelicInput->BattleStartEffects)
+		? FString::Printf(
+			TEXT("Start: %s | Turn: %s"),
+			*BuildBattleRelicEffectSummaryString(RelicInput->BattleStartEffects),
+			*BuildBattleRelicTurnStartEffectSummaryString(RelicInput->PlayerTurnStartEffects))
 		: NSLOCTEXT("FinalPrototypeRunDebug", "MissingRelicEffectSummary", "Effects unavailable in snapshot").ToString();
 
 	return FString::Printf(
