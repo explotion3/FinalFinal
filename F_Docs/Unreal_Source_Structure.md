@@ -221,6 +221,7 @@ FinalBattle      FinalRun
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
 * `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页还是关闭外层页
+* `RunFlowSubsystem` 当前还负责把奖励结果类 `RunEvent` 的最近反馈收口成 UI 可读文本，并优先直接消费 `RunEvent.RewardEntryViews`；raw `RewardEntries` 只保留为回退
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
