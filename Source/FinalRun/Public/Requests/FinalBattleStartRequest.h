@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
-#include "Run/Bridge/FinalBattleRelicBridge.h"
+#include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "FinalBattleStartRequest.generated.h"
 

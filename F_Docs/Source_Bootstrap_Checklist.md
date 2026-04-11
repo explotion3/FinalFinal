@@ -100,7 +100,7 @@
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicBattleTypes.h`
-* `Source/FinalData/Public/Run/Bridge/FinalBattleRelicBridge.h`
+* `Source/FinalData/Public/Run/Bridge/FinalBattleRelicPayload.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
 
@@ -148,7 +148,7 @@
 * 跑通敌人行动
 * 跑通回合开始与回合结束
 * 暴露稳定的 `BattleSnapshot / BattleEvent / EventsSince` 公开查询面，供 `FinalApp` 只读接入
-* 第二批可补最小 relic battle-start 竖切：消费 Run 桥接过来的遗物输入，在初始化时真实修改 AP / Shield 并写入 `BattleEvent`
+* 第二批可补最小 relic battle-start 竖切：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入，在初始化时真实修改 AP / Shield 并写入 `BattleEvent`
 
 #### 暂不创建
 * 遗物运行时状态

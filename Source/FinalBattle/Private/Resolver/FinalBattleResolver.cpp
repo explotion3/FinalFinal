@@ -14,7 +14,7 @@
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
-#include "Run/Bridge/FinalBattleRelicBridge.h"
+#include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleResolver, Log, All);
@@ -65,44 +65,6 @@ FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInpu
 	return RelicInput.RelicId.IsValid()
 		? FText::FromName(RelicInput.RelicId.Value)
 		: NSLOCTEXT("FinalBattleResolver", "UnknownRelic", "Unknown Relic");
-}
-
-FString BuildBattleRelicBridgeKey(const FFinalEncounterId& EncounterId, const FFinalRuleConfigId& RuleConfigId, const FFinalBattleInitContext& InitContext)
-{
-	FString BridgeKey = EncounterId.IsValid() ? EncounterId.Value.ToString() : TEXT("Encounter.None");
-	BridgeKey += TEXT("|");
-	BridgeKey += RuleConfigId.IsValid() ? RuleConfigId.Value.ToString() : TEXT("Rule.None");
-	BridgeKey += FString::Printf(TEXT("|HP:%d|Party:%d"), InitContext.TeamCurrentHP, InitContext.PartyMembers.Num());
-
-	for (const FFinalBattleCharacterInitData& PartyEntry : InitContext.PartyMembers)
-	{
-		const FString CharacterIdText =
-			PartyEntry.CharacterDefinition != nullptr && PartyEntry.CharacterDefinition->CharacterId.IsValid()
-			? PartyEntry.CharacterDefinition->CharacterId.Value.ToString()
-			: TEXT("Character.None");
-
-		BridgeKey += FString::Printf(
-			TEXT("|%s:%d:%d:%d:%d"),
-			*CharacterIdText,
-			PartyEntry.CurrentStress,
-			PartyEntry.bCollapsed ? 1 : 0,
-			PartyEntry.CurrentAwakenCount,
-			PartyEntry.CollapseCount);
-	}
-
-	BridgeKey += FString::Printf(TEXT("|Deck:%d"), InitContext.DeckDefinitions.Num());
-	for (const UFinalCardDefinition* CardDefinition : InitContext.DeckDefinitions)
-	{
-		const FString CardIdText =
-			CardDefinition != nullptr && CardDefinition->CardId.IsValid()
-			? CardDefinition->CardId.Value.ToString()
-			: TEXT("Card.None");
-
-		BridgeKey += TEXT("|");
-		BridgeKey += CardIdText;
-	}
-
-	return BridgeKey;
 }
 
 void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleStartRelicInput> ActiveRelics)
@@ -848,9 +810,7 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		State.EncounterDisplayName.IsEmpty() ? FText::FromName(State.EncounterId.Value) : State.EncounterDisplayName);
 	FinalizeBattleEvent(State, SessionStartedEvent);
 
-	ApplyBattleStartRelicEffects(
-		State,
-		FFinalBattleRelicBridgeStore::ConsumePayload(BuildBattleRelicBridgeKey(State.EncounterId, State.RuleConfigId, InitContext)));
+	ApplyBattleStartRelicEffects(State, InitContext.BattleStartRelics);
 
 	UE_LOG(LogFinalBattleResolver, Log, TEXT("Initialized battle session with %d enemy entries."), State.Enemies.Num());
 }

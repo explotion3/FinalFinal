@@ -296,7 +296,7 @@ FinalBattle      FinalRun
 * `RunCommand`
 * 进入战斗与战后结算的桥接请求结构
 * `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
-* 如需让 `FinalBattle` 感知本场 Run 输入，应优先通过 `FinalData` 中的共享 bridge protocol / request payload 传递，而不是让 `FinalBattle` 直接依赖 `FinalRun`
+* 如需让 `FinalBattle` 感知本场 Run 输入，应优先通过共享 request / init context payload 显式传递，例如 `FinalBattleStartRequest -> FFinalBattleInitContext`，而不是让 `FinalBattle` 直接依赖 `FinalRun`
 
 #### FinalApp/Public
 只暴露：

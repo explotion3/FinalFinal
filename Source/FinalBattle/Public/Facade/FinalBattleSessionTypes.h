@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Run/Bridge/FinalBattleRelicPayload.h"
 
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
@@ -21,4 +22,5 @@ struct FINALBATTLE_API FFinalBattleInitContext
 	int32 TeamCurrentHP = 0;
 	TArray<FFinalBattleCharacterInitData> PartyMembers;
 	TArray<UFinalCardDefinition*> DeckDefinitions;
+	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
 };
