@@ -264,19 +264,77 @@ FText GetRewardTypeText(const EFinalRunRewardType RewardType)
 	}
 }
 
+FText GetPrototypeRunGrowthEffectTypeText(const EFinalRunGrowthEffectType GrowthEffectType)
+{
+	switch (GrowthEffectType)
+	{
+	case EFinalRunGrowthEffectType::ReduceStress:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "GrowthEffectReduceStress", "ReduceStress");
+
+	case EFinalRunGrowthEffectType::GainAwakenProgress:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "GrowthEffectGainAwakenProgress", "GainAwakenProgress");
+
+	case EFinalRunGrowthEffectType::ReduceCollapseCount:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "GrowthEffectReduceCollapseCount", "ReduceCollapseCount");
+
+	case EFinalRunGrowthEffectType::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "GrowthEffectNone", "None");
+	}
+}
+
+FString BuildRewardEntryDebugDetailString(const FFinalRunRewardEntry& Entry)
+{
+	if (Entry.RewardType != EFinalRunRewardType::Growth)
+	{
+		return FString();
+	}
+
+	return FString::Printf(
+		TEXT(" | Target: %s | Effect: %s"),
+		*Entry.GrowthTargetCharacterId.ToString(),
+		*GetPrototypeRunGrowthEffectTypeText(Entry.GrowthEffectType).ToString());
+}
+
 void AppendRewardEntryCandidateLines(TArray<FString>& Lines, const FString& SourceLabel, const TArray<FFinalRunRewardEntry>& RewardEntries)
 {
 	for (const FFinalRunRewardEntry& Entry : RewardEntries)
 	{
+		const FString DebugDetail = BuildRewardEntryDebugDetailString(Entry);
 		Lines.Add(FString::Printf(
-			TEXT("- [%s] %s | Type: %s | Value: %d | Claimable: %s | Claimed: %s"),
+			TEXT("- [%s] %s | Type: %s | Value: %d | Claimable: %s | Claimed: %s%s"),
 			*SourceLabel,
 			*FormatOptionalDisplayName(Entry.DisplayName, TEXT("Unnamed Reward")).ToString(),
 			*GetRewardTypeText(Entry.RewardType).ToString(),
 			Entry.Value,
 			Entry.bCanClaim ? TEXT("Yes") : TEXT("No"),
-			Entry.bClaimed ? TEXT("Yes") : TEXT("No")));
+			Entry.bClaimed ? TEXT("Yes") : TEXT("No"),
+			*DebugDetail));
 	}
+}
+
+FString BuildCharacterStateSummaryString(const TArray<FFinalRunCharacterViewData>& Characters)
+{
+	if (Characters.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoCharacterStateEntries", "Persistent Characters\n当前没有公开的角色持久状态。").ToString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(Characters.Num() + 1);
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "CharacterStateTitle", "Persistent Characters").ToString());
+
+	for (const FFinalRunCharacterViewData& Character : Characters)
+	{
+		Lines.Add(FString::Printf(
+			TEXT("- %s | Stress: %d | Awaken: %d | Collapse: %d"),
+			*Character.CharacterId.ToString(),
+			Character.CurrentStress,
+			Character.CurrentAwakenCount,
+			Character.CollapseCount));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 FString BuildPendingRewardCandidatesSummary(const FFinalRunSnapshot& RunSnapshot)
@@ -394,6 +452,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	if (SummaryText == nullptr
 		|| MessageText == nullptr
 		|| BuildSummaryText == nullptr
+		|| CharacterSummaryText == nullptr
 		|| CandidateSummaryText == nullptr
 		|| BattleRelicSummaryText == nullptr
 		|| BattleRelicEventText == nullptr)
@@ -431,6 +490,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	const FString DeckSummary = BuildDeckEntriesSummaryString(RunSnapshot.CurrentBuild.DeckEntries);
 	const FString RelicSummary = BuildRelicEntriesSummaryString(RunSnapshot.CurrentBuild.RelicEntries);
 	BuildSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s\n\n%s"), *DeckSummary, *RelicSummary)));
+	CharacterSummaryText->SetText(FText::FromString(BuildCharacterStateSummaryString(RunSnapshot.Characters)));
 
 	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
 	BattleRelicSummaryText->SetText(FText::FromString(BuildBattleActiveRelicsSummaryString(BattleSnapshot.ActiveRelics)));
@@ -527,6 +587,12 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* BuildSlot = ContentBox->AddChildToVerticalBox(BuildSummaryText))
 	{
 		BuildSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	CharacterSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCharacterSummary"), 10, FLinearColor(0.88f, 0.92f, 0.98f, 1.0f));
+	if (UVerticalBoxSlot* CharacterSlot = ContentBox->AddChildToVerticalBox(CharacterSummaryText))
+	{
+		CharacterSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	CandidateSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCandidateSummary"), 10, FLinearColor(0.78f, 0.82f, 0.88f, 1.0f));

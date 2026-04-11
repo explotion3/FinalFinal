@@ -60,6 +60,9 @@ private:
 	TObjectPtr<UTextBlock> BuildSummaryText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CharacterSummaryText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CandidateSummaryText;
 
 	UPROPERTY(Transient)
