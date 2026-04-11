@@ -128,6 +128,25 @@ inline FText FormatRewardTypeText(const EFinalRunRewardType RewardType)
 	}
 }
 
+inline FText FormatGrowthEffectTypeText(const EFinalRunGrowthEffectType GrowthEffectType)
+{
+	switch (GrowthEffectType)
+	{
+	case EFinalRunGrowthEffectType::ReduceStress:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowGrowthReduceStress", "减压");
+
+	case EFinalRunGrowthEffectType::GainAwakenProgress:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowGrowthGainAwakenProgress", "增加苏醒进度");
+
+	case EFinalRunGrowthEffectType::ReduceCollapseCount:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowGrowthReduceCollapseCount", "减少崩溃次数");
+
+	case EFinalRunGrowthEffectType::None:
+	default:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowGrowthNone", "未定义成长效果");
+	}
+}
+
 inline FText FormatRewardEntryName(const FFinalRunRewardEntry& RewardEntry)
 {
 	if (!RewardEntry.DisplayName.IsEmpty())
@@ -163,6 +182,19 @@ inline FText FormatRewardClaimStateText(const FFinalRunRewardEntry& RewardEntry)
 	return NSLOCTEXT("FinalFlowUI", "RunFlowRewardEntryCannotClaim", "暂不可领取");
 }
 
+inline FString BuildRewardEntryTypedPayloadSummaryString(const FFinalRunRewardEntry& RewardEntry)
+{
+	if (RewardEntry.RewardType != EFinalRunRewardType::Growth)
+	{
+		return FString();
+	}
+
+	return FString::Printf(
+		TEXT(" | 目标角色: %s | 成长效果: %s"),
+		*RewardEntry.GrowthTargetCharacterId.ToString(),
+		*FormatGrowthEffectTypeText(RewardEntry.GrowthEffectType).ToString());
+}
+
 inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry>& RewardEntries)
 {
 	if (RewardEntries.Num() <= 0)
@@ -185,6 +217,12 @@ inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry
 		if (RewardEntry.RewardId != NAME_None)
 		{
 			RewardEntrySummary += FString::Printf(TEXT(" | RewardId: %s"), *RewardEntry.RewardId.ToString());
+		}
+
+		const FString TypedPayloadSummary = BuildRewardEntryTypedPayloadSummaryString(RewardEntry);
+		if (!TypedPayloadSummary.IsEmpty())
+		{
+			RewardEntrySummary += TypedPayloadSummary;
 		}
 
 		RewardEntrySummary += TEXT("\n");

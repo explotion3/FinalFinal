@@ -325,9 +325,10 @@
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
 * `FinalGameInstance::PrepareTestBattleRun()` 当前会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 Run 外层页与 Battle 回流闭环
 * `FinalGameInstance` 里的原型奖励条目当前直接填写 typed payload：`GrantedCardId / GrantedRelicId`，不再依赖旧结构兼容桥接
+* 当前 prototype Run 图里的事件节点选项已加入最小 `Growth` 奖励示例，直接使用 `GrowthTargetCharacterId / GrowthEffectType / Value`，用于验证 `RunPersistentCharacterState -> RunSnapshot.Characters` 的真实回写
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
-* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活
+* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；`RelicTriggered` 只显示简短世界提示，不替代 HUD / Debug 明细
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用

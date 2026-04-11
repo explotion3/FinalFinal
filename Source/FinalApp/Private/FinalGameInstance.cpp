@@ -420,6 +420,25 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 		return Entry;
 	};
 
+	auto MakeGrowthRewardEntry = [&MakeRewardEntry](
+		const FName RewardId,
+		const FFinalCharacterId& TargetCharacterId,
+		const EFinalRunGrowthEffectType GrowthEffectType,
+		const int32 Value,
+		const FName DisplayId,
+		const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeRewardEntry(
+			RewardId,
+			EFinalRunRewardType::Growth,
+			Value,
+			DisplayId,
+			DisplayName);
+		Entry.GrowthTargetCharacterId = TargetCharacterId;
+		Entry.GrowthEffectType = GrowthEffectType;
+		return Entry;
+	};
+
 	FFinalRunNodeDefinition OpeningBattleNode;
 	OpeningBattleNode.NodeId = FinalTestBootstrap::OpeningBattleNodeId;
 	OpeningBattleNode.NodeType = EFinalRunNodeType::Battle;
@@ -486,7 +505,14 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	FFinalRunEventOptionDefinition TakeRestOption;
 	TakeRestOption.OptionId = TEXT("event.option.take_rest");
 	TakeRestOption.DisplayText = FText::FromString(TEXT("原地整备"));
-	TakeRestOption.OutcomeSummary = FText::FromString(TEXT("不获得额外奖励，直接前往下一个节点。"));
+	TakeRestOption.OutcomeSummary = FText::FromString(TEXT("测试策应压力 -1，用于验证最小 Growth 落地。"));
+	TakeRestOption.RewardEntries.Add(MakeGrowthRewardEntry(
+		TEXT("reward.event.take_rest.growth"),
+		TestSupportDefinition->CharacterId,
+		EFinalRunGrowthEffectType::ReduceStress,
+		1,
+		TEXT("Growth.Test.Support.ReduceStress"),
+		FText::FromString(TEXT("测试策应·减压"))));
 	EventNode.EventContent.Options.Add(TakeRestOption);
 
 	FFinalRunNodeDefinition ShopNode;
