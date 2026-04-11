@@ -4,6 +4,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "FinalBattleGameMode.generated.h"
 
+class AFinalBattleDirector;
+
 UCLASS()
 class FINALAPP_API AFinalBattleGameMode : public AGameModeBase
 {
@@ -11,4 +13,13 @@ class FINALAPP_API AFinalBattleGameMode : public AGameModeBase
 
 public:
 	AFinalBattleGameMode();
+
+	virtual void StartPlay() override;
+
+private:
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle")
+	TSubclassOf<AFinalBattleDirector> BattleDirectorClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AFinalBattleDirector> ActiveBattleDirector;
 };
