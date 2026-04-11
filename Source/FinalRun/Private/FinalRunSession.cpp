@@ -978,7 +978,7 @@ bool RewardEntriesContainGrowth(const TArray<FFinalRunRewardEntry>& RewardEntrie
 {
 	for (const FFinalRunRewardEntry& Entry : RewardEntries)
 	{
-		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.IsClaimable())
+		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.GrowthTargetCharacterId.IsValid())
 		{
 			return true;
 		}
@@ -997,7 +997,7 @@ void PopulateAffectedCharacterResults(FFinalRunEvent& Event, const TArray<FFinal
 	TSet<FName> AffectedCharacterIds;
 	for (const FFinalRunRewardEntry& Entry : AppliedRewardEntries)
 	{
-		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.IsClaimable() && Entry.GrowthTargetCharacterId.IsValid())
+		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.GrowthTargetCharacterId.IsValid())
 		{
 			AffectedCharacterIds.Add(Entry.GrowthTargetCharacterId.Value);
 		}
@@ -2593,3 +2593,4 @@ void UFinalRunSession::AppendEvent(const FFinalRunEvent& Event)
 
 	RunLogEntries.Add(MoveTemp(EventToAppend));
 }
+
