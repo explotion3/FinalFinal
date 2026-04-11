@@ -11,14 +11,49 @@
 
 namespace
 {
-FFinalRunCharacterViewData MakeCharacterView(const FFinalRunPersistentCharacterState& CharacterState)
+FText ResolveRunCharacterDisplayName(const FFinalCharacterId& CharacterId, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && CharacterId.IsValid())
+	{
+		if (const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(CharacterId))
+		{
+			if (!CharacterDefinition->DisplayName.IsEmpty())
+			{
+				return CharacterDefinition->DisplayName;
+			}
+		}
+	}
+
+	return CharacterId.IsValid()
+		? FText::FromName(CharacterId.Value)
+		: NSLOCTEXT("FinalRunSession", "UnknownRunCharacter", "Unknown Character");
+}
+
+FName ResolveRunCharacterIconId(const FFinalCharacterId& CharacterId)
+{
+	return CharacterId.IsValid() ? CharacterId.Value : NAME_None;
+}
+
+FText BuildRunCharacterStateSummaryText(const FFinalRunPersistentCharacterState& CharacterState)
+{
+	return FText::Format(
+		NSLOCTEXT("FinalRunSession", "RunCharacterStateSummary", "Stress {0} | Awaken {1} | Collapse {2}"),
+		FText::AsNumber(CharacterState.CurrentStress),
+		FText::AsNumber(CharacterState.CurrentAwakenCount),
+		FText::AsNumber(CharacterState.CollapseCount));
+}
+
+FFinalRunCharacterViewData MakeCharacterView(const FFinalRunPersistentCharacterState& CharacterState, const UFinalDataRegistry* DataRegistry)
 {
 	FFinalRunCharacterViewData View;
 	View.CharacterId = CharacterState.CharacterId;
+	View.DisplayName = ResolveRunCharacterDisplayName(CharacterState.CharacterId, DataRegistry);
+	View.IconId = ResolveRunCharacterIconId(CharacterState.CharacterId);
 	View.CurrentStress = CharacterState.CurrentStress;
 	View.bCollapsed = CharacterState.bCollapsed;
 	View.CurrentAwakenCount = CharacterState.CurrentAwakenCount;
 	View.CollapseCount = CharacterState.CollapseCount;
+	View.StateSummaryText = BuildRunCharacterStateSummaryText(CharacterState);
 	return View;
 }
 
@@ -1784,7 +1819,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 
 	for (const FFinalRunPersistentCharacterState& CharacterState : CurrentState.Characters)
 	{
-		Snapshot.Characters.Add(MakeCharacterView(CharacterState));
+		Snapshot.Characters.Add(MakeCharacterView(CharacterState, DataRegistry));
 	}
 
 	return Snapshot;
