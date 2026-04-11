@@ -143,6 +143,7 @@
 * 处理遗物触发窗口
 * 记录每回合、每战斗、每效果的触发次数
 * 不允许遗物直接绕过命令与规则结算层改状态
+* 当前最小竖切至少支持“战斗开始立即生效”的遗物效果协议：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
 
 优先级：
 * `P1`
@@ -191,6 +192,7 @@
 * 维护牌组、遗物、金币、事件结果
 * 维护跨战斗保留状态，例如 `CollapseCount`
 * 为战斗开始提供当前队伍、当前牌组和遭遇输入
+* 为战斗开始提供当前遗物的最小 battle-start 输入，但不让 `FinalBattle` 直接读取 `RunState`
 * 在战斗结束后消费战斗结果并回写单局状态
 * 对外至少提供当前构筑的只读查询面，让 UI 能读取当前牌库条目与遗物条目，而不直接访问 `RunState` 容器真相
 
@@ -262,6 +264,7 @@
 * 提供结构化 `RunEvent`，记录初始化、战前桥接、RunCommand、战后回写等关键外层流程
 * 提供全量读取与按序号增量读取，避免 UI 只能猜当前 Run 状态
 * `RunSnapshot` 当前应至少公开 `CurrentBuild` 这类只读 view data，用于呈现 `RunDeck / Relics` 的聚合条目、展示名与数量
+* `RunSession` 在组装 `BattleStartRequest` 时，应能桥接最小遗物战斗输入，例如 battle-start relic effects，但不要把 `RunState.Relics` 私有容器直接暴露给 `FinalBattle`
 
 优先级：
 * `P1`

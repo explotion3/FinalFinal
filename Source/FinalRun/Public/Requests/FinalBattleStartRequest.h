@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
+#include "Run/Bridge/FinalBattleRelicBridge.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "FinalBattleStartRequest.generated.h"
 
@@ -27,4 +28,7 @@ struct FINALRUN_API FFinalBattleStartRequest
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalCardId> DeckCardIds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
 };

@@ -4,6 +4,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Queries/FinalDataRegistry.h"
+#include "Run/Bridge/FinalBattleRelicBridge.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -473,6 +474,97 @@ FText ResolveRelicEntryDisplayName(const FFinalRelicId& RelicId, const UFinalDat
 	return RelicId.IsValid()
 		? FText::FromName(RelicId.Value)
 		: NSLOCTEXT("FinalRunSession", "UnknownRelic", "Unknown Relic");
+}
+
+FString BuildBattleRelicBridgeKey(
+	const FFinalEncounterId& EncounterId,
+	const FFinalRuleConfigId& RuleConfigId,
+	const int32 TeamCurrentHP,
+	const TArray<FFinalRunPersistentCharacterState>& PartyStates,
+	const TArray<FFinalCardId>& DeckCardIds)
+{
+	FString BridgeKey = EncounterId.IsValid() ? EncounterId.Value.ToString() : TEXT("Encounter.None");
+	BridgeKey += TEXT("|");
+	BridgeKey += RuleConfigId.IsValid() ? RuleConfigId.Value.ToString() : TEXT("Rule.None");
+	BridgeKey += FString::Printf(TEXT("|HP:%d|Party:%d"), TeamCurrentHP, PartyStates.Num());
+
+	for (const FFinalRunPersistentCharacterState& PartyState : PartyStates)
+	{
+		BridgeKey += FString::Printf(
+			TEXT("|%s:%d:%d:%d:%d"),
+			PartyState.CharacterId.IsValid() ? *PartyState.CharacterId.Value.ToString() : TEXT("Character.None"),
+			PartyState.CurrentStress,
+			PartyState.bCollapsed ? 1 : 0,
+			PartyState.CurrentAwakenCount,
+			PartyState.CollapseCount);
+	}
+
+	BridgeKey += FString::Printf(TEXT("|Deck:%d"), DeckCardIds.Num());
+	for (const FFinalCardId& CardId : DeckCardIds)
+	{
+		BridgeKey += TEXT("|");
+		BridgeKey += CardId.IsValid() ? CardId.Value.ToString() : TEXT("Card.None");
+	}
+
+	return BridgeKey;
+}
+
+FString BuildBattleRelicBridgeKey(const FFinalBattleStartRequest& Request)
+{
+	return BuildBattleRelicBridgeKey(
+		Request.EncounterId,
+		Request.RuleConfigId,
+		Request.TeamCurrentHP,
+		Request.PartyStates,
+		Request.DeckCardIds);
+}
+
+TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
+{
+	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
+	if (DataRegistry == nullptr)
+	{
+		return BattleStartRelics;
+	}
+
+	for (const FFinalRelicId& RelicId : RunState.Relics)
+	{
+		if (!RelicId.IsValid())
+		{
+			continue;
+		}
+
+		const UFinalRelicDefinition* RelicDefinition = DataRegistry->FindRelicDefinition(RelicId);
+		if (RelicDefinition == nullptr || RelicDefinition->BattleStartEffects.Num() == 0)
+		{
+			continue;
+		}
+
+		FFinalBattleStartRelicInput RelicInput;
+		RelicInput.RelicId = RelicId;
+		RelicInput.DisplayId = ResolveRelicEntryDisplayId(RelicId, DataRegistry);
+		RelicInput.DisplayName = ResolveRelicEntryDisplayName(RelicId, DataRegistry);
+
+		for (const FFinalRelicBattleStartEffectDefinition& EffectDefinition : RelicDefinition->BattleStartEffects)
+		{
+			if (EffectDefinition.EffectType == EFinalRelicBattleStartEffectType::None || EffectDefinition.Value <= 0)
+			{
+				continue;
+			}
+
+			FFinalBattleStartRelicEffectInput EffectInput;
+			EffectInput.EffectType = EffectDefinition.EffectType;
+			EffectInput.Value = EffectDefinition.Value;
+			RelicInput.BattleStartEffects.Add(EffectInput);
+		}
+
+		if (RelicInput.BattleStartEffects.Num() > 0)
+		{
+			BattleStartRelics.Add(MoveTemp(RelicInput));
+		}
+	}
+
+	return BattleStartRelics;
 }
 
 FFinalRunCurrentBuildViewData BuildCurrentBuildViewData(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
@@ -1015,16 +1107,20 @@ bool UFinalRunSession::HasValidBattleStartState() const
 FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 {
 	FFinalBattleStartRequest Request;
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	Request.EncounterId = CurrentState.CurrentEncounterId;
 	Request.RuleConfigId = CurrentState.CurrentRuleConfigId;
 	Request.TeamCurrentHP = CurrentState.TeamCurrentHP;
 	Request.DeckCardIds = CurrentState.RunDeck;
 	Request.PartyStates = CurrentState.Characters;
+	Request.BattleStartRelics = BuildBattleStartRelicInputs(CurrentState, DataRegistry);
 
 	for (const FFinalRunPersistentCharacterState& CharacterState : CurrentState.Characters)
 	{
 		Request.PartyCharacterIds.Add(CharacterState.CharacterId);
 	}
+
+	FFinalBattleRelicBridgeStore::PublishPayload(BuildBattleRelicBridgeKey(Request), Request.BattleStartRelics);
 
 	return Request;
 }

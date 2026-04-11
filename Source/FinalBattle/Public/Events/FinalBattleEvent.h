@@ -9,6 +9,7 @@ enum class EFinalBattleEventType : uint8
 {
 	Info,
 	SessionStarted,
+	RelicTriggered,
 	CommandAccepted,
 	CommandRejected,
 	StateChanged,
@@ -87,6 +88,9 @@ struct FINALBATTLE_API FFinalBattleEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FFinalStatusId StatusId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalRelicId RelicId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 PrimaryValue = 0;
