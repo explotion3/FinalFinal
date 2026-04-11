@@ -287,7 +287,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"ShopNodeOverlayGapText",
-			"当前页已优先消费 ShopOffer.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、商品图标、分页、刷新与二次确认表现。"));
+			"当前页已优先消费 ShopOffer.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是真实图标资源、分页、刷新与二次确认表现。"));
 	}
 
 	if (FeedbackText)

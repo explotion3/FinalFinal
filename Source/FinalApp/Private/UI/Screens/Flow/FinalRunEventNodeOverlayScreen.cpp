@@ -283,7 +283,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"EventNodeOverlayGapText",
-			"当前页已优先消费 EventOption.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、长文本滚动、二次确认和更复杂的分支表现。"));
+			"当前页已优先消费 EventOption.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、长文本滚动、二次确认和更复杂的分支表现。"));
 	}
 
 	if (FeedbackText)

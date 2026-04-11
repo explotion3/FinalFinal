@@ -220,7 +220,7 @@
 * 在 `RunSnapshot` 中公开 `CurrentBuild` 只读构筑视图，至少能表达当前牌库条目与遗物条目
 * 在保留 raw `RewardEntries` 的同时，补一层 `RewardEntryViewData` 只读展示查询，供 `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 直接输出稳定 reward 展示语义
 * `RewardEntryViewData` 至少应能补出 `PresentationKind / IconId / VisualTier / DetailText` 这类元数据，避免 `FinalApp` 自己推断奖励图标、类别与描述
-* `FinalApp` 的奖励页、奖励节点页、事件页、商店页和 prototype debug 优先直接消费 `RewardEntryViewData`；raw `RewardEntries` 只保留为回退与调试底稿
+* `FinalApp` 的奖励页、奖励节点页、事件页、商店页和 prototype debug 优先直接消费 `RewardEntryViewData` 及其 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只保留为回退与调试底稿
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`

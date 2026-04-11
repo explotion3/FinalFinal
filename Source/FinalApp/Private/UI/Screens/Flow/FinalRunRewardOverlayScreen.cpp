@@ -176,7 +176,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardOverlayGapText",
-			"当前页已优先消费 PendingBattleReward.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是奖励图标/稀有度/描述等 richer 呈现，以及多奖励选择、替换、跳过这类更复杂流程。"));
+			"当前页已优先消费 PendingBattleReward.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是真实图标资源、卡片化布局，以及多奖励选择、替换、跳过这类更复杂流程。"));
 	}
 
 	if (FeedbackText)

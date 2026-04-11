@@ -139,7 +139,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardNodeOverlayGapText",
-			"当前页已优先消费 PendingRewardNode.RewardEntryViews，并在缺失时回退到 raw RewardEntries。剩余缺口主要是奖励图标、稀有度、二次确认和多步奖励交互等 richer 呈现。"));
+			"当前页已优先消费 PendingRewardNode.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是真实图标资源、二次确认和多步奖励交互等 richer 呈现。"));
 	}
 
 	if (FeedbackText)

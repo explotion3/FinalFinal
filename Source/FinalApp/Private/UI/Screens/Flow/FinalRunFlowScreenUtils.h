@@ -128,6 +128,62 @@ inline FText FormatRewardTypeText(const EFinalRunRewardType RewardType)
 	}
 }
 
+inline FText FormatRewardPresentationKindText(const EFinalRunRewardPresentationKind PresentationKind)
+{
+	switch (PresentationKind)
+	{
+	case EFinalRunRewardPresentationKind::Gold:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationGold", "金币");
+
+	case EFinalRunRewardPresentationKind::Card:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationCard", "卡牌");
+
+	case EFinalRunRewardPresentationKind::Relic:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationRelic", "遗物");
+
+	case EFinalRunRewardPresentationKind::DeckEdit:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationDeckEdit", "构筑修正");
+
+	case EFinalRunRewardPresentationKind::Growth:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationGrowth", "成长");
+
+	case EFinalRunRewardPresentationKind::None:
+	default:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardPresentationNone", "未定义");
+	}
+}
+
+inline FText FormatRewardVisualTierText(const EFinalRunRewardVisualTier VisualTier)
+{
+	switch (VisualTier)
+	{
+	case EFinalRunRewardVisualTier::Currency:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierCurrency", "Currency");
+
+	case EFinalRunRewardVisualTier::Common:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierCommon", "Common");
+
+	case EFinalRunRewardVisualTier::Rare:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierRare", "Rare");
+
+	case EFinalRunRewardVisualTier::Epic:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierEpic", "Epic");
+
+	case EFinalRunRewardVisualTier::Legendary:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierLegendary", "Legendary");
+
+	case EFinalRunRewardVisualTier::Utility:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierUtility", "Utility");
+
+	case EFinalRunRewardVisualTier::Progression:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierProgression", "Progression");
+
+	case EFinalRunRewardVisualTier::None:
+	default:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRewardTierNone", "None");
+	}
+}
+
 inline FText FormatGrowthEffectTypeText(const EFinalRunGrowthEffectType GrowthEffectType)
 {
 	switch (GrowthEffectType)
@@ -322,15 +378,27 @@ inline FString BuildRewardEntryViewsSummaryString(const TArray<FFinalRunRewardEn
 	{
 		const FFinalRunRewardEntryViewData& RewardEntryView = RewardEntryViews[Index];
 		RewardEntrySummary += FString::Printf(
-			TEXT("[%d] %s | 类型: %s | 数值: %d"),
+			TEXT("[%d] %s | 类型: %s | 呈现: %s | Tier: %s | 数值: %d"),
 			Index + 1,
 			*FormatRewardEntryViewPrimaryText(RewardEntryView).ToString(),
 			*FormatRewardTypeText(RewardEntryView.RewardType).ToString(),
+			*FormatRewardPresentationKindText(RewardEntryView.PresentationKind).ToString(),
+			*FormatRewardVisualTierText(RewardEntryView.VisualTier).ToString(),
 			RewardEntryView.Value);
 
 		if (!RewardEntryView.SecondaryText.IsEmpty())
 		{
-			RewardEntrySummary += FString::Printf(TEXT(" | 说明: %s"), *RewardEntryView.SecondaryText.ToString());
+			RewardEntrySummary += FString::Printf(TEXT(" | 副标题: %s"), *RewardEntryView.SecondaryText.ToString());
+		}
+
+		if (!RewardEntryView.DetailText.IsEmpty())
+		{
+			RewardEntrySummary += FString::Printf(TEXT(" | 细节: %s"), *RewardEntryView.DetailText.ToString());
+		}
+
+		if (RewardEntryView.IconId != NAME_None)
+		{
+			RewardEntrySummary += FString::Printf(TEXT(" | IconId: %s"), *RewardEntryView.IconId.ToString());
 		}
 
 		const FString ViewIdsSummary = BuildRewardEntryViewIdsFallbackSummaryString(RewardEntryView);
