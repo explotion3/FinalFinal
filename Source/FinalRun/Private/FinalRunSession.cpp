@@ -1,5 +1,6 @@
 #include "Facade/FinalRunSession.h"
 
+#include "Battle/Definitions/FinalCardDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Queries/FinalDataRegistry.h"
@@ -174,9 +175,19 @@ int32 GetRewardGoldTotal(const TArray<FFinalRunRewardEntry>& RewardEntries)
 	return GoldTotal;
 }
 
-int32 GetRewardEntryGrantCount(const FFinalRunRewardEntry& RewardEntry)
+int32 GetRewardEntryApplicationCount(const FFinalRunRewardEntry& RewardEntry)
 {
 	return RewardEntry.Value > 0 ? RewardEntry.Value : 1;
+}
+
+const UFinalCardDefinition* FindRewardCardDefinition(const FFinalCardId& CardId, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry == nullptr || !CardId.IsValid())
+	{
+		return nullptr;
+	}
+
+	return DataRegistry->FindCardDefinition(CardId);
 }
 
 const UFinalRelicDefinition* FindRewardEntryRelicDefinition(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
@@ -189,12 +200,98 @@ const UFinalRelicDefinition* FindRewardEntryRelicDefinition(const FFinalRunRewar
 	return DataRegistry->FindRelicDefinition(RewardEntry.GrantedRelicId);
 }
 
-FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+const UFinalCardDefinition* FindRewardEntryDisplayCardDefinition(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+		return FindRewardCardDefinition(RewardEntry.GrantedCardId, DataRegistry);
+
+	case EFinalRunRewardType::RemoveCard:
+		return FindRewardCardDefinition(RewardEntry.RemovedCardId, DataRegistry);
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (const UFinalCardDefinition* UpgradedDefinition = FindRewardCardDefinition(RewardEntry.UpgradeToCardId, DataRegistry))
+		{
+			return UpgradedDefinition;
+		}
+
+		return FindRewardCardDefinition(RewardEntry.UpgradeFromCardId, DataRegistry);
+
+	default:
+		return nullptr;
+	}
+}
+
+FName GetRewardEntryDefaultCardDisplayId(const FFinalRunRewardEntry& RewardEntry)
 {
 	switch (RewardEntry.RewardType)
 	{
 	case EFinalRunRewardType::CardGrant:
 		return RewardEntry.GrantedCardId.IsValid() ? RewardEntry.GrantedCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::RemoveCard:
+		return RewardEntry.RemovedCardId.IsValid() ? RewardEntry.RemovedCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (RewardEntry.UpgradeToCardId.IsValid())
+		{
+			return RewardEntry.UpgradeToCardId.Value;
+		}
+
+		return RewardEntry.UpgradeFromCardId.IsValid() ? RewardEntry.UpgradeFromCardId.Value : NAME_None;
+
+	default:
+		return NAME_None;
+	}
+}
+
+FText GetRewardEntryDefaultCardDisplayName(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	if (const UFinalCardDefinition* CardDefinition = FindRewardEntryDisplayCardDefinition(RewardEntry, DataRegistry))
+	{
+		if (!CardDefinition->DisplayName.IsEmpty())
+		{
+			return CardDefinition->DisplayName;
+		}
+	}
+
+	const FName CardDisplayId = GetRewardEntryDefaultCardDisplayId(RewardEntry);
+	return CardDisplayId.IsNone()
+		? GetDefaultRewardDisplayName(RewardEntry.RewardType)
+		: FText::FromName(CardDisplayId);
+}
+
+int32 CountRunDeckCards(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+{
+	int32 Count = 0;
+	for (const FFinalCardId& DeckCardId : RunDeck)
+	{
+		if (DeckCardId == CardId)
+		{
+			++Count;
+		}
+	}
+
+	return Count;
+}
+
+int32 FindRunDeckCardIndex(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+{
+	return RunDeck.IndexOfByPredicate([&CardId](const FFinalCardId& DeckCardId)
+	{
+		return DeckCardId == CardId;
+	});
+}
+
+FName GetRewardEntryDefaultDisplayId(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::CardGrant:
+	case EFinalRunRewardType::RemoveCard:
+	case EFinalRunRewardType::UpgradeCard:
+		return GetRewardEntryDefaultCardDisplayId(RewardEntry);
 
 	case EFinalRunRewardType::RelicGrant:
 		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
@@ -217,9 +314,9 @@ FText GetRewardEntryDefaultDisplayName(const FFinalRunRewardEntry& RewardEntry, 
 	switch (RewardEntry.RewardType)
 	{
 	case EFinalRunRewardType::CardGrant:
-		return RewardEntry.GrantedCardId.IsValid()
-			? FText::FromName(RewardEntry.GrantedCardId.Value)
-			: GetDefaultRewardDisplayName(RewardEntry.RewardType);
+	case EFinalRunRewardType::RemoveCard:
+	case EFinalRunRewardType::UpgradeCard:
+		return GetRewardEntryDefaultCardDisplayName(RewardEntry, DataRegistry);
 
 	case EFinalRunRewardType::RelicGrant:
 		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
@@ -323,9 +420,12 @@ const UFinalDataRegistry* ResolveDataRegistry(const UFinalRunSession* RunSession
 	return nullptr;
 }
 
+void ApplyValidatedRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& RewardEntries, FFinalRunState& RunState);
+
 bool ValidateRewardEntryForApplication(
 	const FFinalRunRewardEntry& RewardEntry,
 	const UFinalDataRegistry* DataRegistry,
+	const FFinalRunState& RunState,
 	EFinalRunCommandRejectReason& OutRejectReason,
 	FText& OutFailureMessage)
 {
@@ -379,7 +479,102 @@ bool ValidateRewardEntryForApplication(
 		return true;
 
 	case EFinalRunRewardType::RemoveCard:
+		if (!RewardEntry.RemovedCardId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingRemovedCardId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingRemovedCardId", "Reward entry {0} is missing RemovedCardId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (DataRegistry == nullptr || FindRewardCardDefinition(RewardEntry.RemovedCardId, DataRegistry) == nullptr)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardCardDefinitionUnavailable;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "RemoveCardDefinitionUnavailable", "Remove-card reward {0} cannot be applied because card definition {1} is unavailable."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.RemovedCardId.Value));
+			return false;
+		}
+
+		if (CountRunDeckCards(RunState.RunDeck, RewardEntry.RemovedCardId) < GetRewardEntryApplicationCount(RewardEntry))
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardTargetCardNotInRunDeck;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "RemoveCardTargetMissing", "Remove-card reward {0} needs {1} copies of {2} in the RunDeck, but only {3} are available."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::AsNumber(GetRewardEntryApplicationCount(RewardEntry)),
+				FText::FromName(RewardEntry.RemovedCardId.Value),
+				FText::AsNumber(CountRunDeckCards(RunState.RunDeck, RewardEntry.RemovedCardId)));
+			return false;
+		}
+
+		return true;
+
 	case EFinalRunRewardType::UpgradeCard:
+		if (!RewardEntry.UpgradeFromCardId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingUpgradeFromCardId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingUpgradeFromCardId", "Reward entry {0} is missing UpgradeFromCardId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (!RewardEntry.UpgradeToCardId.IsValid())
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::MissingUpgradeToCardId;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "MissingUpgradeToCardId", "Reward entry {0} is missing UpgradeToCardId."),
+				FText::FromName(RewardEntry.RewardId));
+			return false;
+		}
+
+		if (RewardEntry.UpgradeFromCardId == RewardEntry.UpgradeToCardId)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardUpgradeResultInvalid;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UpgradeResultSameAsSource", "Upgrade reward {0} is invalid because UpgradeToCardId matches UpgradeFromCardId {1}."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.UpgradeFromCardId.Value));
+			return false;
+		}
+
+		if (DataRegistry == nullptr || FindRewardCardDefinition(RewardEntry.UpgradeFromCardId, DataRegistry) == nullptr)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardCardDefinitionUnavailable;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UpgradeSourceDefinitionUnavailable", "Upgrade reward {0} cannot be applied because source card definition {1} is unavailable."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.UpgradeFromCardId.Value));
+			return false;
+		}
+
+		if (DataRegistry == nullptr || FindRewardCardDefinition(RewardEntry.UpgradeToCardId, DataRegistry) == nullptr)
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardCardDefinitionUnavailable;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UpgradeResultDefinitionUnavailable", "Upgrade reward {0} cannot be applied because upgraded card definition {1} is unavailable."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::FromName(RewardEntry.UpgradeToCardId.Value));
+			return false;
+		}
+
+		if (CountRunDeckCards(RunState.RunDeck, RewardEntry.UpgradeFromCardId) < GetRewardEntryApplicationCount(RewardEntry))
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::RewardTargetCardNotInRunDeck;
+			OutFailureMessage = FText::Format(
+				NSLOCTEXT("FinalRunSession", "UpgradeSourceMissingFromDeck", "Upgrade reward {0} needs {1} copies of {2} in the RunDeck, but only {3} are available."),
+				FText::FromName(RewardEntry.RewardId),
+				FText::AsNumber(GetRewardEntryApplicationCount(RewardEntry)),
+				FText::FromName(RewardEntry.UpgradeFromCardId.Value),
+				FText::AsNumber(CountRunDeckCards(RunState.RunDeck, RewardEntry.UpgradeFromCardId)));
+			return false;
+		}
+
+		return true;
+
 	case EFinalRunRewardType::Growth:
 	case EFinalRunRewardType::None:
 	default:
@@ -395,9 +590,12 @@ bool ValidateRewardEntryForApplication(
 bool ValidateRewardEntriesForApplication(
 	const TArray<FFinalRunRewardEntry>& RewardEntries,
 	const UFinalDataRegistry* DataRegistry,
+	const FFinalRunState& RunState,
 	EFinalRunCommandRejectReason& OutRejectReason,
 	FText& OutFailureMessage)
 {
+	FFinalRunState SimulatedRunState = RunState;
+
 	for (const FFinalRunRewardEntry& Entry : RewardEntries)
 	{
 		if (!Entry.IsClaimable())
@@ -405,10 +603,14 @@ bool ValidateRewardEntriesForApplication(
 			continue;
 		}
 
-		if (!ValidateRewardEntryForApplication(Entry, DataRegistry, OutRejectReason, OutFailureMessage))
+		if (!ValidateRewardEntryForApplication(Entry, DataRegistry, SimulatedRunState, OutRejectReason, OutFailureMessage))
 		{
 			return false;
 		}
+
+		TArray<FFinalRunRewardEntry> SingleRewardEntry;
+		SingleRewardEntry.Add(Entry);
+		ApplyValidatedRewardEntriesToRunState(SingleRewardEntry, SimulatedRunState);
 	}
 
 	return true;
@@ -430,16 +632,38 @@ void ApplyValidatedRewardEntriesToRunState(const TArray<FFinalRunRewardEntry>& R
 			break;
 
 		case EFinalRunRewardType::CardGrant:
-			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryGrantCount(Entry); ++GrantIndex)
+			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryApplicationCount(Entry); ++GrantIndex)
 			{
 				RunState.RunDeck.Add(Entry.GrantedCardId);
 			}
 			break;
 
 		case EFinalRunRewardType::RelicGrant:
-			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryGrantCount(Entry); ++GrantIndex)
+			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryApplicationCount(Entry); ++GrantIndex)
 			{
 				RunState.Relics.Add(Entry.GrantedRelicId);
+			}
+			break;
+
+		case EFinalRunRewardType::RemoveCard:
+			for (int32 RemovalIndex = 0; RemovalIndex < GetRewardEntryApplicationCount(Entry); ++RemovalIndex)
+			{
+				const int32 RunDeckIndex = FindRunDeckCardIndex(RunState.RunDeck, Entry.RemovedCardId);
+				if (RunDeckIndex != INDEX_NONE)
+				{
+					RunState.RunDeck.RemoveAt(RunDeckIndex);
+				}
+			}
+			break;
+
+		case EFinalRunRewardType::UpgradeCard:
+			for (int32 UpgradeIndex = 0; UpgradeIndex < GetRewardEntryApplicationCount(Entry); ++UpgradeIndex)
+			{
+				const int32 RunDeckIndex = FindRunDeckCardIndex(RunState.RunDeck, Entry.UpgradeFromCardId);
+				if (RunDeckIndex != INDEX_NONE)
+				{
+					RunState.RunDeck[RunDeckIndex] = Entry.UpgradeToCardId;
+				}
 			}
 			break;
 
@@ -890,7 +1114,7 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 		return false;
 	}
 
-	if (!ValidateRewardEntriesForApplication(PendingRewardEntries, DataRegistry, OutRejectReason, OutFailureMessage))
+	if (!ValidateRewardEntriesForApplication(PendingRewardEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -943,7 +1167,7 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(CurrentNode->RewardContent.RewardEntries, DataRegistry);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -1011,7 +1235,7 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOption->RewardEntries, DataRegistry);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(SelectedOption->RewardEntries, DataRegistry);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
@@ -1091,7 +1315,7 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 
 	const TArray<FFinalRunRewardEntry> PreviewEntries = MakePreviewRewardEntries(SelectedOffer->RewardEntries, DataRegistry);
 	const TArray<FFinalRunRewardEntry> ResolvedEntries = MakeClaimedRewardEntries(SelectedOffer->RewardEntries, DataRegistry);
-	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, OutRejectReason, OutFailureMessage))
+	if (!ValidateRewardEntriesForApplication(PreviewEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
