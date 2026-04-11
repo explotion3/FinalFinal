@@ -258,7 +258,7 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			: Presentation.FeedbackText;
 		FeedbackText->SetText(CombinedFeedbackText);
 		ContextText->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5} | RunDeck {6}\nTeam Status: {7}"),
+			NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5} | RunDeck {6}\nTeam Status: {7}\nActive Relics: {8}"),
 			Presentation.CurrentTargetText,
 			FText::AsNumber(Presentation.DrawPileCount),
 			FText::AsNumber(Presentation.HandCount),
@@ -266,7 +266,8 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			FText::AsNumber(Presentation.OngoingZoneCount),
 			FText::AsNumber(Presentation.ConsumePileCount),
 			FText::AsNumber(Presentation.RunDeckCount),
-			JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无"))));
+			JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
+			JoinTextArray(Presentation.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无战斗期开场遗物"))));
 
 		if (Presentation.MissingFieldNotices.Num() > 0)
 		{

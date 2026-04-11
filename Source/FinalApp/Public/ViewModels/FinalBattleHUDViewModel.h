@@ -260,6 +260,9 @@ struct FINALAPP_API FFinalBattleHUDPresentationData
 	TArray<FText> TeamStatusTexts;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FText> ActiveRelicTexts;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	TArray<FFinalBattleHUDCharacterEntry> Characters;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")

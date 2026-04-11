@@ -210,8 +210,12 @@ FinalBattle      FinalRun
 * 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
   * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
   * 在世界层维护一份玩家侧 / 敌方侧的 presentation roster 映射
-  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈
+  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈；当收到 `RelicTriggered` 时只显示简短世界提示
   * 不替代 Battle HUD，也不访问 `FinalBattle` 私有运行时结构
+* 当前 Battle 期 relic 反馈分层口径：
+  * `BattleHUDScreen` 显示精简 `ActiveRelics` 摘要，并把 `RelicTriggered` 作为顶部交互反馈的一部分
+  * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、`BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
+  * `BattleDirector` 只保留简短的世界层 relic 提示，不重复堆叠完整列表
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换

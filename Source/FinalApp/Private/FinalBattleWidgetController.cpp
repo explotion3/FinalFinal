@@ -106,6 +106,96 @@ FText FormatEnemyPhaseProgressText(const FFinalBattlePhaseProgressViewData& Phas
 		FText::AsNumber(FMath::RoundToInt(PhaseProgress.ProgressWithinPhase * 100.0f)));
 }
 
+FText FormatRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case EFinalRelicBattleStartEffectType::GainAP:
+		return NSLOCTEXT("FinalBattleHUD", "RelicEffectGainAP", "GainAP");
+
+	case EFinalRelicBattleStartEffectType::GainShield:
+		return NSLOCTEXT("FinalBattleHUD", "RelicEffectGainShield", "GainShield");
+
+	case EFinalRelicBattleStartEffectType::None:
+	default:
+		return NSLOCTEXT("FinalBattleHUD", "RelicEffectNone", "None");
+	}
+}
+
+FText ResolveRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
+{
+	if (!RelicInput.DisplayName.IsEmpty())
+	{
+		return RelicInput.DisplayName;
+	}
+
+	if (!RelicInput.DisplayId.IsNone())
+	{
+		return FText::FromName(RelicInput.DisplayId);
+	}
+
+	return RelicInput.RelicId.IsValid()
+		? FText::FromName(RelicInput.RelicId.Value)
+		: FText::GetEmpty();
+}
+
+FText BuildRelicEffectSummaryText(const TArray<FFinalBattleStartRelicEffectInput>& EffectInputs)
+{
+	if (EffectInputs.Num() == 0)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RelicNoBattleStartEffect", "No battle-start effects");
+	}
+
+	TArray<FString> Segments;
+	Segments.Reserve(EffectInputs.Num());
+	for (const FFinalBattleStartRelicEffectInput& EffectInput : EffectInputs)
+	{
+		Segments.Add(FString::Printf(
+			TEXT("%s +%d"),
+			*FormatRelicEffectTypeText(EffectInput.EffectType).ToString(),
+			EffectInput.Value));
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
+FText BuildActiveRelicSummaryText(const FFinalBattleStartRelicInput& RelicInput)
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "ActiveRelicSummaryFormat", "{0} ({1})"),
+		ResolveRelicDisplayName(RelicInput),
+		BuildRelicEffectSummaryText(RelicInput.BattleStartEffects));
+}
+
+FText ResolveRelicDisplayNameById(const TArray<FFinalBattleStartRelicInput>& ActiveRelics, const FFinalRelicId& RelicId)
+{
+	if (!RelicId.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	const FFinalBattleStartRelicInput* RelicInput = ActiveRelics.FindByPredicate(
+		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
+		{
+			return Candidate.RelicId == RelicId;
+		});
+	return RelicInput != nullptr
+		? ResolveRelicDisplayName(*RelicInput)
+		: FText::FromName(RelicId.Value);
+}
+
+FText ResolveRelicEffectSummaryById(const TArray<FFinalBattleStartRelicInput>& ActiveRelics, const FFinalRelicId& RelicId)
+{
+	const FFinalBattleStartRelicInput* RelicInput = ActiveRelics.FindByPredicate(
+		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
+		{
+			return Candidate.RelicId == RelicId;
+		});
+	return RelicInput != nullptr
+		? BuildRelicEffectSummaryText(RelicInput->BattleStartEffects)
+		: FText::GetEmpty();
+}
+
 FText ResolveTargetText(const FFinalBattleSnapshot& Snapshot)
 {
 	if (Snapshot.CurrentTargetUnitId.IsNone())
@@ -251,7 +341,10 @@ FText ResolveRejectReasonLabel(const FFinalBattleEvent& Event)
 	return FText::GetEmpty();
 }
 
-FText ResolveFeedbackTitleText(const FFinalBattleEvent& Event, const FText& FallbackMessage)
+FText ResolveFeedbackTitleText(
+	const FFinalBattleEvent& Event,
+	const FText& FallbackMessage,
+	const TArray<FFinalBattleStartRelicInput>& ActiveRelics)
 {
 	const FText RejectReasonLabel = ResolveRejectReasonLabel(Event);
 	if (Event.EventType == EFinalBattleEventType::CommandRejected || Event.RejectReason != EFinalBattleCommandRejectReason::None || !Event.ReasonTag.IsNone())
@@ -276,6 +369,16 @@ FText ResolveFeedbackTitleText(const FFinalBattleEvent& Event, const FText& Fall
 
 	switch (Event.EventType)
 	{
+	case EFinalBattleEventType::RelicTriggered:
+	{
+		const FText RelicName = ResolveRelicDisplayNameById(ActiveRelics, Event.RelicId);
+		return !RelicName.IsEmpty()
+			? FText::Format(
+				NSLOCTEXT("FinalBattleHUD", "FeedbackRelicTriggeredWithName", "遗物触发 · {0}"),
+				RelicName)
+			: NSLOCTEXT("FinalBattleHUD", "FeedbackRelicTriggered", "遗物触发");
+	}
+
 	case EFinalBattleEventType::CommandAccepted:
 		return NSLOCTEXT("FinalBattleHUD", "FeedbackCommandAccepted", "命令已接受");
 
@@ -606,12 +709,26 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	Presentation.RunDeckCount = RunSnapshot.DeckCount;
 	Presentation.FeedbackRejectReason = LastInteractionEvent.RejectReason;
 	Presentation.FeedbackReasonTag = LastInteractionEvent.ReasonTag;
-	Presentation.FeedbackTitleText = ResolveFeedbackTitleText(LastInteractionEvent, LastInteractionFeedback);
 
 	const FText EffectiveFeedbackText = !LastInteractionFeedback.IsEmpty()
 		? LastInteractionFeedback
 		: LastInteractionEvent.Message;
 	Presentation.FeedbackText = EffectiveFeedbackText;
+
+	for (const FFinalBattleStartRelicInput& RelicInput : CachedSnapshot.ActiveRelics)
+	{
+		Presentation.ActiveRelicTexts.Add(BuildActiveRelicSummaryText(RelicInput));
+	}
+
+	Presentation.FeedbackTitleText = ResolveFeedbackTitleText(LastInteractionEvent, EffectiveFeedbackText, CachedSnapshot.ActiveRelics);
+	if (LastInteractionEvent.EventType == EFinalBattleEventType::RelicTriggered && Presentation.FeedbackText.IsEmpty())
+	{
+		const FText EffectSummary = ResolveRelicEffectSummaryById(CachedSnapshot.ActiveRelics, LastInteractionEvent.RelicId);
+		if (!EffectSummary.IsEmpty())
+		{
+			Presentation.FeedbackText = EffectSummary;
+		}
+	}
 
 	for (const FFinalBattleStatusViewData& TeamStatusView : CachedSnapshot.TeamStatuses)
 	{

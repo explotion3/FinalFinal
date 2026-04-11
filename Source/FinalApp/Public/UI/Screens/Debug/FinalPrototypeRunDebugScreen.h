@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Events/FinalBattleEvent.h"
 #include "Queries/FinalBattleSnapshot.h"
 #include "UI/Screens/FinalScreenBase.h"
 #include "FinalPrototypeRunDebugScreen.generated.h"
@@ -27,6 +28,9 @@ private:
 
 	UFUNCTION()
 	void HandleBattleSnapshotChanged(const FFinalBattleSnapshot& Snapshot);
+
+	UFUNCTION()
+	void HandleBattleEventBroadcast(const FFinalBattleEvent& BattleEvent);
 
 	UFUNCTION()
 	void HandleRestartPrototypeRunClicked();
@@ -57,6 +61,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CandidateSummaryText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BattleRelicSummaryText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BattleRelicEventText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> RestartRunButton;
