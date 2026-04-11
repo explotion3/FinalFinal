@@ -35,12 +35,13 @@
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
   * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
+  * 当前原型节点内容已重新覆盖 `RemoveCard / UpgradeCard`，便于验证 `RunDeck -> CurrentBuild` 的真实构筑修正
 * 当前 `HUD Layer` 已新增一个常驻 `PrototypeRunDebugScreen`：
   * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
   * 构筑观察区直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries`，作为当前牌库与遗物真相的主展示
   * 角色持久状态摘要直接消费 `RunSnapshot.Characters`，显示 `CharacterId / CurrentStress / CurrentAwakenCount / CollapseCount`
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
-  * 当候选奖励里出现 `Growth` 时，会额外显示目标角色、`GrowthEffectType` 与数值，而不是只显示“成长”
+  * 当候选奖励里出现 `Growth / RemoveCard / UpgradeCard` 时，会额外显示 typed payload，例如目标角色、移除目标卡、升级路径，而不是只显示奖励类型名
   * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口
   * 当前 battle relic 调试摘要已区分 `BattleStartEffects` 与 `PlayerTurnStartEffects`，并继续直接显示 `RelicTriggered` 的原始事件反馈
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`

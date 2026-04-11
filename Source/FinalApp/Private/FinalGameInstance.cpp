@@ -459,6 +459,35 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 		return Entry;
 	};
 
+	auto MakeRemoveCardRewardEntry = [&MakeRewardEntry](const FName RewardId, const FFinalCardId& RemovedCardId, const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeRewardEntry(
+			RewardId,
+			EFinalRunRewardType::RemoveCard,
+			1,
+			RemovedCardId.Value,
+			DisplayName);
+		Entry.RemovedCardId = RemovedCardId;
+		return Entry;
+	};
+
+	auto MakeUpgradeCardRewardEntry = [&MakeRewardEntry](
+		const FName RewardId,
+		const FFinalCardId& UpgradeFromCardId,
+		const FFinalCardId& UpgradeToCardId,
+		const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeRewardEntry(
+			RewardId,
+			EFinalRunRewardType::UpgradeCard,
+			1,
+			UpgradeToCardId.Value,
+			DisplayName);
+		Entry.UpgradeFromCardId = UpgradeFromCardId;
+		Entry.UpgradeToCardId = UpgradeToCardId;
+		return Entry;
+	};
+
 	FFinalRunNodeDefinition OpeningBattleNode;
 	OpeningBattleNode.NodeId = FinalTestBootstrap::OpeningBattleNodeId;
 	OpeningBattleNode.NodeType = EFinalRunNodeType::Battle;
@@ -490,6 +519,10 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 		TEXT("reward.node.cache.relic"),
 		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
 		FText::FromString(TEXT("试作护符"))));
+	RewardNode.RewardContent.RewardEntries.Add(MakeRemoveCardRewardEntry(
+		TEXT("reward.node.cache.remove_guardian_strike"),
+		TestGuardianStrikeCard->CardId,
+		FText::FromString(TEXT("移除一张试作斩击"))));
 
 	FFinalRunNodeDefinition EventNode;
 	EventNode.NodeId = FinalTestBootstrap::EventNodeId;
@@ -512,6 +545,11 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 		6,
 		TEXT("Currency.Gold"),
 		FText::FromString(TEXT("情报赏金"))));
+	ReadNoticeOption.RewardEntries.Add(MakeUpgradeCardRewardEntry(
+		TEXT("reward.event.notice.upgrade_support_shot"),
+		TestSupportShotCard->CardId,
+		TestSupportFocusCard->CardId,
+		FText::FromString(TEXT("试作速射 -> 试作整备"))));
 	EventNode.EventContent.Options.Add(ReadNoticeOption);
 
 	FFinalRunEventOptionDefinition ForceDoorOption;

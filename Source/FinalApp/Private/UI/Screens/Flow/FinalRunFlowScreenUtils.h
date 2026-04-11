@@ -184,15 +184,49 @@ inline FText FormatRewardClaimStateText(const FFinalRunRewardEntry& RewardEntry)
 
 inline FString BuildRewardEntryTypedPayloadSummaryString(const FFinalRunRewardEntry& RewardEntry)
 {
-	if (RewardEntry.RewardType != EFinalRunRewardType::Growth)
+	if (RewardEntry.RewardType == EFinalRunRewardType::Growth)
+	{
+		return FString::Printf(
+			TEXT(" | 目标角色: %s | 成长效果: %s"),
+			*RewardEntry.GrowthTargetCharacterId.ToString(),
+			*FormatGrowthEffectTypeText(RewardEntry.GrowthEffectType).ToString());
+	}
+
+	if (RewardEntry.RewardType == EFinalRunRewardType::RemoveCard)
+	{
+		return FString::Printf(
+			TEXT(" | 移除目标: %s"),
+			*RewardEntry.RemovedCardId.ToString());
+	}
+
+	if (RewardEntry.RewardType == EFinalRunRewardType::UpgradeCard)
+	{
+		return FString::Printf(
+			TEXT(" | 升级路径: %s -> %s"),
+			*RewardEntry.UpgradeFromCardId.ToString(),
+			*RewardEntry.UpgradeToCardId.ToString());
+	}
+
+	if (RewardEntry.RewardType == EFinalRunRewardType::CardGrant)
+	{
+		return RewardEntry.GrantedCardId.IsValid()
+			? FString::Printf(TEXT(" | 授予卡牌: %s"), *RewardEntry.GrantedCardId.ToString())
+			: FString();
+	}
+
+	if (RewardEntry.RewardType == EFinalRunRewardType::RelicGrant)
+	{
+		return RewardEntry.GrantedRelicId.IsValid()
+			? FString::Printf(TEXT(" | 授予遗物: %s"), *RewardEntry.GrantedRelicId.ToString())
+			: FString();
+	}
+
+	if (RewardEntry.RewardType == EFinalRunRewardType::Gold)
 	{
 		return FString();
 	}
 
-	return FString::Printf(
-		TEXT(" | 目标角色: %s | 成长效果: %s"),
-		*RewardEntry.GrowthTargetCharacterId.ToString(),
-		*FormatGrowthEffectTypeText(RewardEntry.GrowthEffectType).ToString());
+	return FString();
 }
 
 inline FString BuildRewardEntriesSummaryString(const TArray<FFinalRunRewardEntry>& RewardEntries)
