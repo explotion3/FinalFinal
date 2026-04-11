@@ -206,6 +206,10 @@
 * `PendingBattleReward.RewardEntryViews[*].PrimaryText`
 * `PendingBattleReward.RewardEntryViews[*].SecondaryText`
 * `PendingBattleReward.RewardEntryViews[*].Value`
+* `PendingBattleReward.RewardEntryViews[*].PresentationKind`
+* `PendingBattleReward.RewardEntryViews[*].IconId`
+* `PendingBattleReward.RewardEntryViews[*].VisualTier`
+* `PendingBattleReward.RewardEntryViews[*].DetailText`
 * `PendingBattleReward.RewardEntries[*]`（raw 回退）
 * `Progression.FlowStage`
 * `Progression.CurrentNodeId`
@@ -236,6 +240,10 @@
 * `PendingRewardNode.RewardEntryViews[*].PrimaryText`
 * `PendingRewardNode.RewardEntryViews[*].SecondaryText`
 * `PendingRewardNode.RewardEntryViews[*].Value`
+* `PendingRewardNode.RewardEntryViews[*].PresentationKind`
+* `PendingRewardNode.RewardEntryViews[*].IconId`
+* `PendingRewardNode.RewardEntryViews[*].VisualTier`
+* `PendingRewardNode.RewardEntryViews[*].DetailText`
 * `PendingRewardNode.RewardEntries[*]`（raw 回退）
 * `PendingEventNode.Title`
 * `PendingEventNode.Summary`
@@ -247,6 +255,7 @@
 * `PendingEventNode.Options[*].bSelectable`
 * `PendingEventNode.Options[*].AvailabilityMessage`
 * `PendingEventNode.Options[*].RewardEntryViews`
+* `PendingEventNode.Options[*].RewardEntryViews[*].PresentationKind / IconId / VisualTier / DetailText`
 * `PendingEventNode.Options[*].RewardEntries`（raw 回退）
 * `PendingShopNode.Title`
 * `PendingShopNode.Summary`
@@ -260,10 +269,11 @@
 * `PendingShopNode.Offers[*].bPurchased`
 * `PendingShopNode.Offers[*].AvailabilityMessage`
 * `PendingShopNode.Offers[*].RewardEntryViews`
+* `PendingShopNode.Offers[*].RewardEntryViews[*].PresentationKind / IconId / VisualTier / DetailText`
 * `PendingShopNode.Offers[*].RewardEntries`（raw 回退）
 
 战后奖励页仍缺：
-* 奖励项的图标、稀有度、描述、来源说明等 richer 展示元数据
+* 真实图标资源、来源说明、卡片化布局与更细的视觉层次
 * 多奖励选择、替换、跳过等 richer reward flow 的结构化状态
 * 奖励条目分组、卡片化布局、二次确认交互
 
@@ -277,11 +287,11 @@
 * 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
-* 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，raw `RewardEntries` 只作回退；`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，并实际消费 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退；`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
-* 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
-* 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*].RewardEntryViews`，raw `RewardEntries` 只作回退，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
-* 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*].RewardEntryViews`，raw `RewardEntries` 只作回退，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
+* 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
+* 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*].RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
+* 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*].RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
 * `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会分别路由到对应的专用页，而不是继续挤在节点选择页
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性

@@ -305,6 +305,62 @@ FText GetRewardTypeText(const EFinalRunRewardType RewardType)
 	}
 }
 
+FText GetRewardPresentationKindText(const EFinalRunRewardPresentationKind PresentationKind)
+{
+	switch (PresentationKind)
+	{
+	case EFinalRunRewardPresentationKind::Gold:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationGold", "Gold");
+
+	case EFinalRunRewardPresentationKind::Card:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationCard", "Card");
+
+	case EFinalRunRewardPresentationKind::Relic:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationRelic", "Relic");
+
+	case EFinalRunRewardPresentationKind::DeckEdit:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationDeckEdit", "DeckEdit");
+
+	case EFinalRunRewardPresentationKind::Growth:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationGrowth", "Growth");
+
+	case EFinalRunRewardPresentationKind::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardPresentationNone", "None");
+	}
+}
+
+FText GetRewardVisualTierText(const EFinalRunRewardVisualTier VisualTier)
+{
+	switch (VisualTier)
+	{
+	case EFinalRunRewardVisualTier::Currency:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierCurrency", "Currency");
+
+	case EFinalRunRewardVisualTier::Common:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierCommon", "Common");
+
+	case EFinalRunRewardVisualTier::Rare:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierRare", "Rare");
+
+	case EFinalRunRewardVisualTier::Epic:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierEpic", "Epic");
+
+	case EFinalRunRewardVisualTier::Legendary:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierLegendary", "Legendary");
+
+	case EFinalRunRewardVisualTier::Utility:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierUtility", "Utility");
+
+	case EFinalRunRewardVisualTier::Progression:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierProgression", "Progression");
+
+	case EFinalRunRewardVisualTier::None:
+	default:
+		return NSLOCTEXT("FinalPrototypeRunDebug", "RewardTierNone", "None");
+	}
+}
+
 FText GetPrototypeRunGrowthEffectTypeText(const EFinalRunGrowthEffectType GrowthEffectType)
 {
 	switch (GrowthEffectType)
@@ -358,36 +414,61 @@ FText GetRewardViewPrimaryText(const FFinalRunRewardEntryViewData& EntryView)
 
 FString BuildRewardEntryViewDebugDetailString(const FFinalRunRewardEntryViewData& EntryView)
 {
+	FString Detail;
+
+	Detail += FString::Printf(
+		TEXT(" | Kind: %s | Tier: %s"),
+		*GetRewardPresentationKindText(EntryView.PresentationKind).ToString(),
+		*GetRewardVisualTierText(EntryView.VisualTier).ToString());
+
 	if (!EntryView.SecondaryText.IsEmpty())
 	{
-		return FString::Printf(TEXT(" | Detail: %s"), *EntryView.SecondaryText.ToString());
+		Detail += FString::Printf(TEXT(" | Secondary: %s"), *EntryView.SecondaryText.ToString());
+	}
+
+	if (!EntryView.DetailText.IsEmpty())
+	{
+		Detail += FString::Printf(TEXT(" | Detail: %s"), *EntryView.DetailText.ToString());
+	}
+
+	if (EntryView.IconId != NAME_None)
+	{
+		Detail += FString::Printf(TEXT(" | IconId: %s"), *EntryView.IconId.ToString());
 	}
 
 	switch (EntryView.RewardType)
 	{
 	case EFinalRunRewardType::CardGrant:
 	case EFinalRunRewardType::RemoveCard:
-		return EntryView.CardId.IsValid()
-			? FString::Printf(TEXT(" | CardId: %s"), *EntryView.CardId.ToString())
-			: FString();
+		if (EntryView.CardId.IsValid())
+		{
+			Detail += FString::Printf(TEXT(" | CardId: %s"), *EntryView.CardId.ToString());
+		}
+		return Detail;
 
 	case EFinalRunRewardType::RelicGrant:
-		return EntryView.RelicId.IsValid()
-			? FString::Printf(TEXT(" | RelicId: %s"), *EntryView.RelicId.ToString())
-			: FString();
+		if (EntryView.RelicId.IsValid())
+		{
+			Detail += FString::Printf(TEXT(" | RelicId: %s"), *EntryView.RelicId.ToString());
+		}
+		return Detail;
 
 	case EFinalRunRewardType::UpgradeCard:
-		return (EntryView.SourceCardId.IsValid() || EntryView.ResultCardId.IsValid())
-			? FString::Printf(TEXT(" | Upgrade: %s -> %s"), *EntryView.SourceCardId.ToString(), *EntryView.ResultCardId.ToString())
-			: FString();
+		if (EntryView.SourceCardId.IsValid() || EntryView.ResultCardId.IsValid())
+		{
+			Detail += FString::Printf(TEXT(" | Upgrade: %s -> %s"), *EntryView.SourceCardId.ToString(), *EntryView.ResultCardId.ToString());
+		}
+		return Detail;
 
 	case EFinalRunRewardType::Growth:
-		return EntryView.TargetCharacterId.IsValid()
-			? FString::Printf(TEXT(" | Target: %s"), *EntryView.TargetCharacterId.ToString())
-			: FString();
+		if (EntryView.TargetCharacterId.IsValid())
+		{
+			Detail += FString::Printf(TEXT(" | Target: %s"), *EntryView.TargetCharacterId.ToString());
+		}
+		return Detail;
 
 	default:
-		return FString();
+		return Detail;
 	}
 }
 

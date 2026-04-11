@@ -545,7 +545,7 @@ Source
 * `Panel` 不直接控制输入模式和页面栈
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
-* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示、raw `RewardEntries` 只作回退，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 并只转发对应的 `Resolve*` 命令
+* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示并实际消费 `PresentationKind / IconId / VisualTier / DetailText`、raw `RewardEntries` 只作回退，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 及其 metadata，并只转发对应的 `Resolve*` 命令
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`

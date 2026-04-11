@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Ids/FinalIds.h"
+#include "Types/FinalCoreTypes.h"
 #include "Run/Definitions/FinalRelicBattleTypes.h"
 #include "FinalRelicDefinition.generated.h"
 
@@ -20,6 +21,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	FText DisplayName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
+	EFinalRarity Rarity = EFinalRarity::Rare;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
+	FText Description;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	TArray<FFinalRelicBattleStartEffectDefinition> BattleStartEffects;
