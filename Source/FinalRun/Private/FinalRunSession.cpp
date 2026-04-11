@@ -539,6 +539,271 @@ FText GetGrowthEffectDisplayName(const EFinalRunGrowthEffectType GrowthEffectTyp
 	}
 }
 
+EFinalRunRewardPresentationKind GetRewardPresentationKind(const EFinalRunRewardType RewardType)
+{
+	switch (RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return EFinalRunRewardPresentationKind::Gold;
+
+	case EFinalRunRewardType::CardGrant:
+		return EFinalRunRewardPresentationKind::Card;
+
+	case EFinalRunRewardType::RelicGrant:
+		return EFinalRunRewardPresentationKind::Relic;
+
+	case EFinalRunRewardType::RemoveCard:
+	case EFinalRunRewardType::UpgradeCard:
+		return EFinalRunRewardPresentationKind::DeckEdit;
+
+	case EFinalRunRewardType::Growth:
+		return EFinalRunRewardPresentationKind::Growth;
+
+	default:
+		return EFinalRunRewardPresentationKind::None;
+	}
+}
+
+EFinalRunRewardVisualTier MapRarityToRewardVisualTier(const EFinalRarity Rarity)
+{
+	switch (Rarity)
+	{
+	case EFinalRarity::Common:
+		return EFinalRunRewardVisualTier::Common;
+
+	case EFinalRarity::Rare:
+		return EFinalRunRewardVisualTier::Rare;
+
+	case EFinalRarity::Epic:
+		return EFinalRunRewardVisualTier::Epic;
+
+	case EFinalRarity::Legendary:
+		return EFinalRunRewardVisualTier::Legendary;
+
+	default:
+		return EFinalRunRewardVisualTier::None;
+	}
+}
+
+FText BuildRelicEffectFallbackDetailText(const UFinalRelicDefinition* RelicDefinition)
+{
+	if (RelicDefinition == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+
+	FString Summary;
+	auto AppendSummaryPart = [&Summary](const FText& Part)
+	{
+		if (Part.IsEmpty())
+		{
+			return;
+		}
+
+		if (!Summary.IsEmpty())
+		{
+			Summary += TEXT("; ");
+		}
+
+		Summary += Part.ToString();
+	};
+
+	for (const FFinalRelicBattleStartEffectDefinition& EffectDefinition : RelicDefinition->BattleStartEffects)
+	{
+		switch (EffectDefinition.EffectType)
+		{
+		case EFinalRelicBattleStartEffectType::GainAP:
+			AppendSummaryPart(FText::Format(
+				NSLOCTEXT("FinalRunSession", "RelicBattleStartGainAPDetail", "Battle start: +{0} AP"),
+				FText::AsNumber(EffectDefinition.Value)));
+			break;
+
+		case EFinalRelicBattleStartEffectType::GainShield:
+			AppendSummaryPart(FText::Format(
+				NSLOCTEXT("FinalRunSession", "RelicBattleStartGainShieldDetail", "Battle start: +{0} Shield"),
+				FText::AsNumber(EffectDefinition.Value)));
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	for (const FFinalRelicPlayerTurnStartEffectDefinition& EffectDefinition : RelicDefinition->PlayerTurnStartEffects)
+	{
+		switch (EffectDefinition.EffectType)
+		{
+		case EFinalRelicPlayerTurnStartEffectType::GainAP:
+			AppendSummaryPart(FText::Format(
+				NSLOCTEXT("FinalRunSession", "RelicPlayerTurnStartGainAPDetail", "Player turn start: +{0} AP"),
+				FText::AsNumber(EffectDefinition.Value)));
+			break;
+
+		case EFinalRelicPlayerTurnStartEffectType::GainShield:
+			AppendSummaryPart(FText::Format(
+				NSLOCTEXT("FinalRunSession", "RelicPlayerTurnStartGainShieldDetail", "Player turn start: +{0} Shield"),
+				FText::AsNumber(EffectDefinition.Value)));
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return Summary.IsEmpty() ? FText::GetEmpty() : FText::FromString(Summary);
+}
+
+FName BuildRewardEntryIconId(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return TEXT("Currency.Gold");
+
+	case EFinalRunRewardType::CardGrant:
+		return RewardEntry.GrantedCardId.IsValid() ? RewardEntry.GrantedCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::RelicGrant:
+		return ResolveRelicEntryDisplayId(RewardEntry.GrantedRelicId, DataRegistry);
+
+	case EFinalRunRewardType::RemoveCard:
+		return RewardEntry.RemovedCardId.IsValid() ? RewardEntry.RemovedCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (RewardEntry.UpgradeToCardId.IsValid())
+		{
+			return RewardEntry.UpgradeToCardId.Value;
+		}
+
+		return RewardEntry.UpgradeFromCardId.IsValid() ? RewardEntry.UpgradeFromCardId.Value : NAME_None;
+
+	case EFinalRunRewardType::Growth:
+		return RewardEntry.GrowthTargetCharacterId.IsValid() ? RewardEntry.GrowthTargetCharacterId.Value : NAME_None;
+
+	default:
+		return RewardEntry.DisplayId;
+	}
+}
+
+EFinalRunRewardVisualTier ResolveRewardEntryVisualTier(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return EFinalRunRewardVisualTier::Currency;
+
+	case EFinalRunRewardType::CardGrant:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.GrantedCardId, DataRegistry))
+		{
+			return MapRarityToRewardVisualTier(CardDefinition->Rarity);
+		}
+		return EFinalRunRewardVisualTier::Common;
+
+	case EFinalRunRewardType::RelicGrant:
+		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
+		{
+			return MapRarityToRewardVisualTier(RelicDefinition->Rarity);
+		}
+		return EFinalRunRewardVisualTier::Rare;
+
+	case EFinalRunRewardType::RemoveCard:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.RemovedCardId, DataRegistry))
+		{
+			return MapRarityToRewardVisualTier(CardDefinition->Rarity);
+		}
+		return EFinalRunRewardVisualTier::Utility;
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.UpgradeToCardId, DataRegistry))
+		{
+			return MapRarityToRewardVisualTier(CardDefinition->Rarity);
+		}
+
+		if (const UFinalCardDefinition* SourceDefinition = FindRewardCardDefinition(RewardEntry.UpgradeFromCardId, DataRegistry))
+		{
+			return MapRarityToRewardVisualTier(SourceDefinition->Rarity);
+		}
+		return EFinalRunRewardVisualTier::Utility;
+
+	case EFinalRunRewardType::Growth:
+		return EFinalRunRewardVisualTier::Progression;
+
+	default:
+		return EFinalRunRewardVisualTier::None;
+	}
+}
+
+FText BuildRewardEntryDetailText(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
+{
+	switch (RewardEntry.RewardType)
+	{
+	case EFinalRunRewardType::Gold:
+		return NSLOCTEXT("FinalRunSession", "RewardViewGoldDetail", "Spend gold on shop offers and other run rewards.");
+
+	case EFinalRunRewardType::CardGrant:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.GrantedCardId, DataRegistry))
+		{
+			if (!CardDefinition->RulesText.IsEmpty())
+			{
+				return CardDefinition->RulesText;
+			}
+		}
+
+		return NSLOCTEXT("FinalRunSession", "RewardViewCardGrantDetailFallback", "Add this card to the current deck.");
+
+	case EFinalRunRewardType::RelicGrant:
+		if (const UFinalRelicDefinition* RelicDefinition = FindRewardEntryRelicDefinition(RewardEntry, DataRegistry))
+		{
+			if (!RelicDefinition->Description.IsEmpty())
+			{
+				return RelicDefinition->Description;
+			}
+
+			const FText FallbackDetail = BuildRelicEffectFallbackDetailText(RelicDefinition);
+			if (!FallbackDetail.IsEmpty())
+			{
+				return FallbackDetail;
+			}
+		}
+
+		return NSLOCTEXT("FinalRunSession", "RewardViewRelicGrantDetailFallback", "Gain this relic for the rest of the run.");
+
+	case EFinalRunRewardType::RemoveCard:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.RemovedCardId, DataRegistry))
+		{
+			if (!CardDefinition->RulesText.IsEmpty())
+			{
+				return CardDefinition->RulesText;
+			}
+		}
+
+		return NSLOCTEXT("FinalRunSession", "RewardViewRemoveCardDetailFallback", "Remove this card from the current deck.");
+
+	case EFinalRunRewardType::UpgradeCard:
+		if (const UFinalCardDefinition* CardDefinition = FindRewardCardDefinition(RewardEntry.UpgradeToCardId, DataRegistry))
+		{
+			if (!CardDefinition->RulesText.IsEmpty())
+			{
+				return CardDefinition->RulesText;
+			}
+		}
+
+		return FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardViewUpgradeCardDetailFallback", "Replace {0} with {1} in the current deck."),
+			ResolveDeckEntryDisplayName(RewardEntry.UpgradeFromCardId, DataRegistry),
+			ResolveDeckEntryDisplayName(RewardEntry.UpgradeToCardId, DataRegistry));
+
+	case EFinalRunRewardType::Growth:
+		return FText::Format(
+			NSLOCTEXT("FinalRunSession", "RewardViewGrowthDetail", "Apply {0} to {1}."),
+			GetGrowthEffectDisplayName(RewardEntry.GrowthEffectType),
+			ResolveRewardCharacterDisplayName(RewardEntry.GrowthTargetCharacterId, DataRegistry));
+
+	default:
+		return FText::GetEmpty();
+	}
+}
+
 FText BuildRewardEntryPrimaryText(const FFinalRunRewardEntry& RewardEntry, const UFinalDataRegistry* DataRegistry)
 {
 	switch (RewardEntry.RewardType)
@@ -621,6 +886,10 @@ FFinalRunRewardEntryViewData BuildRewardEntryViewData(const FFinalRunRewardEntry
 	ViewData.PrimaryText = BuildRewardEntryPrimaryText(RewardEntry, DataRegistry);
 	ViewData.SecondaryText = BuildRewardEntrySecondaryText(RewardEntry, DataRegistry);
 	ViewData.Value = RewardEntry.Value;
+	ViewData.PresentationKind = GetRewardPresentationKind(RewardEntry.RewardType);
+	ViewData.IconId = BuildRewardEntryIconId(RewardEntry, DataRegistry);
+	ViewData.VisualTier = ResolveRewardEntryVisualTier(RewardEntry, DataRegistry);
+	ViewData.DetailText = BuildRewardEntryDetailText(RewardEntry, DataRegistry);
 
 	switch (RewardEntry.RewardType)
 	{
