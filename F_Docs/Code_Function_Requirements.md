@@ -143,7 +143,9 @@
 * 处理遗物触发窗口
 * 记录每回合、每战斗、每效果的触发次数
 * 不允许遗物直接绕过命令与规则结算层改状态
-* 当前最小竖切至少支持“战斗开始立即生效”的遗物效果协议：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
+* 当前最小竖切至少支持两类小窗口遗物协议：
+* `battle-start`：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
+* `player-turn-start`：由 `RelicDefinition` 提供少量玩家回合开始 effect，在 Battle 初始化后保留到权威状态，并在玩家回合开始窗口真实落地并写入 `BattleEvent`
 
 优先级：
 * `P1`
