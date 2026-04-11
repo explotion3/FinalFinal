@@ -326,15 +326,27 @@ FText GetPrototypeRunGrowthEffectTypeText(const EFinalRunGrowthEffectType Growth
 
 FString BuildRewardEntryDebugDetailString(const FFinalRunRewardEntry& Entry)
 {
-	if (Entry.RewardType != EFinalRunRewardType::Growth)
+	switch (Entry.RewardType)
 	{
+	case EFinalRunRewardType::Growth:
+		return FString::Printf(
+			TEXT(" | Target: %s | Effect: %s"),
+			*Entry.GrowthTargetCharacterId.ToString(),
+			*GetPrototypeRunGrowthEffectTypeText(Entry.GrowthEffectType).ToString());
+
+	case EFinalRunRewardType::RemoveCard:
+		return Entry.RemovedCardId.IsValid()
+			? FString::Printf(TEXT(" | Remove: %s"), *Entry.RemovedCardId.ToString())
+			: FString();
+
+	case EFinalRunRewardType::UpgradeCard:
+		return (Entry.UpgradeFromCardId.IsValid() && Entry.UpgradeToCardId.IsValid())
+			? FString::Printf(TEXT(" | Upgrade: %s -> %s"), *Entry.UpgradeFromCardId.ToString(), *Entry.UpgradeToCardId.ToString())
+			: FString();
+
+	default:
 		return FString();
 	}
-
-	return FString::Printf(
-		TEXT(" | Target: %s | Effect: %s"),
-		*Entry.GrowthTargetCharacterId.ToString(),
-		*GetPrototypeRunGrowthEffectTypeText(Entry.GrowthEffectType).ToString());
 }
 
 void AppendRewardEntryCandidateLines(TArray<FString>& Lines, const FString& SourceLabel, const TArray<FFinalRunRewardEntry>& RewardEntries)
