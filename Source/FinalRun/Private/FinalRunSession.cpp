@@ -969,6 +969,11 @@ TArray<FFinalRunRewardEntryViewData> BuildRewardEntryViews(const TArray<FFinalRu
 	return ViewDataEntries;
 }
 
+void PopulateRewardEventViewData(FFinalRunEvent& Event, const UFinalDataRegistry* DataRegistry)
+{
+	Event.RewardEntryViews = BuildRewardEntryViews(Event.RewardEntries, DataRegistry);
+}
+
 TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
 {
 	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
@@ -1706,6 +1711,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	Event.TeamCurrentHP = Result.TeamCurrentHP;
 	Event.RewardGold = GetRewardGoldTotal(PendingRewardEntries);
 	Event.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
+	PopulateRewardEventViewData(Event, DataRegistry);
 	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
 	{
 		PopulateNodeEventMetadata(Event, *CurrentNode);
@@ -1725,6 +1731,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 		RewardEvent.BattleOutcome = Result.Outcome;
 		RewardEvent.RewardGold = GetPendingBattleRewardGold();
 		RewardEvent.RewardEntries = MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
+		PopulateRewardEventViewData(RewardEvent, DataRegistry);
 		if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
 		{
 			PopulateNodeEventMetadata(RewardEvent, *CurrentNode);
@@ -1882,6 +1889,7 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 	OutDetailEvent.BattleOutcome = PendingRewardBattleOutcome;
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ClaimedEntries);
 	OutDetailEvent.RewardEntries = ClaimedEntries;
+	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
 	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
 	{
 		PopulateNodeEventMetadata(OutDetailEvent, *SourceNode);
@@ -1930,6 +1938,7 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 	OutDetailEvent.NodeId = CurrentNodeId;
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = CurrentNode->RewardContent.Summary.IsEmpty()
 		? FText::Format(
@@ -1999,6 +2008,7 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 	OutDetailEvent.PayloadId = OptionId;
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = SelectedOption->OutcomeSummary.IsEmpty()
 		? FText::Format(
@@ -2081,6 +2091,7 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 	OutDetailEvent.SpentGold = SelectedOffer->Price;
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
+	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = SelectedOffer->Description.IsEmpty()
 		? FText::Format(

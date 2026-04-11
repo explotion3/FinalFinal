@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Commands/FinalRunCommand.h"
 #include "Ids/FinalIds.h"
+#include "Queries/FinalRunQueryTypes.h"
 #include "Requests/FinalBattleResult.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
 #include "Run/Rewards/FinalRunRewardTypes.h"
@@ -128,6 +129,9 @@ struct FINALRUN_API FFinalRunEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRewardEntry> RewardEntries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FText Message;
