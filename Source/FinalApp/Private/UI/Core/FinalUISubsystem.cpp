@@ -10,6 +10,7 @@
 #include "UI/Root/FinalUIRootLayout.h"
 #include "UI/Screens/FinalScreenBase.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
+#include "UI/Screens/Debug/FinalPrototypeRunDebugScreen.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
 #include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
@@ -37,6 +38,7 @@ void UFinalUISubsystem::Deinitialize()
 	}
 
 	BattleHUDScreen = nullptr;
+	PrototypeRunDebugScreen = nullptr;
 	BattleWidgetController = nullptr;
 	BattleHUDViewModel = nullptr;
 	OverlayScreenStack.Reset();
@@ -64,6 +66,7 @@ void UFinalUISubsystem::RegisterPrimaryPlayerController(APlayerController* InPla
 	EnsureRootLayout();
 	EnsureBattleBridge();
 	EnsureBattleHUD();
+	EnsurePrototypeDebugScreen();
 	EnsureFlowScreens();
 	ApplyGameplayHudInputMode();
 
@@ -99,8 +102,8 @@ void UFinalUISubsystem::EnsureBattleHUD()
 
 	if (BattleHUDScreen)
 	{
-		RootLayout->SetPersistentHUD(BattleHUDScreen);
 		BattleHUDScreen->SetVisibility(ESlateVisibility::Visible);
+		RebuildPersistentHUDLayer();
 		RefreshBattleHUD();
 	}
 }
@@ -307,6 +310,11 @@ UFinalBattleHUDScreen* UFinalUISubsystem::GetBattleHUDScreen() const
 	return BattleHUDScreen;
 }
 
+UFinalPrototypeRunDebugScreen* UFinalUISubsystem::GetPrototypeRunDebugScreen() const
+{
+	return PrototypeRunDebugScreen;
+}
+
 UFinalBattleHUDViewModel* UFinalUISubsystem::GetBattleHUDViewModel() const
 {
 	return BattleHUDViewModel;
@@ -353,6 +361,27 @@ void UFinalUISubsystem::EnsureBattleBridge()
 	}
 }
 
+void UFinalUISubsystem::EnsurePrototypeDebugScreen()
+{
+	if (PrimaryPlayerController == nullptr)
+	{
+		return;
+	}
+
+	EnsureRootLayout();
+	if (RootLayout == nullptr)
+	{
+		return;
+	}
+
+	if (PrototypeRunDebugScreen == nullptr)
+	{
+		PrototypeRunDebugScreen = CreateWidget<UFinalPrototypeRunDebugScreen>(PrimaryPlayerController, UFinalPrototypeRunDebugScreen::StaticClass());
+	}
+
+	RebuildPersistentHUDLayer();
+}
+
 void UFinalUISubsystem::EnsureFlowScreens()
 {
 	if (PrimaryPlayerController == nullptr)
@@ -388,6 +417,29 @@ void UFinalUISubsystem::EnsureFlowScreens()
 	if (PlaceholderModalScreen == nullptr)
 	{
 		PlaceholderModalScreen = CreateWidget<UFinalPlaceholderModalScreen>(PrimaryPlayerController, UFinalPlaceholderModalScreen::StaticClass());
+	}
+}
+
+void UFinalUISubsystem::RebuildPersistentHUDLayer()
+{
+	if (RootLayout == nullptr)
+	{
+		return;
+	}
+
+	RootLayout->ClearLayer(EFinalUIScreenLayer::HUD);
+
+	if (BattleHUDScreen)
+	{
+		RootLayout->AddScreenToLayer(BattleHUDScreen, EFinalUIScreenLayer::HUD);
+		BattleHUDScreen->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (PrototypeRunDebugScreen)
+	{
+		RootLayout->AddScreenToLayer(PrototypeRunDebugScreen, EFinalUIScreenLayer::HUD);
+		PrototypeRunDebugScreen->SetVisibility(ESlateVisibility::Visible);
+		PrototypeRunDebugScreen->RefreshFromSubsystems();
 	}
 }
 

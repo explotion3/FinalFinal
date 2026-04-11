@@ -10,6 +10,7 @@ class APlayerController;
 class UFinalBattleHUDScreen;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
+class UFinalPrototypeRunDebugScreen;
 class UFinalRunStageOverlayScreenBase;
 class UFinalPlaceholderModalScreen;
 class UFinalRunEventNodeOverlayScreen;
@@ -87,6 +88,9 @@ public:
 	UFinalBattleHUDScreen* GetBattleHUDScreen() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalPrototypeRunDebugScreen* GetPrototypeRunDebugScreen() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHUDViewModel* GetBattleHUDViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -95,9 +99,11 @@ public:
 private:
 	void EnsureRootLayout();
 	void EnsureBattleBridge();
+	void EnsurePrototypeDebugScreen();
 	void EnsureFlowScreens();
 	FFinalRunSnapshot GetCurrentRunSnapshot() const;
 	void ConfigureAndOpenRunOverlay(UFinalRunStageOverlayScreenBase* Screen);
+	void RebuildPersistentHUDLayer();
 	void RebuildScreenLayer(EFinalUIScreenLayer Layer);
 	void ApplyInputConfig(const FFinalUIInputConfig& InputConfig, UFinalScreenBase* FocusScreen) const;
 	void ApplyTopScreenInputMode() const;
@@ -111,6 +117,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHUDScreen> BattleHUDScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalPrototypeRunDebugScreen> PrototypeRunDebugScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHUDViewModel> BattleHUDViewModel;

@@ -206,6 +206,7 @@ FinalBattle      FinalRun
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
+* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的只读观察入口，显示当前 FlowStage、节点摘要、Run 资源摘要、最近流程反馈与 Battle 活跃状态，并只调用 `FinalApp` 现有测试入口
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
@@ -213,6 +214,7 @@ FinalBattle      FinalRun
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
+* `PrototypeRunDebugScreen` 挂在 `HUD Layer`，作为不打断主流程的小型调试摘要窗
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
 * `ModalScreen` 处理确认类阻断交互
 * `FinalRunStageOverlayScreenBase` 可承接 Run 外层页的共用标题区、摘要区、反馈区与按钮布局 helper

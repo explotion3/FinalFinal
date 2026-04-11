@@ -16,7 +16,6 @@
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
-#include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
@@ -40,38 +39,6 @@ namespace FinalTestBootstrap
 	const FName EventNodeId(TEXT("run.test.node.event.crossroads"));
 	const FName ShopNodeId(TEXT("run.test.node.shop.supply"));
 	const FName FollowupBattleNodeId(TEXT("run.test.node.battle.followup"));
-
-	void TrySetGrantedCardId(FFinalRunRewardEntry& Entry, const FFinalCardId& CardId)
-	{
-		if (!CardId.IsValid())
-		{
-			return;
-		}
-
-		if (FStructProperty* CardIdProperty = FindFProperty<FStructProperty>(FFinalRunRewardEntry::StaticStruct(), TEXT("GrantedCardId")))
-		{
-			if (CardIdProperty->Struct == FFinalCardId::StaticStruct())
-			{
-				*CardIdProperty->ContainerPtrToValuePtr<FFinalCardId>(&Entry) = CardId;
-			}
-		}
-	}
-
-	void TrySetGrantedRelicId(FFinalRunRewardEntry& Entry, const FFinalRelicId& RelicId)
-	{
-		if (!RelicId.IsValid())
-		{
-			return;
-		}
-
-		if (FStructProperty* RelicIdProperty = FindFProperty<FStructProperty>(FFinalRunRewardEntry::StaticStruct(), TEXT("GrantedRelicId")))
-		{
-			if (RelicIdProperty->Struct == FFinalRelicId::StaticStruct())
-			{
-				*RelicIdProperty->ContainerPtrToValuePtr<FFinalRelicId>(&Entry) = RelicId;
-			}
-		}
-	}
 }
 
 void UFinalGameInstance::Init()
@@ -370,7 +337,7 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 			1,
 			RelicId.Value,
 			DisplayName);
-		FinalTestBootstrap::TrySetGrantedRelicId(Entry, RelicId);
+		Entry.GrantedRelicId = RelicId;
 		return Entry;
 	};
 
@@ -382,7 +349,7 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 			1,
 			CardId.Value,
 			DisplayName);
-		FinalTestBootstrap::TrySetGrantedCardId(Entry, CardId);
+		Entry.GrantedCardId = CardId;
 		return Entry;
 	};
 

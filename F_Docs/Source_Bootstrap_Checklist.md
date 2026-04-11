@@ -316,8 +316,10 @@
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
 * `FinalGameInstance::PrepareTestBattleRun()` 当前会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 Run 外层页与 Battle 回流闭环
+* `FinalGameInstance` 里的原型奖励条目当前直接填写 typed payload：`GrantedCardId / GrantedRelicId`，不再依赖旧结构兼容桥接
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
+* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、最近反馈与战斗是否已激活
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写

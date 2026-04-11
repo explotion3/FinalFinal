@@ -56,6 +56,7 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 		ResetFlowState();
 		CloseActiveFlowModal();
 		CloseActiveFlowOverlay();
+		OnRunFlowStateChanged.Broadcast();
 		return;
 	}
 
@@ -93,6 +94,7 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 	}
 
 	ApplyPresentationForSnapshot(CachedSnapshot, bForce || bHasNewEvents);
+	OnRunFlowStateChanged.Broadcast();
 }
 
 bool UFinalRunFlowSubsystem::ClaimPendingBattleReward()

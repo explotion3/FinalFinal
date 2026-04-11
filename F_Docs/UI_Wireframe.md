@@ -35,10 +35,20 @@
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
   * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
+* 当前 `HUD Layer` 已新增一个常驻 `PrototypeRunDebugScreen`：
+  * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
+  * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
 * 左上：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
+* 右上角常驻调试摘要窗：
+  * 当前 `Run FlowStage`
+  * 当前节点显示名、章节、楼层
+  * `Gold / DeckCount / RelicCount`
+  * `LastFlowMessage` 或最近流程反馈
+  * 当前是否存在 `ActiveBattleSession`
+  * 调试动作：重启 prototype run、在战斗已结束时调用 `CompleteResolvedBattle`
 * 顶部上下文区：当前目标、牌堆计数、团队状态
 * 左中：三名角色状态
   * 角色名
