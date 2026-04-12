@@ -224,6 +224,8 @@
 * `FinalApp` 的奖励页、奖励节点页、事件页、商店页和 prototype debug 优先直接消费 `RewardEntryViewData` 及其 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只保留为回退与调试底稿
 * 对产出奖励结果的 `RunEvent`，也应同步输出 `RewardEntryViewData` 数组，避免后续结果 toast / 日志回到 raw reward 文本拼接
 * `FinalApp` 当前的结果反馈主路径也应优先消费 `RunEvent.RewardEntryViews`，让最近反馈、调试摘要与外层页反馈口径保持一致；raw `RewardEntries` 只作回退
+* 对包含 Growth 类奖励的 `RunEvent`，应在事件中补 `AffectedCharacterResults` 数组，复用现有 `FFinalRunCharacterViewData`，输出结算后的角色持久状态 view data，避免 `FinalApp` 自行推算角色结果
+* `AffectedCharacterResults` 只在 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 的 reward entries 包含 Growth 时填充，不扩大到所有事件
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`

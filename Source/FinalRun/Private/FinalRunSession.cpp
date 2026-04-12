@@ -974,6 +974,44 @@ void PopulateRewardEventViewData(FFinalRunEvent& Event, const UFinalDataRegistry
 	Event.RewardEntryViews = BuildRewardEntryViews(Event.RewardEntries, DataRegistry);
 }
 
+bool RewardEntriesContainGrowth(const TArray<FFinalRunRewardEntry>& RewardEntries)
+{
+	for (const FFinalRunRewardEntry& Entry : RewardEntries)
+	{
+		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.GrowthTargetCharacterId.IsValid())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void PopulateAffectedCharacterResults(FFinalRunEvent& Event, const TArray<FFinalRunRewardEntry>& AppliedRewardEntries, const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
+{
+	if (!RewardEntriesContainGrowth(AppliedRewardEntries))
+	{
+		return;
+	}
+
+	TSet<FName> AffectedCharacterIds;
+	for (const FFinalRunRewardEntry& Entry : AppliedRewardEntries)
+	{
+		if (Entry.RewardType == EFinalRunRewardType::Growth && Entry.GrowthTargetCharacterId.IsValid())
+		{
+			AffectedCharacterIds.Add(Entry.GrowthTargetCharacterId.Value);
+		}
+	}
+
+	for (const FFinalRunPersistentCharacterState& CharacterState : RunState.Characters)
+	{
+		if (AffectedCharacterIds.Contains(CharacterState.CharacterId.Value))
+		{
+			Event.AffectedCharacterResults.Add(MakeCharacterView(CharacterState, DataRegistry));
+		}
+	}
+}
+
 TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunState& RunState, const UFinalDataRegistry* DataRegistry)
 {
 	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
@@ -1890,6 +1928,7 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ClaimedEntries);
 	OutDetailEvent.RewardEntries = ClaimedEntries;
 	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
+	PopulateAffectedCharacterResults(OutDetailEvent, ClaimedEntries, CurrentState, DataRegistry);
 	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
 	{
 		PopulateNodeEventMetadata(OutDetailEvent, *SourceNode);
@@ -1939,6 +1978,7 @@ bool UFinalRunSession::TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEven
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
 	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
+	PopulateAffectedCharacterResults(OutDetailEvent, ResolvedEntries, CurrentState, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = CurrentNode->RewardContent.Summary.IsEmpty()
 		? FText::Format(
@@ -2009,6 +2049,7 @@ bool UFinalRunSession::TryExecuteResolveEventNode(const FName& OptionId, FFinalR
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
 	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
+	PopulateAffectedCharacterResults(OutDetailEvent, ResolvedEntries, CurrentState, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = SelectedOption->OutcomeSummary.IsEmpty()
 		? FText::Format(
@@ -2092,6 +2133,7 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 	OutDetailEvent.RewardGold = GetRewardGoldTotal(ResolvedEntries);
 	OutDetailEvent.RewardEntries = ResolvedEntries;
 	PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
+	PopulateAffectedCharacterResults(OutDetailEvent, ResolvedEntries, CurrentState, DataRegistry);
 	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
 	OutDetailEvent.Message = SelectedOffer->Description.IsEmpty()
 		? FText::Format(
@@ -2551,3 +2593,4 @@ void UFinalRunSession::AppendEvent(const FFinalRunEvent& Event)
 
 	RunLogEntries.Add(MoveTemp(EventToAppend));
 }
+

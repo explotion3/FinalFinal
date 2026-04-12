@@ -14,6 +14,7 @@
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
+#include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
 
 namespace
 {
@@ -520,14 +521,7 @@ FString BuildCharacterStateSummaryString(const TArray<FFinalRunCharacterViewData
 	for (const FFinalRunCharacterViewData& Character : Characters)
 	{
 		const FString DisplayName = FormatOptionalDisplayName(Character.DisplayName, Character.CharacterId.ToString()).ToString();
-		const FString StateSummary = !Character.StateSummaryText.IsEmpty()
-			? Character.StateSummaryText.ToString()
-			: FString::Printf(
-				TEXT("Stress %d | Awaken %d | Collapse %d%s"),
-				Character.CurrentStress,
-				Character.CurrentAwakenCount,
-				Character.CollapseCount,
-				Character.bCollapsed ? TEXT(" | Collapsed") : TEXT(""));
+		const FString StateSummary = FinalRunFlowScreenUtils::BuildCharacterViewStateSummaryString(Character);
 
 		Lines.Add(FString::Printf(
 			TEXT("- %s | IconId: %s | Summary: %s | CharacterId: %s | Stress: %d | Awaken: %d | Collapse: %d"),
@@ -541,6 +535,26 @@ FString BuildCharacterStateSummaryString(const TArray<FFinalRunCharacterViewData
 	}
 
 	return FString::Join(Lines, TEXT("\n"));
+}
+
+FString BuildLatestAffectedCharacterResultsSummaryString(const UFinalRunFlowSubsystem* RunFlowSubsystem)
+{
+	if (RunFlowSubsystem == nullptr)
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoRunFlowForAffectedCharacterResults", "Last Event Character Results\n当前无法访问 RunFlowSubsystem。").ToString();
+	}
+
+	const FFinalRunEvent LastRunEvent = RunFlowSubsystem->GetLastProcessedRunEvent();
+	const FString CharacterResultSummary = FinalRunFlowScreenUtils::BuildCharacterResultsSummaryString(
+		LastRunEvent.AffectedCharacterResults,
+		NSLOCTEXT("FinalPrototypeRunDebug", "LastEventCharacterResultsTitle", "Last Event Character Results"));
+
+	if (!CharacterResultSummary.IsEmpty())
+	{
+		return CharacterResultSummary;
+	}
+
+	return NSLOCTEXT("FinalPrototypeRunDebug", "NoAffectedCharacterResults", "Last Event Character Results\n当前最近 RunEvent 没有公开的角色结果摘要。").ToString();
 }
 
 FString BuildPendingRewardCandidatesSummary(const FFinalRunSnapshot& RunSnapshot)
@@ -688,6 +702,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 		|| MessageText == nullptr
 		|| BuildSummaryText == nullptr
 		|| CharacterSummaryText == nullptr
+		|| EventCharacterResultText == nullptr
 		|| CandidateSummaryText == nullptr
 		|| BattleRelicSummaryText == nullptr
 		|| BattleRelicEventText == nullptr)
@@ -726,6 +741,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	const FString RelicSummary = BuildRelicEntriesSummaryString(RunSnapshot.CurrentBuild.RelicEntries);
 	BuildSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s\n\n%s"), *DeckSummary, *RelicSummary)));
 	CharacterSummaryText->SetText(FText::FromString(BuildCharacterStateSummaryString(RunSnapshot.Characters)));
+	EventCharacterResultText->SetText(FText::FromString(BuildLatestAffectedCharacterResultsSummaryString(RunFlowSubsystem)));
 
 	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
 	BattleRelicSummaryText->SetText(FText::FromString(BuildBattleActiveRelicsSummaryString(BattleSnapshot.ActiveRelics)));
@@ -828,6 +844,12 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* CharacterSlot = ContentBox->AddChildToVerticalBox(CharacterSummaryText))
 	{
 		CharacterSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	EventCharacterResultText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugEventCharacterResult"), 10, FLinearColor(0.84f, 0.90f, 0.96f, 1.0f));
+	if (UVerticalBoxSlot* EventCharacterResultSlot = ContentBox->AddChildToVerticalBox(EventCharacterResultText))
+	{
+		EventCharacterResultSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	CandidateSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCandidateSummary"), 10, FLinearColor(0.78f, 0.82f, 0.88f, 1.0f));

@@ -55,34 +55,50 @@ bool ShouldUseRewardEventFeedback(const EFinalRunEventType EventType)
 
 FText BuildRunEventFlowMessage(const FFinalRunEvent& RunEvent)
 {
-	if (!ShouldUseRewardEventFeedback(RunEvent.EventType))
+	const bool bShouldUseRewardFeedback = ShouldUseRewardEventFeedback(RunEvent.EventType);
+	const bool bHasRewardFeedback = bShouldUseRewardFeedback && (!RunEvent.RewardEntryViews.IsEmpty() || !RunEvent.RewardEntries.IsEmpty());
+	const bool bHasAffectedCharacters = !RunEvent.AffectedCharacterResults.IsEmpty();
+
+	if (!bHasRewardFeedback && !bHasAffectedCharacters)
 	{
 		return RunEvent.Message;
 	}
 
-	if (RunEvent.RewardEntryViews.IsEmpty() && RunEvent.RewardEntries.IsEmpty())
+	TArray<FString> Sections;
+
+	if (!RunEvent.Message.IsEmpty())
 	{
-		return RunEvent.Message;
+		Sections.Add(RunEvent.Message.ToString());
 	}
 
-	const FString RewardSummary = FinalRunFlowScreenUtils::BuildRewardPresentationSummaryString(
-		RunEvent.RewardEntryViews,
-		RunEvent.RewardEntries);
-
-	if (RewardSummary.IsEmpty())
+	if (bHasRewardFeedback)
 	{
-		return RunEvent.Message;
+		const FString RewardSummary = FinalRunFlowScreenUtils::BuildRewardPresentationSummaryString(
+			RunEvent.RewardEntryViews,
+			RunEvent.RewardEntries);
+		if (!RewardSummary.IsEmpty())
+		{
+			Sections.Add(RewardSummary);
+		}
 	}
 
-	if (RunEvent.Message.IsEmpty())
+	if (bHasAffectedCharacters)
 	{
-		return FText::FromString(RewardSummary);
+		const FString CharacterResultSummary = FinalRunFlowScreenUtils::BuildCharacterResultsSummaryString(
+			RunEvent.AffectedCharacterResults,
+			NSLOCTEXT("FinalRunFlow", "AffectedCharacterResultsTitle", "角色结果"));
+		if (!CharacterResultSummary.IsEmpty())
+		{
+			Sections.Add(CharacterResultSummary);
+		}
 	}
 
-	return FText::Format(
-		NSLOCTEXT("FinalRunFlow", "RunEventRewardFeedbackFormat", "{0}\n{1}"),
-		RunEvent.Message,
-		FText::FromString(RewardSummary));
+	if (Sections.Num() <= 0)
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::FromString(FString::Join(Sections, TEXT("\n")));
 }
 }
 

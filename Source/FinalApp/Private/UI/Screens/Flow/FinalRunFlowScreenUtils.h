@@ -329,6 +329,54 @@ inline FText FormatRewardEntryViewPrimaryText(const FFinalRunRewardEntryViewData
 	}
 }
 
+inline FString BuildCharacterViewStateSummaryString(const FFinalRunCharacterViewData& Character)
+{
+	if (!Character.StateSummaryText.IsEmpty())
+	{
+		return Character.StateSummaryText.ToString();
+	}
+
+	return FString::Printf(
+		TEXT("Stress %d | Awaken %d | Collapse %d%s"),
+		Character.CurrentStress,
+		Character.CurrentAwakenCount,
+		Character.CollapseCount,
+		Character.bCollapsed ? TEXT(" | Collapsed") : TEXT(""));
+}
+
+inline FString BuildCharacterViewSummaryLineString(const FFinalRunCharacterViewData& Character)
+{
+	const FString DisplayName = !Character.DisplayName.IsEmpty()
+		? Character.DisplayName.ToString()
+		: Character.CharacterId.ToString();
+
+	return FString::Printf(
+		TEXT("- %s | IconId: %s | Summary: %s | CharacterId: %s"),
+		*DisplayName,
+		Character.IconId != NAME_None ? *Character.IconId.ToString() : TEXT("None"),
+		*BuildCharacterViewStateSummaryString(Character),
+		*Character.CharacterId.ToString());
+}
+
+inline FString BuildCharacterResultsSummaryString(const TArray<FFinalRunCharacterViewData>& Characters, const FText& SectionTitle)
+{
+	if (Characters.IsEmpty())
+	{
+		return FString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(Characters.Num() + 1);
+	Lines.Add(SectionTitle.ToString());
+
+	for (const FFinalRunCharacterViewData& Character : Characters)
+	{
+		Lines.Add(BuildCharacterViewSummaryLineString(Character));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
+}
+
 inline FString BuildRewardEntryViewIdsFallbackSummaryString(const FFinalRunRewardEntryViewData& RewardEntryView)
 {
 	switch (RewardEntryView.RewardType)
