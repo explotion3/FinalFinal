@@ -270,6 +270,9 @@
 * 提供结构化 `RunEvent`，记录初始化、战前桥接、RunCommand、战后回写等关键外层流程
 * 提供全量读取与按序号增量读取，避免 UI 只能猜当前 Run 状态
 * 对于会产出奖励结果的 `RunEvent`，在保留 raw `RewardEntries` 的前提下，也应补 `RewardEntryViewData` 数组，供 toast、日志和结果反馈直接消费
+* 对于会修改角色持久状态的 `RunEvent`（含 Growth 类奖励），应在事件中补 `AffectedCharacterResults` 数组，输出结算后的角色 view data，避免 FinalApp 自行推算角色结果
+* `AffectedCharacterResults` 复用现有 `FFinalRunCharacterViewData`，包含 `DisplayName / IconId / StateSummaryText / CurrentStress / bCollapsed / CurrentAwakenCount / CollapseCount`
+* 当前只有 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 在 reward entries 包含 Growth 时才会填充 `AffectedCharacterResults`
 * `RunSnapshot` 当前应至少公开 `CurrentBuild` 这类只读 view data，用于呈现 `RunDeck / Relics` 的聚合条目、展示名与数量
 * `RunSnapshot.Characters` 不应只停留在调试数值，应至少补 `DisplayName` 与最小展示辅助字段，并优先通过 `CharacterDefinition` 查询补全，避免 `FinalApp` 自行猜角色名
 * `RunSession` 在组装 `BattleStartRequest` 时，应能桥接最小遗物战斗输入，例如 battle-start relic effects，并经由 `FinalBattleStartRequest -> FFinalBattleInitContext` 显式传入 `FinalBattle`；不要把 `RunState.Relics` 私有容器直接暴露给 `FinalBattle`

@@ -134,5 +134,8 @@ struct FINALRUN_API FFinalRunEvent
 	TArray<FFinalRunRewardEntryViewData> RewardEntryViews;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunCharacterViewData> AffectedCharacterResults;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FText Message;
 };
