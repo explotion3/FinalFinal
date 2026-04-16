@@ -241,8 +241,17 @@ FinalBattle      FinalRun
 * 调试工具
 * 编辑器菜单和导入器
 
-可后置：
-* 若首版资源量不大，可以在第一次垂直切片跑通后再建立
+当前已开始落地：
+* `FinalEditor` 作为 Editor-only 模块挂入 `FinalFinalEditor.Target.cs` 与 `.uproject`
+* 当前只提供最小 `DataValidation` 原生校验器，用于拦截 FinalData definition 的非法 ID、直接软引用缺失、空效果条目与明显非法数值
+* 当前暂不做跨资产稳定 ID 的全局引用存在性解析、重复 ID 扫描
+* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
+* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复或批量迁移 UI
+
+后续再补：
+* 数据批量检查入口
+* 编辑器菜单
+* 调试面板和导入器
 
 ---
 
@@ -369,19 +378,19 @@ FinalBattle      FinalRun
 
 ### 6.6 FinalEditor
 `PrivateDependencyModuleNames`
+* `Core`
+* `CoreUObject`
+* `Engine`
 * `UnrealEd`
-* `AssetTools`
 * `DataValidation`
 * `FinalCore`
 * `FinalData`
-* `FinalBattle`
-* `FinalRun`
-* `FinalApp`
 
 规则：
 * `FinalBattle` 不依赖 `FinalRun`
 * `FinalRun` 不依赖 `FinalBattle`
 * 两者只通过 `FinalData` 中的定义和 `FinalApp` 中的桥接层协作
+* `FinalEditor` 当前只依赖 `FinalCore / FinalData` 与编辑器校验模块；除非后续工具确实需要，不引入 `FinalBattle / FinalRun / FinalApp`
 
 ---
 
@@ -611,7 +620,7 @@ Source
 * 拆更多 Battle `Panel / Screen / WidgetController / ViewModel`
 * 补事件、商店、角色成长
 * 补 Save / Load
-* 补调试工具与编辑器校验
+* 深化调试工具与编辑器校验；当前最小数据资产校验器已先行落地
 
 ---
 
@@ -635,7 +644,7 @@ Source
 3. 再写 `FinalRun` 的最小桥接状态与请求结构
 4. 再写 `FinalBattle` 的最小战斗闭环
 5. 然后接 `FinalApp` 跑通世界与 UI 桥接
-6. 最后再补 `FinalEditor`
+6. 当前 `FinalEditor` 已先补最小数据资产校验；后续只继续扩编辑器工具，不回写 Runtime 规则语义
 
 这样做的好处是：
 * 一开始就把数据、规则、外层编排分开

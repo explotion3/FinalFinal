@@ -43,7 +43,7 @@
 
 说明：
 * `FinalRun` 进入首批，但只先做最小 `RunSession + RunState + 战斗前后桥接`
-* `FinalEditor` 明确后置，不阻塞首个垂直切片
+* `FinalEditor` 原本后置，不阻塞首个垂直切片；当前已先建立最小 Editor-only 校验模块，用于提前拦截基础数据资产问题
 
 ---
 
@@ -313,9 +313,10 @@
 ### 7.2 FinalEditor
 * `Source/FinalEditor/FinalEditor.Build.cs`
 * `Source/FinalEditor/Private/FinalEditorModule.cpp`
-* 数据校验器
-* 资源检查菜单
-* 调试面板
+* `Source/FinalEditor/Private/Validation/FinalDataAssetValidator.h`
+* `Source/FinalEditor/Private/Validation/FinalDataAssetValidator.cpp`
+* 最小数据校验器已覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate`
+* 资源检查菜单和调试面板仍后置
 
 ---
 
@@ -407,7 +408,7 @@
 
 ## 10. 暂不创建的东西
 第一批明确不要提前建：
-* `FinalEditor` 校验工具
+* 复杂 `FinalEditor` 校验工具、自动修复、内容迁移和批量 UI
 * 多阶段首领专用系统
 * 战斗回放系统
 * GAS 接入层

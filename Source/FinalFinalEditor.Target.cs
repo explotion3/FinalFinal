@@ -16,7 +16,8 @@ public class FinalFinalEditorTarget : TargetRules
 			"FinalCore",
 			"FinalData",
 			"FinalBattle",
-			"FinalRun"
+			"FinalRun",
+			"FinalEditor"
 		});
 	}
 }
