@@ -33,6 +33,7 @@
   * 增量消费 `RunEvent`
   * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD
   * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
+  * 当 `RunEvent` 带有 `AffectedCharacterResults` 时，当前反馈主路径与 prototype debug 会直接消费这些角色结果 view data，而不再根据 Growth reward 自行推断角色变化
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
   * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
@@ -41,6 +42,7 @@
   * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
   * 构筑观察区直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries`，作为当前牌库与遗物真相的主展示
   * 角色持久状态摘要直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`，并保留 `CharacterId / CurrentStress / CurrentAwakenCount / CollapseCount` 作为补充验证信息
+  * 最近事件角色结果区直接消费 `RunEvent.AffectedCharacterResults`，显示 `DisplayName / IconId / StateSummaryText`
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
   * 当候选奖励里出现 `Growth / RemoveCard / UpgradeCard` 时，会额外显示 typed payload，例如目标角色、移除目标卡、升级路径，而不是只显示奖励类型名
   * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口
@@ -123,7 +125,7 @@
   * `RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`
 * 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
-* `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 为主路径
+* `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动
