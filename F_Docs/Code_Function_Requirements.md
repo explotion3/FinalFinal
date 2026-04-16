@@ -180,6 +180,7 @@
 * `BattleEvent` 已承载 `EventSequence`
 * 事件已可携带来源 / 目标单位、关联卡牌 / 奥义 / 状态、关键数值、战斗结果
 * `BattleSession` 已提供全量读取与按序号增量读取，供 `FinalApp/UI` 做事件驱动刷新
+* `FinalApp` 应基于这组公开字段落统一的 BattleEvent presentation/helper 与只读事件账本 UI，服务 HUD、Debug、世界提示与未来 replay-ready 消费，但不承担规则推导
 * `FinalBattleResolver` 当前继续作为唯一对外规则入口，但私有实现细节应回收到 `FinalBattle/Private/Systems`
 * 当前已开始真实承接实现的 Battle 私有 system 至少包括：
   * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、抽牌与手牌视图构建
@@ -348,6 +349,7 @@
 * `UISubsystem + UIRootLayout + BattleHUDScreen`
 * `FinalBattleWidgetController` 已可把 `Snapshot / Event` 转成首轮 `HUD Presentation`
 * `FinalApp` 可结合 `FinalData / RunSession` 补齐遭遇名、金币、`EP` 上限、角色名、卡牌名等展示字段
+* `FinalApp` 当前已补 BattleEvent 统一投影 helper，并新增最小只读 Battle event ledger UI；`BattleHUD`、`PrototypeRunDebugScreen`、`BattleDirector` 优先共用这套事件投影，而不是各自散拼
 
 优先级：
 * `P0`
@@ -399,6 +401,7 @@
 * 查看敌人意图
 * 查看状态实例、被动实例、遗物触发记录
 * 输出战斗事件日志
+* 提供只读 Battle 事件账本视图，并与 HUD / 世界桥接共用统一事件投影 helper
 
 优先级：
 * `P1`

@@ -303,7 +303,6 @@
 * `FinalRunFlowSubsystem.h`
 * `FinalSaveGameCoordinator.h`
 * `FinalBattleRewardScreen.h`
-* `FinalBattleEventScreen.h`
 * `FinalBattleShopScreen.h`
 * `FinalBattleNodeSelectScreen.h`
 * `FinalToastWidgetBase.h`
@@ -362,9 +361,11 @@
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
 * `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
+* `UISubsystem` 当前还会常驻挂一个只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新
+* `FinalApp` 当前已补 BattleEvent 统一投影 helper，`BattleHUD` 顶部反馈、`BattleHUD` 日志区、`PrototypeRunDebugScreen` 的最新 Battle 事件摘要、`FinalBattleEventScreen` 账本文本、`BattleDirector` 的世界提示都优先共用这套 helper
 * 当前瞬时测试 relic definition 已同时补 battle-start 与 player-turn-start 最小效果，用于验证同一 relic 在 Battle 开场和玩家回合开始都能经 `RelicTriggered` 反馈到 `FinalApp`
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
-* `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；`RelicTriggered` 只显示简短世界提示，不替代 HUD / Debug 明细
+* `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；世界提示直接复用 BattleEvent 统一投影 helper，不替代 HUD / Debug 明细
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写

@@ -72,7 +72,7 @@ private:
 	TObjectPtr<UTextBlock> BattleRelicSummaryText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> BattleRelicEventText;
+	TObjectPtr<UTextBlock> BattleEventSummaryText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> RestartRunButton;

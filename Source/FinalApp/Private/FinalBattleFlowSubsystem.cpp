@@ -130,6 +130,16 @@ TArray<FFinalBattleEvent> UFinalBattleFlowSubsystem::GetBattleLogEntries() const
 	return ActiveBattleSession ? ActiveBattleSession->GetBattleLogEntries() : TArray<FFinalBattleEvent>{};
 }
 
+TArray<FFinalBattleEvent> UFinalBattleFlowSubsystem::GetBattleEventsSince(const int32 LastSeenEventSequence) const
+{
+	return ActiveBattleSession ? ActiveBattleSession->GetBattleEventsSince(LastSeenEventSequence) : TArray<FFinalBattleEvent>{};
+}
+
+int32 UFinalBattleFlowSubsystem::GetLatestBattleEventSequence() const
+{
+	return ActiveBattleSession ? ActiveBattleSession->GetLatestBattleEventSequence() : 0;
+}
+
 void UFinalBattleFlowSubsystem::BroadcastPendingBattleEvents()
 {
 	if (ActiveBattleSession == nullptr)

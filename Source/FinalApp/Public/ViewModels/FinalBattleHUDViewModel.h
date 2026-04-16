@@ -176,13 +176,22 @@ struct FINALAPP_API FFinalBattleHUDLogEntry
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 EventSequence = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	EFinalBattleEventType EventType = EFinalBattleEventType::Info;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	int32 Round = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
-	FText Message;
+	FText TitleText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText SummaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DetailText;
 };
 
 USTRUCT(BlueprintType)

@@ -51,6 +51,27 @@ FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
 }
+
+FText BuildLogEntryText(const FFinalBattleHUDLogEntry& Entry)
+{
+	TArray<FString> Lines;
+	if (!Entry.TitleText.IsEmpty())
+	{
+		Lines.Add(Entry.TitleText.ToString());
+	}
+	if (!Entry.SummaryText.IsEmpty())
+	{
+		Lines.Add(Entry.SummaryText.ToString());
+	}
+	if (!Entry.DetailText.IsEmpty())
+	{
+		Lines.Add(Entry.DetailText.ToString());
+	}
+
+	return Lines.Num() > 0
+		? FText::FromString(FString::Join(Lines, TEXT("\n")))
+		: NSLOCTEXT("FinalBattleHUD", "EmptyLogEntry", "无公开事件详情");
+}
 }
 
 void UFinalBattleHUDScreen::NativeOnInitialized()
@@ -415,11 +436,8 @@ void UFinalBattleHUDScreen::RebuildLogPanel()
 
 	for (const FFinalBattleHUDLogEntry& Entry : Presentation.LogEntries)
 	{
-		UTextBlock* Label = CreateLabel(WidgetTree, *FString::Printf(TEXT("Log_%d"), Entry.Round));
-		Label->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "LogEntryFormat", "R{0} | {1}"),
-			FText::AsNumber(Entry.Round),
-			Entry.Message));
+		UTextBlock* Label = CreateLabel(WidgetTree, *FString::Printf(TEXT("Log_%d"), Entry.EventSequence));
+		Label->SetText(BuildLogEntryText(Entry));
 		LogScrollBox->AddChild(Label);
 	}
 }
