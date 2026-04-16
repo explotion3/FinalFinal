@@ -309,8 +309,10 @@
 当前已开始落地：
 * `FinalEditor` 已建立最小 Editor-only 数据资产校验器
 * 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
-* 当前校验范围限定在稳定 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
-* 当前暂不做跨资产稳定 ID 的全局引用存在性解析、重复 ID 扫描；例如角色 loadout card、奥义、状态 ID 只检查自身是否填写
+* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
+* 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的主 ID 是否重复
+* 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
+* 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`
 * 不做自动修复、复杂编辑器 UI、内容资产迁移，也不改变 Runtime 规则语义
 

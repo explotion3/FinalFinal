@@ -13,6 +13,7 @@ public class FinalEditor : ModuleRules
 			"Engine",
 			"UnrealEd",
 			"DataValidation",
+			"AssetRegistry",
 			"FinalCore",
 			"FinalData"
 		});

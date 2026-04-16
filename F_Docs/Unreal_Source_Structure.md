@@ -244,10 +244,10 @@ FinalBattle      FinalRun
 
 当前已开始落地：
 * `FinalEditor` 作为 Editor-only 模块挂入 `FinalFinalEditor.Target.cs` 与 `.uproject`
-* 当前只提供最小 `DataValidation` 原生校验器，用于拦截 FinalData definition 的非法 ID、直接软引用缺失、空效果条目与明显非法数值
-* 当前暂不做跨资产稳定 ID 的全局引用存在性解析、重复 ID 扫描
+* 当前 `DataValidation` 原生校验器除了字段级检查，还会在 Editor 内扫描全项目 `FinalData` definition，检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的稳定主 ID 是否重复
+* 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
-* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复或批量迁移 UI
+* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具
 
 后续再补：
 * 数据批量检查入口
