@@ -38,10 +38,17 @@ private:
 	UFUNCTION()
 	void HandleCompleteResolvedBattleClicked();
 
+	UFUNCTION()
+	void HandleSavePrototypeRunClicked();
+
+	UFUNCTION()
+	void HandleLoadPrototypeRunClicked();
+
 	void EnsureWidgetTree();
 	class UFinalBattleFlowSubsystem* ResolveBattleFlowSubsystem() const;
 	class UFinalGameFlowSubsystem* ResolveGameFlowSubsystem() const;
 	class UFinalRunFlowSubsystem* ResolveRunFlowSubsystem() const;
+	class UFinalSaveGameCoordinator* ResolveSaveGameCoordinator() const;
 	class UFinalGameInstance* ResolveFinalGameInstance() const;
 
 	UPROPERTY(Transient)
@@ -55,6 +62,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MessageText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SaveStatusText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BuildSummaryText;
@@ -79,6 +89,18 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> RestartRunLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> SaveRunButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SaveRunLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> LoadRunButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LoadRunLabel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> CompleteResolvedBattleButton;

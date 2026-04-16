@@ -206,7 +206,8 @@ FinalBattle      FinalRun
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
-* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的只读观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口
+* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
+* 当前 Save / Load 调试入口只显示固定 slot 状态、最近 Save/Load 状态 / 失败原因，并提供原型按钮；不保存 UI 页面栈，不代表正式存档菜单
 * 当前代码已补上 `FinalBattleEventPresentationUtils` 与 `FinalBattleEventScreen`：
   * 前者把 `FFinalBattleEvent` 统一投影成标题、摘要、细节、世界提示与账本文本
   * 后者挂在 `HUD Layer`，只读消费 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
@@ -249,10 +250,10 @@ FinalBattle      FinalRun
 
 当前已开始落地：
 * `FinalEditor` 作为 Editor-only 模块挂入 `FinalFinalEditor.Target.cs` 与 `.uproject`
-* 当前只提供最小 `DataValidation` 原生校验器，用于拦截 FinalData definition 的非法 ID、直接软引用缺失、空效果条目与明显非法数值
-* 当前暂不做跨资产稳定 ID 的全局引用存在性解析、重复 ID 扫描
+* 当前 `DataValidation` 原生校验器除了字段级检查，还会在 Editor 内扫描全项目 `FinalData` definition，检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的稳定主 ID 是否重复
+* 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
-* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复或批量迁移 UI
+* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具
 
 后续再补：
 * 数据批量检查入口
@@ -311,8 +312,11 @@ FinalBattle      FinalRun
 * `RunQueryTypes`
 * `RunEvent`
 * `RunCommand`
+* `FinalRunSaveData`
 * 进入战斗与战后结算的桥接请求结构
 * `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
+* `ExportSaveData / RestoreFromSaveData`，只作为 Run 外层状态保存与恢复协议，不允许 `FinalApp` 直接写 `RunSession` 私有字段
+* `FinalRunSaveData::CurrentSaveVersion / IsSupportedVersion / IsStructurallyValid`，用于 SaveVersion 校验与坏档拒绝，不暴露 `RunSession` 私有 runtime 容器
 * 如需让 `FinalBattle` 感知本场 Run 输入，应优先通过共享 request / init context payload 显式传递，例如 `FinalBattleStartRequest -> FFinalBattleInitContext`，而不是让 `FinalBattle` 直接依赖 `FinalRun`
 
 #### FinalApp/Public
@@ -329,6 +333,7 @@ FinalBattle      FinalRun
 * `ScreenStack` 内部实现
 * Widget 工厂与焦点恢复 helper
 * 任何跨层临时缓存的权威状态副本
+* active battle 内部状态与 UI 页面栈的存档真相
 
 ---
 
@@ -443,6 +448,7 @@ Source
 │  │  ├─ Commands
 │  │  ├─ Runtime
 │  │  ├─ Requests
+│  │  ├─ Save
 │  │  └─ Facade
 │  └─ Private
 │     ├─ NodeFlow
@@ -539,17 +545,26 @@ Source
 * `RunEvent`
 * `RunQueryTypes`
 * `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
+* `FinalRunSaveData / ExportSaveData / RestoreFromSaveData`
+* `FinalRunSaveData::IsSupportedVersion / IsStructurallyValid`
 
 ### 8.4 App 层桥接
 推荐：
 * `UFinalGameFlowSubsystem`
 * `UFinalBattleFlowSubsystem`
 * `UFinalRunFlowSubsystem`
+* `UFinalSaveGameCoordinator`
+* `UFinalRunSaveGame`
 * `AFinalBattleDirector`
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`
 * `UFinalBattleHUDScreen`
 * `UFinalBattleEventScreen`
+
+Save / Load 当前边界：
+* `FinalApp` 负责固定 slot 读写、SaveGame 类型检查、active battle 拒绝和 DebugScreen 状态展示
+* `FinalRun` 负责 Save DTO 的版本与结构校验，并通过 `RunSession` 公开恢复协议重建 Run 外层状态
+* 当前不支持 active battle 保存、多 slot、async save/load、迁移系统或正式存档 UI
 
 ### 8.5 UI 基类
 推荐：

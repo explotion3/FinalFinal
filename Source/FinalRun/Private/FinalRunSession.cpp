@@ -880,6 +880,71 @@ int32 UFinalRunSession::GetLatestRunEventSequence() const
 	return LastEventSequence;
 }
 
+FFinalRunSaveData UFinalRunSession::ExportSaveData() const
+{
+	FFinalRunSaveData SaveData;
+	SaveData.SaveVersion = FFinalRunSaveData::CurrentSaveVersion;
+	SaveData.RunState = CurrentState;
+	SaveData.RunLogEntries = RunLogEntries;
+	SaveData.LastEventSequence = LastEventSequence;
+	SaveData.ConfiguredRunNodes = ConfiguredRunNodes;
+	SaveData.CurrentNodeId = CurrentNodeId;
+	SaveData.VisitedNodeIds = VisitedNodeIds.Array();
+	SaveData.ResolvedNodeIds = ResolvedNodeIds.Array();
+	SaveData.CurrentFlowStage = CurrentFlowStage;
+	SaveData.PendingRewardSourceNodeId = PendingRewardSourceNodeId;
+	SaveData.PendingRewardSourceEncounterId = PendingRewardSourceEncounterId;
+	SaveData.PendingRewardBattleOutcome = PendingRewardBattleOutcome;
+	SaveData.PendingRewardEntries = PendingRewardEntries;
+	return SaveData;
+}
+
+bool UFinalRunSession::RestoreFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason)
+{
+	if (!SaveData.IsStructurallyValid(&OutFailureReason))
+	{
+		return false;
+	}
+
+	CurrentState = SaveData.RunState;
+	RunLogEntries = SaveData.RunLogEntries;
+	ConfiguredRunNodes = SaveData.ConfiguredRunNodes;
+	CurrentNodeId = SaveData.CurrentNodeId;
+	CurrentFlowStage = SaveData.CurrentFlowStage;
+	PendingRewardSourceNodeId = SaveData.PendingRewardSourceNodeId;
+	PendingRewardSourceEncounterId = SaveData.PendingRewardSourceEncounterId;
+	PendingRewardBattleOutcome = SaveData.PendingRewardBattleOutcome;
+	PendingRewardEntries = SaveData.PendingRewardEntries;
+
+	VisitedNodeIds.Reset();
+	for (const FName& NodeId : SaveData.VisitedNodeIds)
+	{
+		if (!NodeId.IsNone())
+		{
+			VisitedNodeIds.Add(NodeId);
+		}
+	}
+
+	ResolvedNodeIds.Reset();
+	for (const FName& NodeId : SaveData.ResolvedNodeIds)
+	{
+		if (!NodeId.IsNone())
+		{
+			ResolvedNodeIds.Add(NodeId);
+		}
+	}
+
+	int32 HighestRestoredEventSequence = 0;
+	for (const FFinalRunEvent& Event : RunLogEntries)
+	{
+		HighestRestoredEventSequence = FMath::Max(HighestRestoredEventSequence, Event.EventSequence);
+	}
+
+	LastEventSequence = FMath::Max(SaveData.LastEventSequence, HighestRestoredEventSequence);
+	OutFailureReason = FText::GetEmpty();
+	return true;
+}
+
 bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
 	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);

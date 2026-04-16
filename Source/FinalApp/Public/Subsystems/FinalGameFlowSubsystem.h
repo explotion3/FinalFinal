@@ -5,6 +5,7 @@
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalBattleSnapshot.h"
 #include "Requests/FinalBattleResult.h"
+#include "Save/FinalRunSaveData.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "FinalGameFlowSubsystem.generated.h"
 
@@ -38,6 +39,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|Flow")
 	FFinalBattleSnapshot GetCurrentBattleSnapshot() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Flow|Save")
+	bool RestoreRunSessionFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason);
 
 	UFUNCTION(BlueprintPure, Category = "Final|Flow")
 	FText GetLastBattleFailureReason() const;

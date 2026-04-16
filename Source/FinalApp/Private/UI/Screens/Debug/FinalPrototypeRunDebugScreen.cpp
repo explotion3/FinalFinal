@@ -12,6 +12,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Queries/FinalRunQueryTypes.h"
+#include "Save/FinalSaveGameCoordinator.h"
 #include "Styling/CoreStyle.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
@@ -698,6 +699,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 {
 	if (SummaryText == nullptr
 		|| MessageText == nullptr
+		|| SaveStatusText == nullptr
 		|| BuildSummaryText == nullptr
 		|| CharacterSummaryText == nullptr
 		|| EventCharacterResultText == nullptr
@@ -711,6 +713,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	const UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
 	const UFinalGameFlowSubsystem* GameFlowSubsystem = ResolveGameFlowSubsystem();
 	const UFinalBattleFlowSubsystem* BattleFlowSubsystem = ResolveBattleFlowSubsystem();
+	const UFinalSaveGameCoordinator* SaveGameCoordinator = ResolveSaveGameCoordinator();
 	const UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance();
 	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
 
@@ -736,6 +739,10 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 		? LatestMessage
 		: NSLOCTEXT("FinalPrototypeRunDebug", "NoLatestMessage", "No recent flow feedback."));
 
+	SaveStatusText->SetText(SaveGameCoordinator != nullptr
+		? SaveGameCoordinator->GetPrototypeRunSaveDebugText()
+		: NSLOCTEXT("FinalPrototypeRunDebug", "SaveCoordinatorUnavailable", "Save Slot: FinalPrototypeRun\nSlot Exists: Unknown\nLast Status: FinalSaveGameCoordinator is unavailable."));
+
 	const FString DeckSummary = BuildDeckEntriesSummaryString(RunSnapshot.CurrentBuild.DeckEntries);
 	const FString RelicSummary = BuildRelicEntriesSummaryString(RunSnapshot.CurrentBuild.RelicEntries);
 	BuildSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s\n\n%s"), *DeckSummary, *RelicSummary)));
@@ -749,6 +756,16 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	if (RestartRunButton)
 	{
 		RestartRunButton->SetIsEnabled(true);
+	}
+
+	if (SaveRunButton)
+	{
+		SaveRunButton->SetIsEnabled(GameFlowSubsystem != nullptr && GameFlowSubsystem->GetRunSession() != nullptr && !bHasActiveBattleSession);
+	}
+
+	if (LoadRunButton)
+	{
+		LoadRunButton->SetIsEnabled(SaveGameCoordinator != nullptr && SaveGameCoordinator->DoesPrototypeRunSaveExist() && !bHasActiveBattleSession);
 	}
 
 	if (CompleteResolvedBattleButton)
@@ -787,6 +804,26 @@ void UFinalPrototypeRunDebugScreen::HandleCompleteResolvedBattleClicked()
 	if (UFinalGameFlowSubsystem* GameFlowSubsystem = ResolveGameFlowSubsystem())
 	{
 		GameFlowSubsystem->CompleteResolvedBattle();
+	}
+
+	RefreshFromSubsystems();
+}
+
+void UFinalPrototypeRunDebugScreen::HandleSavePrototypeRunClicked()
+{
+	if (UFinalSaveGameCoordinator* SaveGameCoordinator = ResolveSaveGameCoordinator())
+	{
+		SaveGameCoordinator->SaveCurrentRunToPrototypeSlot();
+	}
+
+	RefreshFromSubsystems();
+}
+
+void UFinalPrototypeRunDebugScreen::HandleLoadPrototypeRunClicked()
+{
+	if (UFinalSaveGameCoordinator* SaveGameCoordinator = ResolveSaveGameCoordinator())
+	{
+		SaveGameCoordinator->LoadRunFromPrototypeSlot();
 	}
 
 	RefreshFromSubsystems();
@@ -831,6 +868,12 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* MessageSlot = ContentBox->AddChildToVerticalBox(MessageText))
 	{
 		MessageSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	SaveStatusText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugSaveStatus"), 10, FLinearColor(0.80f, 0.92f, 0.84f, 1.0f));
+	if (UVerticalBoxSlot* SaveStatusSlot = ContentBox->AddChildToVerticalBox(SaveStatusText))
+	{
+		SaveStatusSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	BuildSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBuildSummary"), 11, FLinearColor(0.90f, 0.95f, 1.0f, 1.0f));
@@ -879,6 +922,26 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 		RestartSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
 	}
 
+	SaveRunButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugSaveButton"));
+	SaveRunButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleSavePrototypeRunClicked);
+	SaveRunLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugSaveLabel"), 12);
+	SaveRunLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "SaveRunButton", "Save Prototype Run"));
+	SaveRunButton->AddChild(SaveRunLabel);
+	if (UVerticalBoxSlot* SaveSlot = ContentBox->AddChildToVerticalBox(SaveRunButton))
+	{
+		SaveSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
+	LoadRunButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugLoadButton"));
+	LoadRunButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleLoadPrototypeRunClicked);
+	LoadRunLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugLoadLabel"), 12);
+	LoadRunLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "LoadRunButton", "Load Prototype Run"));
+	LoadRunButton->AddChild(LoadRunLabel);
+	if (UVerticalBoxSlot* LoadSlot = ContentBox->AddChildToVerticalBox(LoadRunButton))
+	{
+		LoadSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
 	CompleteResolvedBattleButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugCompleteResolvedBattleButton"));
 	CompleteResolvedBattleButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleCompleteResolvedBattleClicked);
 	CompleteResolvedBattleLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCompleteResolvedBattleLabel"), 12);
@@ -900,6 +963,11 @@ UFinalGameFlowSubsystem* UFinalPrototypeRunDebugScreen::ResolveGameFlowSubsystem
 UFinalRunFlowSubsystem* UFinalPrototypeRunDebugScreen::ResolveRunFlowSubsystem() const
 {
 	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr;
+}
+
+UFinalSaveGameCoordinator* UFinalPrototypeRunDebugScreen::ResolveSaveGameCoordinator() const
+{
+	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalSaveGameCoordinator>() : nullptr;
 }
 
 UFinalGameInstance* UFinalPrototypeRunDebugScreen::ResolveFinalGameInstance() const

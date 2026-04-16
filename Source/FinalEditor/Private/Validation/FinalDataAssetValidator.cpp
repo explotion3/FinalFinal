@@ -12,11 +12,72 @@
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/DataValidation.h"
+#include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
+#include "Validation/FinalDataValidationProjectIndex.h"
 
 namespace FinalDataAssetValidation
 {
+	class FFinalDataValidationProjectIndexCache
+	{
+	public:
+		const FFinalDataValidationProjectIndex& Get()
+		{
+			BindToAssetRegistryIfNeeded();
+
+			if (bDirty || !CachedProjectIndex.IsSet())
+			{
+				CachedProjectIndex = FFinalDataValidationProjectIndex::Build();
+				bDirty = false;
+			}
+
+			return CachedProjectIndex.GetValue();
+		}
+
+	private:
+		void BindToAssetRegistryIfNeeded()
+		{
+			if (bBound)
+			{
+				return;
+			}
+
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+			AssetAddedHandle = AssetRegistry.OnAssetAdded().AddRaw(this, &FFinalDataValidationProjectIndexCache::HandleAssetRegistryChanged);
+			AssetRemovedHandle = AssetRegistry.OnAssetRemoved().AddRaw(this, &FFinalDataValidationProjectIndexCache::HandleAssetRegistryChanged);
+			AssetUpdatedHandle = AssetRegistry.OnAssetUpdated().AddRaw(this, &FFinalDataValidationProjectIndexCache::HandleAssetRegistryChanged);
+			AssetRenamedHandle = AssetRegistry.OnAssetRenamed().AddRaw(this, &FFinalDataValidationProjectIndexCache::HandleAssetRenamed);
+			bBound = true;
+		}
+
+		void HandleAssetRegistryChanged(const FAssetData&)
+		{
+			bDirty = true;
+		}
+
+		void HandleAssetRenamed(const FAssetData&, const FString&)
+		{
+			bDirty = true;
+		}
+
+		TOptional<FFinalDataValidationProjectIndex> CachedProjectIndex;
+		FDelegateHandle AssetAddedHandle;
+		FDelegateHandle AssetRemovedHandle;
+		FDelegateHandle AssetUpdatedHandle;
+		FDelegateHandle AssetRenamedHandle;
+		bool bDirty = true;
+		bool bBound = false;
+	};
+
+	FFinalDataValidationProjectIndexCache& GetProjectIndexCache()
+	{
+		static FFinalDataValidationProjectIndexCache Cache;
+		return Cache;
+	}
+
 	void AddError(FDataValidationContext& Context, bool& bIsValid, const FString& Message)
 	{
 		Context.AddError(FText::FromString(Message));
@@ -451,6 +512,234 @@ namespace FinalDataAssetValidation
 		ValidateNonNegative(Context, bIsValid, Ultimate->BaseCostEP, TEXT("BaseCostEP"));
 		ValidateEffectArray(Context, bIsValid, Ultimate->Effects, TEXT("Effects"), true);
 	}
+
+	void ValidateDuplicateStableId(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FString& FieldName,
+		const FString& StableId,
+		const TArray<FString>& ConflictingAssetPaths)
+	{
+		if (StableId.IsEmpty() || ConflictingAssetPaths.IsEmpty())
+		{
+			return;
+		}
+
+		AddError(
+			Context,
+			bIsValid,
+			FString::Printf(
+				TEXT("%s '%s' is duplicated. Conflicting assets: %s."),
+				*FieldName,
+				*StableId,
+				*FString::Join(ConflictingAssetPaths, TEXT(", "))));
+	}
+
+	void ValidateReferencedCardIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalCardId& CardId,
+		const FString& FieldName)
+	{
+		if (CardId.IsValid() && !ProjectIndex.HasCardDefinition(CardId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing CardDefinition stable ID '%s'."), *FieldName, *CardId.ToString()));
+		}
+	}
+
+	void ValidateReferencedUltimateIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalUltimateId& UltimateId,
+		const FString& FieldName)
+	{
+		if (UltimateId.IsValid() && !ProjectIndex.HasUltimateDefinition(UltimateId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing UltimateDefinition stable ID '%s'."), *FieldName, *UltimateId.ToString()));
+		}
+	}
+
+	void ValidateReferencedStatusIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalStatusId& StatusId,
+		const FString& FieldName)
+	{
+		if (StatusId.IsValid() && !ProjectIndex.HasStatusDefinition(StatusId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing StatusDefinition stable ID '%s'."), *FieldName, *StatusId.ToString()));
+		}
+	}
+
+	void ValidateCardDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalCardDefinition* Card,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("CardId"),
+			Card->CardId.ToString(),
+			ProjectIndex.FindDuplicateCardDefinitionPaths(Card->CardId, CurrentAssetPath));
+	}
+
+	void ValidateCharacterDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalCharacterDefinition* Character,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("CharacterId"),
+			Character->CharacterId.ToString(),
+			ProjectIndex.FindDuplicateCharacterDefinitionPaths(Character->CharacterId, CurrentAssetPath));
+
+		for (int32 Index = 0; Index < Character->InitialLoadoutCards.Num(); ++Index)
+		{
+			ValidateReferencedCardIdExists(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				Character->InitialLoadoutCards[Index].CardId,
+				FString::Printf(TEXT("InitialLoadoutCards[%d].CardId"), Index));
+		}
+
+		for (int32 Index = 0; Index < Character->CharacterCardPoolIds.Num(); ++Index)
+		{
+			ValidateReferencedCardIdExists(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				Character->CharacterCardPoolIds[Index],
+				FString::Printf(TEXT("CharacterCardPoolIds[%d]"), Index));
+		}
+
+		ValidateReferencedUltimateIdExists(Context, bIsValid, ProjectIndex, Character->UltimateId, TEXT("UltimateId"));
+		ValidateReferencedStatusIdExists(Context, bIsValid, ProjectIndex, Character->SignatureStatusId, TEXT("SignatureStatusId"));
+	}
+
+	void ValidateEnemyDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalEnemyDefinition* Enemy,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("EnemyId"),
+			Enemy->EnemyId.ToString(),
+			ProjectIndex.FindDuplicateEnemyDefinitionPaths(Enemy->EnemyId, CurrentAssetPath));
+	}
+
+	void ValidateEnemyIntentDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalEnemyIntentDefinition* Intent,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("IntentId"),
+			Intent->IntentId.ToString(),
+			ProjectIndex.FindDuplicateEnemyIntentDefinitionPaths(Intent->IntentId, CurrentAssetPath));
+	}
+
+	void ValidateEncounterDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalBattleEncounterDefinition* Encounter,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("EncounterId"),
+			Encounter->EncounterId.ToString(),
+			ProjectIndex.FindDuplicateEncounterDefinitionPaths(Encounter->EncounterId, CurrentAssetPath));
+	}
+
+	void ValidateRelicDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalRelicDefinition* Relic,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("RelicId"),
+			Relic->RelicId.ToString(),
+			ProjectIndex.FindDuplicateRelicDefinitionPaths(Relic->RelicId, CurrentAssetPath));
+	}
+
+	void ValidateRuleConfigProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalBattleRuleConfig* RuleConfig,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("RuleConfigId"),
+			RuleConfig->RuleConfigId.ToString(),
+			ProjectIndex.FindDuplicateRuleConfigDefinitionPaths(RuleConfig->RuleConfigId, CurrentAssetPath));
+	}
+
+	void ValidateStatusDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalStatusDefinition* Status,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("StatusId"),
+			Status->StatusId.ToString(),
+			ProjectIndex.FindDuplicateStatusDefinitionPaths(Status->StatusId, CurrentAssetPath));
+	}
+
+	void ValidateUltimateDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalUltimateDefinition* Ultimate,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("UltimateId"),
+			Ultimate->UltimateId.ToString(),
+			ProjectIndex.FindDuplicateUltimateDefinitionPaths(Ultimate->UltimateId, CurrentAssetPath));
+	}
 }
 
 bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData& InAssetData, UObject* InAsset, FDataValidationContext& InContext) const
@@ -470,42 +759,53 @@ bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData&
 EDataValidationResult UFinalDataAssetValidator::ValidateLoadedAsset_Implementation(const FAssetData& InAssetData, UObject* InAsset, FDataValidationContext& InContext)
 {
 	bool bIsValid = true;
+	const FString CurrentAssetPath = InAssetData.GetSoftObjectPath().ToString();
+	const FFinalDataValidationProjectIndex& ProjectIndex = FinalDataAssetValidation::GetProjectIndexCache().Get();
 
 	if (const UFinalCardDefinition* Card = Cast<UFinalCardDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateCardDefinition(InContext, bIsValid, Card);
+		FinalDataAssetValidation::ValidateCardDefinitionProjectConsistency(InContext, bIsValid, Card, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalCharacterDefinition* Character = Cast<UFinalCharacterDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateCharacterDefinition(InContext, bIsValid, Character);
+		FinalDataAssetValidation::ValidateCharacterDefinitionProjectConsistency(InContext, bIsValid, Character, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalEnemyDefinition* Enemy = Cast<UFinalEnemyDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateEnemyDefinition(InContext, bIsValid, Enemy);
+		FinalDataAssetValidation::ValidateEnemyDefinitionProjectConsistency(InContext, bIsValid, Enemy, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalEnemyIntentDefinition* Intent = Cast<UFinalEnemyIntentDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateEnemyIntentDefinition(InContext, bIsValid, Intent);
+		FinalDataAssetValidation::ValidateEnemyIntentDefinitionProjectConsistency(InContext, bIsValid, Intent, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalBattleEncounterDefinition* Encounter = Cast<UFinalBattleEncounterDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateEncounterDefinition(InContext, bIsValid, Encounter);
+		FinalDataAssetValidation::ValidateEncounterDefinitionProjectConsistency(InContext, bIsValid, Encounter, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalRelicDefinition* Relic = Cast<UFinalRelicDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateRelicDefinition(InContext, bIsValid, Relic);
+		FinalDataAssetValidation::ValidateRelicDefinitionProjectConsistency(InContext, bIsValid, Relic, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalBattleRuleConfig* RuleConfig = Cast<UFinalBattleRuleConfig>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateRuleConfig(InContext, bIsValid, RuleConfig);
+		FinalDataAssetValidation::ValidateRuleConfigProjectConsistency(InContext, bIsValid, RuleConfig, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalStatusDefinition* Status = Cast<UFinalStatusDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateStatusDefinition(InContext, bIsValid, Status);
+		FinalDataAssetValidation::ValidateStatusDefinitionProjectConsistency(InContext, bIsValid, Status, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalUltimateDefinition* Ultimate = Cast<UFinalUltimateDefinition>(InAsset))
 	{
 		FinalDataAssetValidation::ValidateUltimateDefinition(InContext, bIsValid, Ultimate);
+		FinalDataAssetValidation::ValidateUltimateDefinitionProjectConsistency(InContext, bIsValid, Ultimate, CurrentAssetPath, ProjectIndex);
 	}
 	else
 	{

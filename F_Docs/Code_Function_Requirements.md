@@ -310,8 +310,10 @@
 当前已开始落地：
 * `FinalEditor` 已建立最小 Editor-only 数据资产校验器
 * 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
-* 当前校验范围限定在稳定 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
-* 当前暂不做跨资产稳定 ID 的全局引用存在性解析、重复 ID 扫描；例如角色 loadout card、奥义、状态 ID 只检查自身是否填写
+* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
+* 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的主 ID 是否重复
+* 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
+* 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`
 * 不做自动修复、复杂编辑器 UI、内容资产迁移，也不改变 Runtime 规则语义
 
@@ -388,9 +390,14 @@
 
 ### 8.1 Save / Load
 职责：
-* 保存单局外状态
-* 支持中断恢复
-* 支持战斗外继续读取 `CollapseCount` 等持久字段
+* 当前第一版只保存战斗外 Run 外层状态，由 `FinalApp` 协调固定 SaveGame slot，`FinalRun` 通过公开 `FinalRunSaveData` 协议导出与恢复
+* 保存稳定 ID、`FFinalRunState`、Run 事件日志、节点配置与访问 / 解析进度、当前 FlowStage、待领奖励上下文
+* `FinalRunSaveData` 当前支持 `SaveVersion == 1`，Load 前必须做版本校验与结构合法性检查，坏档应返回明确失败原因并拒绝恢复
+* 结构校验当前至少覆盖空 Run 状态、当前节点 / 已访问节点 / 已解析节点是否存在于配置节点中、待领奖励上下文自洽，以及 `LastEventSequence` 是否覆盖 RunLog 最大序号
+* 支持战斗外继续读取 `CollapseCount` 等持久字段，恢复后 `RunSnapshot` 应反映恢复后的外层状态
+* 当前不保存 active `BattleSession` 内部状态；存在 active battle 时 Save / Load 应拒绝
+* 当前不保存 UI 页面栈、Widget 状态、transient UObject definition，也不做自动迁移、async save/load、正式存档菜单或生产级多 slot 管理
+* `PrototypeRunDebugScreen` 可显示固定 slot 是否存在、最近 Save/Load 状态与失败原因，并提供原型级 Save / Load 按钮；这不是正式存档 UI
 
 优先级：
 * `P1`
@@ -480,7 +487,7 @@
 | UI 页面栈与根布局 | `FinalApp` | `UISubsystem / RootLayout` | `FinalBattle`、`FinalRun` |
 | UI 视图模型 | `FinalApp` | Widget Controller / ViewModel / HUDScreen | `FinalBattle` 内部服务 |
 | 世界桥接 | `FinalApp` | Flow Subsystem / Director | `FinalBattle` |
-| Save / Load | `FinalApp` | Save 协调器 | `FinalBattle` 内部类 |
+| Save / Load | `FinalApp` 协调，`FinalRun` 提供 Save DTO / Restore API | `UFinalSaveGameCoordinator` / `UFinalRunSaveGame` / `FFinalRunSaveData` | `FinalBattle` 内部类、active battle 状态、UI 状态 |
 | 数据校验 / 编辑器工具 | `FinalEditor` | DataValidation 校验器 / 后续编辑器菜单 | Runtime 模块 |
 
 说明：
