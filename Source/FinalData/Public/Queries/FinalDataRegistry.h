@@ -12,6 +12,7 @@ class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 class UFinalEnemyDefinition;
 class UFinalEnemyIntentDefinition;
+class UFinalRunRouteDefinition;
 class UFinalStatusDefinition;
 class UFinalUltimateDefinition;
 
@@ -29,6 +30,7 @@ public:
 	void RegisterEnemyIntentDefinition(UFinalEnemyIntentDefinition* Definition);
 	void RegisterEncounterDefinition(UFinalBattleEncounterDefinition* Definition);
 	void RegisterRelicDefinition(UFinalRelicDefinition* Definition);
+	void RegisterRunRouteDefinition(UFinalRunRouteDefinition* Definition);
 	void RegisterRuleConfig(UFinalBattleRuleConfig* Definition);
 	void RegisterStatusDefinition(UFinalStatusDefinition* Definition);
 	void RegisterUltimateDefinition(UFinalUltimateDefinition* Definition);
@@ -39,6 +41,7 @@ public:
 	UFinalEnemyIntentDefinition* FindEnemyIntentDefinition(const FName& IntentId) const;
 	UFinalBattleEncounterDefinition* FindEncounterDefinition(const FFinalEncounterId& EncounterId) const;
 	UFinalRelicDefinition* FindRelicDefinition(const FFinalRelicId& RelicId) const;
+	UFinalRunRouteDefinition* FindRunRouteDefinition(const FName& RouteId) const;
 	UFinalBattleRuleConfig* FindRuleConfig(const FFinalRuleConfigId& RuleConfigId) const;
 	UFinalStatusDefinition* FindStatusDefinition(const FFinalStatusId& StatusId) const;
 	UFinalUltimateDefinition* FindUltimateDefinition(const FFinalUltimateId& UltimateId) const;
@@ -61,6 +64,9 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalRelicDefinition>> RelicDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UFinalRunRouteDefinition>> RunRouteDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalBattleRuleConfig>> RuleConfigs;

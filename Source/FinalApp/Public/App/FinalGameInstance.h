@@ -8,6 +8,7 @@ class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
+class UFinalRunRouteDefinition;
 
 UCLASS()
 class FINALAPP_API UFinalGameInstance : public UGameInstance
@@ -56,6 +57,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalCardDefinition> TestSupportFocusCard;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunRouteDefinition> TestPrototypeRunRoute;
 
 	UPROPERTY(Transient)
 	FText LastTestFailureReason;

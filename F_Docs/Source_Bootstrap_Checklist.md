@@ -364,11 +364,11 @@
 
 ### 8.3 当前测试入口
 * `FinalGameInstance` 负责注册一组瞬时测试资产，并构造最小 `RunSession`
-* `FinalGameInstance::PrepareTestBattleRun()` 当前会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 Run 外层页与 Battle 回流闭环
+* prototype Run 图当前已收回到 `FinalData` 的瞬时 `RunRouteDefinition`；`FinalGameInstance` 只负责注册这份 route definition，并让 `FinalRunSession` 按 route id 接管节点图初始化
 * `FinalGameInstance` 里的原型奖励条目当前直接填写 typed payload：`GrantedCardId / GrantedRelicId`，不再依赖旧结构兼容桥接
 * 当前 prototype Run 图里的事件节点选项已加入最小 `Growth` 奖励示例，直接使用 `GrowthTargetCharacterId / GrowthEffectType / Value`，用于验证 `RunPersistentCharacterState -> RunSnapshot.Characters` 的真实回写
 * 当前 prototype Run 图已重新接回 `RemoveCard / UpgradeCard` 奖励示例，直接使用 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，用于验证 `RunDeck -> RunSnapshot.CurrentBuild` 的真实构筑修正
-* `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunNodeGraph -> RefreshRunFlow`
+* `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunRouteById -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
 * `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
 * `UISubsystem` 当前还会常驻挂一个只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新

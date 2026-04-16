@@ -9,6 +9,7 @@
 #include "Rewards/FinalRewardResolver.h"
 #include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Shops/FinalShopResolver.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -496,6 +497,7 @@ void UFinalRunSession::InitializeRun()
 	CurrentState.bHasPendingBattleStart = false;
 	RunLogEntries.Reset();
 	ConfiguredRunNodes.Reset();
+	ConfiguredRouteId = NAME_None;
 	VisitedNodeIds.Reset();
 	ResolvedNodeIds.Reset();
 	CurrentNodeId = NAME_None;
@@ -513,6 +515,29 @@ void UFinalRunSession::InitializeRun()
 }
 
 void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, const FName InCurrentNodeId)
+{
+	ConfiguredRouteId = NAME_None;
+	ConfigureRunNodeGraphInternal(NodeDefinitions, InCurrentNodeId);
+}
+
+bool UFinalRunSession::ConfigureRunRouteById(const FName RouteId)
+{
+	if (RouteId.IsNone())
+	{
+		return false;
+	}
+
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
+	if (DataRegistry == nullptr)
+	{
+		return false;
+	}
+
+	const UFinalRunRouteDefinition* RouteDefinition = DataRegistry->FindRunRouteDefinition(RouteId);
+	return RouteDefinition != nullptr && ConfigureRunRouteDefinitionInternal(*RouteDefinition);
+}
+
+void UFinalRunSession::ConfigureRunNodeGraphInternal(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, const FName InCurrentNodeId)
 {
 	ConfiguredRunNodes = NodeDefinitions;
 	CurrentNodeId = InCurrentNodeId;
@@ -551,6 +576,18 @@ void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinitio
 	{
 		CurrentFlowStage = EFinalRunFlowStage::None;
 	}
+}
+
+bool UFinalRunSession::ConfigureRunRouteDefinitionInternal(const UFinalRunRouteDefinition& RouteDefinition)
+{
+	if (!RouteDefinition.IsValidDefinition())
+	{
+		return false;
+	}
+
+	ConfiguredRouteId = RouteDefinition.RouteId;
+	ConfigureRunNodeGraphInternal(RouteDefinition.NodeDefinitions, RouteDefinition.EntryNodeId);
+	return true;
 }
 
 void UFinalRunSession::ConfigureBattleStartState(const FFinalEncounterId& EncounterId, const FFinalRuleConfigId& RuleConfigId, const TArray<FFinalRunPersistentCharacterState>& PartyStates, const TArray<FFinalCardId>& DeckCardIds, int32 InTeamCurrentHP)
@@ -801,6 +838,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.Progression.CurrentNodeId = CurrentNodeId;
 	Snapshot.Progression.CurrentNodeType = GetCurrentNodeType();
 	Snapshot.Progression.bCurrentNodeVisited = !CurrentNodeId.IsNone() && VisitedNodeIds.Contains(CurrentNodeId);
+	Snapshot.Progression.bCurrentNodeResolved = !CurrentNodeId.IsNone() && ResolvedNodeIds.Contains(CurrentNodeId);
 	Snapshot.Progression.bCurrentNodeNeedsResolution =
 		CurrentFlowStage != EFinalRunFlowStage::None
 		&& CurrentFlowStage != EFinalRunFlowStage::AwaitingNodeAdvance

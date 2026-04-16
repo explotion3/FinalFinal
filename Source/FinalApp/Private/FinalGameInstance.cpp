@@ -13,6 +13,8 @@
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
+#include "Run/Rewards/FinalRunRewardTypes.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
@@ -28,6 +30,28 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
 namespace FinalTestBootstrap
 {
+	struct FPrototypeRunRouteBuildArgs
+	{
+		FName RouteId = NAME_None;
+		FText RouteDisplayName;
+		FName OpeningBattleNodeId = NAME_None;
+		FName RewardNodeId = NAME_None;
+		FName EventNodeId = NAME_None;
+		FName ShopNodeId = NAME_None;
+		FName FollowupBattleNodeId = NAME_None;
+		FFinalEncounterId EncounterId;
+		FFinalRuleConfigId RuleConfigId;
+		FFinalCardId RewardRemovedCardId;
+		FFinalCardId EventUpgradeFromCardId;
+		FFinalCardId EventUpgradeToCardId;
+		FFinalCardId ShopGrantedCardId;
+		FFinalRelicId RewardGrantedRelicId;
+		FFinalRelicId ShopGrantedRelicId;
+		FFinalCharacterId GrowthTargetCharacterId;
+		EFinalRunGrowthEffectType GrowthEffectType = EFinalRunGrowthEffectType::None;
+		int32 GrowthValue = 0;
+	};
+
 	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
 	const FName EncounterId(TEXT("encounter.test.bootstrap"));
 	const FName GuardianCharacterId(TEXT("character.test.guardian"));
@@ -46,6 +70,250 @@ namespace FinalTestBootstrap
 	const FName EventNodeId(TEXT("run.test.node.event.crossroads"));
 	const FName ShopNodeId(TEXT("run.test.node.shop.supply"));
 	const FName FollowupBattleNodeId(TEXT("run.test.node.battle.followup"));
+	const FName PrototypeRouteId(TEXT("run.route.test.prototype"));
+
+	FFinalRunRewardEntry MakeBaseRewardEntry(
+		const FName RewardId,
+		const EFinalRunRewardType RewardType,
+		const int32 Value,
+		const FName DisplayId,
+		const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry;
+		Entry.RewardId = RewardId;
+		Entry.RewardType = RewardType;
+		Entry.Value = Value;
+		Entry.DisplayId = DisplayId;
+		Entry.DisplayName = DisplayName;
+		return Entry;
+	}
+
+	FFinalRunRewardEntry MakeRelicRewardEntry(const FName RewardId, const FFinalRelicId& RelicId, const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeBaseRewardEntry(
+			RewardId,
+			EFinalRunRewardType::RelicGrant,
+			1,
+			RelicId.Value,
+			DisplayName);
+		Entry.GrantedRelicId = RelicId;
+		return Entry;
+	}
+
+	FFinalRunRewardEntry MakeCardRewardEntry(const FName RewardId, const FFinalCardId& CardId, const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeBaseRewardEntry(
+			RewardId,
+			EFinalRunRewardType::CardGrant,
+			1,
+			CardId.Value,
+			DisplayName);
+		Entry.GrantedCardId = CardId;
+		return Entry;
+	}
+
+	FFinalRunRewardEntry MakeGrowthRewardEntry(
+		const FName RewardId,
+		const FFinalCharacterId& TargetCharacterId,
+		const EFinalRunGrowthEffectType GrowthEffectType,
+		const int32 Value,
+		const FName DisplayId,
+		const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeBaseRewardEntry(
+			RewardId,
+			EFinalRunRewardType::Growth,
+			Value,
+			DisplayId,
+			DisplayName);
+		Entry.GrowthTargetCharacterId = TargetCharacterId;
+		Entry.GrowthEffectType = GrowthEffectType;
+		return Entry;
+	}
+
+	FFinalRunRewardEntry MakeRemoveCardRewardEntry(const FName RewardId, const FFinalCardId& RemovedCardId, const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeBaseRewardEntry(
+			RewardId,
+			EFinalRunRewardType::RemoveCard,
+			1,
+			RemovedCardId.Value,
+			DisplayName);
+		Entry.RemovedCardId = RemovedCardId;
+		return Entry;
+	}
+
+	FFinalRunRewardEntry MakeUpgradeCardRewardEntry(
+		const FName RewardId,
+		const FFinalCardId& UpgradeFromCardId,
+		const FFinalCardId& UpgradeToCardId,
+		const FText& DisplayName)
+	{
+		FFinalRunRewardEntry Entry = MakeBaseRewardEntry(
+			RewardId,
+			EFinalRunRewardType::UpgradeCard,
+			1,
+			UpgradeToCardId.Value,
+			DisplayName);
+		Entry.UpgradeFromCardId = UpgradeFromCardId;
+		Entry.UpgradeToCardId = UpgradeToCardId;
+		return Entry;
+	}
+
+	UFinalRunRouteDefinition* CreateTransientPrototypeRunRouteDefinition(
+		UObject* Outer,
+		const FPrototypeRunRouteBuildArgs& Args)
+	{
+		if (Outer == nullptr || Args.RouteId.IsNone() || Args.OpeningBattleNodeId.IsNone())
+		{
+			return nullptr;
+		}
+
+		UFinalRunRouteDefinition* RouteDefinition = NewObject<UFinalRunRouteDefinition>(Outer);
+		RouteDefinition->RouteId = Args.RouteId;
+		RouteDefinition->DisplayName = Args.RouteDisplayName;
+		RouteDefinition->EntryNodeId = Args.OpeningBattleNodeId;
+
+		FFinalRunNodeDefinition OpeningBattleNode;
+		OpeningBattleNode.NodeId = Args.OpeningBattleNodeId;
+		OpeningBattleNode.NodeType = EFinalRunNodeType::Battle;
+		OpeningBattleNode.DisplayName = FText::FromString(TEXT("外环巡逻"));
+		OpeningBattleNode.DisplayLabel = TEXT("RunNode.Test.OpeningBattle");
+		OpeningBattleNode.ChapterIndex = 1;
+		OpeningBattleNode.FloorIndex = 1;
+		OpeningBattleNode.EncounterId = Args.EncounterId;
+		OpeningBattleNode.RuleConfigId = Args.RuleConfigId;
+		OpeningBattleNode.NextNodeIds.Add(Args.RewardNodeId);
+
+		FFinalRunNodeDefinition RewardNode;
+		RewardNode.NodeId = Args.RewardNodeId;
+		RewardNode.NodeType = EFinalRunNodeType::Reward;
+		RewardNode.DisplayName = FText::FromString(TEXT("战利品分拣"));
+		RewardNode.DisplayLabel = TEXT("RunNode.Test.Reward");
+		RewardNode.ChapterIndex = 1;
+		RewardNode.FloorIndex = 2;
+		RewardNode.NextNodeIds.Add(Args.EventNodeId);
+		RewardNode.RewardContent.Title = FText::FromString(TEXT("战利品分拣"));
+		RewardNode.RewardContent.Summary = FText::FromString(TEXT("用于验证奖励节点页。确认后会补入少量金币与一件试作遗物。"));
+		RewardNode.RewardContent.RewardEntries.Add(MakeBaseRewardEntry(
+			TEXT("reward.node.cache.gold"),
+			EFinalRunRewardType::Gold,
+			12,
+			TEXT("Currency.Gold"),
+			FText::FromString(TEXT("节点金币"))));
+		RewardNode.RewardContent.RewardEntries.Add(MakeRelicRewardEntry(
+			TEXT("reward.node.cache.relic"),
+			Args.RewardGrantedRelicId,
+			FText::FromString(TEXT("试作护符"))));
+		RewardNode.RewardContent.RewardEntries.Add(MakeRemoveCardRewardEntry(
+			TEXT("reward.node.cache.remove_guardian_strike"),
+			Args.RewardRemovedCardId,
+			FText::FromString(TEXT("移除一张试作斩击"))));
+
+		FFinalRunNodeDefinition EventNode;
+		EventNode.NodeId = Args.EventNodeId;
+		EventNode.NodeType = EFinalRunNodeType::Event;
+		EventNode.DisplayName = FText::FromString(TEXT("岔路告示"));
+		EventNode.DisplayLabel = TEXT("RunNode.Test.Event");
+		EventNode.ChapterIndex = 1;
+		EventNode.FloorIndex = 3;
+		EventNode.NextNodeIds.Add(Args.ShopNodeId);
+		EventNode.EventContent.Title = FText::FromString(TEXT("岔路告示"));
+		EventNode.EventContent.Summary = FText::FromString(TEXT("用于验证事件节点页。至少有一个可选项、一个禁用项，并带有结果摘要。"));
+
+		FFinalRunEventOptionDefinition ReadNoticeOption;
+		ReadNoticeOption.OptionId = TEXT("event.option.read_notice");
+		ReadNoticeOption.DisplayText = FText::FromString(TEXT("查看告示"));
+		ReadNoticeOption.OutcomeSummary = FText::FromString(TEXT("整理出一些情报，额外获得 6 金币。"));
+		ReadNoticeOption.RewardEntries.Add(MakeBaseRewardEntry(
+			TEXT("reward.event.notice.gold"),
+			EFinalRunRewardType::Gold,
+			6,
+			TEXT("Currency.Gold"),
+			FText::FromString(TEXT("情报赏金"))));
+		ReadNoticeOption.RewardEntries.Add(MakeUpgradeCardRewardEntry(
+			TEXT("reward.event.notice.upgrade_support_shot"),
+			Args.EventUpgradeFromCardId,
+			Args.EventUpgradeToCardId,
+			FText::FromString(TEXT("试作速射 -> 试作整备"))));
+		EventNode.EventContent.Options.Add(ReadNoticeOption);
+
+		FFinalRunEventOptionDefinition ForceDoorOption;
+		ForceDoorOption.OptionId = TEXT("event.option.force_door");
+		ForceDoorOption.DisplayText = FText::FromString(TEXT("强行破门"));
+		ForceDoorOption.OutcomeSummary = FText::FromString(TEXT("当前原型不开放这条支线。"));
+		ForceDoorOption.bStartsDisabled = true;
+		ForceDoorOption.DisabledReason = FText::FromString(TEXT("测试原型里暂未开放这条事件分支。"));
+		EventNode.EventContent.Options.Add(ForceDoorOption);
+
+		FFinalRunEventOptionDefinition TakeRestOption;
+		TakeRestOption.OptionId = TEXT("event.option.take_rest");
+		TakeRestOption.DisplayText = FText::FromString(TEXT("原地整备"));
+		TakeRestOption.OutcomeSummary = FText::FromString(TEXT("测试策应压力 -1，用于验证最小 Growth 落地。"));
+		TakeRestOption.RewardEntries.Add(MakeGrowthRewardEntry(
+			TEXT("reward.event.take_rest.growth"),
+			Args.GrowthTargetCharacterId,
+			Args.GrowthEffectType,
+			Args.GrowthValue,
+			TEXT("Growth.Test.Support.ReduceStress"),
+			FText::FromString(TEXT("测试策应·减压"))));
+		EventNode.EventContent.Options.Add(TakeRestOption);
+
+		FFinalRunNodeDefinition ShopNode;
+		ShopNode.NodeId = Args.ShopNodeId;
+		ShopNode.NodeType = EFinalRunNodeType::Shop;
+		ShopNode.DisplayName = FText::FromString(TEXT("流动补给摊"));
+		ShopNode.DisplayLabel = TEXT("RunNode.Test.Shop");
+		ShopNode.ChapterIndex = 1;
+		ShopNode.FloorIndex = 4;
+		ShopNode.NextNodeIds.Add(Args.FollowupBattleNodeId);
+		ShopNode.ShopContent.Title = FText::FromString(TEXT("流动补给摊"));
+		ShopNode.ShopContent.Summary = FText::FromString(TEXT("用于验证商店节点页。准备了一件可买商品和一件当前买不起的商品。"));
+
+		FFinalRunShopOfferDefinition RepairKitOffer;
+		RepairKitOffer.OfferId = TEXT("shop.offer.repair_kit");
+		RepairKitOffer.DisplayId = TEXT("Shop.Test.RepairKit");
+		RepairKitOffer.DisplayName = FText::FromString(TEXT("试作修理包"));
+		RepairKitOffer.Description = FText::FromString(TEXT("用于验证商店页的最小购买流。"));
+		RepairKitOffer.Price = 10;
+		RepairKitOffer.RewardEntries.Add(MakeRelicRewardEntry(
+			TEXT("reward.shop.repair_kit"),
+			Args.ShopGrantedRelicId,
+			FText::FromString(TEXT("修理包"))));
+		ShopNode.ShopContent.Offers.Add(RepairKitOffer);
+
+		FFinalRunShopOfferDefinition PremiumBundleOffer;
+		PremiumBundleOffer.OfferId = TEXT("shop.offer.premium_bundle");
+		PremiumBundleOffer.DisplayId = TEXT("Shop.Test.PremiumBundle");
+		PremiumBundleOffer.DisplayName = FText::FromString(TEXT("高价整备箱"));
+		PremiumBundleOffer.Description = FText::FromString(TEXT("价格故意偏高，用于验证不可购买状态。"));
+		PremiumBundleOffer.Price = 40;
+		PremiumBundleOffer.RewardEntries.Add(MakeCardRewardEntry(
+			TEXT("reward.shop.premium_bundle"),
+			Args.ShopGrantedCardId,
+			FText::FromString(TEXT("试作整备"))));
+		ShopNode.ShopContent.Offers.Add(PremiumBundleOffer);
+
+		FFinalRunNodeDefinition FollowupBattleNode;
+		FollowupBattleNode.NodeId = Args.FollowupBattleNodeId;
+		FollowupBattleNode.NodeType = EFinalRunNodeType::EliteBattle;
+		FollowupBattleNode.DisplayName = FText::FromString(TEXT("巷战回响"));
+		FollowupBattleNode.DisplayLabel = TEXT("RunNode.Test.FollowupBattle");
+		FollowupBattleNode.ChapterIndex = 1;
+		FollowupBattleNode.FloorIndex = 5;
+		FollowupBattleNode.EncounterId = Args.EncounterId;
+		FollowupBattleNode.RuleConfigId = Args.RuleConfigId;
+
+		RouteDefinition->NodeDefinitions = {
+			OpeningBattleNode,
+			RewardNode,
+			EventNode,
+			ShopNode,
+			FollowupBattleNode
+		};
+
+		return RouteDefinition;
+	}
 
 #if FINALAPP_HAS_TEST_RELIC_DEFINITION
 	void RegisterTransientTestRelicDefinition(
@@ -349,6 +617,36 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 		RepairKitTurnStartEffects);
 #endif
 
+	FinalTestBootstrap::FPrototypeRunRouteBuildArgs PrototypeRouteArgs;
+	PrototypeRouteArgs.RouteId = FinalTestBootstrap::PrototypeRouteId;
+	PrototypeRouteArgs.RouteDisplayName = FText::FromString(TEXT("测试战斗外环"));
+	PrototypeRouteArgs.OpeningBattleNodeId = FinalTestBootstrap::OpeningBattleNodeId;
+	PrototypeRouteArgs.RewardNodeId = FinalTestBootstrap::RewardNodeId;
+	PrototypeRouteArgs.EventNodeId = FinalTestBootstrap::EventNodeId;
+	PrototypeRouteArgs.ShopNodeId = FinalTestBootstrap::ShopNodeId;
+	PrototypeRouteArgs.FollowupBattleNodeId = FinalTestBootstrap::FollowupBattleNodeId;
+	PrototypeRouteArgs.EncounterId = TestEncounterDefinition->EncounterId;
+	PrototypeRouteArgs.RuleConfigId = TestRuleConfig->RuleConfigId;
+	PrototypeRouteArgs.RewardRemovedCardId = TestGuardianStrikeCard->CardId;
+	PrototypeRouteArgs.EventUpgradeFromCardId = TestSupportShotCard->CardId;
+	PrototypeRouteArgs.EventUpgradeToCardId = TestSupportFocusCard->CardId;
+	PrototypeRouteArgs.ShopGrantedCardId = TestSupportFocusCard->CardId;
+	PrototypeRouteArgs.RewardGrantedRelicId = FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId);
+	PrototypeRouteArgs.ShopGrantedRelicId = FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId);
+	PrototypeRouteArgs.GrowthTargetCharacterId = TestSupportDefinition->CharacterId;
+	PrototypeRouteArgs.GrowthEffectType = EFinalRunGrowthEffectType::ReduceStress;
+	PrototypeRouteArgs.GrowthValue = 1;
+
+	TestPrototypeRunRoute = FinalTestBootstrap::CreateTransientPrototypeRunRouteDefinition(this, PrototypeRouteArgs);
+	if (TestPrototypeRunRoute == nullptr)
+	{
+		LastTestFailureReason = FText::FromString(TEXT("Failed to create the transient prototype run route definition."));
+		return false;
+	}
+
+	RuntimeTestAssets.Add(TestPrototypeRunRoute);
+	DataRegistry->RegisterRunRouteDefinition(TestPrototypeRunRoute);
+
 	bTestBattleBootstrapRegistered = true;
 
 	UE_LOG(LogFinalGameInstance, Log, TEXT("Registered transient bootstrap data for test battle."));
@@ -405,235 +703,19 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 
 	const int32 TeamCurrentHP = TestGuardianDefinition->BaseVitalShare + TestSupportDefinition->BaseVitalShare;
 
-	auto MakeRewardEntry = [](const FName RewardId, const EFinalRunRewardType RewardType, const int32 Value, const FName DisplayId, const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry;
-		Entry.RewardId = RewardId;
-		Entry.RewardType = RewardType;
-		Entry.Value = Value;
-		Entry.DisplayId = DisplayId;
-		Entry.DisplayName = DisplayName;
-		return Entry;
-	};
-
-	auto MakeRelicRewardEntry = [&MakeRewardEntry](const FName RewardId, const FFinalRelicId& RelicId, const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry = MakeRewardEntry(
-			RewardId,
-			EFinalRunRewardType::RelicGrant,
-			1,
-			RelicId.Value,
-			DisplayName);
-		Entry.GrantedRelicId = RelicId;
-		return Entry;
-	};
-
-	auto MakeCardRewardEntry = [&MakeRewardEntry](const FName RewardId, const FFinalCardId& CardId, const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry = MakeRewardEntry(
-			RewardId,
-			EFinalRunRewardType::CardGrant,
-			1,
-			CardId.Value,
-			DisplayName);
-		Entry.GrantedCardId = CardId;
-		return Entry;
-	};
-
-	auto MakeGrowthRewardEntry = [&MakeRewardEntry](
-		const FName RewardId,
-		const FFinalCharacterId& TargetCharacterId,
-		const EFinalRunGrowthEffectType GrowthEffectType,
-		const int32 Value,
-		const FName DisplayId,
-		const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry = MakeRewardEntry(
-			RewardId,
-			EFinalRunRewardType::Growth,
-			Value,
-			DisplayId,
-			DisplayName);
-		Entry.GrowthTargetCharacterId = TargetCharacterId;
-		Entry.GrowthEffectType = GrowthEffectType;
-		return Entry;
-	};
-
-	auto MakeRemoveCardRewardEntry = [&MakeRewardEntry](const FName RewardId, const FFinalCardId& RemovedCardId, const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry = MakeRewardEntry(
-			RewardId,
-			EFinalRunRewardType::RemoveCard,
-			1,
-			RemovedCardId.Value,
-			DisplayName);
-		Entry.RemovedCardId = RemovedCardId;
-		return Entry;
-	};
-
-	auto MakeUpgradeCardRewardEntry = [&MakeRewardEntry](
-		const FName RewardId,
-		const FFinalCardId& UpgradeFromCardId,
-		const FFinalCardId& UpgradeToCardId,
-		const FText& DisplayName)
-	{
-		FFinalRunRewardEntry Entry = MakeRewardEntry(
-			RewardId,
-			EFinalRunRewardType::UpgradeCard,
-			1,
-			UpgradeToCardId.Value,
-			DisplayName);
-		Entry.UpgradeFromCardId = UpgradeFromCardId;
-		Entry.UpgradeToCardId = UpgradeToCardId;
-		return Entry;
-	};
-
-	FFinalRunNodeDefinition OpeningBattleNode;
-	OpeningBattleNode.NodeId = FinalTestBootstrap::OpeningBattleNodeId;
-	OpeningBattleNode.NodeType = EFinalRunNodeType::Battle;
-	OpeningBattleNode.DisplayName = FText::FromString(TEXT("外环巡逻"));
-	OpeningBattleNode.DisplayLabel = TEXT("RunNode.Test.OpeningBattle");
-	OpeningBattleNode.ChapterIndex = 1;
-	OpeningBattleNode.FloorIndex = 1;
-	OpeningBattleNode.EncounterId = TestEncounterDefinition->EncounterId;
-	OpeningBattleNode.RuleConfigId = TestRuleConfig->RuleConfigId;
-	OpeningBattleNode.NextNodeIds.Add(FinalTestBootstrap::RewardNodeId);
-
-	FFinalRunNodeDefinition RewardNode;
-	RewardNode.NodeId = FinalTestBootstrap::RewardNodeId;
-	RewardNode.NodeType = EFinalRunNodeType::Reward;
-	RewardNode.DisplayName = FText::FromString(TEXT("战利品分拣"));
-	RewardNode.DisplayLabel = TEXT("RunNode.Test.Reward");
-	RewardNode.ChapterIndex = 1;
-	RewardNode.FloorIndex = 2;
-	RewardNode.NextNodeIds.Add(FinalTestBootstrap::EventNodeId);
-	RewardNode.RewardContent.Title = FText::FromString(TEXT("战利品分拣"));
-	RewardNode.RewardContent.Summary = FText::FromString(TEXT("用于验证奖励节点页。确认后会补入少量金币与一件试作遗物。"));
-	RewardNode.RewardContent.RewardEntries.Add(MakeRewardEntry(
-		TEXT("reward.node.cache.gold"),
-		EFinalRunRewardType::Gold,
-		12,
-		TEXT("Currency.Gold"),
-		FText::FromString(TEXT("节点金币"))));
-	RewardNode.RewardContent.RewardEntries.Add(MakeRelicRewardEntry(
-		TEXT("reward.node.cache.relic"),
-		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
-		FText::FromString(TEXT("试作护符"))));
-	RewardNode.RewardContent.RewardEntries.Add(MakeRemoveCardRewardEntry(
-		TEXT("reward.node.cache.remove_guardian_strike"),
-		TestGuardianStrikeCard->CardId,
-		FText::FromString(TEXT("移除一张试作斩击"))));
-
-	FFinalRunNodeDefinition EventNode;
-	EventNode.NodeId = FinalTestBootstrap::EventNodeId;
-	EventNode.NodeType = EFinalRunNodeType::Event;
-	EventNode.DisplayName = FText::FromString(TEXT("岔路告示"));
-	EventNode.DisplayLabel = TEXT("RunNode.Test.Event");
-	EventNode.ChapterIndex = 1;
-	EventNode.FloorIndex = 3;
-	EventNode.NextNodeIds.Add(FinalTestBootstrap::ShopNodeId);
-	EventNode.EventContent.Title = FText::FromString(TEXT("岔路告示"));
-	EventNode.EventContent.Summary = FText::FromString(TEXT("用于验证事件节点页。至少有一个可选项、一个禁用项，并带有结果摘要。"));
-
-	FFinalRunEventOptionDefinition ReadNoticeOption;
-	ReadNoticeOption.OptionId = TEXT("event.option.read_notice");
-	ReadNoticeOption.DisplayText = FText::FromString(TEXT("查看告示"));
-	ReadNoticeOption.OutcomeSummary = FText::FromString(TEXT("整理出一些情报，额外获得 6 金币。"));
-	ReadNoticeOption.RewardEntries.Add(MakeRewardEntry(
-		TEXT("reward.event.notice.gold"),
-		EFinalRunRewardType::Gold,
-		6,
-		TEXT("Currency.Gold"),
-		FText::FromString(TEXT("情报赏金"))));
-	ReadNoticeOption.RewardEntries.Add(MakeUpgradeCardRewardEntry(
-		TEXT("reward.event.notice.upgrade_support_shot"),
-		TestSupportShotCard->CardId,
-		TestSupportFocusCard->CardId,
-		FText::FromString(TEXT("试作速射 -> 试作整备"))));
-	EventNode.EventContent.Options.Add(ReadNoticeOption);
-
-	FFinalRunEventOptionDefinition ForceDoorOption;
-	ForceDoorOption.OptionId = TEXT("event.option.force_door");
-	ForceDoorOption.DisplayText = FText::FromString(TEXT("强行破门"));
-	ForceDoorOption.OutcomeSummary = FText::FromString(TEXT("当前原型不开放这条支线。"));
-	ForceDoorOption.bStartsDisabled = true;
-	ForceDoorOption.DisabledReason = FText::FromString(TEXT("测试原型里暂未开放这条事件分支。"));
-	EventNode.EventContent.Options.Add(ForceDoorOption);
-
-	FFinalRunEventOptionDefinition TakeRestOption;
-	TakeRestOption.OptionId = TEXT("event.option.take_rest");
-	TakeRestOption.DisplayText = FText::FromString(TEXT("原地整备"));
-	TakeRestOption.OutcomeSummary = FText::FromString(TEXT("测试策应压力 -1，用于验证最小 Growth 落地。"));
-	TakeRestOption.RewardEntries.Add(MakeGrowthRewardEntry(
-		TEXT("reward.event.take_rest.growth"),
-		TestSupportDefinition->CharacterId,
-		EFinalRunGrowthEffectType::ReduceStress,
-		1,
-		TEXT("Growth.Test.Support.ReduceStress"),
-		FText::FromString(TEXT("测试策应·减压"))));
-	EventNode.EventContent.Options.Add(TakeRestOption);
-
-	FFinalRunNodeDefinition ShopNode;
-	ShopNode.NodeId = FinalTestBootstrap::ShopNodeId;
-	ShopNode.NodeType = EFinalRunNodeType::Shop;
-	ShopNode.DisplayName = FText::FromString(TEXT("流动补给摊"));
-	ShopNode.DisplayLabel = TEXT("RunNode.Test.Shop");
-	ShopNode.ChapterIndex = 1;
-	ShopNode.FloorIndex = 4;
-	ShopNode.NextNodeIds.Add(FinalTestBootstrap::FollowupBattleNodeId);
-	ShopNode.ShopContent.Title = FText::FromString(TEXT("流动补给摊"));
-	ShopNode.ShopContent.Summary = FText::FromString(TEXT("用于验证商店节点页。准备了一件可买商品和一件当前买不起的商品。"));
-
-	FFinalRunShopOfferDefinition RepairKitOffer;
-	RepairKitOffer.OfferId = TEXT("shop.offer.repair_kit");
-	RepairKitOffer.DisplayId = TEXT("Shop.Test.RepairKit");
-	RepairKitOffer.DisplayName = FText::FromString(TEXT("试作修理包"));
-	RepairKitOffer.Description = FText::FromString(TEXT("用于验证商店页的最小购买流。"));
-	RepairKitOffer.Price = 10;
-	RepairKitOffer.RewardEntries.Add(MakeRelicRewardEntry(
-		TEXT("reward.shop.repair_kit"),
-		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
-		FText::FromString(TEXT("修理包"))));
-	ShopNode.ShopContent.Offers.Add(RepairKitOffer);
-
-	FFinalRunShopOfferDefinition PremiumBundleOffer;
-	PremiumBundleOffer.OfferId = TEXT("shop.offer.premium_bundle");
-	PremiumBundleOffer.DisplayId = TEXT("Shop.Test.PremiumBundle");
-	PremiumBundleOffer.DisplayName = FText::FromString(TEXT("高价整备箱"));
-	PremiumBundleOffer.Description = FText::FromString(TEXT("价格故意偏高，用于验证不可购买状态。"));
-	PremiumBundleOffer.Price = 40;
-	PremiumBundleOffer.RewardEntries.Add(MakeCardRewardEntry(
-		TEXT("reward.shop.premium_bundle"),
-		TestSupportFocusCard->CardId,
-		TestSupportFocusCard->DisplayName));
-	ShopNode.ShopContent.Offers.Add(PremiumBundleOffer);
-
-	FFinalRunNodeDefinition FollowupBattleNode;
-	FollowupBattleNode.NodeId = FinalTestBootstrap::FollowupBattleNodeId;
-	FollowupBattleNode.NodeType = EFinalRunNodeType::EliteBattle;
-	FollowupBattleNode.DisplayName = FText::FromString(TEXT("巷战回响"));
-	FollowupBattleNode.DisplayLabel = TEXT("RunNode.Test.FollowupBattle");
-	FollowupBattleNode.ChapterIndex = 1;
-	FollowupBattleNode.FloorIndex = 5;
-	FollowupBattleNode.EncounterId = TestEncounterDefinition->EncounterId;
-	FollowupBattleNode.RuleConfigId = TestRuleConfig->RuleConfigId;
-
-	TArray<FFinalRunNodeDefinition> TestNodeDefinitions;
-	TestNodeDefinitions.Append({
-		OpeningBattleNode,
-		RewardNode,
-		EventNode,
-		ShopNode,
-		FollowupBattleNode
-	});
-
 	RunSession->ConfigureBattleStartState(
 		TestEncounterDefinition->EncounterId,
 		TestRuleConfig->RuleConfigId,
 		PartyStates,
 		DeckCardIds,
 		TeamCurrentHP);
-	RunSession->ConfigureRunNodeGraph(TestNodeDefinitions, FinalTestBootstrap::OpeningBattleNodeId);
+	if (!RunSession->ConfigureRunRouteById(FinalTestBootstrap::PrototypeRouteId))
+	{
+		LastTestFailureReason = FText::Format(
+			NSLOCTEXT("FinalGameInstance", "ConfigurePrototypeRunRouteFailed", "Failed to configure prototype run route {0}."),
+			FText::FromName(FinalTestBootstrap::PrototypeRouteId));
+		return false;
+	}
 
 	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetSubsystem<UFinalRunFlowSubsystem>())
 	{

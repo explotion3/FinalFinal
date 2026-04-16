@@ -229,7 +229,9 @@
 职责：
 * 维护当前章节、节点池、节点选择结果
 * 组织普通战、精英战、商店、事件、休整、首领战入口
+* prototype 节点图和节点内容流应优先落在 `FinalData` 的 route / node definition 中，由 `FinalRunSession` 读取并接管初始化，不继续由 `FinalApp` 手工拼装 `TArray<FFinalRunNodeDefinition>`
 * 对外查询面至少公开 `CurrentChapter / CurrentFloor / 节点展示名或展示标签 / 已访问 / 锁定状态与原因 / 候选节点展示数据`
+* 当前节点查询面至少明确区分 `已访问` 与 `已解析`，避免 `FinalApp` 通过 flow stage 反推节点状态
 
 优先级：
 * `P1`

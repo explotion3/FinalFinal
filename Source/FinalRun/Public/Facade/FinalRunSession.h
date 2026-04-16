@@ -11,6 +11,8 @@
 #include "UObject/Object.h"
 #include "FinalRunSession.generated.h"
 
+class UFinalRunRouteDefinition;
+
 UCLASS(BlueprintType)
 class FINALRUN_API UFinalRunSession : public UObject
 {
@@ -22,6 +24,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Run")
 	void ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, FName InCurrentNodeId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Run")
+	bool ConfigureRunRouteById(FName RouteId);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Run")
 	void ConfigureBattleStartState(const FFinalEncounterId& EncounterId, const FFinalRuleConfigId& RuleConfigId, const TArray<FFinalRunPersistentCharacterState>& PartyStates, const TArray<FFinalCardId>& DeckCardIds, int32 InTeamCurrentHP = 0);
@@ -66,6 +71,8 @@ public:
 	bool RestoreFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason);
 
 private:
+	void ConfigureRunNodeGraphInternal(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, FName InCurrentNodeId);
+	bool ConfigureRunRouteDefinitionInternal(const UFinalRunRouteDefinition& RouteDefinition);
 	bool TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
@@ -94,6 +101,7 @@ private:
 	TArray<FFinalRunEvent> RunLogEntries;
 
 	TArray<FFinalRunNodeDefinition> ConfiguredRunNodes;
+	FName ConfiguredRouteId = NAME_None;
 	TSet<FName> VisitedNodeIds;
 	TSet<FName> ResolvedNodeIds;
 	FName CurrentNodeId = NAME_None;
