@@ -7,6 +7,7 @@
 #include "FinalUISubsystem.generated.h"
 
 class APlayerController;
+class UFinalBattleEventScreen;
 class UFinalBattleHUDScreen;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
@@ -91,6 +92,9 @@ public:
 	UFinalPrototypeRunDebugScreen* GetPrototypeRunDebugScreen() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleEventScreen* GetBattleEventScreen() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHUDViewModel* GetBattleHUDViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -100,6 +104,7 @@ private:
 	void EnsureRootLayout();
 	void EnsureBattleBridge();
 	void EnsurePrototypeDebugScreen();
+	void EnsureBattleEventScreen();
 	void EnsureFlowScreens();
 	FFinalRunSnapshot GetCurrentRunSnapshot() const;
 	void ConfigureAndOpenRunOverlay(UFinalRunStageOverlayScreenBase* Screen);
@@ -120,6 +125,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalPrototypeRunDebugScreen> PrototypeRunDebugScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEventScreen> BattleEventScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHUDViewModel> BattleHUDViewModel;

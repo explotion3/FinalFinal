@@ -10,6 +10,7 @@
 #include "UI/Root/FinalUIRootLayout.h"
 #include "UI/Screens/FinalScreenBase.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
+#include "UI/Screens/Debug/FinalBattleEventScreen.h"
 #include "UI/Screens/Debug/FinalPrototypeRunDebugScreen.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
 #include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
@@ -39,6 +40,7 @@ void UFinalUISubsystem::Deinitialize()
 
 	BattleHUDScreen = nullptr;
 	PrototypeRunDebugScreen = nullptr;
+	BattleEventScreen = nullptr;
 	BattleWidgetController = nullptr;
 	BattleHUDViewModel = nullptr;
 	OverlayScreenStack.Reset();
@@ -67,6 +69,7 @@ void UFinalUISubsystem::RegisterPrimaryPlayerController(APlayerController* InPla
 	EnsureBattleBridge();
 	EnsureBattleHUD();
 	EnsurePrototypeDebugScreen();
+	EnsureBattleEventScreen();
 	EnsureFlowScreens();
 	ApplyGameplayHudInputMode();
 
@@ -315,6 +318,11 @@ UFinalPrototypeRunDebugScreen* UFinalUISubsystem::GetPrototypeRunDebugScreen() c
 	return PrototypeRunDebugScreen;
 }
 
+UFinalBattleEventScreen* UFinalUISubsystem::GetBattleEventScreen() const
+{
+	return BattleEventScreen;
+}
+
 UFinalBattleHUDViewModel* UFinalUISubsystem::GetBattleHUDViewModel() const
 {
 	return BattleHUDViewModel;
@@ -382,6 +390,27 @@ void UFinalUISubsystem::EnsurePrototypeDebugScreen()
 	RebuildPersistentHUDLayer();
 }
 
+void UFinalUISubsystem::EnsureBattleEventScreen()
+{
+	if (PrimaryPlayerController == nullptr)
+	{
+		return;
+	}
+
+	EnsureRootLayout();
+	if (RootLayout == nullptr)
+	{
+		return;
+	}
+
+	if (BattleEventScreen == nullptr)
+	{
+		BattleEventScreen = CreateWidget<UFinalBattleEventScreen>(PrimaryPlayerController, UFinalBattleEventScreen::StaticClass());
+	}
+
+	RebuildPersistentHUDLayer();
+}
+
 void UFinalUISubsystem::EnsureFlowScreens()
 {
 	if (PrimaryPlayerController == nullptr)
@@ -440,6 +469,13 @@ void UFinalUISubsystem::RebuildPersistentHUDLayer()
 		RootLayout->AddScreenToLayer(PrototypeRunDebugScreen, EFinalUIScreenLayer::HUD);
 		PrototypeRunDebugScreen->SetVisibility(ESlateVisibility::Visible);
 		PrototypeRunDebugScreen->RefreshFromSubsystems();
+	}
+
+	if (BattleEventScreen)
+	{
+		RootLayout->AddScreenToLayer(BattleEventScreen, EFinalUIScreenLayer::HUD);
+		BattleEventScreen->SetVisibility(ESlateVisibility::Visible);
+		BattleEventScreen->RefreshFromSubsystems();
 	}
 }
 

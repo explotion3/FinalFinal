@@ -208,10 +208,14 @@ FinalBattle      FinalRun
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
 * 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
 * 当前 Save / Load 调试入口只显示固定 slot 状态、最近 Save/Load 状态 / 失败原因，并提供原型按钮；不保存 UI 页面栈，不代表正式存档菜单
+* 当前代码已补上 `FinalBattleEventPresentationUtils` 与 `FinalBattleEventScreen`：
+  * 前者把 `FFinalBattleEvent` 统一投影成标题、摘要、细节、世界提示与账本文本
+  * 后者挂在 `HUD Layer`，只读消费 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
+  * 这套消费面服务 HUD、Debug、世界提示与未来 replay-ready 表现，但本轮不等于完整 replay 系统
 * 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
   * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
   * 在世界层维护一份玩家侧 / 敌方侧的 presentation roster 映射
-  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈；当收到 `RelicTriggered` 时只显示简短世界提示
+  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈；世界提示当前直接复用 BattleEvent 统一投影 helper
   * 不替代 Battle HUD，也不访问 `FinalBattle` 私有运行时结构
 * 当前 Battle 期 relic 反馈分层口径：
   * `BattleHUDScreen` 显示精简 `ActiveRelics` 摘要，并把 `RelicTriggered` 作为顶部交互反馈的一部分
@@ -227,12 +231,14 @@ FinalBattle      FinalRun
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
 * `PrototypeRunDebugScreen` 挂在 `HUD Layer`，作为不打断主流程的小型调试摘要窗
+* `FinalBattleEventScreen` 挂在 `HUD Layer`，作为 Battle 事件账本只读窗，优先服务调试、QA 与后续 replay-ready 消费验证
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
 * `ModalScreen` 处理确认类阻断交互
 * `FinalRunStageOverlayScreenBase` 可承接 Run 外层页的共用标题区、摘要区、反馈区与按钮布局 helper
 * `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / Log / UltimateBar` 这类 HUD 区块复用
 * `Widget` 用于卡牌、状态 Chip、资源条、敌人意图等原子控件
 * `WidgetController` 负责订阅 `Snapshot / Event / Query` 并组装 `ViewModel`
+* Battle 期 `BattleHUDScreen` 顶部反馈、`PrototypeRunDebugScreen` 的 Battle 事件摘要、`FinalBattleEventScreen` 的账本文本、`AFinalBattleDirector` 的世界提示，当前都应优先共用同一套 BattleEvent projection helper
 * `ViewModel` 只保存展示数据，不做权威结算，也不承担命令合法性判定
 
 ### 4.6 FinalEditor
@@ -553,6 +559,7 @@ Source
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`
 * `UFinalBattleHUDScreen`
+* `UFinalBattleEventScreen`
 
 Save / Load 当前边界：
 * `FinalApp` 负责固定 slot 读写、SaveGame 类型检查、active battle 拒绝和 DebugScreen 状态展示

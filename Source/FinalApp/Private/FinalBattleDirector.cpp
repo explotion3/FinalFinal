@@ -1,8 +1,10 @@
 #include "World/FinalBattleDirector.h"
 
+#include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Components/SceneComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/TextRenderActor.h"
+#include "Queries/FinalDataRegistry.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 
 namespace
@@ -361,25 +363,12 @@ void AFinalBattleDirector::UpdateSummaryText()
 	}
 
 	const FText CurrentTargetName = ResolveUnitDisplayName(CachedSnapshot, CachedSnapshot.CurrentTargetUnitId);
-	FText EventMessage = !LastBattleEvent.Message.IsEmpty()
-		? LastBattleEvent.Message
+	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
+	const FinalBattleEventPresentation::FEventPresentation EventPresentation =
+		FinalBattleEventPresentation::BuildPresentation(LastBattleEvent, CachedSnapshot, DataRegistry);
+	const FText EventMessage = !EventPresentation.ShortWorldText.IsEmpty()
+		? EventPresentation.ShortWorldText
 		: NSLOCTEXT("FinalBattleDirector", "NoBattleEventYet", "尚无事件反馈");
-
-	if (LastBattleEvent.EventType == EFinalBattleEventType::RelicTriggered)
-	{
-		const FText RelicName = ResolveRelicDisplayName(CachedSnapshot, LastBattleEvent.RelicId);
-		const FText EffectSummary = BuildRelicEffectSummaryText(CachedSnapshot, LastBattleEvent.RelicId);
-		EventMessage = !RelicName.IsEmpty()
-			? (!EffectSummary.IsEmpty()
-				? FText::Format(
-					NSLOCTEXT("FinalBattleDirector", "RelicTriggeredShortFormat", "遗物 {0} · {1}"),
-					RelicName,
-					EffectSummary)
-				: FText::Format(
-					NSLOCTEXT("FinalBattleDirector", "RelicTriggeredNameOnlyFormat", "遗物 {0} 已触发"),
-					RelicName))
-			: EventMessage;
-	}
 
 	SummaryTextComponent->SetText(FText::Format(
 		NSLOCTEXT("FinalBattleDirector", "SummaryFormat", "{0}\nRound {1} | AP {2} | EP {3}\nTarget: {4}\nLast: {5}"),

@@ -1,6 +1,7 @@
 #include "UI/Screens/Debug/FinalPrototypeRunDebugScreen.h"
 
 #include "App/FinalGameInstance.h"
+#include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -9,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Queries/FinalDataRegistry.h"
 #include "Queries/FinalRunQueryTypes.h"
 #include "Save/FinalSaveGameCoordinator.h"
 #include "Styling/CoreStyle.h"
@@ -227,7 +229,7 @@ FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelic
 	return FString::Join(Lines, TEXT("\n"));
 }
 
-bool TryFindLatestRelicTriggeredEvent(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, FFinalBattleEvent& OutBattleEvent)
+bool TryFindLatestBattleEvent(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, FFinalBattleEvent& OutBattleEvent)
 {
 	if (BattleFlowSubsystem == nullptr)
 	{
@@ -235,48 +237,44 @@ bool TryFindLatestRelicTriggeredEvent(const UFinalBattleFlowSubsystem* BattleFlo
 	}
 
 	const TArray<FFinalBattleEvent> BattleLogEntries = BattleFlowSubsystem->GetBattleLogEntries();
-	for (int32 Index = BattleLogEntries.Num() - 1; Index >= 0; --Index)
+	if (BattleLogEntries.IsEmpty())
 	{
-		if (BattleLogEntries[Index].EventType == EFinalBattleEventType::RelicTriggered)
-		{
-			OutBattleEvent = BattleLogEntries[Index];
-			return true;
-		}
+		return false;
 	}
 
-	return false;
+	OutBattleEvent = BattleLogEntries.Last();
+	return true;
 }
 
-FString BuildLatestRelicTriggeredSummaryString(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, const FFinalBattleSnapshot& BattleSnapshot)
+FString BuildLatestBattleEventSummaryString(
+	const UFinalBattleFlowSubsystem* BattleFlowSubsystem,
+	const FFinalBattleSnapshot& BattleSnapshot,
+	const UFinalDataRegistry* DataRegistry)
 {
-	FFinalBattleEvent RelicEvent;
-	if (!TryFindLatestRelicTriggeredEvent(BattleFlowSubsystem, RelicEvent))
+	FFinalBattleEvent BattleEvent;
+	if (!TryFindLatestBattleEvent(BattleFlowSubsystem, BattleEvent))
 	{
-		return NSLOCTEXT("FinalPrototypeRunDebug", "NoRelicTriggeredEvent", "Last Relic Trigger\n当前还没有收到 RelicTriggered 事件。").ToString();
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleEvent", "Latest Battle Event\n当前还没有公开的 BattleEvent。").ToString();
 	}
 
-	const FFinalBattleStartRelicInput* RelicInput = BattleSnapshot.ActiveRelics.FindByPredicate(
-		[&RelicEvent](const FFinalBattleStartRelicInput& Candidate)
-		{
-			return Candidate.RelicId == RelicEvent.RelicId;
-		});
+	const FinalBattleEventPresentation::FEventPresentation EventPresentation =
+		FinalBattleEventPresentation::BuildPresentation(BattleEvent, BattleSnapshot, DataRegistry);
 
-	const FString RelicName = RelicInput != nullptr
-		? FormatOptionalDisplayName(RelicInput->DisplayName, RelicEvent.RelicId.ToString()).ToString()
-		: RelicEvent.RelicId.ToString();
-
-	const FString EffectSummary = RelicInput != nullptr
-		? FString::Printf(
-			TEXT("Start: %s | Turn: %s"),
-			*BuildBattleRelicEffectSummaryString(RelicInput->BattleStartEffects),
-			*BuildBattleRelicTurnStartEffectSummaryString(RelicInput->PlayerTurnStartEffects))
-		: NSLOCTEXT("FinalPrototypeRunDebug", "MissingRelicEffectSummary", "Effects unavailable in snapshot").ToString();
-
-	return FString::Printf(
-		TEXT("Last Relic Trigger\n- Relic: %s\n- Effects: %s\n- Message: %s"),
-		*RelicName,
-		*EffectSummary,
-		*RelicEvent.Message.ToString());
+	TArray<FString> Lines;
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "LatestBattleEventTitle", "Latest Battle Event").ToString());
+	if (!EventPresentation.TitleText.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("- Title: %s"), *EventPresentation.TitleText.ToString()));
+	}
+	if (!EventPresentation.SummaryText.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("- Summary: %s"), *EventPresentation.SummaryText.ToString()));
+	}
+	if (!EventPresentation.DetailText.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("- Detail: %s"), *EventPresentation.DetailText.ToString()));
+	}
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 FText GetRewardTypeText(const EFinalRunRewardType RewardType)
@@ -707,7 +705,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 		|| EventCharacterResultText == nullptr
 		|| CandidateSummaryText == nullptr
 		|| BattleRelicSummaryText == nullptr
-		|| BattleRelicEventText == nullptr)
+		|| BattleEventSummaryText == nullptr)
 	{
 		return;
 	}
@@ -717,6 +715,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	const UFinalBattleFlowSubsystem* BattleFlowSubsystem = ResolveBattleFlowSubsystem();
 	const UFinalSaveGameCoordinator* SaveGameCoordinator = ResolveSaveGameCoordinator();
 	const UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance();
+	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
 
 	const FFinalRunSnapshot RunSnapshot = RunFlowSubsystem ? RunFlowSubsystem->GetCurrentRunSnapshot() : FFinalRunSnapshot{};
 	const FFinalBattleSnapshot BattleSnapshot = GameFlowSubsystem ? GameFlowSubsystem->GetCurrentBattleSnapshot() : FFinalBattleSnapshot{};
@@ -752,7 +751,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 
 	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
 	BattleRelicSummaryText->SetText(FText::FromString(BuildBattleActiveRelicsSummaryString(BattleSnapshot.ActiveRelics)));
-	BattleRelicEventText->SetText(FText::FromString(BuildLatestRelicTriggeredSummaryString(BattleFlowSubsystem, BattleSnapshot)));
+	BattleEventSummaryText->SetText(FText::FromString(BuildLatestBattleEventSummaryString(BattleFlowSubsystem, BattleSnapshot, DataRegistry)));
 
 	if (RestartRunButton)
 	{
@@ -907,8 +906,8 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 		BattleRelicSummarySlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
-	BattleRelicEventText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattleRelicEvent"), 10, FLinearColor(0.95f, 0.83f, 0.62f, 1.0f));
-	if (UVerticalBoxSlot* BattleRelicEventSlot = ContentBox->AddChildToVerticalBox(BattleRelicEventText))
+	BattleEventSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattleEventSummary"), 10, FLinearColor(0.95f, 0.83f, 0.62f, 1.0f));
+	if (UVerticalBoxSlot* BattleRelicEventSlot = ContentBox->AddChildToVerticalBox(BattleEventSummaryText))
 	{
 		BattleRelicEventSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}

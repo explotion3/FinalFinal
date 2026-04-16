@@ -1,5 +1,6 @@
 #include "Controllers/FinalBattleWidgetController.h"
 
+#include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
@@ -750,24 +751,33 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	Presentation.FeedbackRejectReason = LastInteractionEvent.RejectReason;
 	Presentation.FeedbackReasonTag = LastInteractionEvent.ReasonTag;
 
-	const FText EffectiveFeedbackText = !LastInteractionFeedback.IsEmpty()
-		? LastInteractionFeedback
-		: LastInteractionEvent.Message;
-	Presentation.FeedbackText = EffectiveFeedbackText;
-
 	for (const FFinalBattleStartRelicInput& RelicInput : CachedSnapshot.ActiveRelics)
 	{
 		Presentation.ActiveRelicTexts.Add(BuildActiveRelicSummaryText(RelicInput));
 	}
 
-	Presentation.FeedbackTitleText = ResolveFeedbackTitleText(LastInteractionEvent, EffectiveFeedbackText, CachedSnapshot.ActiveRelics);
-	if (LastInteractionEvent.EventType == EFinalBattleEventType::RelicTriggered && Presentation.FeedbackText.IsEmpty())
+	const FText EffectiveFeedbackText = !LastInteractionFeedback.IsEmpty()
+		? LastInteractionFeedback
+		: LastInteractionEvent.Message;
+	const bool bHasInteractionEvent = LastInteractionEvent.EventSequence > 0
+		|| LastInteractionEvent.EventType != EFinalBattleEventType::Info
+		|| LastInteractionEvent.RejectReason != EFinalBattleCommandRejectReason::None
+		|| !EffectiveFeedbackText.IsEmpty();
+	if (bHasInteractionEvent)
 	{
-		const FText EffectSummary = ResolveRelicEffectSummaryById(CachedSnapshot.ActiveRelics, LastInteractionEvent.RelicId);
-		if (!EffectSummary.IsEmpty())
+		const FinalBattleEventPresentation::FEventPresentation EventPresentation =
+			FinalBattleEventPresentation::BuildPresentation(LastInteractionEvent, CachedSnapshot, DataRegistry);
+		Presentation.FeedbackTitleText = EventPresentation.TitleText;
+		Presentation.FeedbackText = FinalBattleEventPresentation::BuildCombinedBodyText(EventPresentation);
+		if (Presentation.FeedbackText.IsEmpty())
 		{
-			Presentation.FeedbackText = EffectSummary;
+			Presentation.FeedbackText = EffectiveFeedbackText;
 		}
+	}
+	else
+	{
+		Presentation.FeedbackTitleText = FText::GetEmpty();
+		Presentation.FeedbackText = FText::GetEmpty();
 	}
 
 	for (const FFinalBattleStatusViewData& TeamStatusView : CachedSnapshot.TeamStatuses)
@@ -938,10 +948,15 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	for (int32 Index = StartIndex; Index < CachedBattleEvents.Num(); ++Index)
 	{
 		const FFinalBattleEvent& Event = CachedBattleEvents[Index];
+		const FinalBattleEventPresentation::FEventPresentation EventPresentation =
+			FinalBattleEventPresentation::BuildPresentation(Event, CachedSnapshot, DataRegistry);
 		FFinalBattleHUDLogEntry Entry;
+		Entry.EventSequence = Event.EventSequence;
 		Entry.EventType = Event.EventType;
 		Entry.Round = Event.Round;
-		Entry.Message = Event.Message;
+		Entry.TitleText = EventPresentation.TitleText;
+		Entry.SummaryText = EventPresentation.SummaryText;
+		Entry.DetailText = EventPresentation.DetailText;
 		Presentation.LogEntries.Add(Entry);
 	}
 
