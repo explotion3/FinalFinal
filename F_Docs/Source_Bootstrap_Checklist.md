@@ -183,6 +183,8 @@
 * `Source/FinalApp/Public/World/FinalBattleDirector.h`
 * `Source/FinalApp/Public/ViewModels/FinalBattleHUDViewModel.h`
 * `Source/FinalApp/Public/Controllers/FinalBattleWidgetController.h`
+* `Source/FinalApp/Public/Save/FinalRunSaveGame.h`
+* `Source/FinalApp/Public/Save/FinalSaveGameCoordinator.h`
 
 #### 当前已落地的 UI 基座
 * `Source/FinalApp/Public/Subsystems/UI/FinalUISubsystem.h`
@@ -204,9 +206,10 @@
 * 创建并持有 `BattleSession`
 * 生成最小 HUD 可读状态
 * 驱动一场战斗的开始与结束
+* 通过 `UFinalSaveGameCoordinator` 调用 `UFinalRunSession::ExportSaveData / RestoreFromSaveData`，完成第一版 Run 外层 Save / Load
+* Save / Load 当前只覆盖战斗外 Run 状态、RunLog、节点进度与待领奖励上下文；active battle、UI 页面栈和 Widget 状态不进入存档
 
 #### 暂不创建
-* Save / Load 协调器
 * 大量细分 ViewModel
 
 ### 5.5 FinalRun
@@ -223,6 +226,7 @@
 * `Source/FinalRun/Public/Queries/FinalRunSnapshot.h`
 * `Source/FinalRun/Public/Requests/FinalBattleStartRequest.h`
 * `Source/FinalRun/Public/Requests/FinalBattleResult.h`
+* `Source/FinalRun/Public/Save/FinalRunSaveData.h`
 
 #### 首批目标
 * 维护最小单局持久状态
@@ -240,6 +244,7 @@
 * 对包含 Growth 类奖励的 `RunEvent`，应在事件中补 `AffectedCharacterResults` 数组，复用现有 `FFinalRunCharacterViewData`，输出结算后的角色持久状态 view data，避免 `FinalApp` 自行推算角色结果
 * `AffectedCharacterResults` 只在 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 的 reward entries 包含 Growth 时填充，不扩大到所有事件
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
+* 暴露 `FinalRunSaveData`、`ExportSaveData()`、`RestoreFromSaveData()`，仅用于 Run 外层状态导出 / 恢复，不开放 `RunSession` 私有字段给 `FinalApp` 直接写入
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * `RemoveCard / UpgradeCard` 使用稳定 payload，例如 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，并在落地前校验必要 payload、card definition 和 `RunDeck` 中的目标
@@ -301,7 +306,6 @@
 
 ### 7.1 FinalApp
 * `FinalRunFlowSubsystem.h`
-* `FinalSaveGameCoordinator.h`
 * `FinalBattleRewardScreen.h`
 * `FinalBattleEventScreen.h`
 * `FinalBattleShopScreen.h`

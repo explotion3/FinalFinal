@@ -165,6 +165,27 @@ FFinalBattleSnapshot UFinalGameFlowSubsystem::GetCurrentBattleSnapshot() const
 	return BattleFlowSubsystem ? BattleFlowSubsystem->GetCurrentSnapshot() : FFinalBattleSnapshot{};
 }
 
+bool UFinalGameFlowSubsystem::RestoreRunSessionFromSaveData(const FFinalRunSaveData& SaveData)
+{
+	LastFlowFailureReason = FText::GetEmpty();
+
+	if (GetActiveBattleSession() != nullptr)
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("Cannot restore RunSession while a battle session is active."));
+		return false;
+	}
+
+	RunSession = NewObject<UFinalRunSession>(this);
+	RunSession->RestoreFromSaveData(SaveData);
+
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
+	{
+		RunFlowSubsystem->HandleRunSessionChanged();
+	}
+
+	return true;
+}
+
 FText UFinalGameFlowSubsystem::GetLastBattleFailureReason() const
 {
 	if (!LastFlowFailureReason.IsEmpty())
