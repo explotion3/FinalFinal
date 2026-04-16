@@ -1,5 +1,6 @@
 #include "Queries/FinalDataRegistry.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
@@ -10,8 +11,31 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalDataRegistry, Log, All);
+
+namespace
+{
+	template <typename TDefinition, typename TRegisterMemberFn>
+	int32 RegisterDefinitionAssets(UFinalDataRegistry& Registry, IAssetRegistry& AssetRegistry, TRegisterMemberFn RegisterMemberFn)
+	{
+		TArray<FAssetData> AssetDatas;
+		AssetRegistry.GetAssetsByClass(TDefinition::StaticClass()->GetClassPathName(), AssetDatas, true);
+
+		int32 RegisteredCount = 0;
+		for (const FAssetData& AssetData : AssetDatas)
+		{
+			if (TDefinition* Definition = Cast<TDefinition>(AssetData.GetAsset()))
+			{
+				(Registry.*RegisterMemberFn)(Definition);
+				++RegisteredCount;
+			}
+		}
+
+		return RegisteredCount;
+	}
+}
 
 void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -27,6 +51,41 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	RuleConfigs.Reset();
 	StatusDefinitions.Reset();
 	UltimateDefinitions.Reset();
+
+	DiscoverRuntimeDefinitions();
+}
+
+void UFinalDataRegistry::DiscoverRuntimeDefinitions()
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	AssetRegistry.WaitForCompletion();
+
+	const int32 CharacterCount = RegisterDefinitionAssets<UFinalCharacterDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterCharacterDefinition);
+	const int32 CardCount = RegisterDefinitionAssets<UFinalCardDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterCardDefinition);
+	const int32 EnemyCount = RegisterDefinitionAssets<UFinalEnemyDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEnemyDefinition);
+	const int32 EnemyIntentCount = RegisterDefinitionAssets<UFinalEnemyIntentDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEnemyIntentDefinition);
+	const int32 EncounterCount = RegisterDefinitionAssets<UFinalBattleEncounterDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEncounterDefinition);
+	const int32 RelicCount = RegisterDefinitionAssets<UFinalRelicDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRelicDefinition);
+	const int32 RunRouteCount = RegisterDefinitionAssets<UFinalRunRouteDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRunRouteDefinition);
+	const int32 RuleConfigCount = RegisterDefinitionAssets<UFinalBattleRuleConfig>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRuleConfig);
+	const int32 StatusCount = RegisterDefinitionAssets<UFinalStatusDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterStatusDefinition);
+	const int32 UltimateCount = RegisterDefinitionAssets<UFinalUltimateDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterUltimateDefinition);
+
+	UE_LOG(
+		LogFinalDataRegistry,
+		Log,
+		TEXT("Discovered runtime definitions: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d Relics=%d RunRoutes=%d"),
+		RuleConfigCount,
+		CharacterCount,
+		CardCount,
+		UltimateCount,
+		EnemyCount,
+		EnemyIntentCount,
+		StatusCount,
+		EncounterCount,
+		RelicCount,
+		RunRouteCount);
 }
 
 void UFinalDataRegistry::RegisterCharacterDefinition(UFinalCharacterDefinition* Definition)

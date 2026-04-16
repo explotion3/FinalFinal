@@ -47,6 +47,8 @@ public:
 	UFinalUltimateDefinition* FindUltimateDefinition(const FFinalUltimateId& UltimateId) const;
 
 private:
+	void DiscoverRuntimeDefinitions();
+
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalCharacterDefinition>> CharacterDefinitions;
 
