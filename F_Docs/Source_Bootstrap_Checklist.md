@@ -258,10 +258,18 @@
 * `FinalBattleLogService.h`
 
 ### 6.3 FinalRun
+已落地的私有解析器：
 * `Source/FinalRun/Private/Events/FinalRunEventResolver.h`
 * `Source/FinalRun/Private/Rewards/FinalRewardResolver.h`
 * `Source/FinalRun/Private/Shops/FinalShopResolver.h`
 * `Source/FinalRun/Private/Growth/FinalGrowthResolver.h`
+
+当前口径：
+* `UFinalRunSession` 继续作为唯一对外 facade / orchestrator
+* reward 校验与应用、reward view data、affected character results 已迁入 `FinalRewardResolver`
+* event option 查找与解析已迁入 `FinalRunEventResolver`
+* shop offer 查找、价格校验与购买解析已迁入 `FinalShopResolver`
+* 现有最小 `Growth` 校验与应用已迁入 `FinalGrowthResolver`
 
 ### 6.4 FinalApp
 * `Source/FinalApp/Public/UI/Screens/FinalOverlayScreenBase.h`

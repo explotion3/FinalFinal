@@ -508,10 +508,15 @@ Source
 推荐：
 * `UFinalRunSession`
 * `UFinalRunNodeResolver`
-* `UFinalRunEventResolver`
-* `UFinalRewardResolver`
-* `UFinalShopResolver`
-* `UFinalGrowthResolver`
+* `Private/Events/FinalRunEventResolver`
+* `Private/Rewards/FinalRewardResolver`
+* `Private/Shops/FinalShopResolver`
+* `Private/Growth/FinalGrowthResolver`
+
+规则：
+* `UFinalRunSession` 是唯一对外 facade
+* resolver 只放 `Private`，承接 reward / event / shop / growth 的内部解析与 view data 组装
+* 不把 `RunState` 私有容器或 resolver 内部实现抬进 `Public`
 
 当前稳定公开面：
 * `RunSnapshot`

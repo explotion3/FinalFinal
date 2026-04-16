@@ -205,7 +205,7 @@
 职责：
 * 接收事件选项、奖励选择、商店购买、成长分支等单局外命令
 * 校验条件、代价与可选项是否合法
-* 把合法命令交给 Run 层解析器处理
+* `RunSession` 负责命令分发与事件时序，reward / event / shop / growth 的私有解析细节应回收到 `FinalRun/Private` 下的 resolver，不把 `FinalRunSession.cpp` 继续扩成单文件真相与解析器混合体
 
 典型命令：
 * 进入节点
