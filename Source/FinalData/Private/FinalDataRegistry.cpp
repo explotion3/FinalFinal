@@ -9,6 +9,7 @@
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalDataRegistry, Log, All);
 
@@ -22,6 +23,7 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	EnemyIntentDefinitions.Reset();
 	EncounterDefinitions.Reset();
 	RelicDefinitions.Reset();
+	RunRouteDefinitions.Reset();
 	RuleConfigs.Reset();
 	StatusDefinitions.Reset();
 	UltimateDefinitions.Reset();
@@ -85,6 +87,16 @@ void UFinalDataRegistry::RegisterRelicDefinition(UFinalRelicDefinition* Definiti
 	}
 
 	RelicDefinitions.Add(Definition->RelicId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterRunRouteDefinition(UFinalRunRouteDefinition* Definition)
+{
+	if (!IsValid(Definition) || Definition->RouteId.IsNone())
+	{
+		return;
+	}
+
+	RunRouteDefinitions.Add(Definition->RouteId, Definition);
 }
 
 void UFinalDataRegistry::RegisterRuleConfig(UFinalBattleRuleConfig* Definition)
@@ -180,6 +192,17 @@ UFinalRelicDefinition* UFinalDataRegistry::FindRelicDefinition(const FFinalRelic
 	}
 
 	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("RelicDefinition not found for id %s"), *RelicId.ToString());
+	return nullptr;
+}
+
+UFinalRunRouteDefinition* UFinalDataRegistry::FindRunRouteDefinition(const FName& RouteId) const
+{
+	if (const TObjectPtr<UFinalRunRouteDefinition>* Found = RunRouteDefinitions.Find(RouteId))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("RunRouteDefinition not found for id %s"), *RouteId.ToString());
 	return nullptr;
 }
 

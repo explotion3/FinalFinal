@@ -437,6 +437,9 @@ struct FINALRUN_API FFinalRunProgressionViewData
 	bool bCurrentNodeVisited = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCurrentNodeResolved = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	bool bCurrentNodeNeedsResolution = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")

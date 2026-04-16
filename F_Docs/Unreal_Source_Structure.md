@@ -205,7 +205,7 @@ FinalBattle      FinalRun
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
-* 当前 `FinalGameInstance::PrepareTestBattleRun()` 会构建瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`，用于验证 `FinalApp` 的外层流程闭环
+* 当前 prototype Run 图已改成瞬时 `RunRouteDefinition` 驱动：节点图和节点内容流优先挂在 `FinalData` 的 route / node definition 上，由 `FinalRunSession` 通过 route id 接管初始化；`FinalGameInstance::PrepareTestBattleRun()` 不再直接拼 `TArray<FFinalRunNodeDefinition>`
 * 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
 * 当前 Save / Load 调试入口只显示固定 slot 状态、最近 Save/Load 状态 / 失败原因，并提供原型按钮；不保存 UI 页面栈，不代表正式存档菜单
 * 当前代码已补上 `FinalBattleEventPresentationUtils` 与 `FinalBattleEventScreen`：
