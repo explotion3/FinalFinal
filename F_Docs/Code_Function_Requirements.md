@@ -180,6 +180,13 @@
 * `BattleEvent` 已承载 `EventSequence`
 * 事件已可携带来源 / 目标单位、关联卡牌 / 奥义 / 状态、关键数值、战斗结果
 * `BattleSession` 已提供全量读取与按序号增量读取，供 `FinalApp/UI` 做事件驱动刷新
+* `FinalBattleResolver` 当前继续作为唯一对外规则入口，但私有实现细节应回收到 `FinalBattle/Private/Systems`
+* 当前已开始真实承接实现的 Battle 私有 system 至少包括：
+  * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、抽牌与手牌视图构建
+  * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
+  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进、玩家回合开始窗口与遗物触发入口
+  * `FinalBattleStatusService`：当前最小状态窗口 tick 与状态快照整理
+* `FinalBattleResolver` 负责 command dispatch、战斗初始化、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现
 
 优先级：
 * `P1`

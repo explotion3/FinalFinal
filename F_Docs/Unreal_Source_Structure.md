@@ -483,7 +483,7 @@ Source
 推荐：
 * `UFinalBattleSession`
 * `UFinalBattleCommandProcessor`
-* `UFinalBattleResolver`
+* `FFinalBattleResolver`
 
 边界：
 * `BattleSession` 是唯一战斗入口
@@ -491,18 +491,19 @@ Source
 
 ### 8.2 Battle 子系统
 推荐：
-* `UFinalBattleCardService`
-* `UFinalBattleResourceService`
-* `UFinalBattleStatusService`
+* `FFinalBattleCardService`
+* `FFinalBattleResourceService`
+* `FFinalBattleStatusService`
 * `UFinalBattleBreakService`
-* `UFinalBattleTurnService`
-* `UFinalEnemyIntentService`
+* `FFinalBattleTurnService`
+* `FFinalEnemyIntentService`
 * `UFinalCollapseAwakenService`
 * `UFinalBattleLogService`
 
 规则：
 * Service 可以互相协作，但由 Resolver 或 Session 统一编排
 * 不允许多个 Service 同时持有彼此的状态真相副本
+* 当前代码口径中，`FinalBattleCardService / ResourceService / TurnService / StatusService / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
 
 ### 8.3 Run 入口
 推荐：
