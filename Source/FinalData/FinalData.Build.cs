@@ -14,5 +14,10 @@ public class FinalData : ModuleRules
 			"GameplayTags",
 			"FinalCore"
 		});
+
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"AssetRegistry"
+		});
 	}
 }

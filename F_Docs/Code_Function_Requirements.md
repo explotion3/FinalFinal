@@ -255,6 +255,8 @@
 * `CardGrant / RelicGrant` 在真正落地到 `RunState` 前，应通过 `FinalDataRegistry` 校验对应 definition 是否存在；`RelicGrant` 的 `DisplayName / DisplayId` fallback 应优先来自 `RelicDefinition`
 * `RemoveCard / UpgradeCard` 落地前应校验必要 payload、对应 card definition、以及 `RunDeck` 中是否存在目标卡；`UpgradeCard` 还应校验升级结果不是无效或自指
 * `Growth` 当前阶段可先支持锚定 `RunPersistentCharacterState` 的最小 typed payload，例如 `GrowthTargetCharacterId + GrowthEffectType + Value`，并真实落地到 `CurrentStress / CurrentAwakenCount / CollapseCount`
+* `FinalDataRegistry` 运行时应先承担 definition 资产发现/加载主路径，至少覆盖 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition`
+* `FinalApp` 的测试入口应优先按 stable id 从 `FinalDataRegistry` 查询 prototype content；只有项目内容里缺少对应 definition 时，才允许保留极薄 transient fallback，且 fallback 不能继续作为主路径
 * 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
 * 在保留 raw `RewardEntries` 的前提下，Run 查询面还应补 `RewardEntryViewData` 一类稳定展示数据，至少能表达 `PrimaryText / SecondaryText / Value` 与必要的只读目标 id，避免 `FinalApp` 自行拼接 reward 文案

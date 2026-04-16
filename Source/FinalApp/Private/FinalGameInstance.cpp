@@ -52,6 +52,43 @@ namespace FinalTestBootstrap
 		int32 GrowthValue = 0;
 	};
 
+	struct FResolvedPrototypeDefinitions
+	{
+		UFinalBattleRuleConfig* RuleConfig = nullptr;
+		UFinalBattleEncounterDefinition* EncounterDefinition = nullptr;
+		UFinalCharacterDefinition* GuardianDefinition = nullptr;
+		UFinalCharacterDefinition* SupportDefinition = nullptr;
+		UFinalCardDefinition* GuardianStrikeCard = nullptr;
+		UFinalCardDefinition* GuardianGuardCard = nullptr;
+		UFinalCardDefinition* SupportShotCard = nullptr;
+		UFinalCardDefinition* SupportFocusCard = nullptr;
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+		UFinalRelicDefinition* RewardCharmRelic = nullptr;
+		UFinalRelicDefinition* ShopRepairKitRelic = nullptr;
+#endif
+		UFinalRunRouteDefinition* PrototypeRunRoute = nullptr;
+
+		bool HasRequiredDefinitions() const
+		{
+			const bool bHasCoreDefinitions =
+				RuleConfig != nullptr
+				&& EncounterDefinition != nullptr
+				&& GuardianDefinition != nullptr
+				&& SupportDefinition != nullptr
+				&& GuardianStrikeCard != nullptr
+				&& GuardianGuardCard != nullptr
+				&& SupportShotCard != nullptr
+				&& SupportFocusCard != nullptr
+				&& PrototypeRunRoute != nullptr;
+
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+			return bHasCoreDefinitions && RewardCharmRelic != nullptr && ShopRepairKitRelic != nullptr;
+#else
+			return bHasCoreDefinitions;
+#endif
+		}
+	};
+
 	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
 	const FName EncounterId(TEXT("encounter.test.bootstrap"));
 	const FName GuardianCharacterId(TEXT("character.test.guardian"));
@@ -71,6 +108,29 @@ namespace FinalTestBootstrap
 	const FName ShopNodeId(TEXT("run.test.node.shop.supply"));
 	const FName FollowupBattleNodeId(TEXT("run.test.node.battle.followup"));
 	const FName PrototypeRouteId(TEXT("run.route.test.prototype"));
+
+	bool ResolvePrototypeDefinitionsFromRegistry(UFinalDataRegistry* DataRegistry, FResolvedPrototypeDefinitions& OutDefinitions)
+	{
+		if (DataRegistry == nullptr)
+		{
+			return false;
+		}
+
+		OutDefinitions.RuleConfig = DataRegistry->FindRuleConfig(FFinalRuleConfigId(RuleConfigId));
+		OutDefinitions.EncounterDefinition = DataRegistry->FindEncounterDefinition(FFinalEncounterId(EncounterId));
+		OutDefinitions.GuardianDefinition = DataRegistry->FindCharacterDefinition(FFinalCharacterId(GuardianCharacterId));
+		OutDefinitions.SupportDefinition = DataRegistry->FindCharacterDefinition(FFinalCharacterId(SupportCharacterId));
+		OutDefinitions.GuardianStrikeCard = DataRegistry->FindCardDefinition(FFinalCardId(GuardianStrikeCardId));
+		OutDefinitions.GuardianGuardCard = DataRegistry->FindCardDefinition(FFinalCardId(GuardianGuardCardId));
+		OutDefinitions.SupportShotCard = DataRegistry->FindCardDefinition(FFinalCardId(SupportShotCardId));
+		OutDefinitions.SupportFocusCard = DataRegistry->FindCardDefinition(FFinalCardId(SupportFocusCardId));
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+		OutDefinitions.RewardCharmRelic = DataRegistry->FindRelicDefinition(FFinalRelicId(RewardCharmRelicId));
+		OutDefinitions.ShopRepairKitRelic = DataRegistry->FindRelicDefinition(FFinalRelicId(ShopRepairKitRelicId));
+#endif
+		OutDefinitions.PrototypeRunRoute = DataRegistry->FindRunRouteDefinition(PrototypeRouteId);
+		return OutDefinitions.HasRequiredDefinitions();
+	}
 
 	FFinalRunRewardEntry MakeBaseRewardEntry(
 		const FName RewardId,
@@ -315,6 +375,322 @@ namespace FinalTestBootstrap
 		return RouteDefinition;
 	}
 
+	UFinalBattleRuleConfig* RegisterTransientTestRuleConfig(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleRuleConfig* RuleConfig = NewObject<UFinalBattleRuleConfig>(Outer, TEXT("DA_TestBattleRuleConfig"));
+		RuleConfig->RuleConfigId = FFinalRuleConfigId(RuleConfigId);
+		RuleConfig->InitialAP = 3;
+		RuleConfig->InitialHandSize = 5;
+		RuleConfig->HandLimit = 10;
+		RuleConfig->MaxEP = 70;
+		RuleConfig->EndTurnEpGain = 3;
+		RuleConfig->OnHitEpGain = 4;
+		RuleConfig->BaseCardEpGain = 1;
+		RuleConfig->BreakRewardAP = 1;
+		RuleConfig->NormalCardInitiativeEventCount = 1;
+		RuleConfig->CollapsedCardInitiativeEventCount = 1;
+		RuleConfig->StressHpLossPerPoint = 5;
+		RuleConfig->StressHealPerPoint = 8;
+		RuleConfig->MinStressChangePerEvent = 1;
+		RuleConfig->MaxStressGainPerHit = 3;
+		RuleConfig->StressRandomProtectionCount = 2;
+		RuleConfig->DamageToBreakCap = 6;
+		RuntimeAssets.Add(RuleConfig);
+		DataRegistry->RegisterRuleConfig(RuleConfig);
+		return RuleConfig;
+	}
+
+	UFinalCharacterDefinition* RegisterTransientTestCharacterDefinition(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		const TCHAR* ObjectName,
+		const FFinalCharacterId& CharacterId,
+		const FText& DisplayName,
+		const int32 BaseVitalShare,
+		const int32 BaseStressCap,
+		const int32 BaseAttack,
+		const int32 BaseDefense,
+		const float BaseBreakRate,
+		const float BaseCritChance,
+		const float BaseCritDamage,
+		const int32 EpGainPerAP)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || !CharacterId.IsValid())
+		{
+			return nullptr;
+		}
+
+		UFinalCharacterDefinition* CharacterDefinition = NewObject<UFinalCharacterDefinition>(Outer, ObjectName);
+		CharacterDefinition->CharacterId = CharacterId;
+		CharacterDefinition->DisplayName = DisplayName;
+		CharacterDefinition->BaseVitalShare = BaseVitalShare;
+		CharacterDefinition->BaseStressCap = BaseStressCap;
+		CharacterDefinition->BaseAttack = BaseAttack;
+		CharacterDefinition->BaseDefense = BaseDefense;
+		CharacterDefinition->BaseBreakRate = BaseBreakRate;
+		CharacterDefinition->BaseCritChance = BaseCritChance;
+		CharacterDefinition->BaseCritDamage = BaseCritDamage;
+		CharacterDefinition->EpGainPerAP = EpGainPerAP;
+		RuntimeAssets.Add(CharacterDefinition);
+		DataRegistry->RegisterCharacterDefinition(CharacterDefinition);
+		return CharacterDefinition;
+	}
+
+	UFinalCardDefinition* RegisterTransientTestGuardianStrikeCard(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		UFinalCharacterDefinition* OwnerCharacterDefinition)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || OwnerCharacterDefinition == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalCardDefinition* CardDefinition = NewObject<UFinalCardDefinition>(Outer, TEXT("DA_TestGuardianStrikeCard"));
+		CardDefinition->CardId = FFinalCardId(GuardianStrikeCardId);
+		CardDefinition->OwnerUnitId = OwnerCharacterDefinition->CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(TEXT("试作斩击"));
+		CardDefinition->CardType = EFinalCardType::Attack;
+		CardDefinition->Rarity = EFinalRarity::Common;
+		CardDefinition->BaseCostAP = 1;
+		CardDefinition->RulesText = FText::FromString(TEXT("测试用普通攻击牌。"));
+		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+		DamageEffect->EffectId = TEXT("effect.test.guardian.strike.damage");
+		DamageEffect->Scalar.BaseValue = 1.0f;
+		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+		DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+		CardDefinition->Effects.Add(DamageEffect);
+		RuntimeAssets.Add(CardDefinition);
+		DataRegistry->RegisterCardDefinition(CardDefinition);
+		return CardDefinition;
+	}
+
+	UFinalCardDefinition* RegisterTransientTestGuardianGuardCard(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		UFinalCharacterDefinition* OwnerCharacterDefinition)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || OwnerCharacterDefinition == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalCardDefinition* CardDefinition = NewObject<UFinalCardDefinition>(Outer, TEXT("DA_TestGuardianGuardCard"));
+		CardDefinition->CardId = FFinalCardId(GuardianGuardCardId);
+		CardDefinition->OwnerUnitId = OwnerCharacterDefinition->CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(TEXT("试作格挡"));
+		CardDefinition->CardType = EFinalCardType::Skill;
+		CardDefinition->Rarity = EFinalRarity::Common;
+		CardDefinition->BaseCostAP = 1;
+		CardDefinition->RulesText = FText::FromString(TEXT("测试用防御牌。"));
+		UFinalBattleEffectGainShield* ShieldEffect = NewObject<UFinalBattleEffectGainShield>(CardDefinition);
+		ShieldEffect->EffectId = TEXT("effect.test.guardian.guard.shield");
+		ShieldEffect->Scalar.BaseValue = 1.0f;
+		ShieldEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+		ShieldEffect->Scalar.SourceStat = EFinalBattleSourceStat::Defense;
+		CardDefinition->Effects.Add(ShieldEffect);
+		RuntimeAssets.Add(CardDefinition);
+		DataRegistry->RegisterCardDefinition(CardDefinition);
+		return CardDefinition;
+	}
+
+	UFinalCardDefinition* RegisterTransientTestSupportShotCard(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		UFinalCharacterDefinition* OwnerCharacterDefinition)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || OwnerCharacterDefinition == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalCardDefinition* CardDefinition = NewObject<UFinalCardDefinition>(Outer, TEXT("DA_TestSupportShotCard"));
+		CardDefinition->CardId = FFinalCardId(SupportShotCardId);
+		CardDefinition->OwnerUnitId = OwnerCharacterDefinition->CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(TEXT("试作速射"));
+		CardDefinition->CardType = EFinalCardType::Attack;
+		CardDefinition->Rarity = EFinalRarity::Common;
+		CardDefinition->BaseCostAP = 1;
+		CardDefinition->RulesText = FText::FromString(TEXT("测试用远程攻击牌。"));
+		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+		DamageEffect->EffectId = TEXT("effect.test.support.shot.damage");
+		DamageEffect->Scalar.BaseValue = 1.0f;
+		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+		DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+		CardDefinition->Effects.Add(DamageEffect);
+		RuntimeAssets.Add(CardDefinition);
+		DataRegistry->RegisterCardDefinition(CardDefinition);
+		return CardDefinition;
+	}
+
+	UFinalCardDefinition* RegisterTransientTestSupportFocusCard(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		UFinalCharacterDefinition* OwnerCharacterDefinition)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || OwnerCharacterDefinition == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalCardDefinition* CardDefinition = NewObject<UFinalCardDefinition>(Outer, TEXT("DA_TestSupportFocusCard"));
+		CardDefinition->CardId = FFinalCardId(SupportFocusCardId);
+		CardDefinition->OwnerUnitId = OwnerCharacterDefinition->CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(TEXT("试作整备"));
+		CardDefinition->CardType = EFinalCardType::Skill;
+		CardDefinition->Rarity = EFinalRarity::Common;
+		CardDefinition->BaseCostAP = 1;
+		CardDefinition->RulesText = FText::FromString(TEXT("测试用辅助牌。"));
+		UFinalBattleEffectDrawCards* DrawEffect = NewObject<UFinalBattleEffectDrawCards>(CardDefinition);
+		DrawEffect->EffectId = TEXT("effect.test.support.focus.draw");
+		DrawEffect->DrawCount = 2;
+		CardDefinition->Effects.Add(DrawEffect);
+		RuntimeAssets.Add(CardDefinition);
+		DataRegistry->RegisterCardDefinition(CardDefinition);
+		return CardDefinition;
+	}
+
+	UFinalEnemyDefinition* ResolveOrRegisterTransientTestEnemyDefinition(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr)
+		{
+			return nullptr;
+		}
+
+		if (UFinalEnemyDefinition* EnemyDefinition = DataRegistry->FindEnemyDefinition(FFinalEnemyId(EnemyId)))
+		{
+			return EnemyDefinition;
+		}
+
+		UFinalEnemyIntentDefinition* AttackIntent = DataRegistry->FindEnemyIntentDefinition(TEXT("intent.test.enemy.attack"));
+		if (AttackIntent == nullptr)
+		{
+			AttackIntent = NewObject<UFinalEnemyIntentDefinition>(Outer, TEXT("DA_TestEnemyAttackIntent"));
+			AttackIntent->IntentId = TEXT("intent.test.enemy.attack");
+			AttackIntent->DisplayName = FText::FromString(TEXT("试作劈砍"));
+			AttackIntent->IntentType = EFinalIntentType::Attack;
+			AttackIntent->PreviewText = FText::FromString(TEXT("劈砍 6"));
+			AttackIntent->PhaseTags.Add(PhaseOneTag);
+			UFinalBattleEffectDamage* AttackEffect = NewObject<UFinalBattleEffectDamage>(AttackIntent);
+			AttackEffect->EffectId = TEXT("effect.test.enemy.attack.damage");
+			AttackEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+			AttackEffect->Scalar.BaseValue = 1.0f;
+			AttackEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+			AttackEffect->Scalar.SourceStat = EFinalBattleSourceStat::BaseDamagePower;
+			AttackIntent->Effects.Add(AttackEffect);
+			RuntimeAssets.Add(AttackIntent);
+			DataRegistry->RegisterEnemyIntentDefinition(AttackIntent);
+		}
+
+		UFinalEnemyIntentDefinition* GuardIntent = DataRegistry->FindEnemyIntentDefinition(TEXT("intent.test.enemy.guard"));
+		if (GuardIntent == nullptr)
+		{
+			GuardIntent = NewObject<UFinalEnemyIntentDefinition>(Outer, TEXT("DA_TestEnemyGuardIntent"));
+			GuardIntent->IntentId = TEXT("intent.test.enemy.guard");
+			GuardIntent->DisplayName = FText::FromString(TEXT("试作整备"));
+			GuardIntent->IntentType = EFinalIntentType::Defense;
+			GuardIntent->PreviewText = FText::FromString(TEXT("获得 4 护盾"));
+			GuardIntent->PhaseTags.Add(PhaseOneTag);
+			GuardIntent->CooldownTurns = 1;
+			GuardIntent->UseLimitPerBattle = 2;
+			UFinalBattleEffectGainShield* GuardEffect = NewObject<UFinalBattleEffectGainShield>(GuardIntent);
+			GuardEffect->EffectId = TEXT("effect.test.enemy.guard.shield");
+			GuardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+			GuardEffect->Scalar.BaseValue = 4.0f;
+			GuardEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+			GuardIntent->Effects.Add(GuardEffect);
+			RuntimeAssets.Add(GuardIntent);
+			DataRegistry->RegisterEnemyIntentDefinition(GuardIntent);
+		}
+
+		UFinalEnemyIntentDefinition* EnrageIntent = DataRegistry->FindEnemyIntentDefinition(TEXT("intent.test.enemy.enrage"));
+		if (EnrageIntent == nullptr)
+		{
+			EnrageIntent = NewObject<UFinalEnemyIntentDefinition>(Outer, TEXT("DA_TestEnemyEnrageIntent"));
+			EnrageIntent->IntentId = TEXT("intent.test.enemy.enrage");
+			EnrageIntent->DisplayName = FText::FromString(TEXT("试作狂斩"));
+			EnrageIntent->IntentType = EFinalIntentType::Attack;
+			EnrageIntent->PreviewText = FText::FromString(TEXT("狂斩 10"));
+			EnrageIntent->PhaseTags.Add(PhaseTwoTag);
+			UFinalBattleEffectDamage* EnrageEffect = NewObject<UFinalBattleEffectDamage>(EnrageIntent);
+			EnrageEffect->EffectId = TEXT("effect.test.enemy.enrage.damage");
+			EnrageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+			EnrageEffect->Scalar.BaseValue = 10.0f;
+			EnrageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+			EnrageIntent->Effects.Add(EnrageEffect);
+			RuntimeAssets.Add(EnrageIntent);
+			DataRegistry->RegisterEnemyIntentDefinition(EnrageIntent);
+		}
+
+		UFinalEnemyDefinition* EnemyDefinition = NewObject<UFinalEnemyDefinition>(Outer, TEXT("DA_TestEnemyDefinition"));
+		EnemyDefinition->EnemyId = FFinalEnemyId(EnemyId);
+		EnemyDefinition->DisplayName = FText::FromString(TEXT("测试劫匪"));
+		EnemyDefinition->MaxHP = 36;
+		EnemyDefinition->MaxBreakValue = 12;
+		EnemyDefinition->BaseDamagePower = 6;
+		EnemyDefinition->InitialInitiativeValue = 2;
+		EnemyDefinition->InitiativeResponse = 1;
+		EnemyDefinition->IntentSelectRule = EFinalIntentSelectRule::PhaseSequence;
+
+		FFinalEnemyPhaseDefinition& PhaseOneDefinition = EnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
+		PhaseOneDefinition.PhaseTag = PhaseOneTag;
+		PhaseOneDefinition.MaxHpPercent = 1.0f;
+
+		FFinalEnemyPhaseDefinition& PhaseTwoDefinition = EnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
+		PhaseTwoDefinition.PhaseTag = PhaseTwoTag;
+		PhaseTwoDefinition.MaxHpPercent = 0.5f;
+
+		EnemyDefinition->IntentPool.Add(AttackIntent);
+		EnemyDefinition->IntentPool.Add(GuardIntent);
+		EnemyDefinition->IntentPool.Add(EnrageIntent);
+		RuntimeAssets.Add(EnemyDefinition);
+		DataRegistry->RegisterEnemyDefinition(EnemyDefinition);
+		return EnemyDefinition;
+	}
+
+	UFinalBattleEncounterDefinition* RegisterTransientTestEncounterDefinition(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		UFinalBattleRuleConfig* RuleConfig,
+		UFinalEnemyDefinition* EnemyDefinition)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr || RuleConfig == nullptr || EnemyDefinition == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleEncounterDefinition* EncounterDefinition = NewObject<UFinalBattleEncounterDefinition>(Outer, TEXT("DA_TestEncounterDefinition"));
+		EncounterDefinition->EncounterId = FFinalEncounterId(EncounterId);
+		EncounterDefinition->DisplayName = FText::FromString(TEXT("测试遭遇"));
+		EncounterDefinition->RuleConfig = RuleConfig;
+
+		FFinalEnemyRosterEntry EnemyRosterEntry;
+		EnemyRosterEntry.EnemyDefinition = EnemyDefinition;
+		EnemyRosterEntry.PositionIndex = 0;
+		EnemyRosterEntry.SpawnWave = 1;
+		EncounterDefinition->EnemyRoster.Add(EnemyRosterEntry);
+		RuntimeAssets.Add(EncounterDefinition);
+		DataRegistry->RegisterEncounterDefinition(EncounterDefinition);
+		return EncounterDefinition;
+	}
+
 #if FINALAPP_HAS_TEST_RELIC_DEFINITION
 	void RegisterTransientTestRelicDefinition(
 		UFinalDataRegistry* DataRegistry,
@@ -341,6 +717,203 @@ namespace FinalTestBootstrap
 		DataRegistry->RegisterRelicDefinition(RelicDefinition);
 	}
 #endif
+
+	void EnsureTransientPrototypeFallbackDefinitions(
+		UFinalDataRegistry* DataRegistry,
+		UObject* Outer,
+		TArray<TObjectPtr<UObject>>& RuntimeAssets,
+		FResolvedPrototypeDefinitions& InOutDefinitions)
+	{
+		if (DataRegistry == nullptr || Outer == nullptr)
+		{
+			return;
+		}
+
+		if (InOutDefinitions.RuleConfig == nullptr)
+		{
+			InOutDefinitions.RuleConfig = RegisterTransientTestRuleConfig(DataRegistry, Outer, RuntimeAssets);
+		}
+
+		if (InOutDefinitions.GuardianDefinition == nullptr)
+		{
+			InOutDefinitions.GuardianDefinition = RegisterTransientTestCharacterDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				TEXT("DA_TestGuardianCharacter"),
+				FFinalCharacterId(GuardianCharacterId),
+				FText::FromString(TEXT("测试先锋")),
+				24,
+				12,
+				7,
+				3,
+				1.2f,
+				0.05f,
+				1.5f,
+				1);
+		}
+
+		if (InOutDefinitions.SupportDefinition == nullptr)
+		{
+			InOutDefinitions.SupportDefinition = RegisterTransientTestCharacterDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				TEXT("DA_TestSupportCharacter"),
+				FFinalCharacterId(SupportCharacterId),
+				FText::FromString(TEXT("测试策应")),
+				18,
+				14,
+				5,
+				2,
+				1.0f,
+				0.08f,
+				1.5f,
+				1);
+		}
+
+		if (InOutDefinitions.GuardianStrikeCard == nullptr)
+		{
+			InOutDefinitions.GuardianStrikeCard = RegisterTransientTestGuardianStrikeCard(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				InOutDefinitions.GuardianDefinition);
+		}
+
+		if (InOutDefinitions.GuardianGuardCard == nullptr)
+		{
+			InOutDefinitions.GuardianGuardCard = RegisterTransientTestGuardianGuardCard(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				InOutDefinitions.GuardianDefinition);
+		}
+
+		if (InOutDefinitions.SupportShotCard == nullptr)
+		{
+			InOutDefinitions.SupportShotCard = RegisterTransientTestSupportShotCard(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				InOutDefinitions.SupportDefinition);
+		}
+
+		if (InOutDefinitions.SupportFocusCard == nullptr)
+		{
+			InOutDefinitions.SupportFocusCard = RegisterTransientTestSupportFocusCard(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				InOutDefinitions.SupportDefinition);
+		}
+
+		if (InOutDefinitions.EncounterDefinition == nullptr)
+		{
+			UFinalEnemyDefinition* EnemyDefinition = ResolveOrRegisterTransientTestEnemyDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets);
+			InOutDefinitions.EncounterDefinition = RegisterTransientTestEncounterDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				InOutDefinitions.RuleConfig,
+				EnemyDefinition);
+		}
+
+#if FINALAPP_HAS_TEST_RELIC_DEFINITION
+		TArray<FFinalRelicBattleStartEffectDefinition> CharmBattleStartEffects;
+		{
+			FFinalRelicBattleStartEffectDefinition Effect;
+			Effect.EffectType = EFinalRelicBattleStartEffectType::GainAP;
+			Effect.Value = 1;
+			CharmBattleStartEffects.Add(Effect);
+		}
+
+		TArray<FFinalRelicBattleStartEffectDefinition> RepairKitBattleStartEffects;
+		{
+			FFinalRelicBattleStartEffectDefinition Effect;
+			Effect.EffectType = EFinalRelicBattleStartEffectType::GainShield;
+			Effect.Value = 4;
+			RepairKitBattleStartEffects.Add(Effect);
+		}
+
+		TArray<FFinalRelicPlayerTurnStartEffectDefinition> CharmTurnStartEffects;
+		{
+			FFinalRelicPlayerTurnStartEffectDefinition Effect;
+			Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainAP;
+			Effect.Value = 1;
+			CharmTurnStartEffects.Add(Effect);
+		}
+
+		TArray<FFinalRelicPlayerTurnStartEffectDefinition> RepairKitTurnStartEffects;
+		{
+			FFinalRelicPlayerTurnStartEffectDefinition Effect;
+			Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainShield;
+			Effect.Value = 2;
+			RepairKitTurnStartEffects.Add(Effect);
+		}
+
+		if (InOutDefinitions.RewardCharmRelic == nullptr)
+		{
+			RegisterTransientTestRelicDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				FFinalRelicId(RewardCharmRelicId),
+				TEXT("Relic.Test.Charm"),
+				FText::FromString(TEXT("试作护符")),
+				CharmBattleStartEffects,
+				CharmTurnStartEffects);
+			InOutDefinitions.RewardCharmRelic = DataRegistry->FindRelicDefinition(FFinalRelicId(RewardCharmRelicId));
+		}
+
+		if (InOutDefinitions.ShopRepairKitRelic == nullptr)
+		{
+			RegisterTransientTestRelicDefinition(
+				DataRegistry,
+				Outer,
+				RuntimeAssets,
+				FFinalRelicId(ShopRepairKitRelicId),
+				TEXT("Relic.Test.RepairKit"),
+				FText::FromString(TEXT("试作修理包")),
+				RepairKitBattleStartEffects,
+				RepairKitTurnStartEffects);
+			InOutDefinitions.ShopRepairKitRelic = DataRegistry->FindRelicDefinition(FFinalRelicId(ShopRepairKitRelicId));
+		}
+#endif
+
+		if (InOutDefinitions.PrototypeRunRoute == nullptr)
+		{
+			FPrototypeRunRouteBuildArgs PrototypeRouteArgs;
+			PrototypeRouteArgs.RouteId = PrototypeRouteId;
+			PrototypeRouteArgs.RouteDisplayName = FText::FromString(TEXT("测试战斗外环"));
+			PrototypeRouteArgs.OpeningBattleNodeId = OpeningBattleNodeId;
+			PrototypeRouteArgs.RewardNodeId = RewardNodeId;
+			PrototypeRouteArgs.EventNodeId = EventNodeId;
+			PrototypeRouteArgs.ShopNodeId = ShopNodeId;
+			PrototypeRouteArgs.FollowupBattleNodeId = FollowupBattleNodeId;
+			PrototypeRouteArgs.EncounterId = InOutDefinitions.EncounterDefinition != nullptr ? InOutDefinitions.EncounterDefinition->EncounterId : FFinalEncounterId(EncounterId);
+			PrototypeRouteArgs.RuleConfigId = InOutDefinitions.RuleConfig != nullptr ? InOutDefinitions.RuleConfig->RuleConfigId : FFinalRuleConfigId(RuleConfigId);
+			PrototypeRouteArgs.RewardRemovedCardId = InOutDefinitions.GuardianStrikeCard != nullptr ? InOutDefinitions.GuardianStrikeCard->CardId : FFinalCardId(GuardianStrikeCardId);
+			PrototypeRouteArgs.EventUpgradeFromCardId = InOutDefinitions.SupportShotCard != nullptr ? InOutDefinitions.SupportShotCard->CardId : FFinalCardId(SupportShotCardId);
+			PrototypeRouteArgs.EventUpgradeToCardId = InOutDefinitions.SupportFocusCard != nullptr ? InOutDefinitions.SupportFocusCard->CardId : FFinalCardId(SupportFocusCardId);
+			PrototypeRouteArgs.ShopGrantedCardId = InOutDefinitions.SupportFocusCard != nullptr ? InOutDefinitions.SupportFocusCard->CardId : FFinalCardId(SupportFocusCardId);
+			PrototypeRouteArgs.RewardGrantedRelicId = FFinalRelicId(RewardCharmRelicId);
+			PrototypeRouteArgs.ShopGrantedRelicId = FFinalRelicId(ShopRepairKitRelicId);
+			PrototypeRouteArgs.GrowthTargetCharacterId = InOutDefinitions.SupportDefinition != nullptr ? InOutDefinitions.SupportDefinition->CharacterId : FFinalCharacterId(SupportCharacterId);
+			PrototypeRouteArgs.GrowthEffectType = EFinalRunGrowthEffectType::ReduceStress;
+			PrototypeRouteArgs.GrowthValue = 1;
+
+			InOutDefinitions.PrototypeRunRoute = CreateTransientPrototypeRunRouteDefinition(Outer, PrototypeRouteArgs);
+			if (InOutDefinitions.PrototypeRunRoute != nullptr)
+			{
+				RuntimeAssets.Add(InOutDefinitions.PrototypeRunRoute);
+				DataRegistry->RegisterRunRouteDefinition(InOutDefinitions.PrototypeRunRoute);
+			}
+		}
+	}
 }
 
 void UFinalGameInstance::Init()
@@ -367,289 +940,39 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 
 	RuntimeTestAssets.Reset();
 
-	TestRuleConfig = NewObject<UFinalBattleRuleConfig>(this, TEXT("DA_TestBattleRuleConfig"));
-	TestRuleConfig->RuleConfigId = FFinalRuleConfigId(FinalTestBootstrap::RuleConfigId);
-	TestRuleConfig->InitialAP = 3;
-	TestRuleConfig->InitialHandSize = 5;
-	TestRuleConfig->HandLimit = 10;
-	TestRuleConfig->MaxEP = 70;
-	TestRuleConfig->EndTurnEpGain = 3;
-	TestRuleConfig->OnHitEpGain = 4;
-	TestRuleConfig->BaseCardEpGain = 1;
-	TestRuleConfig->BreakRewardAP = 1;
-	TestRuleConfig->NormalCardInitiativeEventCount = 1;
-	TestRuleConfig->CollapsedCardInitiativeEventCount = 1;
-	TestRuleConfig->StressHpLossPerPoint = 5;
-	TestRuleConfig->StressHealPerPoint = 8;
-	TestRuleConfig->MinStressChangePerEvent = 1;
-	TestRuleConfig->MaxStressGainPerHit = 3;
-	TestRuleConfig->StressRandomProtectionCount = 2;
-	TestRuleConfig->DamageToBreakCap = 6;
-	RuntimeTestAssets.Add(TestRuleConfig);
-
-	TestGuardianDefinition = NewObject<UFinalCharacterDefinition>(this, TEXT("DA_TestGuardianCharacter"));
-	TestGuardianDefinition->CharacterId = FFinalCharacterId(FinalTestBootstrap::GuardianCharacterId);
-	TestGuardianDefinition->DisplayName = FText::FromString(TEXT("测试先锋"));
-	TestGuardianDefinition->BaseVitalShare = 24;
-	TestGuardianDefinition->BaseStressCap = 12;
-	TestGuardianDefinition->BaseAttack = 7;
-	TestGuardianDefinition->BaseDefense = 3;
-	TestGuardianDefinition->BaseBreakRate = 1.2f;
-	TestGuardianDefinition->BaseCritChance = 0.05f;
-	TestGuardianDefinition->BaseCritDamage = 1.5f;
-	TestGuardianDefinition->EpGainPerAP = 1;
-	RuntimeTestAssets.Add(TestGuardianDefinition);
-
-	TestSupportDefinition = NewObject<UFinalCharacterDefinition>(this, TEXT("DA_TestSupportCharacter"));
-	TestSupportDefinition->CharacterId = FFinalCharacterId(FinalTestBootstrap::SupportCharacterId);
-	TestSupportDefinition->DisplayName = FText::FromString(TEXT("测试策应"));
-	TestSupportDefinition->BaseVitalShare = 18;
-	TestSupportDefinition->BaseStressCap = 14;
-	TestSupportDefinition->BaseAttack = 5;
-	TestSupportDefinition->BaseDefense = 2;
-	TestSupportDefinition->BaseBreakRate = 1.0f;
-	TestSupportDefinition->BaseCritChance = 0.08f;
-	TestSupportDefinition->BaseCritDamage = 1.5f;
-	TestSupportDefinition->EpGainPerAP = 1;
-	RuntimeTestAssets.Add(TestSupportDefinition);
-
-	TestGuardianStrikeCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestGuardianStrikeCard"));
-	TestGuardianStrikeCard->CardId = FFinalCardId(FinalTestBootstrap::GuardianStrikeCardId);
-	TestGuardianStrikeCard->OwnerUnitId = TestGuardianDefinition->CharacterId.Value;
-	TestGuardianStrikeCard->DisplayName = FText::FromString(TEXT("试作斩击"));
-	TestGuardianStrikeCard->CardType = EFinalCardType::Attack;
-	TestGuardianStrikeCard->Rarity = EFinalRarity::Common;
-	TestGuardianStrikeCard->BaseCostAP = 1;
-	TestGuardianStrikeCard->RulesText = FText::FromString(TEXT("测试用普通攻击牌。"));
-	UFinalBattleEffectDamage* GuardianStrikeDamage = NewObject<UFinalBattleEffectDamage>(TestGuardianStrikeCard);
-	GuardianStrikeDamage->EffectId = TEXT("effect.test.guardian.strike.damage");
-	GuardianStrikeDamage->Scalar.BaseValue = 1.0f;
-	GuardianStrikeDamage->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
-	GuardianStrikeDamage->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
-	TestGuardianStrikeCard->Effects.Add(GuardianStrikeDamage);
-	RuntimeTestAssets.Add(TestGuardianStrikeCard);
-
-	TestGuardianGuardCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestGuardianGuardCard"));
-	TestGuardianGuardCard->CardId = FFinalCardId(FinalTestBootstrap::GuardianGuardCardId);
-	TestGuardianGuardCard->OwnerUnitId = TestGuardianDefinition->CharacterId.Value;
-	TestGuardianGuardCard->DisplayName = FText::FromString(TEXT("试作格挡"));
-	TestGuardianGuardCard->CardType = EFinalCardType::Skill;
-	TestGuardianGuardCard->Rarity = EFinalRarity::Common;
-	TestGuardianGuardCard->BaseCostAP = 1;
-	TestGuardianGuardCard->RulesText = FText::FromString(TEXT("测试用防御牌。"));
-	UFinalBattleEffectGainShield* GuardianGuardShield = NewObject<UFinalBattleEffectGainShield>(TestGuardianGuardCard);
-	GuardianGuardShield->EffectId = TEXT("effect.test.guardian.guard.shield");
-	GuardianGuardShield->Scalar.BaseValue = 1.0f;
-	GuardianGuardShield->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
-	GuardianGuardShield->Scalar.SourceStat = EFinalBattleSourceStat::Defense;
-	TestGuardianGuardCard->Effects.Add(GuardianGuardShield);
-	RuntimeTestAssets.Add(TestGuardianGuardCard);
-
-	TestSupportShotCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestSupportShotCard"));
-	TestSupportShotCard->CardId = FFinalCardId(FinalTestBootstrap::SupportShotCardId);
-	TestSupportShotCard->OwnerUnitId = TestSupportDefinition->CharacterId.Value;
-	TestSupportShotCard->DisplayName = FText::FromString(TEXT("试作速射"));
-	TestSupportShotCard->CardType = EFinalCardType::Attack;
-	TestSupportShotCard->Rarity = EFinalRarity::Common;
-	TestSupportShotCard->BaseCostAP = 1;
-	TestSupportShotCard->RulesText = FText::FromString(TEXT("测试用远程攻击牌。"));
-	UFinalBattleEffectDamage* SupportShotDamage = NewObject<UFinalBattleEffectDamage>(TestSupportShotCard);
-	SupportShotDamage->EffectId = TEXT("effect.test.support.shot.damage");
-	SupportShotDamage->Scalar.BaseValue = 1.0f;
-	SupportShotDamage->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
-	SupportShotDamage->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
-	TestSupportShotCard->Effects.Add(SupportShotDamage);
-	RuntimeTestAssets.Add(TestSupportShotCard);
-
-	TestSupportFocusCard = NewObject<UFinalCardDefinition>(this, TEXT("DA_TestSupportFocusCard"));
-	TestSupportFocusCard->CardId = FFinalCardId(FinalTestBootstrap::SupportFocusCardId);
-	TestSupportFocusCard->OwnerUnitId = TestSupportDefinition->CharacterId.Value;
-	TestSupportFocusCard->DisplayName = FText::FromString(TEXT("试作整备"));
-	TestSupportFocusCard->CardType = EFinalCardType::Skill;
-	TestSupportFocusCard->Rarity = EFinalRarity::Common;
-	TestSupportFocusCard->BaseCostAP = 1;
-	TestSupportFocusCard->RulesText = FText::FromString(TEXT("测试用辅助牌。"));
-	UFinalBattleEffectDrawCards* SupportFocusDraw = NewObject<UFinalBattleEffectDrawCards>(TestSupportFocusCard);
-	SupportFocusDraw->EffectId = TEXT("effect.test.support.focus.draw");
-	SupportFocusDraw->DrawCount = 2;
-	TestSupportFocusCard->Effects.Add(SupportFocusDraw);
-	RuntimeTestAssets.Add(TestSupportFocusCard);
-
-	UFinalEnemyDefinition* TestEnemyDefinition = NewObject<UFinalEnemyDefinition>(this, TEXT("DA_TestEnemyDefinition"));
-	TestEnemyDefinition->EnemyId = FFinalEnemyId(FinalTestBootstrap::EnemyId);
-	TestEnemyDefinition->DisplayName = FText::FromString(TEXT("测试劫匪"));
-	TestEnemyDefinition->MaxHP = 36;
-	TestEnemyDefinition->MaxBreakValue = 12;
-	TestEnemyDefinition->BaseDamagePower = 6;
-	TestEnemyDefinition->InitialInitiativeValue = 2;
-	TestEnemyDefinition->InitiativeResponse = 1;
-	TestEnemyDefinition->IntentSelectRule = EFinalIntentSelectRule::PhaseSequence;
-
-	FFinalEnemyPhaseDefinition& PhaseOneDefinition = TestEnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
-	PhaseOneDefinition.PhaseTag = FinalTestBootstrap::PhaseOneTag;
-	PhaseOneDefinition.MaxHpPercent = 1.0f;
-
-	FFinalEnemyPhaseDefinition& PhaseTwoDefinition = TestEnemyDefinition->PhaseSequence.AddDefaulted_GetRef();
-	PhaseTwoDefinition.PhaseTag = FinalTestBootstrap::PhaseTwoTag;
-	PhaseTwoDefinition.MaxHpPercent = 0.5f;
-
-	UFinalEnemyIntentDefinition* TestEnemyAttackIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyAttackIntent"));
-	TestEnemyAttackIntent->IntentId = TEXT("intent.test.enemy.attack");
-	TestEnemyAttackIntent->DisplayName = FText::FromString(TEXT("试作劈砍"));
-	TestEnemyAttackIntent->IntentType = EFinalIntentType::Attack;
-	TestEnemyAttackIntent->PreviewText = FText::FromString(TEXT("劈砍 6"));
-	TestEnemyAttackIntent->PhaseTags.Add(FinalTestBootstrap::PhaseOneTag);
-	UFinalBattleEffectDamage* TestEnemyAttackEffect = NewObject<UFinalBattleEffectDamage>(TestEnemyAttackIntent);
-	TestEnemyAttackEffect->EffectId = TEXT("effect.test.enemy.attack.damage");
-	TestEnemyAttackEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
-	TestEnemyAttackEffect->Scalar.BaseValue = 1.0f;
-	TestEnemyAttackEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
-	TestEnemyAttackEffect->Scalar.SourceStat = EFinalBattleSourceStat::BaseDamagePower;
-	TestEnemyAttackIntent->Effects.Add(TestEnemyAttackEffect);
-	RuntimeTestAssets.Add(TestEnemyAttackIntent);
-
-	UFinalEnemyIntentDefinition* TestEnemyGuardIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyGuardIntent"));
-	TestEnemyGuardIntent->IntentId = TEXT("intent.test.enemy.guard");
-	TestEnemyGuardIntent->DisplayName = FText::FromString(TEXT("试作整备"));
-	TestEnemyGuardIntent->IntentType = EFinalIntentType::Defense;
-	TestEnemyGuardIntent->PreviewText = FText::FromString(TEXT("获得 4 护盾"));
-	TestEnemyGuardIntent->PhaseTags.Add(FinalTestBootstrap::PhaseOneTag);
-	TestEnemyGuardIntent->CooldownTurns = 1;
-	TestEnemyGuardIntent->UseLimitPerBattle = 2;
-	UFinalBattleEffectGainShield* TestEnemyGuardEffect = NewObject<UFinalBattleEffectGainShield>(TestEnemyGuardIntent);
-	TestEnemyGuardEffect->EffectId = TEXT("effect.test.enemy.guard.shield");
-	TestEnemyGuardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
-	TestEnemyGuardEffect->Scalar.BaseValue = 4.0f;
-	TestEnemyGuardEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
-	TestEnemyGuardIntent->Effects.Add(TestEnemyGuardEffect);
-	RuntimeTestAssets.Add(TestEnemyGuardIntent);
-
-	UFinalEnemyIntentDefinition* TestEnemyEnrageIntent = NewObject<UFinalEnemyIntentDefinition>(this, TEXT("DA_TestEnemyEnrageIntent"));
-	TestEnemyEnrageIntent->IntentId = TEXT("intent.test.enemy.enrage");
-	TestEnemyEnrageIntent->DisplayName = FText::FromString(TEXT("试作狂斩"));
-	TestEnemyEnrageIntent->IntentType = EFinalIntentType::Attack;
-	TestEnemyEnrageIntent->PreviewText = FText::FromString(TEXT("狂斩 10"));
-	TestEnemyEnrageIntent->PhaseTags.Add(FinalTestBootstrap::PhaseTwoTag);
-	UFinalBattleEffectDamage* TestEnemyEnrageEffect = NewObject<UFinalBattleEffectDamage>(TestEnemyEnrageIntent);
-	TestEnemyEnrageEffect->EffectId = TEXT("effect.test.enemy.enrage.damage");
-	TestEnemyEnrageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
-	TestEnemyEnrageEffect->Scalar.BaseValue = 10.0f;
-	TestEnemyEnrageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
-	TestEnemyEnrageIntent->Effects.Add(TestEnemyEnrageEffect);
-	RuntimeTestAssets.Add(TestEnemyEnrageIntent);
-
-	TestEnemyDefinition->IntentPool.Add(TestEnemyAttackIntent);
-	TestEnemyDefinition->IntentPool.Add(TestEnemyGuardIntent);
-	TestEnemyDefinition->IntentPool.Add(TestEnemyEnrageIntent);
-	RuntimeTestAssets.Add(TestEnemyDefinition);
-
-	TestEncounterDefinition = NewObject<UFinalBattleEncounterDefinition>(this, TEXT("DA_TestEncounterDefinition"));
-	TestEncounterDefinition->EncounterId = FFinalEncounterId(FinalTestBootstrap::EncounterId);
-	TestEncounterDefinition->DisplayName = FText::FromString(TEXT("测试遭遇"));
-	TestEncounterDefinition->RuleConfig = TestRuleConfig;
-
-	FFinalEnemyRosterEntry EnemyRosterEntry;
-	EnemyRosterEntry.EnemyDefinition = TestEnemyDefinition;
-	EnemyRosterEntry.PositionIndex = 0;
-	EnemyRosterEntry.SpawnWave = 1;
-	TestEncounterDefinition->EnemyRoster.Add(EnemyRosterEntry);
-	RuntimeTestAssets.Add(TestEncounterDefinition);
-
-	DataRegistry->RegisterRuleConfig(TestRuleConfig);
-	DataRegistry->RegisterCharacterDefinition(TestGuardianDefinition);
-	DataRegistry->RegisterCharacterDefinition(TestSupportDefinition);
-	DataRegistry->RegisterCardDefinition(TestGuardianStrikeCard);
-	DataRegistry->RegisterCardDefinition(TestGuardianGuardCard);
-	DataRegistry->RegisterCardDefinition(TestSupportShotCard);
-	DataRegistry->RegisterCardDefinition(TestSupportFocusCard);
-	DataRegistry->RegisterEncounterDefinition(TestEncounterDefinition);
-
-#if FINALAPP_HAS_TEST_RELIC_DEFINITION
-	TArray<FFinalRelicBattleStartEffectDefinition> CharmBattleStartEffects;
+	FinalTestBootstrap::FResolvedPrototypeDefinitions ResolvedDefinitions;
+	if (!FinalTestBootstrap::ResolvePrototypeDefinitionsFromRegistry(DataRegistry, ResolvedDefinitions))
 	{
-		FFinalRelicBattleStartEffectDefinition Effect;
-		Effect.EffectType = EFinalRelicBattleStartEffectType::GainAP;
-		Effect.Value = 1;
-		CharmBattleStartEffects.Add(Effect);
+		FinalTestBootstrap::EnsureTransientPrototypeFallbackDefinitions(
+			DataRegistry,
+			this,
+			RuntimeTestAssets,
+			ResolvedDefinitions);
 	}
 
-	TArray<FFinalRelicBattleStartEffectDefinition> RepairKitBattleStartEffects;
+	if (!ResolvedDefinitions.HasRequiredDefinitions())
 	{
-		FFinalRelicBattleStartEffectDefinition Effect;
-		Effect.EffectType = EFinalRelicBattleStartEffectType::GainShield;
-		Effect.Value = 4;
-		RepairKitBattleStartEffects.Add(Effect);
-	}
-
-	TArray<FFinalRelicPlayerTurnStartEffectDefinition> CharmTurnStartEffects;
-	{
-		FFinalRelicPlayerTurnStartEffectDefinition Effect;
-		Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainAP;
-		Effect.Value = 1;
-		CharmTurnStartEffects.Add(Effect);
-	}
-
-	TArray<FFinalRelicPlayerTurnStartEffectDefinition> RepairKitTurnStartEffects;
-	{
-		FFinalRelicPlayerTurnStartEffectDefinition Effect;
-		Effect.EffectType = EFinalRelicPlayerTurnStartEffectType::GainShield;
-		Effect.Value = 2;
-		RepairKitTurnStartEffects.Add(Effect);
-	}
-
-	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
-		DataRegistry,
-		this,
-		RuntimeTestAssets,
-		FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId),
-		TEXT("Relic.Test.Charm"),
-		FText::FromString(TEXT("试作护符")),
-		CharmBattleStartEffects,
-		CharmTurnStartEffects);
-	FinalTestBootstrap::RegisterTransientTestRelicDefinition(
-		DataRegistry,
-		this,
-		RuntimeTestAssets,
-		FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId),
-		TEXT("Relic.Test.RepairKit"),
-		FText::FromString(TEXT("试作修理包")),
-		RepairKitBattleStartEffects,
-		RepairKitTurnStartEffects);
-#endif
-
-	FinalTestBootstrap::FPrototypeRunRouteBuildArgs PrototypeRouteArgs;
-	PrototypeRouteArgs.RouteId = FinalTestBootstrap::PrototypeRouteId;
-	PrototypeRouteArgs.RouteDisplayName = FText::FromString(TEXT("测试战斗外环"));
-	PrototypeRouteArgs.OpeningBattleNodeId = FinalTestBootstrap::OpeningBattleNodeId;
-	PrototypeRouteArgs.RewardNodeId = FinalTestBootstrap::RewardNodeId;
-	PrototypeRouteArgs.EventNodeId = FinalTestBootstrap::EventNodeId;
-	PrototypeRouteArgs.ShopNodeId = FinalTestBootstrap::ShopNodeId;
-	PrototypeRouteArgs.FollowupBattleNodeId = FinalTestBootstrap::FollowupBattleNodeId;
-	PrototypeRouteArgs.EncounterId = TestEncounterDefinition->EncounterId;
-	PrototypeRouteArgs.RuleConfigId = TestRuleConfig->RuleConfigId;
-	PrototypeRouteArgs.RewardRemovedCardId = TestGuardianStrikeCard->CardId;
-	PrototypeRouteArgs.EventUpgradeFromCardId = TestSupportShotCard->CardId;
-	PrototypeRouteArgs.EventUpgradeToCardId = TestSupportFocusCard->CardId;
-	PrototypeRouteArgs.ShopGrantedCardId = TestSupportFocusCard->CardId;
-	PrototypeRouteArgs.RewardGrantedRelicId = FFinalRelicId(FinalTestBootstrap::RewardCharmRelicId);
-	PrototypeRouteArgs.ShopGrantedRelicId = FFinalRelicId(FinalTestBootstrap::ShopRepairKitRelicId);
-	PrototypeRouteArgs.GrowthTargetCharacterId = TestSupportDefinition->CharacterId;
-	PrototypeRouteArgs.GrowthEffectType = EFinalRunGrowthEffectType::ReduceStress;
-	PrototypeRouteArgs.GrowthValue = 1;
-
-	TestPrototypeRunRoute = FinalTestBootstrap::CreateTransientPrototypeRunRouteDefinition(this, PrototypeRouteArgs);
-	if (TestPrototypeRunRoute == nullptr)
-	{
-		LastTestFailureReason = FText::FromString(TEXT("Failed to create the transient prototype run route definition."));
+		LastTestFailureReason = FText::FromString(TEXT("Failed to resolve prototype runtime definitions from FinalDataRegistry or transient fallback."));
 		return false;
 	}
 
-	RuntimeTestAssets.Add(TestPrototypeRunRoute);
-	DataRegistry->RegisterRunRouteDefinition(TestPrototypeRunRoute);
+	TestRuleConfig = ResolvedDefinitions.RuleConfig;
+	TestEncounterDefinition = ResolvedDefinitions.EncounterDefinition;
+	TestGuardianDefinition = ResolvedDefinitions.GuardianDefinition;
+	TestSupportDefinition = ResolvedDefinitions.SupportDefinition;
+	TestGuardianStrikeCard = ResolvedDefinitions.GuardianStrikeCard;
+	TestGuardianGuardCard = ResolvedDefinitions.GuardianGuardCard;
+	TestSupportShotCard = ResolvedDefinitions.SupportShotCard;
+	TestSupportFocusCard = ResolvedDefinitions.SupportFocusCard;
+	TestPrototypeRunRoute = ResolvedDefinitions.PrototypeRunRoute;
 
 	bTestBattleBootstrapRegistered = true;
 
-	UE_LOG(LogFinalGameInstance, Log, TEXT("Registered transient bootstrap data for test battle."));
+	UE_LOG(
+		LogFinalGameInstance,
+		Log,
+		TEXT("Resolved test battle bootstrap data. TransientFallbackCount=%d"),
+		RuntimeTestAssets.Num());
 	return true;
 }
 
