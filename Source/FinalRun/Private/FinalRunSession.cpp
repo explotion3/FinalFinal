@@ -883,6 +883,7 @@ int32 UFinalRunSession::GetLatestRunEventSequence() const
 FFinalRunSaveData UFinalRunSession::ExportSaveData() const
 {
 	FFinalRunSaveData SaveData;
+	SaveData.SaveVersion = FFinalRunSaveData::CurrentSaveVersion;
 	SaveData.RunState = CurrentState;
 	SaveData.RunLogEntries = RunLogEntries;
 	SaveData.LastEventSequence = LastEventSequence;
@@ -898,8 +899,13 @@ FFinalRunSaveData UFinalRunSession::ExportSaveData() const
 	return SaveData;
 }
 
-void UFinalRunSession::RestoreFromSaveData(const FFinalRunSaveData& SaveData)
+bool UFinalRunSession::RestoreFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason)
 {
+	if (!SaveData.IsStructurallyValid(&OutFailureReason))
+	{
+		return false;
+	}
+
 	CurrentState = SaveData.RunState;
 	RunLogEntries = SaveData.RunLogEntries;
 	ConfiguredRunNodes = SaveData.ConfiguredRunNodes;
@@ -935,6 +941,8 @@ void UFinalRunSession::RestoreFromSaveData(const FFinalRunSaveData& SaveData)
 	}
 
 	LastEventSequence = FMath::Max(SaveData.LastEventSequence, HighestRestoredEventSequence);
+	OutFailureReason = FText::GetEmpty();
+	return true;
 }
 
 bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)

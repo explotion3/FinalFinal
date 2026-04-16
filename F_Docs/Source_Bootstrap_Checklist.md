@@ -208,6 +208,8 @@
 * 驱动一场战斗的开始与结束
 * 通过 `UFinalSaveGameCoordinator` 调用 `UFinalRunSession::ExportSaveData / RestoreFromSaveData`，完成第一版 Run 外层 Save / Load
 * Save / Load 当前只覆盖战斗外 Run 状态、RunLog、节点进度与待领奖励上下文；active battle、UI 页面栈和 Widget 状态不进入存档
+* Save / Load 当前固定 `SaveVersion == 1`，Load 前会拒绝 slot 不存在、SaveGame 类型不对、版本不支持和结构不合法的坏档
+* `PrototypeRunDebugScreen` 当前显示 save slot 存在性、最近 Save/Load 状态 / 失败原因，并提供 `Save Prototype Run / Load Prototype Run` 两个原型按钮；不代表正式存档菜单
 
 #### 暂不创建
 * 大量细分 ViewModel
@@ -245,6 +247,7 @@
 * `AffectedCharacterResults` 只在 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 的 reward entries 包含 Growth 时填充，不扩大到所有事件
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 暴露 `FinalRunSaveData`、`ExportSaveData()`、`RestoreFromSaveData()`，仅用于 Run 外层状态导出 / 恢复，不开放 `RunSession` 私有字段给 `FinalApp` 直接写入
+* `FinalRunSaveData` 当前定义 `CurrentSaveVersion = 1`，并提供 `IsSupportedVersion / IsStructurallyValid` 供 `FinalApp` 在 Load 前拒绝坏档
 * 奖励协议使用 typed payload 标识授予对象，当前至少支持 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / 最小 Growth` 落地到 `RunState`
 * `CardGrant / RelicGrant` 落地前通过 `FinalDataRegistry` 校验 definition；`RelicGrant` 的展示 fallback 优先取 `FinalRelicDefinition`
 * `RemoveCard / UpgradeCard` 使用稳定 payload，例如 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，并在落地前校验必要 payload、card definition 和 `RunDeck` 中的目标
