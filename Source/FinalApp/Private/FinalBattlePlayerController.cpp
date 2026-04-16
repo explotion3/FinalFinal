@@ -4,6 +4,7 @@
 #include "Controllers/FinalBattleWidgetController.h"
 #include "Engine/GameInstance.h"
 #include "InputCoreTypes.h"
+#include "Save/FinalSaveGameCoordinator.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
@@ -403,6 +404,63 @@ void AFinalBattlePlayerController::FinalEndTurnCommand()
 void AFinalBattlePlayerController::FinalCompleteResolvedBattle()
 {
 	CompleteResolvedBattle();
+}
+
+void AFinalBattlePlayerController::FinalSavePrototypeRun()
+{
+	UFinalSaveGameCoordinator* SaveCoordinator = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalSaveGameCoordinator>() : nullptr;
+	if (SaveCoordinator == nullptr)
+	{
+		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("FinalSaveGameCoordinator is unavailable."));
+		return;
+	}
+
+	const bool bSaved = SaveCoordinator->SaveCurrentRunToPrototypeSlot();
+	if (bSaved)
+	{
+		UE_LOG(
+			LogFinalBattlePlayerController,
+			Log,
+			TEXT("Saved prototype run to slot %s."),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName());
+	}
+	else
+	{
+		UE_LOG(
+			LogFinalBattlePlayerController,
+			Warning,
+			TEXT("Failed to save prototype run: %s"),
+			*SaveCoordinator->GetLastFailureReason().ToString());
+	}
+}
+
+void AFinalBattlePlayerController::FinalLoadPrototypeRun()
+{
+	UFinalSaveGameCoordinator* SaveCoordinator = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalSaveGameCoordinator>() : nullptr;
+	if (SaveCoordinator == nullptr)
+	{
+		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("FinalSaveGameCoordinator is unavailable."));
+		return;
+	}
+
+	const bool bLoaded = SaveCoordinator->LoadRunFromPrototypeSlot();
+	if (bLoaded)
+	{
+		RegisterUIBridge();
+		UE_LOG(
+			LogFinalBattlePlayerController,
+			Log,
+			TEXT("Loaded prototype run from slot %s."),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName());
+	}
+	else
+	{
+		UE_LOG(
+			LogFinalBattlePlayerController,
+			Warning,
+			TEXT("Failed to load prototype run: %s"),
+			*SaveCoordinator->GetLastFailureReason().ToString());
+	}
 }
 
 void AFinalBattlePlayerController::RegisterUIBridge()

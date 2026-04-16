@@ -59,6 +59,12 @@ public:
 	UFUNCTION(Exec)
 	void FinalCompleteResolvedBattle();
 
+	UFUNCTION(Exec)
+	void FinalSavePrototypeRun();
+
+	UFUNCTION(Exec)
+	void FinalLoadPrototypeRun();
+
 private:
 	void RegisterUIBridge();
 	void HandlePlayCardSlot1();

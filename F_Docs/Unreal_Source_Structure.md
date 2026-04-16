@@ -305,8 +305,10 @@ FinalBattle      FinalRun
 * `RunQueryTypes`
 * `RunEvent`
 * `RunCommand`
+* `FinalRunSaveData`
 * 进入战斗与战后结算的桥接请求结构
 * `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
+* `ExportSaveData / RestoreFromSaveData`，只作为 Run 外层状态保存与恢复协议，不允许 `FinalApp` 直接写 `RunSession` 私有字段
 * 如需让 `FinalBattle` 感知本场 Run 输入，应优先通过共享 request / init context payload 显式传递，例如 `FinalBattleStartRequest -> FFinalBattleInitContext`，而不是让 `FinalBattle` 直接依赖 `FinalRun`
 
 #### FinalApp/Public
@@ -323,6 +325,7 @@ FinalBattle      FinalRun
 * `ScreenStack` 内部实现
 * Widget 工厂与焦点恢复 helper
 * 任何跨层临时缓存的权威状态副本
+* active battle 内部状态与 UI 页面栈的存档真相
 
 ---
 
@@ -437,6 +440,7 @@ Source
 │  │  ├─ Commands
 │  │  ├─ Runtime
 │  │  ├─ Requests
+│  │  ├─ Save
 │  │  └─ Facade
 │  └─ Private
 │     ├─ NodeFlow
@@ -533,12 +537,15 @@ Source
 * `RunEvent`
 * `RunQueryTypes`
 * `GetRunLogEntries / GetRunEventsSince / GetLatestRunEventSequence`
+* `FinalRunSaveData / ExportSaveData / RestoreFromSaveData`
 
 ### 8.4 App 层桥接
 推荐：
 * `UFinalGameFlowSubsystem`
 * `UFinalBattleFlowSubsystem`
 * `UFinalRunFlowSubsystem`
+* `UFinalSaveGameCoordinator`
+* `UFinalRunSaveGame`
 * `AFinalBattleDirector`
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`

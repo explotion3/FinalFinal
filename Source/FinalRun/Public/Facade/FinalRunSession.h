@@ -7,6 +7,7 @@
 #include "Requests/FinalBattleResult.h"
 #include "Requests/FinalBattleStartRequest.h"
 #include "Runtime/FinalRunState.h"
+#include "Save/FinalRunSaveData.h"
 #include "UObject/Object.h"
 #include "FinalRunSession.generated.h"
 
@@ -57,6 +58,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|Run")
 	int32 GetLatestRunEventSequence() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Run|Save")
+	FFinalRunSaveData ExportSaveData() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Run|Save")
+	void RestoreFromSaveData(const FFinalRunSaveData& SaveData);
 
 private:
 	bool TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);

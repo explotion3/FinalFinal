@@ -386,9 +386,11 @@
 
 ### 8.1 Save / Load
 职责：
-* 保存单局外状态
-* 支持中断恢复
-* 支持战斗外继续读取 `CollapseCount` 等持久字段
+* 当前第一版只保存战斗外 Run 外层状态，由 `FinalApp` 协调固定 SaveGame slot，`FinalRun` 通过公开 `FinalRunSaveData` 协议导出与恢复
+* 保存稳定 ID、`FFinalRunState`、Run 事件日志、节点配置与访问 / 解析进度、当前 FlowStage、待领奖励上下文
+* 支持战斗外继续读取 `CollapseCount` 等持久字段，恢复后 `RunSnapshot` 应反映恢复后的外层状态
+* 当前不保存 active `BattleSession` 内部状态；存在 active battle 时 Save / Load 应拒绝
+* 当前不保存 UI 页面栈、Widget 状态、transient UObject definition，也不做自动迁移或生产级多 slot 管理
 
 优先级：
 * `P1`
@@ -477,7 +479,7 @@
 | UI 页面栈与根布局 | `FinalApp` | `UISubsystem / RootLayout` | `FinalBattle`、`FinalRun` |
 | UI 视图模型 | `FinalApp` | Widget Controller / ViewModel / HUDScreen | `FinalBattle` 内部服务 |
 | 世界桥接 | `FinalApp` | Flow Subsystem / Director | `FinalBattle` |
-| Save / Load | `FinalApp` | Save 协调器 | `FinalBattle` 内部类 |
+| Save / Load | `FinalApp` 协调，`FinalRun` 提供 Save DTO / Restore API | `UFinalSaveGameCoordinator` / `UFinalRunSaveGame` / `FFinalRunSaveData` | `FinalBattle` 内部类、active battle 状态、UI 状态 |
 | 数据校验 / 编辑器工具 | `FinalEditor` | DataValidation 校验器 / 后续编辑器菜单 | Runtime 模块 |
 
 说明：
