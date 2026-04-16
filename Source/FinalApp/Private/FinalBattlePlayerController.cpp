@@ -421,15 +421,17 @@ void AFinalBattlePlayerController::FinalSavePrototypeRun()
 		UE_LOG(
 			LogFinalBattlePlayerController,
 			Log,
-			TEXT("Saved prototype run to slot %s."),
-			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName());
+			TEXT("FinalSavePrototypeRun | Slot=%s | %s"),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName(),
+			*SaveCoordinator->GetLastSaveLoadStatusText().ToString());
 	}
 	else
 	{
 		UE_LOG(
 			LogFinalBattlePlayerController,
 			Warning,
-			TEXT("Failed to save prototype run: %s"),
+			TEXT("FinalSavePrototypeRun failed | Slot=%s | %s"),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName(),
 			*SaveCoordinator->GetLastFailureReason().ToString());
 	}
 }
@@ -450,15 +452,17 @@ void AFinalBattlePlayerController::FinalLoadPrototypeRun()
 		UE_LOG(
 			LogFinalBattlePlayerController,
 			Log,
-			TEXT("Loaded prototype run from slot %s."),
-			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName());
+			TEXT("FinalLoadPrototypeRun | Slot=%s | Run-level state restored; active battle and UI stack were not restored. %s"),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName(),
+			*SaveCoordinator->GetLastSaveLoadStatusText().ToString());
 	}
 	else
 	{
 		UE_LOG(
 			LogFinalBattlePlayerController,
 			Warning,
-			TEXT("Failed to load prototype run: %s"),
+			TEXT("FinalLoadPrototypeRun failed | Slot=%s | %s"),
+			*UFinalSaveGameCoordinator::GetPrototypeRunSlotName(),
 			*SaveCoordinator->GetLastFailureReason().ToString());
 	}
 }

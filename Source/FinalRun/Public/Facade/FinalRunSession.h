@@ -63,7 +63,7 @@ public:
 	FFinalRunSaveData ExportSaveData() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Run|Save")
-	void RestoreFromSaveData(const FFinalRunSaveData& SaveData);
+	bool RestoreFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason);
 
 private:
 	bool TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);

@@ -22,12 +22,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Save")
 	FText GetLastFailureReason() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Save")
+	FText GetLastSaveLoadStatusText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Save")
+	FText GetPrototypeRunSaveDebugText() const;
+
 	static const FString& GetPrototypeRunSlotName();
 
 private:
 	void SetFailureReason(const FText& Reason);
+	void SetSuccessStatus(const FText& StatusText);
+	void SetFailureStatus(const FText& OperationText, const FText& Reason);
 	bool HasActiveBattleSession() const;
 
 	UPROPERTY(Transient)
 	FText LastFailureReason;
+
+	UPROPERTY(Transient)
+	FText LastSaveLoadStatusText;
 };

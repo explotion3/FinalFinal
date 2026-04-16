@@ -41,7 +41,7 @@ public:
 	FFinalBattleSnapshot GetCurrentBattleSnapshot() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Flow|Save")
-	bool RestoreRunSessionFromSaveData(const FFinalRunSaveData& SaveData);
+	bool RestoreRunSessionFromSaveData(const FFinalRunSaveData& SaveData, FText& OutFailureReason);
 
 	UFUNCTION(BlueprintPure, Category = "Final|Flow")
 	FText GetLastBattleFailureReason() const;

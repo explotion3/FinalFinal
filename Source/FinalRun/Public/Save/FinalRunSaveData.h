@@ -14,8 +14,10 @@ struct FINALRUN_API FFinalRunSaveData
 {
 	GENERATED_BODY()
 
+	static constexpr int32 CurrentSaveVersion = 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Final|Run|Save")
-	int32 SaveVersion = 1;
+	int32 SaveVersion = CurrentSaveVersion;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Final|Run|Save")
 	FFinalRunState RunState;
@@ -52,4 +54,8 @@ struct FINALRUN_API FFinalRunSaveData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Final|Run|Save")
 	TArray<FFinalRunRewardEntry> PendingRewardEntries;
+
+	bool IsSupportedVersion() const;
+	bool IsStructurallyValid(FText* OutFailureReason = nullptr) const;
+	int32 GetMaxRunLogEventSequence() const;
 };
