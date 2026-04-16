@@ -14,7 +14,10 @@
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
-#include "Run/Bridge/FinalBattleRelicPayload.h"
+#include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleResourceService.h"
+#include "Systems/FinalBattleStatusService.h"
+#include "Systems/FinalBattleTurnService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleResolver, Log, All);
@@ -35,10 +38,6 @@ const FName RejectUltimateDefinitionMissingTag(TEXT("battle.ultimate_definition_
 const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
 const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
-const FName RelicGainAPTag(TEXT("battle.relic.effect.gain_ap"));
-const FName RelicGainShieldTag(TEXT("battle.relic.effect.gain_shield"));
-const FName RelicTurnStartGainAPTag(TEXT("battle.relic.effect.turn_start_gain_ap"));
-const FName RelicTurnStartGainShieldTag(TEXT("battle.relic.effect.turn_start_gain_shield"));
 
 struct FFinalEffectExecutionSummary
 {
@@ -51,182 +50,10 @@ struct FFinalEffectExecutionSummary
 };
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
-
-FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
-{
-	if (!RelicInput.DisplayName.IsEmpty())
-	{
-		return RelicInput.DisplayName;
-	}
-
-	if (!RelicInput.DisplayId.IsNone())
-	{
-		return FText::FromName(RelicInput.DisplayId);
-	}
-
-	return RelicInput.RelicId.IsValid()
-		? FText::FromName(RelicInput.RelicId.Value)
-		: NSLOCTEXT("FinalBattleResolver", "UnknownRelic", "Unknown Relic");
-}
-
-void AppendRelicTriggeredEvent(
-	FFinalBattleState& State,
-	const FFinalRelicId& RelicId,
-	const FName RelatedTag,
-	const int32 PrimaryValue,
-	const int32 SecondaryValue,
-	const FText& Message)
-{
-	FFinalBattleEvent RelicEvent;
-	RelicEvent.EventType = EFinalBattleEventType::RelicTriggered;
-	RelicEvent.RelicId = RelicId;
-	RelicEvent.RelatedTag = RelatedTag;
-	RelicEvent.PrimaryValue = PrimaryValue;
-	RelicEvent.SecondaryValue = SecondaryValue;
-	RelicEvent.Message = Message;
-	AppendBattleEvent(State, RelicEvent);
-}
-
-void ApplyBattleStartRelicEffects(FFinalBattleState& State, TArray<FFinalBattleStartRelicInput> ActiveRelics)
-{
-	State.ActiveRelics.Reset();
-
-	for (FFinalBattleStartRelicInput& RelicInput : ActiveRelics)
-	{
-		if (!RelicInput.RelicId.IsValid())
-		{
-			continue;
-		}
-
-		if (RelicInput.DisplayId.IsNone())
-		{
-			RelicInput.DisplayId = RelicInput.RelicId.Value;
-		}
-
-		if (RelicInput.DisplayName.IsEmpty())
-		{
-			RelicInput.DisplayName = ResolveBattleRelicDisplayName(RelicInput);
-		}
-
-		TArray<FFinalBattleStartRelicEffectInput> ValidEffects;
-		TArray<FFinalBattlePlayerTurnStartRelicEffectInput> ValidTurnStartEffects;
-
-		for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput.BattleStartEffects)
-		{
-			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicBattleStartEffectType::None)
-			{
-				continue;
-			}
-
-			switch (EffectInput.EffectType)
-			{
-			case EFinalRelicBattleStartEffectType::GainAP:
-				State.CurrentAP += EffectInput.Value;
-				AppendRelicTriggeredEvent(
-					State,
-					RelicInput.RelicId,
-					RelicGainAPTag,
-					EffectInput.Value,
-					State.CurrentAP,
-					FText::Format(
-						NSLOCTEXT("FinalBattleResolver", "RelicGainAP", "{0} triggered at battle start and granted {1} AP."),
-						RelicInput.DisplayName,
-						FText::AsNumber(EffectInput.Value)));
-				break;
-
-			case EFinalRelicBattleStartEffectType::GainShield:
-				State.TeamShield += EffectInput.Value;
-				AppendRelicTriggeredEvent(
-					State,
-					RelicInput.RelicId,
-					RelicGainShieldTag,
-					EffectInput.Value,
-					State.TeamShield,
-					FText::Format(
-						NSLOCTEXT("FinalBattleResolver", "RelicGainShield", "{0} triggered at battle start and granted {1} shield."),
-						RelicInput.DisplayName,
-						FText::AsNumber(EffectInput.Value)));
-				break;
-
-			default:
-				continue;
-			}
-
-			ValidEffects.Add(EffectInput);
-		}
-
-		for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : RelicInput.PlayerTurnStartEffects)
-		{
-			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicPlayerTurnStartEffectType::None)
-			{
-				continue;
-			}
-
-			ValidTurnStartEffects.Add(EffectInput);
-		}
-
-		if (ValidEffects.Num() > 0 || ValidTurnStartEffects.Num() > 0)
-		{
-			RelicInput.BattleStartEffects = MoveTemp(ValidEffects);
-			RelicInput.PlayerTurnStartEffects = MoveTemp(ValidTurnStartEffects);
-			State.ActiveRelics.Add(MoveTemp(RelicInput));
-		}
-	}
-}
-
-void ApplyPlayerTurnStartRelicEffects(FFinalBattleState& State)
-{
-	for (const FFinalBattleStartRelicInput& RelicInput : State.ActiveRelics)
-	{
-		if (!RelicInput.RelicId.IsValid() || RelicInput.PlayerTurnStartEffects.IsEmpty())
-		{
-			continue;
-		}
-
-		const FText RelicDisplayName = ResolveBattleRelicDisplayName(RelicInput);
-		for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : RelicInput.PlayerTurnStartEffects)
-		{
-			if (EffectInput.Value <= 0 || EffectInput.EffectType == EFinalRelicPlayerTurnStartEffectType::None)
-			{
-				continue;
-			}
-
-			switch (EffectInput.EffectType)
-			{
-			case EFinalRelicPlayerTurnStartEffectType::GainAP:
-				State.CurrentAP += EffectInput.Value;
-				AppendRelicTriggeredEvent(
-					State,
-					RelicInput.RelicId,
-					RelicTurnStartGainAPTag,
-					EffectInput.Value,
-					State.CurrentAP,
-					FText::Format(
-						NSLOCTEXT("FinalBattleResolver", "RelicTurnStartGainAP", "{0} triggered at player turn start and granted {1} AP."),
-						RelicDisplayName,
-						FText::AsNumber(EffectInput.Value)));
-				break;
-
-			case EFinalRelicPlayerTurnStartEffectType::GainShield:
-				State.TeamShield += EffectInput.Value;
-				AppendRelicTriggeredEvent(
-					State,
-					RelicInput.RelicId,
-					RelicTurnStartGainShieldTag,
-					EffectInput.Value,
-					State.TeamShield,
-					FText::Format(
-						NSLOCTEXT("FinalBattleResolver", "RelicTurnStartGainShield", "{0} triggered at player turn start and granted {1} shield."),
-						RelicDisplayName,
-						FText::AsNumber(EffectInput.Value)));
-				break;
-
-			default:
-				break;
-			}
-		}
-	}
-}
+const FFinalBattleCardService& GetCardService();
+const FFinalBattleResourceService& GetResourceService();
+const FFinalBattleTurnService& GetTurnService();
+const FFinalBattleStatusService& GetStatusService();
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
 {
@@ -243,15 +70,6 @@ FFinalBattleEvent FinalizeBattleEvent(FFinalBattleState& State, const FFinalBatt
 {
 	AppendBattleEvent(State, Event);
 	return State.BattleLogEntries.Last();
-}
-
-FFinalBattleCardInstance* FindCardInstance(FFinalBattleState& State, const FGuid& CardInstanceId)
-{
-	return State.CardInstances.FindByPredicate(
-		[&CardInstanceId](const FFinalBattleCardInstance& Candidate)
-		{
-			return Candidate.CardInstanceId == CardInstanceId;
-		});
 }
 
 const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& State, const FName RuntimeUnitId)
@@ -386,23 +204,7 @@ FFinalBattlePhaseProgressViewData BuildPhaseProgress(const FFinalBattleEnemyStat
 
 void DrawCards(FFinalBattleState& State, const int32 DrawCount)
 {
-	for (int32 DrawIndex = 0; DrawIndex < DrawCount; ++DrawIndex)
-	{
-		if (State.DeckState.DrawPileCardInstanceIds.Num() == 0)
-		{
-			if (State.DeckState.DiscardPileCardInstanceIds.Num() == 0)
-			{
-				return;
-			}
-
-			State.DeckState.DrawPileCardInstanceIds.Append(State.DeckState.DiscardPileCardInstanceIds);
-			State.DeckState.DiscardPileCardInstanceIds.Reset();
-		}
-
-		const FGuid DrawnCardId = State.DeckState.DrawPileCardInstanceIds[0];
-		State.DeckState.DrawPileCardInstanceIds.RemoveAt(0);
-		State.DeckState.HandCardInstanceIds.Add(DrawnCardId);
-	}
+	GetCardService().DrawCards(State, DrawCount);
 }
 
 void MarkBattleResolved(FFinalBattleState& State, const bool bPlayerVictory)
@@ -415,6 +217,30 @@ const FFinalEnemyIntentService& GetEnemyIntentService()
 {
 	static const FFinalEnemyIntentService IntentService;
 	return IntentService;
+}
+
+const FFinalBattleCardService& GetCardService()
+{
+	static const FFinalBattleCardService CardService;
+	return CardService;
+}
+
+const FFinalBattleResourceService& GetResourceService()
+{
+	static const FFinalBattleResourceService ResourceService;
+	return ResourceService;
+}
+
+const FFinalBattleTurnService& GetTurnService()
+{
+	static const FFinalBattleTurnService TurnService;
+	return TurnService;
+}
+
+const FFinalBattleStatusService& GetStatusService()
+{
+	static const FFinalBattleStatusService StatusService;
+	return StatusService;
 }
 
 void RefreshEnemyIntentState(FFinalBattleEnemyState& EnemyState, const int32 PreviewRound)
@@ -734,9 +560,8 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 	State = FFinalBattleState{};
 	State.BattleId = FGuid::NewGuid();
 	State.CurrentRound = 1;
-	State.CurrentAP = RuleConfig ? RuleConfig->InitialAP : 0;
-	State.CurrentEP = 0;
-	State.MaxEP = RuleConfig ? RuleConfig->MaxEP : 0;
+	GetResourceService().InitializeBattleResources(State, RuleConfig);
+	GetCardService().InitializeDeckState(State.DeckState);
 	State.TeamCurrentHP = 0;
 	State.TeamMaxHP = 0;
 	TMap<FName, FName> TemplateToRuntimeUnitMap;
@@ -795,41 +620,10 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		? FMath::Min(InitContext.TeamCurrentHP, State.TeamMaxHP)
 		: State.TeamMaxHP;
 
-	for (UFinalCardDefinition* CardDefinition : InitContext.DeckDefinitions)
-	{
-		if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
-		{
-			continue;
-		}
-
-		FFinalBattleCardInstance CardInstance;
-		CardInstance.CardInstanceId = FGuid::NewGuid();
-		CardInstance.CardId = CardDefinition->CardId;
-		CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
-		CardInstance.RuntimeKeywords = CardDefinition->Keywords;
-		CardInstance.SourceDefinition = CardDefinition;
-
-		if (const FName* RuntimeOwnerUnitId = TemplateToRuntimeUnitMap.Find(CardDefinition->OwnerUnitId))
-		{
-			CardInstance.RuntimeOwnerUnitId = *RuntimeOwnerUnitId;
-		}
-		else
-		{
-			CardInstance.RuntimeOwnerUnitId = CardDefinition->OwnerUnitId;
-		}
-
-		State.CardInstances.Add(CardInstance);
-		State.DeckState.DrawPileCardInstanceIds.Add(CardInstance.CardInstanceId);
-	}
+	GetCardService().InitializeDeckCards(State, InitContext.DeckDefinitions, TemplateToRuntimeUnitMap);
 
 	const int32 InitialHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : 0;
-	const int32 CardsToDraw = FMath::Min(InitialHandSize, State.DeckState.DrawPileCardInstanceIds.Num());
-	for (int32 DrawIndex = 0; DrawIndex < CardsToDraw; ++DrawIndex)
-	{
-		const FGuid DrawnCardId = State.DeckState.DrawPileCardInstanceIds[0];
-		State.DeckState.DrawPileCardInstanceIds.RemoveAt(0);
-		State.DeckState.HandCardInstanceIds.Add(DrawnCardId);
-	}
+	GetCardService().DrawCards(State, FMath::Min(InitialHandSize, State.DeckState.DrawPileCardInstanceIds.Num()));
 
 	if (!EncounterDefinition)
 	{
@@ -898,7 +692,12 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		State.EncounterDisplayName.IsEmpty() ? FText::FromName(State.EncounterId.Value) : State.EncounterDisplayName);
 	FinalizeBattleEvent(State, SessionStartedEvent);
 
-	ApplyBattleStartRelicEffects(State, InitContext.BattleStartRelics);
+	TArray<FFinalBattleEvent> BattleStartRelicEvents;
+	GetTurnService().ApplyBattleStartRelicEffects(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
+	for (const FFinalBattleEvent& RelicEvent : BattleStartRelicEvents)
+	{
+		AppendBattleEvent(State, RelicEvent);
+	}
 
 	UE_LOG(LogFinalBattleResolver, Log, TEXT("Initialized battle session with %d enemy entries."), State.Enemies.Num());
 }
@@ -924,7 +723,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 	{
 	case EFinalBattleCommandType::PlayCard:
 		{
-			FFinalBattleCardInstance* CardInstance = FindCardInstance(State, Command.CardInstanceId);
+			FFinalBattleCardInstance* CardInstance = GetCardService().FindCardInstance(State, Command.CardInstanceId);
 			if (CardInstance == nullptr)
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
@@ -944,7 +743,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 				return FinalizeBattleEvent(State, Event);
 			}
 
-			if (!State.DeckState.HandCardInstanceIds.Contains(Command.CardInstanceId))
+			if (!GetCardService().IsCardInHand(State, Command.CardInstanceId))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
 				SetRejectReason(Event, EFinalBattleCommandRejectReason::CardNotInHand, RejectCardNotInHandTag);
@@ -954,7 +753,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 				return FinalizeBattleEvent(State, Event);
 			}
 
-			if (State.CurrentAP < CardInstance->RuntimeCostAP)
+			if (!GetResourceService().HasEnoughAP(State, CardInstance->RuntimeCostAP))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
 				SetRejectReason(Event, EFinalBattleCommandRejectReason::NotEnoughAP, RejectNotEnoughAPTag);
@@ -978,10 +777,9 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 			const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
 
-			State.CurrentAP -= CardInstance->RuntimeCostAP;
-			State.CurrentEP = RuleConfig ? FMath::Min(State.CurrentEP + RuleConfig->BaseCardEpGain, RuleConfig->MaxEP) : State.CurrentEP;
-			State.DeckState.HandCardInstanceIds.RemoveSingle(Command.CardInstanceId);
-			State.DeckState.DiscardPileCardInstanceIds.Add(Command.CardInstanceId);
+			GetResourceService().SpendAP(State, CardInstance->RuntimeCostAP);
+			GetResourceService().GainCardPlayEP(State, RuleConfig);
+			GetCardService().MoveHandCardToDiscard(State, Command.CardInstanceId);
 
 			FFinalEffectExecutionSummary Summary;
 			ExecuteEffectList(State, CardInstance->SourceDefinition->Effects, &Command, OwnerCharacterState, nullptr, Summary);
@@ -1054,7 +852,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 				return FinalizeBattleEvent(State, Event);
 			}
 
-			if (State.CurrentEP < OwnerCharacterState->UltimateCostEP)
+			if (!GetResourceService().HasEnoughEP(State, OwnerCharacterState->UltimateCostEP))
 			{
 				Event.EventType = EFinalBattleEventType::CommandRejected;
 				SetRejectReason(Event, EFinalBattleCommandRejectReason::NotEnoughEP, RejectNotEnoughEPTag);
@@ -1064,7 +862,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 				return FinalizeBattleEvent(State, Event);
 			}
 
-			State.CurrentEP -= OwnerCharacterState->UltimateCostEP;
+			GetResourceService().SpendEP(State, OwnerCharacterState->UltimateCostEP);
 
 			FFinalEffectExecutionSummary Summary;
 			ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, OwnerCharacterState, nullptr, Summary);
@@ -1101,83 +899,61 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 	case EFinalBattleCommandType::EndTurn:
 		{
-			FFinalEffectExecutionSummary Summary;
-			for (FFinalBattleEnemyState& EnemyState : State.Enemies)
+			const FFinalBattleEndTurnResult EndTurnResult = GetTurnService().ResolveEndTurn(
+				State,
+				RuleConfig,
+				GetCardService(),
+				GetResourceService(),
+				GetStatusService(),
+				[](FFinalBattleState& MutableState, FFinalBattleEnemyState& EnemyState) -> FFinalBattleEnemyActionResult
+				{
+					FFinalBattleEnemyActionResult ActionResult;
+					FFinalEffectExecutionSummary Summary;
+
+					if (EnemyState.CurrentIntentDefinition && HasSupportedEffectList(EnemyState.CurrentIntentDefinition->Effects))
+					{
+						ExecuteEffectList(MutableState, EnemyState.CurrentIntentDefinition->Effects, nullptr, nullptr, &EnemyState, Summary);
+					}
+					else
+					{
+						Summary.TotalDamageToTeam += ApplyTeamIncomingDamage(MutableState, FMath::Max(EnemyState.RuntimeDamagePower, 0));
+					}
+
+					ActionResult.DamageToTeam = Summary.TotalDamageToTeam;
+					ActionResult.EnemyShieldGained = Summary.TotalEnemyShieldGained;
+					ActionResult.ResolvedEffectCount = Summary.ResolvedEffectCount;
+					return ActionResult;
+				});
+
+			for (const FFinalBattleEvent& GeneratedEvent : EndTurnResult.GeneratedEvents)
 			{
-				if (EnemyState.CurrentHP <= 0)
-				{
-					continue;
-				}
-
-				const int32 TeamDamageBeforeAction = Summary.TotalDamageToTeam;
-				const int32 EnemyShieldBeforeAction = Summary.TotalEnemyShieldGained;
-
-				if (EnemyState.CurrentIntentDefinition && HasSupportedEffectList(EnemyState.CurrentIntentDefinition->Effects))
-				{
-					ExecuteEffectList(State, EnemyState.CurrentIntentDefinition->Effects, nullptr, nullptr, &EnemyState, Summary);
-				}
-				else
-				{
-					Summary.TotalDamageToTeam += ApplyTeamIncomingDamage(State, FMath::Max(EnemyState.RuntimeDamagePower, 0));
-				}
-
-				EnemyState.bActedThisRound = true;
-
-				FFinalBattleEvent EnemyActionEvent;
-				EnemyActionEvent.EventType = EFinalBattleEventType::EnemyActed;
-				EnemyActionEvent.SourceUnitId = EnemyState.RuntimeUnitId;
-				EnemyActionEvent.TargetUnitId = TeamPlayerUnitId;
-				EnemyActionEvent.RelatedTag = EnemyState.CurrentIntentId;
-				EnemyActionEvent.PrimaryValue = Summary.TotalDamageToTeam - TeamDamageBeforeAction;
-				EnemyActionEvent.SecondaryValue = Summary.TotalEnemyShieldGained - EnemyShieldBeforeAction;
-				EnemyActionEvent.Message = FText::Format(
-					NSLOCTEXT("FinalBattleResolver", "EnemyActed", "{0} resolved intent {1}."),
-					EnemyState.DisplayName.IsEmpty() ? FText::FromName(EnemyState.RuntimeUnitId) : EnemyState.DisplayName,
-					EnemyState.CurrentIntentText.IsEmpty() ? FText::FromString(TEXT("Attack")) : EnemyState.CurrentIntentText);
-				AppendBattleEvent(State, EnemyActionEvent);
-
-				AdvanceEnemyIntentState(EnemyState, State.CurrentRound);
+				AppendBattleEvent(State, GeneratedEvent);
 			}
 
-			State.CurrentEP = RuleConfig ? FMath::Min(State.CurrentEP + RuleConfig->EndTurnEpGain, RuleConfig->MaxEP) : State.CurrentEP;
-
-			if (State.TeamCurrentHP <= 0)
+			if (EndTurnResult.bBattleLost)
 			{
 				MarkBattleResolved(State, false);
 				Event.EventType = EFinalBattleEventType::BattleResolved;
 				Event.TargetUnitId = TeamPlayerUnitId;
-				Event.PrimaryValue = Summary.TotalDamageToTeam;
-				Event.SecondaryValue = Summary.TotalEnemyShieldGained;
+				Event.PrimaryValue = EndTurnResult.TotalDamageToTeam;
+				Event.SecondaryValue = EndTurnResult.TotalEnemyShieldGained;
 				Event.Message = FText::Format(
 					NSLOCTEXT("FinalBattleResolver", "EndTurnDefeat", "Enemies resolved {0} effects. Team damage {1}, enemy shield {2}. Battle lost."),
-					FText::AsNumber(Summary.ResolvedEffectCount),
-					FText::AsNumber(Summary.TotalDamageToTeam),
-					FText::AsNumber(Summary.TotalEnemyShieldGained));
+					FText::AsNumber(EndTurnResult.ResolvedEffectCount),
+					FText::AsNumber(EndTurnResult.TotalDamageToTeam),
+					FText::AsNumber(EndTurnResult.TotalEnemyShieldGained));
 				return FinalizeBattleEvent(State, Event);
 			}
 
-			++State.CurrentRound;
-			State.CurrentAP = RuleConfig ? RuleConfig->InitialAP : 0;
-			ApplyPlayerTurnStartRelicEffects(State);
-
-			for (FFinalBattleEnemyState& EnemyState : State.Enemies)
-			{
-				EnemyState.bActedThisRound = false;
-			}
-
-			const int32 TargetHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : State.DeckState.HandCardInstanceIds.Num();
-			const int32 CardsToDraw = FMath::Max(TargetHandSize - State.DeckState.HandCardInstanceIds.Num(), 0);
-			DrawCards(State, CardsToDraw);
-
 			Event.EventType = EFinalBattleEventType::TurnTransition;
 			Event.TargetUnitId = TeamPlayerUnitId;
-			Event.PrimaryValue = Summary.TotalDamageToTeam;
-			Event.SecondaryValue = Summary.TotalEnemyShieldGained;
+			Event.PrimaryValue = EndTurnResult.TotalDamageToTeam;
+			Event.SecondaryValue = EndTurnResult.TotalEnemyShieldGained;
 			Event.Message = FText::Format(
 				NSLOCTEXT("FinalBattleResolver", "EndTurnAdvanced", "Turn advanced. Enemies resolved {0} effects. Team damage {1}, enemy shield {2}, team shield now {3}."),
-				FText::AsNumber(Summary.ResolvedEffectCount),
-				FText::AsNumber(Summary.TotalDamageToTeam),
-				FText::AsNumber(Summary.TotalEnemyShieldGained),
+				FText::AsNumber(EndTurnResult.ResolvedEffectCount),
+				FText::AsNumber(EndTurnResult.TotalDamageToTeam),
+				FText::AsNumber(EndTurnResult.TotalEnemyShieldGained),
 				FText::AsNumber(State.TeamShield));
 			Event.Round = State.CurrentRound;
 			break;
@@ -1286,70 +1062,8 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 		Snapshot.Enemies.Add(MoveTemp(EnemyView));
 	}
 
-	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
-	{
-		FFinalBattleCharacterStatusesViewData CharacterStatusEntry;
-		CharacterStatusEntry.OwnerUnitId = CharacterState.RuntimeUnitId;
-		CharacterStatusEntry.CharacterId = CharacterState.CharacterId;
-		Snapshot.CharacterStatuses.Add(MoveTemp(CharacterStatusEntry));
-	}
-
-	for (const FFinalBattleStatusInstance& StatusInstance : State.StatusInstances)
-	{
-		FFinalBattleStatusViewData StatusView;
-		StatusView.StatusInstanceId = StatusInstance.StatusInstanceId;
-		StatusView.StatusId = StatusInstance.StatusId;
-		StatusView.OwnerUnitId = StatusInstance.OwnerUnitId;
-		StatusView.SourceUnitId = StatusInstance.SourceUnitId;
-		StatusView.DisplayName = FText::FromName(StatusInstance.StatusId.Value);
-		StatusView.CurrentStacks = StatusInstance.CurrentStacks;
-		StatusView.RemainingDuration = StatusInstance.RemainingDuration;
-		if (StatusInstance.OwnerUnitId == TeamPlayerUnitId)
-		{
-			Snapshot.TeamStatuses.Add(StatusView);
-		}
-		else
-		{
-			if (FFinalBattleCharacterStatusesViewData* CharacterStatuses = Snapshot.CharacterStatuses.FindByPredicate(
-				[&StatusInstance](const FFinalBattleCharacterStatusesViewData& Candidate)
-				{
-					return Candidate.OwnerUnitId == StatusInstance.OwnerUnitId;
-				}))
-			{
-				CharacterStatuses->StatusEntries.Add(StatusView);
-			}
-		}
-		Snapshot.Statuses.Add(MoveTemp(StatusView));
-	}
-
-	for (const FGuid& CardInstanceId : State.DeckState.HandCardInstanceIds)
-	{
-		const FFinalBattleCardInstance* CardInstance = State.CardInstances.FindByPredicate(
-			[&CardInstanceId](const FFinalBattleCardInstance& Candidate)
-			{
-				return Candidate.CardInstanceId == CardInstanceId;
-			});
-
-		if (!CardInstance)
-		{
-			continue;
-		}
-
-		FFinalBattleCardViewData CardView;
-		CardView.CardInstanceId = CardInstance->CardInstanceId;
-		CardView.CardId = CardInstance->CardId;
-		CardView.RuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
-		CardView.DisplayName = CardInstance->SourceDefinition != nullptr ? CardInstance->SourceDefinition->DisplayName : FText::FromName(CardInstance->CardId.Value);
-		CardView.CardType = CardInstance->SourceDefinition != nullptr ? CardInstance->SourceDefinition->CardType : EFinalCardType::Attack;
-		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
-		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
-		CardView.bRetained = CardInstance->bRetained;
-		if (const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, CardInstance->RuntimeOwnerUnitId))
-		{
-			CardView.bCollapsedCard = OwnerCharacterState->bCollapsed;
-		}
-		Snapshot.HandCards.Add(MoveTemp(CardView));
-	}
+	GetStatusService().BuildStatusSnapshotData(State, Snapshot.CharacterStatuses, Snapshot.TeamStatuses, Snapshot.Statuses);
+	GetCardService().BuildHandCardViews(State, Snapshot.HandCards);
 
 	return Snapshot;
 }

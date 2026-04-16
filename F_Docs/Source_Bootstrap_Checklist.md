@@ -135,9 +135,13 @@
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.h`
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleCardService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleCardService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleResourceService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleResourceService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleStatusService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleStatusService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleTurnService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalEnemyIntentService.h`
 
 #### 首批目标
@@ -151,6 +155,15 @@
 * 第二批可补最小 relic 触发深化：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入
 * 先支持 `battle-start` 的 AP / Shield 修正
 * 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
+
+#### 当前口径
+* `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator
+* `PlayCard / PlayUltimate / EndTurn` 的卡牌区变更、资源调整、回合推进细节已开始迁入 `Private/Systems`
+* `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建
+* `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置
+* `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration、battle-start / player-turn-start relic 数值触发与玩家回合开始窗口衔接
+* `FinalBattleStatusService` 当前承接最小状态 tick 占位，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
+* `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
 #### 暂不创建
 * 遗物运行时状态
