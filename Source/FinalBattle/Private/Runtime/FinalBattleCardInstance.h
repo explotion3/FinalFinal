@@ -15,4 +15,7 @@ struct FFinalBattleCardInstance
 	FGameplayTagContainer RuntimeKeywords;
 	UFinalCardDefinition* SourceDefinition = nullptr;
 	bool bRetained = false;
+	bool bGeneratedCard = false;
+	bool bTemporaryCard = false;
+	bool bConsumeOnPlay = false;
 };
