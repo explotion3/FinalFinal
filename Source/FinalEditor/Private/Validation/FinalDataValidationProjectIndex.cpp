@@ -220,6 +220,11 @@ bool FFinalDataValidationProjectIndex::HasPrototypeBootstrapDefinition(const FNa
 	return FinalDataValidationProjectIndexInternal::HasStableId(PrototypeBootstrapDefinitionPathsById, BootstrapId);
 }
 
+bool FFinalDataValidationProjectIndex::HasRelicDefinition(const FFinalRelicId& RelicId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(RelicDefinitionPathsById, RelicId.Value);
+}
+
 bool FFinalDataValidationProjectIndex::HasRuleConfigDefinition(const FFinalRuleConfigId& RuleConfigId) const
 {
 	return FinalDataValidationProjectIndexInternal::HasStableId(RuleConfigDefinitionPathsById, RuleConfigId.Value);

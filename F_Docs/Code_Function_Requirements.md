@@ -317,8 +317,10 @@
 * `FinalEditor` 已建立最小 Editor-only 数据资产校验器
 * 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
 * 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
-* 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的主 ID 是否重复
+* 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig / RunRoute` 的主 ID 是否重复
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
+* 当前已补 `RunRouteDefinition` 内容一致性校验：`RouteId / EntryNodeId`、同 route 内 `NodeDefinitions[*].NodeId` 唯一性、`NextNodeIds[*]` 可达性，以及 battle / reward / event / shop 节点的最小结构合法性
+* 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并对缺失 stable id、非法 growth effect、自指升级和非正数值给出明确错误
 * 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
 * 当前已补 prototype vertical slice 的 Editor 自动化冒烟测试，覆盖 `prototype.bootstrap.test` 发现、bootstrap 核心引用经 `FinalDataRegistry` 解析、bootstrap 启动最小 run、run 进入 battle 并执行最小推进、battle result 回写 run，以及战斗外 `ExportSaveData / RestoreFromSaveData`
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`
