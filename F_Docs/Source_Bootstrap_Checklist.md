@@ -369,23 +369,25 @@
 ### 8.3 当前测试入口
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描并注册项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
 * 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
-* 当前 starter bundle 已开始以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
+* 当前 starter bundle 也已以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
 * starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前只把已支持的伤害 / 护盾 / 抽牌等最小效果录入成可运行数据，文档中的刀势、药引、剑阵生成、复杂治疗免疫、经济 / 商店 / 未来窗口效果仍保留为内容备注或展示占位，不代表 Runtime 规则已扩展
-* `FinalGameInstance` 当前优先按单一 bootstrap stable id `prototype.bootstrap.test` 查询 `FinalDataRegistry` 中已有内容，并在此基础上构造最小 `RunSession`
+* `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`
+* prototype bootstrap 调试切换当前由 `FinalGameInstance` 单点收口：`FinalBattlePlayerController` 的 exec 命令和 `PrototypeRunDebugScreen` 的 starter/test 切换按钮都只透传到这一个入口，不再各自硬编码 bootstrap id
+* bootstrap 切换当前只允许在无 `ActiveBattleSession` 时生效；切换成功后会立即重新初始化最小 prototype run，并刷新当前 Run flow / UI 页面
 * 当前 prototype Run 图里的事件节点选项已加入最小 `Growth` 奖励示例，直接使用 `GrowthTargetCharacterId / GrowthEffectType / Value`，用于验证 `RunPersistentCharacterState -> RunSnapshot.Characters` 的真实回写
 * 当前 prototype Run 图已重新接回 `RemoveCard / UpgradeCard` 奖励示例，直接使用 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，用于验证 `RunDeck -> RunSnapshot.CurrentBuild` 的真实构筑修正
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunRouteById -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
-* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
+* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 bootstrap id、默认 bootstrap id、bootstrap route id、Run 阶段、当前 node id / 节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
 * `UISubsystem` 当前还会常驻挂一个只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，`BattleHUD` 顶部反馈、`BattleHUD` 日志区、`PrototypeRunDebugScreen` 的最新 Battle 事件摘要、`FinalBattleEventScreen` 账本文本、`BattleDirector` 的世界提示都优先共用这套 helper
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；世界提示直接复用 BattleEvent 统一投影 helper，不替代 HUD / Debug 明细
-* `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用
-* 控制台命令 `FinalStartTestBattle` 可在测试地图内直接起一场战斗
+* `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用，并会按 `FinalGameInstance` 当前选中的 bootstrap profile 重启 prototype run
+* 控制台命令 `FinalStartTestBattle` 可在测试地图内直接按当前 bootstrap profile 起一场战斗；`FinalSetPrototypeBootstrap <BootstrapId>` 可在非 active battle 时切换到指定 bootstrap 并重新初始化 prototype run
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写
 
 ---

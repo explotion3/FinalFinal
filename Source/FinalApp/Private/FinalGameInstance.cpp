@@ -11,7 +11,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
 namespace FinalTestBootstrap
 {
-	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
+	const FName DefaultPrototypeBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
+	const FName TestPrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
 
 	void AppendMissingReference(TArray<FString>& OutMissingIds, const FString& StableId, const bool bIsPresent)
 	{
@@ -21,7 +22,10 @@ namespace FinalTestBootstrap
 		}
 	}
 
-	UFinalPrototypeBootstrapDefinition* ResolvePrototypeBootstrapDefinitionFromRegistry(UFinalDataRegistry* DataRegistry, TArray<FString>& OutMissingIds)
+	UFinalPrototypeBootstrapDefinition* ResolvePrototypeBootstrapDefinitionFromRegistry(
+		UFinalDataRegistry* DataRegistry,
+		const FName PrototypeBootstrapId,
+		TArray<FString>& OutMissingIds)
 	{
 		if (DataRegistry == nullptr)
 		{
@@ -70,6 +74,7 @@ namespace FinalTestBootstrap
 void UFinalGameInstance::Init()
 {
 	Super::Init();
+	CurrentPrototypeBootstrapId = GetDefaultPrototypeBootstrapId();
 	EnsureTestBattleBootstrapData();
 }
 
@@ -91,7 +96,7 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 
 	TArray<FString> MissingDefinitionIds;
 	UFinalPrototypeBootstrapDefinition* BootstrapDefinition =
-		FinalTestBootstrap::ResolvePrototypeBootstrapDefinitionFromRegistry(DataRegistry, MissingDefinitionIds);
+		FinalTestBootstrap::ResolvePrototypeBootstrapDefinitionFromRegistry(DataRegistry, CurrentPrototypeBootstrapId, MissingDefinitionIds);
 
 	if (BootstrapDefinition == nullptr || MissingDefinitionIds.Num() > 0)
 	{
@@ -101,11 +106,11 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 		return false;
 	}
 
-	TestPrototypeBootstrapDefinition = BootstrapDefinition;
+	ActivePrototypeBootstrapDefinition = BootstrapDefinition;
 
 	bTestBattleBootstrapRegistered = true;
 
-	UE_LOG(LogFinalGameInstance, Log, TEXT("Resolved test battle bootstrap data from FinalDataRegistry bootstrap asset %s."), *BootstrapDefinition->BootstrapId.ToString());
+	UE_LOG(LogFinalGameInstance, Log, TEXT("Resolved prototype bootstrap data from FinalDataRegistry bootstrap asset %s."), *BootstrapDefinition->BootstrapId.ToString());
 	return true;
 }
 
@@ -133,8 +138,8 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	}
 
 	TArray<FFinalRunPersistentCharacterState> PartyStates;
-	PartyStates.Reserve(TestPrototypeBootstrapDefinition->InitialCharacterStates.Num());
-	for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : TestPrototypeBootstrapDefinition->InitialCharacterStates)
+	PartyStates.Reserve(ActivePrototypeBootstrapDefinition->InitialCharacterStates.Num());
+	for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : ActivePrototypeBootstrapDefinition->InitialCharacterStates)
 	{
 		FFinalRunPersistentCharacterState CharacterState;
 		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
@@ -146,16 +151,16 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	}
 
 	RunSession->ConfigureBattleStartState(
-		TestPrototypeBootstrapDefinition->EncounterId,
-		TestPrototypeBootstrapDefinition->RuleConfigId,
+		ActivePrototypeBootstrapDefinition->EncounterId,
+		ActivePrototypeBootstrapDefinition->RuleConfigId,
 		PartyStates,
-		TestPrototypeBootstrapDefinition->StarterDeckCardIds,
-		TestPrototypeBootstrapDefinition->InitialTeamCurrentHP);
-	if (!RunSession->ConfigureRunRouteById(TestPrototypeBootstrapDefinition->RunRouteId))
+		ActivePrototypeBootstrapDefinition->StarterDeckCardIds,
+		ActivePrototypeBootstrapDefinition->InitialTeamCurrentHP);
+	if (!RunSession->ConfigureRunRouteById(ActivePrototypeBootstrapDefinition->RunRouteId))
 	{
 		LastTestFailureReason = FText::Format(
 			NSLOCTEXT("FinalGameInstance", "ConfigurePrototypeRunRouteFailed", "Failed to configure prototype run route {0}."),
-			FText::FromName(TestPrototypeBootstrapDefinition->RunRouteId));
+			FText::FromName(ActivePrototypeBootstrapDefinition->RunRouteId));
 		return false;
 	}
 
@@ -165,6 +170,47 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	}
 
 	return true;
+}
+
+bool UFinalGameInstance::SetCurrentPrototypeBootstrapId(const FName NewBootstrapId, const bool bRestartPrototypeRun)
+{
+	LastTestFailureReason = FText::GetEmpty();
+
+	if (NewBootstrapId.IsNone())
+	{
+		LastTestFailureReason = FText::FromString(TEXT("Prototype bootstrap id is invalid."));
+		return false;
+	}
+
+	UFinalGameFlowSubsystem* GameFlowSubsystem = GetSubsystem<UFinalGameFlowSubsystem>();
+	if (GameFlowSubsystem != nullptr && GameFlowSubsystem->GetActiveBattleSession() != nullptr)
+	{
+		LastTestFailureReason = FText::FromString(TEXT("Cannot switch prototype bootstrap while a battle session is active."));
+		return false;
+	}
+
+	const FName PreviousBootstrapId = CurrentPrototypeBootstrapId;
+	if (CurrentPrototypeBootstrapId == NewBootstrapId)
+	{
+		return bRestartPrototypeRun ? PrepareTestBattleRun() : true;
+	}
+
+	CurrentPrototypeBootstrapId = NewBootstrapId;
+	bTestBattleBootstrapRegistered = false;
+	ActivePrototypeBootstrapDefinition = nullptr;
+
+	if (!EnsureTestBattleBootstrapData())
+	{
+		const FText SwitchFailureReason = LastTestFailureReason;
+		CurrentPrototypeBootstrapId = PreviousBootstrapId;
+		bTestBattleBootstrapRegistered = false;
+		ActivePrototypeBootstrapDefinition = nullptr;
+		EnsureTestBattleBootstrapData();
+		LastTestFailureReason = SwitchFailureReason;
+		return false;
+	}
+
+	return bRestartPrototypeRun ? PrepareTestBattleRun() : true;
 }
 
 bool UFinalGameInstance::StartTestBattle()
@@ -204,4 +250,26 @@ bool UFinalGameInstance::StartTestBattle()
 FText UFinalGameInstance::GetLastTestFailureReason() const
 {
 	return LastTestFailureReason;
+}
+
+FName UFinalGameInstance::GetCurrentPrototypeBootstrapId() const
+{
+	return CurrentPrototypeBootstrapId;
+}
+
+FName UFinalGameInstance::GetDefaultPrototypeBootstrapId() const
+{
+	return FinalTestBootstrap::DefaultPrototypeBootstrapId;
+}
+
+FName UFinalGameInstance::GetTestPrototypeBootstrapId() const
+{
+	return FinalTestBootstrap::TestPrototypeBootstrapId;
+}
+
+FName UFinalGameInstance::GetCurrentPrototypeRunRouteId() const
+{
+	return ActivePrototypeBootstrapDefinition != nullptr
+		? ActivePrototypeBootstrapDefinition->RunRouteId
+		: NAME_None;
 }

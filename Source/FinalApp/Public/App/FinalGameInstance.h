@@ -23,12 +23,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Test")
 	bool StartTestBattle();
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Test")
+	bool SetCurrentPrototypeBootstrapId(FName NewBootstrapId, bool bRestartPrototypeRun = true);
+
+	UFUNCTION(BlueprintPure, Category = "Final|Test")
+	FName GetCurrentPrototypeBootstrapId() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Test")
+	FName GetDefaultPrototypeBootstrapId() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Test")
+	FName GetTestPrototypeBootstrapId() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Test")
+	FName GetCurrentPrototypeRunRouteId() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|Test")
 	FText GetLastTestFailureReason() const;
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UFinalPrototypeBootstrapDefinition> TestPrototypeBootstrapDefinition;
+	TObjectPtr<UFinalPrototypeBootstrapDefinition> ActivePrototypeBootstrapDefinition;
+
+	UPROPERTY(Transient)
+	FName CurrentPrototypeBootstrapId = NAME_None;
 
 	UPROPERTY(Transient)
 	FText LastTestFailureReason;

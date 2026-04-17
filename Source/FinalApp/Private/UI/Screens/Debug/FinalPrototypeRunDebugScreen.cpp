@@ -35,6 +35,13 @@ FText FormatOptionalDisplayName(const FText& DisplayName, const FString& Fallbac
 	return !DisplayName.IsEmpty() ? DisplayName : FText::FromString(FallbackValue);
 }
 
+FText FormatNameOrNone(const FName NameValue)
+{
+	return NameValue.IsNone()
+		? NSLOCTEXT("FinalPrototypeRunDebug", "NameNone", "None")
+		: FText::FromName(NameValue);
+}
+
 FText GetPrototypeRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
 {
 	switch (EffectType)
@@ -722,9 +729,13 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	const bool bHasActiveBattleSession = GameFlowSubsystem && GameFlowSubsystem->GetActiveBattleSession() != nullptr;
 
 	SummaryText->SetText(FText::Format(
-		NSLOCTEXT("FinalPrototypeRunDebug", "SummaryFormat", "FlowStage: {0}\nNode: {1}\nGold {2} | Deck {3} | Relics {4}\nActiveBattleSession: {5}"),
+		NSLOCTEXT("FinalPrototypeRunDebug", "SummaryFormat", "Bootstrap: {0}\nDefault Bootstrap: {1}\nBootstrap Route: {2}\nFlowStage: {3}\nNode: {4}\nNodeId: {5}\nGold {6} | Deck {7} | Relics {8}\nActiveBattleSession: {9}"),
+		FinalGameInstance ? FormatNameOrNone(FinalGameInstance->GetCurrentPrototypeBootstrapId()) : FormatNameOrNone(NAME_None),
+		FinalGameInstance ? FormatNameOrNone(FinalGameInstance->GetDefaultPrototypeBootstrapId()) : FormatNameOrNone(NAME_None),
+		FinalGameInstance ? FormatNameOrNone(FinalGameInstance->GetCurrentPrototypeRunRouteId()) : FormatNameOrNone(NAME_None),
 		GetFlowStageText(RunSnapshot.Progression.FlowStage),
 		GetNodeSummaryText(RunSnapshot.Progression),
+		FormatNameOrNone(RunSnapshot.Progression.CurrentNodeId),
 		FText::AsNumber(RunSnapshot.Gold),
 		FText::AsNumber(RunSnapshot.DeckCount),
 		FText::AsNumber(RunSnapshot.RelicCount),
@@ -756,6 +767,22 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 	if (RestartRunButton)
 	{
 		RestartRunButton->SetIsEnabled(true);
+	}
+
+	if (UseStarterBootstrapButton)
+	{
+		const bool bCanUseStarterBootstrap = !bHasActiveBattleSession
+			&& FinalGameInstance != nullptr
+			&& FinalGameInstance->GetCurrentPrototypeBootstrapId() != FinalGameInstance->GetDefaultPrototypeBootstrapId();
+		UseStarterBootstrapButton->SetIsEnabled(bCanUseStarterBootstrap);
+	}
+
+	if (UseTestBootstrapButton)
+	{
+		const bool bCanUseTestBootstrap = !bHasActiveBattleSession
+			&& FinalGameInstance != nullptr
+			&& FinalGameInstance->GetCurrentPrototypeBootstrapId() != FinalGameInstance->GetTestPrototypeBootstrapId();
+		UseTestBootstrapButton->SetIsEnabled(bCanUseTestBootstrap);
 	}
 
 	if (SaveRunButton)
@@ -794,6 +821,26 @@ void UFinalPrototypeRunDebugScreen::HandleRestartPrototypeRunClicked()
 	if (UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance())
 	{
 		FinalGameInstance->StartTestBattle();
+	}
+
+	RefreshFromSubsystems();
+}
+
+void UFinalPrototypeRunDebugScreen::HandleUseStarterBootstrapClicked()
+{
+	if (UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance())
+	{
+		FinalGameInstance->SetCurrentPrototypeBootstrapId(FinalGameInstance->GetDefaultPrototypeBootstrapId(), true);
+	}
+
+	RefreshFromSubsystems();
+}
+
+void UFinalPrototypeRunDebugScreen::HandleUseTestBootstrapClicked()
+{
+	if (UFinalGameInstance* FinalGameInstance = ResolveFinalGameInstance())
+	{
+		FinalGameInstance->SetCurrentPrototypeBootstrapId(FinalGameInstance->GetTestPrototypeBootstrapId(), true);
 	}
 
 	RefreshFromSubsystems();
@@ -920,6 +967,26 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* RestartSlot = ContentBox->AddChildToVerticalBox(RestartRunButton))
 	{
 		RestartSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+	}
+
+	UseStarterBootstrapButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugUseStarterBootstrapButton"));
+	UseStarterBootstrapButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleUseStarterBootstrapClicked);
+	UseStarterBootstrapLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugUseStarterBootstrapLabel"), 12);
+	UseStarterBootstrapLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "UseStarterBootstrapButton", "Use Starter Bootstrap"));
+	UseStarterBootstrapButton->AddChild(UseStarterBootstrapLabel);
+	if (UVerticalBoxSlot* StarterBootstrapSlot = ContentBox->AddChildToVerticalBox(UseStarterBootstrapButton))
+	{
+		StarterBootstrapSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
+	UseTestBootstrapButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugUseTestBootstrapButton"));
+	UseTestBootstrapButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleUseTestBootstrapClicked);
+	UseTestBootstrapLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugUseTestBootstrapLabel"), 12);
+	UseTestBootstrapLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "UseTestBootstrapButton", "Use Test Bootstrap"));
+	UseTestBootstrapButton->AddChild(UseTestBootstrapLabel);
+	if (UVerticalBoxSlot* TestBootstrapSlot = ContentBox->AddChildToVerticalBox(UseTestBootstrapButton))
+	{
+		TestBootstrapSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 	}
 
 	SaveRunButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugSaveButton"));

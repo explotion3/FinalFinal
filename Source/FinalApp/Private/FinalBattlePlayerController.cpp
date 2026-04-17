@@ -350,6 +350,39 @@ void AFinalBattlePlayerController::FinalStartTestBattle()
 	}
 }
 
+void AFinalBattlePlayerController::FinalSetPrototypeBootstrap(const FString& BootstrapId)
+{
+	UFinalGameInstance* FinalGameInstance = Cast<UFinalGameInstance>(GetGameInstance());
+	if (FinalGameInstance == nullptr)
+	{
+		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("FinalGameInstance is unavailable."));
+		return;
+	}
+
+	const bool bSwitched = FinalGameInstance->SetCurrentPrototypeBootstrapId(FName(*BootstrapId), true);
+	RegisterUIBridge();
+
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance()->GetSubsystem<UFinalUISubsystem>())
+	{
+		UISubsystem->RefreshBattleHUD();
+	}
+
+	const FText Feedback = bSwitched
+		? FText::Format(
+			NSLOCTEXT("FinalBattlePlayerController", "PrototypeBootstrapSwitched", "Prototype bootstrap switched to {0}."),
+			FText::FromName(FinalGameInstance->GetCurrentPrototypeBootstrapId()))
+		: FinalGameInstance->GetLastTestFailureReason();
+
+	if (bSwitched)
+	{
+		UE_LOG(LogFinalBattlePlayerController, Log, TEXT("%s"), *Feedback.ToString());
+	}
+	else
+	{
+		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("%s"), *Feedback.ToString());
+	}
+}
+
 void AFinalBattlePlayerController::FinalDumpBattleSnapshot()
 {
 	DumpBattleSnapshotToLog();
