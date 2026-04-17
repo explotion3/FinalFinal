@@ -369,6 +369,8 @@
 ### 8.3 当前测试入口
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描并注册项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
 * 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
+* 当前 starter bundle 已开始以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
+* starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前只把已支持的伤害 / 护盾 / 抽牌等最小效果录入成可运行数据，文档中的刀势、药引、剑阵生成、复杂治疗免疫、经济 / 商店 / 未来窗口效果仍保留为内容备注或展示占位，不代表 Runtime 规则已扩展
 * `FinalGameInstance` 当前优先按单一 bootstrap stable id `prototype.bootstrap.test` 查询 `FinalDataRegistry` 中已有内容，并在此基础上构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`
