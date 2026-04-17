@@ -11,9 +11,11 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
@@ -31,6 +33,21 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalPrototypeContentBootstrap, Log, All);
 
 namespace FinalPrototypeContentBootstrap
 {
+	FGameplayTag GetRetainKeyword()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain"));
+	}
+
+	FGameplayTag GetExpendKeyword()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Expend"));
+	}
+
+	FGameplayTag GetSwordArrayKeyword()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.SwordArray"));
+	}
+
 	const FString RootPath(TEXT("/Game/Prototype/Definitions"));
 	const FString RulesPath = RootPath / TEXT("Rules/DA_Rule_TestBootstrap");
 	const FString GuardianCharacterPath = RootPath / TEXT("Characters/DA_Character_TestGuardian");
@@ -69,6 +86,8 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenShouZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenShouZhen");
 	const FString StarterShenYinZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinZhen");
 	const FString StarterShenGuoPaiJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenGuoPaiJianZhen");
+	const FString StarterShenPoZhenJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenPoZhenJianZhen");
+	const FString StarterShenYinBaoJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinBaoJianZhen");
 	const FString StarterHuoStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_HuoDaoShi");
 	const FString StarterYeStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeYaoYin");
 	const FString StarterShenStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenJianZhen");
@@ -141,6 +160,8 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenShouZhenCardId(TEXT("card.starter.shen.shouzhen"));
 	const FName StarterShenYinZhenCardId(TEXT("card.starter.shen.yinzhen"));
 	const FName StarterShenGuoPaiJianZhenCardId(TEXT("card.starter.shen.guopaijianzhen"));
+	const FName StarterShenPoZhenJianZhenCardId(TEXT("card.starter.shen.pozhenjianzhen"));
+	const FName StarterShenYinBaoJianZhenCardId(TEXT("card.starter.shen.yinbaojianzhen"));
 	const FName StarterBladeEnemyId(TEXT("enemy.starter.bandit.blade"));
 	const FName StarterCrossbowEnemyId(TEXT("enemy.starter.bandit.crossbow"));
 	const FName StarterInstructorEnemyId(TEXT("enemy.starter.blackwind.instructor"));
@@ -469,6 +490,57 @@ namespace FinalPrototypeContentBootstrap
 		BonusBreakEffect->Notes = Notes;
 		Effects.Add(BonusBreakEffect);
 		return BonusBreakEffect;
+	}
+
+	UFinalBattleEffectGenerateCard* AddGenerateCardEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		UFinalCardDefinition* GeneratedCardDefinition,
+		const TArray<UFinalCardDefinition*>& CandidateCardDefinitions,
+		const int32 GenerateCount,
+		const bool bChooseRandomCandidate,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectGenerateCard* GenerateCardEffect = NewObject<UFinalBattleEffectGenerateCard>(Owner);
+		GenerateCardEffect->EffectId = EffectId;
+		GenerateCardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		GenerateCardEffect->GeneratedCardDefinition = GeneratedCardDefinition;
+		GenerateCardEffect->GeneratedCardId = GeneratedCardDefinition != nullptr
+			? GeneratedCardDefinition->CardId
+			: FFinalCardId();
+		GenerateCardEffect->CandidateCardDefinitions = CandidateCardDefinitions;
+		GenerateCardEffect->GenerateCount = FMath::Max(GenerateCount, 1);
+		GenerateCardEffect->bChooseRandomCandidate = bChooseRandomCandidate;
+		GenerateCardEffect->bGeneratedCard = true;
+		GenerateCardEffect->bTemporaryCard = true;
+		GenerateCardEffect->bRetainInHand = true;
+		GenerateCardEffect->bConsumeOnPlay = true;
+		GenerateCardEffect->Notes = Notes;
+		Effects.Add(GenerateCardEffect);
+		return GenerateCardEffect;
+	}
+
+	UFinalBattleEffectConsumeGeneratedCard* AddConsumeGeneratedCardEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const FFinalCardId& RequiredCardId,
+		const FGameplayTag& RequiredKeyword,
+		const int32 ConsumeCount,
+		const bool bGeneratedOnly,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect = NewObject<UFinalBattleEffectConsumeGeneratedCard>(Owner);
+		ConsumeGeneratedCardEffect->EffectId = EffectId;
+		ConsumeGeneratedCardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		ConsumeGeneratedCardEffect->RequiredCardId = RequiredCardId;
+		ConsumeGeneratedCardEffect->RequiredKeyword = RequiredKeyword;
+		ConsumeGeneratedCardEffect->ConsumeCount = FMath::Max(ConsumeCount, 1);
+		ConsumeGeneratedCardEffect->bGeneratedOnly = bGeneratedOnly;
+		ConsumeGeneratedCardEffect->Notes = Notes;
+		Effects.Add(ConsumeGeneratedCardEffect);
+		return ConsumeGeneratedCardEffect;
 	}
 }
 
@@ -1033,9 +1105,9 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 
 	UFinalStatusDefinition* StarterShenStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenStatusPath, bCreatedAsset);
 	StarterShenStatus->StatusId = FFinalStatusId(StarterShenStatusId);
-	StarterShenStatus->DisplayName = FText::FromString(TEXT("剑阵"));
+	StarterShenStatus->DisplayName = FText::FromString(TEXT("阵诀"));
 	StarterShenStatus->StatusCategory = EFinalStatusCategory::Signature;
-	StarterShenStatus->SummaryText = FText::FromString(TEXT("沈清弦的剑阵机制占位。首版 starter content 先以过牌/护盾近似剑阵供能，不新增生成牌协议。"));
+	StarterShenStatus->SummaryText = FText::FromString(TEXT("沈清弦的剑阵本体已改为 Battle 内衍生牌协议；此签名状态资产仅保留角色签名展示占位。"));
 	StarterShenStatus->MaxStacks = 9;
 	StarterShenStatus->DefaultDuration = 0;
 	StarterShenStatus->OnTickEffects.Reset();
@@ -1102,7 +1174,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenUltimate->OwnerUnitId = StarterShenCharacterId;
 	StarterShenUltimate->DisplayName = FText::FromString(TEXT("万象归阵"));
 	StarterShenUltimate->BaseCostEP = 45;
-	StarterShenUltimate->RulesText = FText::FromString(TEXT("团队支援、过牌强化、阵牌扩散。当前首版以抽牌与全队护盾近似团队增益。"));
+	StarterShenUltimate->RulesText = FText::FromString(TEXT("团队支援、阵牌扩散与后续深化仍待补。当前首版以抽牌与全队护盾近似团队增益。"));
 	StarterShenUltimate->Effects.Reset();
 	AddDrawEffect(
 		StarterShenUltimate,
@@ -1429,7 +1501,8 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenBuFengCard->CardType = EFinalCardType::Attack;
 	StarterShenBuFengCard->Rarity = EFinalRarity::Common;
 	StarterShenBuFengCard->BaseCostAP = 1;
-	StarterShenBuFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 100% 的伤害。生成剑阵牌仍为首版文本占位。"));
+	StarterShenBuFengCard->Keywords.Reset();
+	StarterShenBuFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 100% 的伤害。随机生成 1 张剑阵牌到手牌。"));
 	StarterShenBuFengCard->Effects.Reset();
 	AddDamageEffect(
 		StarterShenBuFengCard,
@@ -1439,8 +1512,55 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		1.0f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
+		1);
+	UFinalCardDefinition* StarterShenPoZhenJianZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenPoZhenJianZhenCardPath, bCreatedAsset);
+	StarterShenPoZhenJianZhenCard->CardId = FFinalCardId(StarterShenPoZhenJianZhenCardId);
+	StarterShenPoZhenJianZhenCard->OwnerUnitId = StarterShenCharacterId;
+	StarterShenPoZhenJianZhenCard->DisplayName = FText::FromString(TEXT("破阵剑阵"));
+	StarterShenPoZhenJianZhenCard->CardType = EFinalCardType::Skill;
+	StarterShenPoZhenJianZhenCard->Rarity = EFinalRarity::Common;
+	StarterShenPoZhenJianZhenCard->BaseCostAP = 0;
+	StarterShenPoZhenJianZhenCard->Keywords.Reset();
+	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetRetainKeyword());
+	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetExpendKeyword());
+	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
+	StarterShenPoZhenJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。额外造成 2 点削韧。"));
+	StarterShenPoZhenJianZhenCard->Effects.Reset();
+	AddBonusBreakEffect(
+		StarterShenPoZhenJianZhenCard,
+		StarterShenPoZhenJianZhenCard->Effects,
+		TEXT("effect.starter.shen.pozhenjianzhen.break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		2.0f,
+		EFinalBattleScalarMode::Flat);
+	TrackPackage(StarterShenPoZhenJianZhenCard, PackagesToSave);
+	UFinalCardDefinition* StarterShenGuoPaiJianZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenGuoPaiJianZhenCardPath, bCreatedAsset);
+	StarterShenGuoPaiJianZhenCard->CardId = FFinalCardId(StarterShenGuoPaiJianZhenCardId);
+	StarterShenGuoPaiJianZhenCard->OwnerUnitId = StarterShenCharacterId;
+	StarterShenGuoPaiJianZhenCard->DisplayName = FText::FromString(TEXT("过牌剑阵"));
+	StarterShenGuoPaiJianZhenCard->CardType = EFinalCardType::Skill;
+	StarterShenGuoPaiJianZhenCard->Rarity = EFinalRarity::Common;
+	StarterShenGuoPaiJianZhenCard->BaseCostAP = 0;
+	StarterShenGuoPaiJianZhenCard->Keywords.Reset();
+	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetRetainKeyword());
+	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetExpendKeyword());
+	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
+	StarterShenGuoPaiJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。抽 1 张牌。"));
+	StarterShenGuoPaiJianZhenCard->Effects.Reset();
+	AddDrawEffect(
+		StarterShenGuoPaiJianZhenCard,
+		StarterShenGuoPaiJianZhenCard->Effects,
+		TEXT("effect.starter.shen.guopaijianzhen.draw"),
+		1);
+	TrackPackage(StarterShenGuoPaiJianZhenCard, PackagesToSave);
+	AddGenerateCardEffect(
+		StarterShenBuFengCard,
+		StarterShenBuFengCard->Effects,
+		TEXT("effect.starter.shen.bufeng.generate_jianzhen"),
+		nullptr,
+		TArray<UFinalCardDefinition*>{ StarterShenGuoPaiJianZhenCard, StarterShenPoZhenJianZhenCard },
 		1,
-		FText::FromString(TEXT("首版占位：未实际生成剑阵牌。")));
+		true);
 	TrackPackage(StarterShenBuFengCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenShouZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenShouZhenCardPath, bCreatedAsset);
@@ -1450,7 +1570,8 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenShouZhenCard->CardType = EFinalCardType::Skill;
 	StarterShenShouZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenShouZhenCard->BaseCostAP = 1;
-	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得相当于防御力 80% 的护盾。当前首版直接补 1 张牌，近似维持手牌节奏。"));
+	StarterShenShouZhenCard->Keywords.Reset();
+	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得相当于防御力 80% 的护盾。当前首版仍以补 1 张牌近似手牌节奏。"));
 	StarterShenShouZhenCard->Effects.Reset();
 	AddShieldEffect(
 		StarterShenShouZhenCard,
@@ -1475,31 +1596,64 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenYinZhenCard->CardType = EFinalCardType::Skill;
 	StarterShenYinZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenYinZhenCard->BaseCostAP = 1;
-	StarterShenYinZhenCard->RulesText = FText::FromString(TEXT("从剑阵牌列表中选择 1 张并抽 1 张牌。当前首版以直接抽 2 张牌近似。"));
+	StarterShenYinZhenCard->Keywords.Reset();
+	StarterShenYinZhenCard->RulesText = FText::FromString(TEXT("首版固定生成 1 张过牌剑阵到手牌，并抽 1 张牌。"));
 	StarterShenYinZhenCard->Effects.Reset();
+	AddGenerateCardEffect(
+		StarterShenYinZhenCard,
+		StarterShenYinZhenCard->Effects,
+		TEXT("effect.starter.shen.yinzhen.generate_guopai"),
+		StarterShenGuoPaiJianZhenCard,
+		TArray<UFinalCardDefinition*>{},
+		1,
+		false);
 	AddDrawEffect(
 		StarterShenYinZhenCard,
 		StarterShenYinZhenCard->Effects,
 		TEXT("effect.starter.shen.yinzhen.draw"),
-		2,
-		FText::FromString(TEXT("首版占位：未实际生成指定剑阵牌。")));
+		1);
 	TrackPackage(StarterShenYinZhenCard, PackagesToSave);
 
-	UFinalCardDefinition* StarterShenGuoPaiJianZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenGuoPaiJianZhenCardPath, bCreatedAsset);
-	StarterShenGuoPaiJianZhenCard->CardId = FFinalCardId(StarterShenGuoPaiJianZhenCardId);
-	StarterShenGuoPaiJianZhenCard->OwnerUnitId = StarterShenCharacterId;
-	StarterShenGuoPaiJianZhenCard->DisplayName = FText::FromString(TEXT("过牌剑阵"));
-	StarterShenGuoPaiJianZhenCard->CardType = EFinalCardType::Skill;
-	StarterShenGuoPaiJianZhenCard->Rarity = EFinalRarity::Common;
-	StarterShenGuoPaiJianZhenCard->BaseCostAP = 0;
-	StarterShenGuoPaiJianZhenCard->RulesText = FText::FromString(TEXT("抽 1 张牌。"));
-	StarterShenGuoPaiJianZhenCard->Effects.Reset();
-	AddDrawEffect(
-		StarterShenGuoPaiJianZhenCard,
-		StarterShenGuoPaiJianZhenCard->Effects,
-		TEXT("effect.starter.shen.guopaijianzhen.draw"),
+	UFinalCardDefinition* StarterShenYinBaoJianZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenYinBaoJianZhenCardPath, bCreatedAsset);
+	StarterShenYinBaoJianZhenCard->CardId = FFinalCardId(StarterShenYinBaoJianZhenCardId);
+	StarterShenYinBaoJianZhenCard->OwnerUnitId = StarterShenCharacterId;
+	StarterShenYinBaoJianZhenCard->DisplayName = FText::FromString(TEXT("引爆剑阵"));
+	StarterShenYinBaoJianZhenCard->CardType = EFinalCardType::Skill;
+	StarterShenYinBaoJianZhenCard->Rarity = EFinalRarity::Common;
+	StarterShenYinBaoJianZhenCard->BaseCostAP = 1;
+	StarterShenYinBaoJianZhenCard->Keywords.Reset();
+	StarterShenYinBaoJianZhenCard->Keywords.AddTag(GetRetainKeyword());
+	StarterShenYinBaoJianZhenCard->RulesText = FText::FromString(TEXT("消耗 1 张手中的剑阵牌。若成功， 对目标造成相当于攻击力 130% 的伤害，并抽 1 张牌。"));
+	StarterShenYinBaoJianZhenCard->Effects.Reset();
+	AddConsumeGeneratedCardEffect(
+		StarterShenYinBaoJianZhenCard,
+		StarterShenYinBaoJianZhenCard->Effects,
+		TEXT("effect.starter.shen.yinbaojianzhen.consume_jianzhen"),
+		FFinalCardId(),
+		GetSwordArrayKeyword(),
+		1,
+		true,
+		FText::FromString(TEXT("需要先消耗 1 张衍生剑阵牌。")));
+	UFinalBattleEffectDamage* StarterShenYinBaoDamage = AddDamageEffect(
+		StarterShenYinBaoJianZhenCard,
+		StarterShenYinBaoJianZhenCard->Effects,
+		TEXT("effect.starter.shen.yinbaojianzhen.damage"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		1.3f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::Attack);
+	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.bRequireConsumedGeneratedCard = true;
+	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.RequiredKeyword = GetSwordArrayKeyword();
+	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.MinimumCount = 1;
+	UFinalBattleEffectDrawCards* StarterShenYinBaoDraw = AddDrawEffect(
+		StarterShenYinBaoJianZhenCard,
+		StarterShenYinBaoJianZhenCard->Effects,
+		TEXT("effect.starter.shen.yinbaojianzhen.draw"),
 		1);
-	TrackPackage(StarterShenGuoPaiJianZhenCard, PackagesToSave);
+	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.bRequireConsumedGeneratedCard = true;
+	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.RequiredKeyword = GetSwordArrayKeyword();
+	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.MinimumCount = 1;
+	TrackPackage(StarterShenYinBaoJianZhenCard, PackagesToSave);
 
 	StarterHuoCharacter->InitialLoadoutCards = {
 		MakeLoadoutEntry(StarterHuoLieFengCard->CardId, 2, EFinalLoadoutRole::BaseAttack),
@@ -1533,13 +1687,13 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		MakeLoadoutEntry(StarterShenBuFengCard->CardId, 1, EFinalLoadoutRole::BaseAttack),
 		MakeLoadoutEntry(StarterShenShouZhenCard->CardId, 1, EFinalLoadoutRole::BaseDefense),
 		MakeLoadoutEntry(StarterShenYinZhenCard->CardId, 1, EFinalLoadoutRole::BaseTactic),
-		MakeLoadoutEntry(StarterShenGuoPaiJianZhenCard->CardId, 1, EFinalLoadoutRole::InitialSignature)
+		MakeLoadoutEntry(StarterShenYinBaoJianZhenCard->CardId, 1, EFinalLoadoutRole::InitialSignature)
 	};
 	StarterShenCharacter->CharacterCardPoolIds = {
 		StarterShenBuFengCard->CardId,
 		StarterShenShouZhenCard->CardId,
 		StarterShenYinZhenCard->CardId,
-		StarterShenGuoPaiJianZhenCard->CardId
+		StarterShenYinBaoJianZhenCard->CardId
 	};
 	TrackPackage(StarterShenCharacter, PackagesToSave);
 
@@ -1845,9 +1999,9 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 			TEXT("Currency.Gold"),
 			FText::FromString(TEXT("剿匪赏金"))));
 		RewardNode.RewardContent.RewardEntries.Add(MakeCardRewardEntry(
-			TEXT("reward.starter.spoils.card.guopaijianzhen"),
-			StarterShenGuoPaiJianZhenCard->CardId,
-			FText::FromString(TEXT("过牌剑阵"))));
+			TEXT("reward.starter.spoils.card.yinbaojianzhen"),
+			StarterShenYinBaoJianZhenCard->CardId,
+			FText::FromString(TEXT("引爆剑阵"))));
 		RewardNode.RewardContent.RewardEntries.Add(MakeGrowthRewardEntry(
 			TEXT("reward.starter.spoils.growth.ye"),
 			StarterYeCharacter->CharacterId,
@@ -1982,7 +2136,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		StarterShenBuFengCard->CardId,
 		StarterShenShouZhenCard->CardId,
 		StarterShenYinZhenCard->CardId,
-		StarterShenGuoPaiJianZhenCard->CardId
+		StarterShenYinBaoJianZhenCard->CardId
 	};
 	StarterBootstrap->InitialTeamCurrentHP = 62;
 	TrackPackage(StarterBootstrap, PackagesToSave);

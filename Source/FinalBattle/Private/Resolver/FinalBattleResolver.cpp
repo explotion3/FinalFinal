@@ -10,11 +10,14 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleGeneratedCardConsumeRequirement.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
@@ -67,9 +70,18 @@ struct FFinalConsumedStatusRecord
 	int32 RemovedStacks = 0;
 };
 
+struct FFinalConsumedGeneratedCardRecord
+{
+	FName RuntimeOwnerUnitId = NAME_None;
+	FFinalCardId CardId;
+	int32 RemovedCount = 0;
+	FGameplayTagContainer RuntimeKeywords;
+};
+
 struct FFinalEffectExecutionContext
 {
 	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
+	TArray<FFinalConsumedGeneratedCardRecord> ConsumedGeneratedCards;
 };
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
@@ -313,7 +325,9 @@ bool HasSupportedEffectList(const TArray<TObjectPtr<UFinalBattleEffectDefinition
 			|| Cast<UFinalBattleEffectGainShield>(EffectDefinition)
 			|| Cast<UFinalBattleEffectDrawCards>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainAP>(EffectDefinition)
-			|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition))
+			|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition)
+			|| Cast<UFinalBattleEffectGenerateCard>(EffectDefinition)
+			|| Cast<UFinalBattleEffectConsumeGeneratedCard>(EffectDefinition))
 		{
 			return true;
 		}
@@ -480,6 +494,121 @@ int32 ResolveConsumedStatusStacks(
 	return 0;
 }
 
+void RecordConsumedGeneratedCard(
+	FFinalEffectExecutionContext& Context,
+	const FName RuntimeOwnerUnitId,
+	const FFinalBattleCardInstance& CardInstance,
+	const int32 RemovedCount)
+{
+	if (RuntimeOwnerUnitId.IsNone() || !CardInstance.CardId.IsValid() || RemovedCount <= 0)
+	{
+		return;
+	}
+
+	if (FFinalConsumedGeneratedCardRecord* ExistingRecord = Context.ConsumedGeneratedCards.FindByPredicate(
+		[&RuntimeOwnerUnitId, &CardInstance](const FFinalConsumedGeneratedCardRecord& Candidate)
+		{
+			return Candidate.RuntimeOwnerUnitId == RuntimeOwnerUnitId && Candidate.CardId == CardInstance.CardId;
+		}))
+	{
+		ExistingRecord->RemovedCount += RemovedCount;
+		ExistingRecord->RuntimeKeywords.AppendTags(CardInstance.RuntimeKeywords);
+		return;
+	}
+
+	FFinalConsumedGeneratedCardRecord& NewRecord = Context.ConsumedGeneratedCards.AddDefaulted_GetRef();
+	NewRecord.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
+	NewRecord.CardId = CardInstance.CardId;
+	NewRecord.RemovedCount = RemovedCount;
+	NewRecord.RuntimeKeywords = CardInstance.RuntimeKeywords;
+}
+
+int32 ResolveConsumedGeneratedCardCount(
+	const FFinalEffectExecutionContext& Context,
+	const FName RuntimeOwnerUnitId,
+	const FFinalCardId& RequiredCardId,
+	const FGameplayTag& RequiredKeyword)
+{
+	int32 TotalConsumedCount = 0;
+
+	for (const FFinalConsumedGeneratedCardRecord& Record : Context.ConsumedGeneratedCards)
+	{
+		if (Record.RuntimeOwnerUnitId != RuntimeOwnerUnitId)
+		{
+			continue;
+		}
+
+		if (RequiredCardId.IsValid() && Record.CardId != RequiredCardId)
+		{
+			continue;
+		}
+
+		if (RequiredKeyword.IsValid() && !Record.RuntimeKeywords.HasTagExact(RequiredKeyword))
+		{
+			continue;
+		}
+
+		TotalConsumedCount += Record.RemovedCount;
+	}
+
+	return TotalConsumedCount;
+}
+
+bool SatisfiesGeneratedCardConsumeRequirement(
+	const FFinalBattleGeneratedCardConsumeRequirement& Requirement,
+	const FFinalEffectExecutionContext& Context,
+	const FName SourceOwnerUnitId)
+{
+	if (!Requirement.bRequireConsumedGeneratedCard)
+	{
+		return true;
+	}
+
+	return !SourceOwnerUnitId.IsNone()
+		&& ResolveConsumedGeneratedCardCount(
+			Context,
+			SourceOwnerUnitId,
+			Requirement.RequiredCardId,
+			Requirement.RequiredKeyword) >= FMath::Max(Requirement.MinimumCount, 1);
+}
+
+UFinalCardDefinition* ResolveGeneratedCardDefinition(
+	const UFinalBattleEffectGenerateCard* GenerateCardEffect,
+	const int32 GenerationIndex)
+{
+	if (GenerateCardEffect == nullptr)
+	{
+		return nullptr;
+	}
+
+	TArray<UFinalCardDefinition*> CandidateDefinitions;
+	if (GenerateCardEffect->GeneratedCardDefinition != nullptr && GenerateCardEffect->GeneratedCardDefinition->CardId.IsValid())
+	{
+		CandidateDefinitions.Add(GenerateCardEffect->GeneratedCardDefinition);
+	}
+
+	for (UFinalCardDefinition* CandidateDefinition : GenerateCardEffect->CandidateCardDefinitions)
+	{
+		if (CandidateDefinition != nullptr && CandidateDefinition->CardId.IsValid())
+		{
+			CandidateDefinitions.AddUnique(CandidateDefinition);
+		}
+	}
+
+	if (CandidateDefinitions.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (GenerateCardEffect->bChooseRandomCandidate)
+	{
+		return CandidateDefinitions[FMath::RandHelper(CandidateDefinitions.Num())];
+	}
+
+	const int32 CandidateIndex = FMath::Clamp(GenerationIndex, 0, CandidateDefinitions.Num() - 1);
+	return CandidateDefinitions[CandidateIndex];
+}
+
 FName ResolveSourceOwnerUnitId(const FFinalBattleCharacterState* SourceCharacterState, const FFinalBattleEnemyState* SourceEnemyState)
 {
 	if (SourceCharacterState != nullptr)
@@ -640,6 +769,11 @@ bool ExecuteEffectList(
 
 		if (const UFinalBattleEffectDamage* DamageEffect = Cast<UFinalBattleEffectDamage>(EffectDefinition))
 		{
+			if (!SatisfiesGeneratedCardConsumeRequirement(DamageEffect->GeneratedCardConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
 			const int32 HitCount = FMath::Max(DamageEffect->HitCount, 1);
 			const int32 DamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
 			if (DamagePerHit <= 0)
@@ -697,6 +831,80 @@ bool ExecuteEffectList(
 			{
 				ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
 				Summary.TotalDamageToEnemies += DamagePerHit;
+			}
+
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectGenerateCard* GenerateCardEffect = Cast<UFinalBattleEffectGenerateCard>(EffectDefinition))
+		{
+			const int32 GenerateCount = FMath::Max(GenerateCardEffect->GenerateCount, 0);
+			if (GenerateCount <= 0 || SourceOwnerUnitId.IsNone())
+			{
+				continue;
+			}
+
+			int32 GeneratedCardCount = 0;
+			for (int32 GenerationIndex = 0; GenerationIndex < GenerateCount; ++GenerationIndex)
+			{
+				UFinalCardDefinition* SelectedCardDefinition = ResolveGeneratedCardDefinition(GenerateCardEffect, GenerationIndex);
+				if (SelectedCardDefinition == nullptr)
+				{
+					continue;
+				}
+
+				const FGuid GeneratedCardInstanceId = GetCardService().AddGeneratedCardToHand(
+					State,
+					SelectedCardDefinition,
+					SourceOwnerUnitId,
+					GenerateCardEffect->bGeneratedCard,
+					GenerateCardEffect->bTemporaryCard,
+					GenerateCardEffect->bRetainInHand,
+					GenerateCardEffect->bConsumeOnPlay);
+				if (GeneratedCardInstanceId.IsValid())
+				{
+					++GeneratedCardCount;
+				}
+			}
+
+			if (GeneratedCardCount <= 0)
+			{
+				continue;
+			}
+
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect = Cast<UFinalBattleEffectConsumeGeneratedCard>(EffectDefinition))
+		{
+			const int32 TargetConsumeCount = FMath::Max(ConsumeGeneratedCardEffect->ConsumeCount, 0);
+			if (TargetConsumeCount <= 0 || SourceOwnerUnitId.IsNone())
+			{
+				continue;
+			}
+
+			TArray<FGuid> ConsumedCardInstanceIds;
+			const int32 ConsumedCount = GetCardService().ConsumeMatchingCardsFromHand(
+				State,
+				SourceOwnerUnitId,
+				ConsumeGeneratedCardEffect->RequiredCardId,
+				ConsumeGeneratedCardEffect->RequiredKeyword,
+				TargetConsumeCount,
+				ConsumeGeneratedCardEffect->bGeneratedOnly,
+				&ConsumedCardInstanceIds);
+			if (ConsumedCount <= 0)
+			{
+				continue;
+			}
+
+			for (const FGuid& ConsumedCardInstanceId : ConsumedCardInstanceIds)
+			{
+				if (const FFinalBattleCardInstance* ConsumedCardInstance = GetCardService().FindCardInstance(State, ConsumedCardInstanceId))
+				{
+					RecordConsumedGeneratedCard(ExecutionContext, SourceOwnerUnitId, *ConsumedCardInstance, 1);
+				}
 			}
 
 			++Summary.ResolvedEffectCount;
@@ -878,6 +1086,11 @@ bool ExecuteEffectList(
 		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
 		{
 			if (!SatisfiesConsumeRequirement(DrawCardsEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
+			if (!SatisfiesGeneratedCardConsumeRequirement(DrawCardsEffect->GeneratedCardConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
 			{
 				continue;
 			}
@@ -1185,7 +1398,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 			GetResourceService().SpendAP(State, CardInstance->RuntimeCostAP);
 			GetResourceService().GainCardPlayEP(State, RuleConfig);
-			GetCardService().MoveHandCardToDiscard(State, Command.CardInstanceId);
+			GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 			FFinalEffectExecutionSummary Summary;
 			ExecuteEffectList(State, CardInstance->SourceDefinition->Effects, &Command, OwnerCharacterState, nullptr, Summary);

@@ -44,6 +44,7 @@ enum class EFinalBattleEffectType : uint8
 	BonusBreak,
 	ApplyPassive,
 	GenerateCard,
+	ConsumeGeneratedCard,
 	CopyCard
 };
 

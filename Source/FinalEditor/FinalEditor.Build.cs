@@ -11,6 +11,7 @@ public class FinalEditor : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"GameplayTags",
 			"UnrealEd",
 			"DataValidation",
 			"AssetRegistry",

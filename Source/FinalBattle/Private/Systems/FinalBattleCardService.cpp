@@ -9,6 +9,16 @@
 
 namespace
 {
+FGameplayTag GetRetainKeyword()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain"));
+}
+
+FGameplayTag GetExpendKeyword()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Expend"));
+}
+
 const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& BattleState, const FName RuntimeUnitId)
 {
 	return BattleState.Characters.FindByPredicate(
@@ -16,6 +26,41 @@ const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& Ba
 		{
 			return Candidate.RuntimeUnitId == RuntimeUnitId;
 		});
+}
+
+bool RemoveCardInstanceId(TArray<FGuid>& CardInstanceIds, const FGuid& CardInstanceId)
+{
+	return CardInstanceIds.RemoveSingle(CardInstanceId) > 0;
+}
+
+bool MatchesGeneratedCardFilter(
+	const FFinalBattleCardInstance& CardInstance,
+	const FName RuntimeOwnerUnitId,
+	const FFinalCardId& RequiredCardId,
+	const FGameplayTag& RequiredKeyword,
+	const bool bGeneratedOnly)
+{
+	if (CardInstance.RuntimeOwnerUnitId != RuntimeOwnerUnitId)
+	{
+		return false;
+	}
+
+	if (bGeneratedOnly && !CardInstance.bGeneratedCard)
+	{
+		return false;
+	}
+
+	if (RequiredCardId.IsValid() && CardInstance.CardId != RequiredCardId)
+	{
+		return false;
+	}
+
+	if (RequiredKeyword.IsValid() && !CardInstance.RuntimeKeywords.HasTagExact(RequiredKeyword))
+	{
+		return false;
+	}
+
+	return true;
 }
 }
 
@@ -36,24 +81,20 @@ void FFinalBattleCardService::InitializeDeckCards(
 			continue;
 		}
 
-		FFinalBattleCardInstance CardInstance;
-		CardInstance.CardInstanceId = FGuid::NewGuid();
-		CardInstance.CardId = CardDefinition->CardId;
-		CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
-		CardInstance.RuntimeKeywords = CardDefinition->Keywords;
-		CardInstance.SourceDefinition = CardDefinition;
-
-		if (const FName* RuntimeOwnerUnitId = TemplateToRuntimeUnitMap.Find(CardDefinition->OwnerUnitId))
-		{
-			CardInstance.RuntimeOwnerUnitId = *RuntimeOwnerUnitId;
-		}
-		else
-		{
-			CardInstance.RuntimeOwnerUnitId = CardDefinition->OwnerUnitId;
-		}
-
-		BattleState.CardInstances.Add(CardInstance);
-		BattleState.DeckState.DrawPileCardInstanceIds.Add(CardInstance.CardInstanceId);
+		const FName* RuntimeOwnerUnitIdPtr = TemplateToRuntimeUnitMap.Find(CardDefinition->OwnerUnitId);
+		const FName RuntimeOwnerUnitId = RuntimeOwnerUnitIdPtr != nullptr
+			? *RuntimeOwnerUnitIdPtr
+			: CardDefinition->OwnerUnitId;
+		const FGuid CardInstanceId = AddGeneratedCardToHand(
+			BattleState,
+			CardDefinition,
+			RuntimeOwnerUnitId,
+			false,
+			false,
+			CardDefinition->Keywords.HasTagExact(GetRetainKeyword()),
+			CardDefinition->Keywords.HasTagExact(GetExpendKeyword()));
+		RemoveCardInstanceId(BattleState.DeckState.HandCardInstanceIds, CardInstanceId);
+		BattleState.DeckState.DrawPileCardInstanceIds.Add(CardInstanceId);
 	}
 }
 
@@ -80,9 +121,93 @@ bool FFinalBattleCardService::IsCardInHand(const FFinalBattleState& BattleState,
 	return BattleState.DeckState.HandCardInstanceIds.Contains(CardInstanceId);
 }
 
-void FFinalBattleCardService::MoveHandCardToDiscard(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
+FGuid FFinalBattleCardService::AddGeneratedCardToHand(
+	FFinalBattleState& BattleState,
+	UFinalCardDefinition* CardDefinition,
+	const FName RuntimeOwnerUnitId,
+	const bool bGeneratedCard,
+	const bool bTemporaryCard,
+	const bool bRetainInHand,
+	const bool bConsumeOnPlay) const
+{
+	if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
+	{
+		return FGuid();
+	}
+
+	FFinalBattleCardInstance CardInstance;
+	CardInstance.CardInstanceId = FGuid::NewGuid();
+	CardInstance.CardId = CardDefinition->CardId;
+	CardInstance.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
+	CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
+	CardInstance.RuntimeKeywords = CardDefinition->Keywords;
+	CardInstance.SourceDefinition = CardDefinition;
+	CardInstance.bGeneratedCard = bGeneratedCard;
+	CardInstance.bTemporaryCard = bTemporaryCard;
+	CardInstance.bRetained = bRetainInHand || CardInstance.RuntimeKeywords.HasTagExact(GetRetainKeyword());
+	CardInstance.bConsumeOnPlay = bConsumeOnPlay || CardInstance.RuntimeKeywords.HasTagExact(GetExpendKeyword());
+
+	BattleState.CardInstances.Add(CardInstance);
+	BattleState.DeckState.HandCardInstanceIds.Add(CardInstance.CardInstanceId);
+	return CardInstance.CardInstanceId;
+}
+
+int32 FFinalBattleCardService::ConsumeMatchingCardsFromHand(
+	FFinalBattleState& BattleState,
+	const FName RuntimeOwnerUnitId,
+	const FFinalCardId& RequiredCardId,
+	const FGameplayTag& RequiredKeyword,
+	const int32 ConsumeCount,
+	const bool bGeneratedOnly,
+	TArray<FGuid>* OutConsumedCardInstanceIds) const
+{
+	const int32 TargetConsumeCount = FMath::Max(ConsumeCount, 0);
+	if (TargetConsumeCount <= 0 || RuntimeOwnerUnitId.IsNone())
+	{
+		return 0;
+	}
+
+	if (OutConsumedCardInstanceIds != nullptr)
+	{
+		OutConsumedCardInstanceIds->Reset();
+	}
+
+	int32 ConsumedCount = 0;
+	for (int32 HandIndex = BattleState.DeckState.HandCardInstanceIds.Num() - 1;
+		HandIndex >= 0 && ConsumedCount < TargetConsumeCount;
+		--HandIndex)
+	{
+		const FGuid CandidateCardInstanceId = BattleState.DeckState.HandCardInstanceIds[HandIndex];
+		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
+		if (CandidateCardInstance == nullptr
+			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
+		{
+			continue;
+		}
+
+		BattleState.DeckState.HandCardInstanceIds.RemoveAt(HandIndex);
+		BattleState.DeckState.ConsumePileCardInstanceIds.Add(CandidateCardInstanceId);
+		if (OutConsumedCardInstanceIds != nullptr)
+		{
+			OutConsumedCardInstanceIds->Add(CandidateCardInstanceId);
+		}
+		++ConsumedCount;
+	}
+
+	return ConsumedCount;
+}
+
+void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
 {
 	BattleState.DeckState.HandCardInstanceIds.RemoveSingle(CardInstanceId);
+
+	const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+	if (CardInstance != nullptr && CardInstance->bConsumeOnPlay)
+	{
+		BattleState.DeckState.ConsumePileCardInstanceIds.Add(CardInstanceId);
+		return;
+	}
+
 	BattleState.DeckState.DiscardPileCardInstanceIds.Add(CardInstanceId);
 }
 

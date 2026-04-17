@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Battle/Effects/FinalBattleGeneratedCardConsumeRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "FinalBattleEffectDamage.generated.h"
 
@@ -18,4 +19,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect", meta = (ClampMin = "1"))
 	int32 HitCount = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FFinalBattleGeneratedCardConsumeRequirement GeneratedCardConsumeRequirement;
 };
