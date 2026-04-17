@@ -364,8 +364,9 @@
 
 ### 8.3 当前测试入口
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描并注册项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition`
+* 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
 * `FinalGameInstance` 当前优先按 stable prototype id 查询 `FinalDataRegistry` 中已有内容，并在此基础上构造最小 `RunSession`
-* prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，只在项目内容缺失 prototype route / definition 时做最小 transient fallback
+* prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * `FinalGameInstance` 里的原型奖励条目当前直接填写 typed payload：`GrantedCardId / GrantedRelicId`，不再依赖旧结构兼容桥接
 * 当前 prototype Run 图里的事件节点选项已加入最小 `Growth` 奖励示例，直接使用 `GrowthTargetCharacterId / GrowthEffectType / Value`，用于验证 `RunPersistentCharacterState -> RunSnapshot.Characters` 的真实回写
 * 当前 prototype Run 图已重新接回 `RemoveCard / UpgradeCard` 奖励示例，直接使用 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，用于验证 `RunDeck -> RunSnapshot.CurrentBuild` 的真实构筑修正
@@ -374,7 +375,7 @@
 * `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 Run 阶段、节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
 * `UISubsystem` 当前还会常驻挂一个只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，`BattleHUD` 顶部反馈、`BattleHUD` 日志区、`PrototypeRunDebugScreen` 的最新 Battle 事件摘要、`FinalBattleEventScreen` 账本文本、`BattleDirector` 的世界提示都优先共用这套 helper
-* 如果项目内容里仍缺少 prototype relic / route / encounter / card / character definition，`FinalGameInstance` 允许按缺口补少量瞬时 definition 兜底；这只是临时 fallback，不再是运行时内容主路径
+* `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少这些 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；世界提示直接复用 BattleEvent 统一投影 helper，不替代 HUD / Debug 明细
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用

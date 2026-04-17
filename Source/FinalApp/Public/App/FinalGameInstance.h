@@ -32,9 +32,6 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UObject>> RuntimeTestAssets;
-
-	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleRuleConfig> TestRuleConfig;
 
 	UPROPERTY(Transient)
