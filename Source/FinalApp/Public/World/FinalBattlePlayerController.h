@@ -45,6 +45,9 @@ public:
 	void FinalStartTestBattle();
 
 	UFUNCTION(Exec)
+	void FinalSetPrototypeBootstrap(const FString& BootstrapId);
+
+	UFUNCTION(Exec)
 	void FinalDumpBattleSnapshot();
 
 	UFUNCTION(Exec)

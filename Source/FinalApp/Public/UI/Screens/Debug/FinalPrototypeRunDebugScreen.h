@@ -36,6 +36,12 @@ private:
 	void HandleRestartPrototypeRunClicked();
 
 	UFUNCTION()
+	void HandleUseStarterBootstrapClicked();
+
+	UFUNCTION()
+	void HandleUseTestBootstrapClicked();
+
+	UFUNCTION()
 	void HandleCompleteResolvedBattleClicked();
 
 	UFUNCTION()
@@ -89,6 +95,18 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> RestartRunLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> UseStarterBootstrapButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> UseStarterBootstrapLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> UseTestBootstrapButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> UseTestBootstrapLabel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> SaveRunButton;
