@@ -9,6 +9,7 @@ struct FFinalBattleStatusInstance
 	FFinalStatusId StatusId;
 	FName OwnerUnitId = NAME_None;
 	FName SourceUnitId = NAME_None;
+	FText DisplayName;
 	int32 CurrentStacks = 0;
 	int32 RemainingDuration = 0;
 };

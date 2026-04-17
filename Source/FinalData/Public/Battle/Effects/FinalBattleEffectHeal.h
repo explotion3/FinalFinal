@@ -1,0 +1,18 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Types/FinalCoreTypes.h"
+#include "FinalBattleEffectHeal.generated.h"
+
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
+class FINALDATA_API UFinalBattleEffectHeal : public UFinalBattleEffectDefinition
+{
+	GENERATED_BODY()
+
+public:
+	UFinalBattleEffectHeal();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FFinalBattleScalarValue Scalar;
+};

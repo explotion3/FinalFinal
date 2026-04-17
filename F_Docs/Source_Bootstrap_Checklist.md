@@ -162,7 +162,7 @@
 * `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建
 * `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置
 * `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration、battle-start / player-turn-start relic 数值触发与玩家回合开始窗口衔接
-* `FinalBattleStatusService` 当前承接最小状态 tick 占位，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
+* `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
 #### 暂不创建
@@ -370,7 +370,8 @@
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描并注册项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
 * 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
 * 当前 starter bundle 也已以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
-* starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前只把已支持的伤害 / 护盾 / 抽牌等最小效果录入成可运行数据，文档中的刀势、药引、剑阵生成、复杂治疗免疫、经济 / 商店 / 未来窗口效果仍保留为内容备注或展示占位，不代表 Runtime 规则已扩展
+* starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制录入成真实可运行数据，starter 资产不再只靠文案描述这些资源
+* starter bundle 仍保留占位的内容包括：沈清弦 `剑阵` 生成牌、免疫、复杂治疗保护、复杂 Break 条件追伤、受压得刀势、下一张攻击额外削韧、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`
