@@ -15,6 +15,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
+#include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Validation/FinalDataValidationProjectIndex.h"
 
@@ -513,6 +514,102 @@ namespace FinalDataAssetValidation
 		ValidateEffectArray(Context, bIsValid, Ultimate->Effects, TEXT("Effects"), true);
 	}
 
+	void ValidatePrototypeBootstrapDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalPrototypeBootstrapDefinition* Bootstrap)
+	{
+		RequireName(Context, bIsValid, Bootstrap->BootstrapId, TEXT("BootstrapId"));
+		RequireText(Context, bIsValid, Bootstrap->DisplayName, TEXT("DisplayName"));
+
+		if (!Bootstrap->RuleConfigId.IsValid())
+		{
+			AddError(Context, bIsValid, TEXT("RuleConfigId must be set."));
+		}
+
+		if (!Bootstrap->EncounterId.IsValid())
+		{
+			AddError(Context, bIsValid, TEXT("EncounterId must be set."));
+		}
+
+		RequireName(Context, bIsValid, Bootstrap->RunRouteId, TEXT("RunRouteId"));
+		ValidatePositive(Context, bIsValid, Bootstrap->InitialTeamCurrentHP, TEXT("InitialTeamCurrentHP"));
+
+		if (Bootstrap->PartyCharacterIds.IsEmpty())
+		{
+			AddError(Context, bIsValid, TEXT("PartyCharacterIds must contain at least one character id."));
+		}
+
+		for (int32 Index = 0; Index < Bootstrap->PartyCharacterIds.Num(); ++Index)
+		{
+			if (!Bootstrap->PartyCharacterIds[Index].IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("PartyCharacterIds[%d] must be set."), Index));
+			}
+		}
+
+		if (Bootstrap->InitialCharacterStates.IsEmpty())
+		{
+			AddError(Context, bIsValid, TEXT("InitialCharacterStates must contain at least one entry."));
+		}
+
+		TSet<FName> PartyCharacterIdSet;
+		for (const FFinalCharacterId& CharacterId : Bootstrap->PartyCharacterIds)
+		{
+			if (CharacterId.IsValid())
+			{
+				PartyCharacterIdSet.Add(CharacterId.Value);
+			}
+		}
+
+		TSet<FName> StateCharacterIdSet;
+		for (int32 Index = 0; Index < Bootstrap->InitialCharacterStates.Num(); ++Index)
+		{
+			const FFinalPrototypeBootstrapCharacterState& CharacterState = Bootstrap->InitialCharacterStates[Index];
+			if (!CharacterState.CharacterId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId must be set."), Index));
+			}
+
+			ValidateNonNegative(Context, bIsValid, CharacterState.CurrentStress, *FString::Printf(TEXT("InitialCharacterStates[%d].CurrentStress"), Index));
+			ValidateNonNegative(Context, bIsValid, CharacterState.CurrentAwakenCount, *FString::Printf(TEXT("InitialCharacterStates[%d].CurrentAwakenCount"), Index));
+			ValidateNonNegative(Context, bIsValid, CharacterState.CollapseCount, *FString::Printf(TEXT("InitialCharacterStates[%d].CollapseCount"), Index));
+
+			if (CharacterState.CharacterId.IsValid())
+			{
+				StateCharacterIdSet.Add(CharacterState.CharacterId.Value);
+				if (!PartyCharacterIdSet.Contains(CharacterState.CharacterId.Value))
+				{
+					AddError(
+						Context,
+						bIsValid,
+						FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId '%s' is not present in PartyCharacterIds."), Index, *CharacterState.CharacterId.ToString()));
+				}
+			}
+		}
+
+		for (const FFinalCharacterId& CharacterId : Bootstrap->PartyCharacterIds)
+		{
+			if (CharacterId.IsValid() && !StateCharacterIdSet.Contains(CharacterId.Value))
+			{
+				AddError(
+					Context,
+					bIsValid,
+					FString::Printf(TEXT("PartyCharacterIds is missing a matching InitialCharacterStates entry for '%s'."), *CharacterId.ToString()));
+			}
+		}
+
+		if (Bootstrap->StarterDeckCardIds.IsEmpty())
+		{
+			AddError(Context, bIsValid, TEXT("StarterDeckCardIds must contain at least one card id."));
+		}
+
+		for (int32 Index = 0; Index < Bootstrap->StarterDeckCardIds.Num(); ++Index)
+		{
+			if (!Bootstrap->StarterDeckCardIds[Index].IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("StarterDeckCardIds[%d] must be set."), Index));
+			}
+		}
+	}
+
 	void ValidateDuplicateStableId(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -548,6 +645,70 @@ namespace FinalDataAssetValidation
 				Context,
 				bIsValid,
 				FString::Printf(TEXT("%s references missing CardDefinition stable ID '%s'."), *FieldName, *CardId.ToString()));
+		}
+	}
+
+	void ValidateReferencedCharacterIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalCharacterId& CharacterId,
+		const FString& FieldName)
+	{
+		if (CharacterId.IsValid() && !ProjectIndex.HasCharacterDefinition(CharacterId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing CharacterDefinition stable ID '%s'."), *FieldName, *CharacterId.ToString()));
+		}
+	}
+
+	void ValidateReferencedEncounterIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalEncounterId& EncounterId,
+		const FString& FieldName)
+	{
+		if (EncounterId.IsValid() && !ProjectIndex.HasEncounterDefinition(EncounterId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing BattleEncounterDefinition stable ID '%s'."), *FieldName, *EncounterId.ToString()));
+		}
+	}
+
+	void ValidateReferencedRuleConfigIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalRuleConfigId& RuleConfigId,
+		const FString& FieldName)
+	{
+		if (RuleConfigId.IsValid() && !ProjectIndex.HasRuleConfigDefinition(RuleConfigId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing BattleRuleConfig stable ID '%s'."), *FieldName, *RuleConfigId.ToString()));
+		}
+	}
+
+	void ValidateReferencedRunRouteIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FName RouteId,
+		const FString& FieldName)
+	{
+		if (!RouteId.IsNone() && !ProjectIndex.HasRunRouteDefinition(RouteId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing RunRouteDefinition stable ID '%s'."), *FieldName, *RouteId.ToString()));
 		}
 	}
 
@@ -681,6 +842,55 @@ namespace FinalDataAssetValidation
 			ProjectIndex.FindDuplicateEncounterDefinitionPaths(Encounter->EncounterId, CurrentAssetPath));
 	}
 
+	void ValidatePrototypeBootstrapDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalPrototypeBootstrapDefinition* Bootstrap,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("BootstrapId"),
+			Bootstrap->BootstrapId.ToString(),
+			ProjectIndex.FindDuplicatePrototypeBootstrapDefinitionPaths(Bootstrap->BootstrapId, CurrentAssetPath));
+
+		ValidateReferencedRuleConfigIdExists(Context, bIsValid, ProjectIndex, Bootstrap->RuleConfigId, TEXT("RuleConfigId"));
+		ValidateReferencedEncounterIdExists(Context, bIsValid, ProjectIndex, Bootstrap->EncounterId, TEXT("EncounterId"));
+		ValidateReferencedRunRouteIdExists(Context, bIsValid, ProjectIndex, Bootstrap->RunRouteId, TEXT("RunRouteId"));
+
+		for (int32 Index = 0; Index < Bootstrap->PartyCharacterIds.Num(); ++Index)
+		{
+			ValidateReferencedCharacterIdExists(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				Bootstrap->PartyCharacterIds[Index],
+				FString::Printf(TEXT("PartyCharacterIds[%d]"), Index));
+		}
+
+		for (int32 Index = 0; Index < Bootstrap->InitialCharacterStates.Num(); ++Index)
+		{
+			ValidateReferencedCharacterIdExists(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				Bootstrap->InitialCharacterStates[Index].CharacterId,
+				FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId"), Index));
+		}
+
+		for (int32 Index = 0; Index < Bootstrap->StarterDeckCardIds.Num(); ++Index)
+		{
+			ValidateReferencedCardIdExists(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				Bootstrap->StarterDeckCardIds[Index],
+				FString::Printf(TEXT("StarterDeckCardIds[%d]"), Index));
+		}
+	}
+
 	void ValidateRelicDefinitionProjectConsistency(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -750,6 +960,7 @@ bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData&
 			|| InAsset->IsA<UFinalEnemyDefinition>()
 			|| InAsset->IsA<UFinalEnemyIntentDefinition>()
 			|| InAsset->IsA<UFinalBattleEncounterDefinition>()
+			|| InAsset->IsA<UFinalPrototypeBootstrapDefinition>()
 			|| InAsset->IsA<UFinalRelicDefinition>()
 			|| InAsset->IsA<UFinalBattleRuleConfig>()
 			|| InAsset->IsA<UFinalStatusDefinition>()
@@ -786,6 +997,11 @@ EDataValidationResult UFinalDataAssetValidator::ValidateLoadedAsset_Implementati
 	{
 		FinalDataAssetValidation::ValidateEncounterDefinition(InContext, bIsValid, Encounter);
 		FinalDataAssetValidation::ValidateEncounterDefinitionProjectConsistency(InContext, bIsValid, Encounter, CurrentAssetPath, ProjectIndex);
+	}
+	else if (const UFinalPrototypeBootstrapDefinition* PrototypeBootstrap = Cast<UFinalPrototypeBootstrapDefinition>(InAsset))
+	{
+		FinalDataAssetValidation::ValidatePrototypeBootstrapDefinition(InContext, bIsValid, PrototypeBootstrap);
+		FinalDataAssetValidation::ValidatePrototypeBootstrapDefinitionProjectConsistency(InContext, bIsValid, PrototypeBootstrap, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalRelicDefinition* Relic = Cast<UFinalRelicDefinition>(InAsset))
 	{

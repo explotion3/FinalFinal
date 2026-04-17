@@ -4,11 +4,7 @@
 #include "Engine/GameInstance.h"
 #include "FinalGameInstance.generated.h"
 
-class UFinalBattleEncounterDefinition;
-class UFinalBattleRuleConfig;
-class UFinalCardDefinition;
-class UFinalCharacterDefinition;
-class UFinalRunRouteDefinition;
+class UFinalPrototypeBootstrapDefinition;
 
 UCLASS()
 class FINALAPP_API UFinalGameInstance : public UGameInstance
@@ -32,31 +28,7 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UFinalBattleRuleConfig> TestRuleConfig;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalBattleEncounterDefinition> TestEncounterDefinition;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCharacterDefinition> TestGuardianDefinition;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCharacterDefinition> TestSupportDefinition;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCardDefinition> TestGuardianStrikeCard;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCardDefinition> TestGuardianGuardCard;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCardDefinition> TestSupportShotCard;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalCardDefinition> TestSupportFocusCard;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UFinalRunRouteDefinition> TestPrototypeRunRoute;
+	TObjectPtr<UFinalPrototypeBootstrapDefinition> TestPrototypeBootstrapDefinition;
 
 	UPROPERTY(Transient)
 	FText LastTestFailureReason;

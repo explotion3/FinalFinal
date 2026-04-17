@@ -9,8 +9,10 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
 
 namespace FinalDataValidationProjectIndexInternal
 {
@@ -110,9 +112,19 @@ FFinalDataValidationProjectIndex FFinalDataValidationProjectIndex::Build()
 		return Asset.EncounterId.Value;
 	});
 
+	CollectDefinitionIds<UFinalPrototypeBootstrapDefinition>(AssetRegistry, ProjectIndex.PrototypeBootstrapDefinitionPathsById, [](const UFinalPrototypeBootstrapDefinition& Asset)
+	{
+		return Asset.BootstrapId;
+	});
+
 	CollectDefinitionIds<UFinalRelicDefinition>(AssetRegistry, ProjectIndex.RelicDefinitionPathsById, [](const UFinalRelicDefinition& Asset)
 	{
 		return Asset.RelicId.Value;
+	});
+
+	CollectDefinitionIds<UFinalRunRouteDefinition>(AssetRegistry, ProjectIndex.RunRouteDefinitionPathsById, [](const UFinalRunRouteDefinition& Asset)
+	{
+		return Asset.RouteId;
 	});
 
 	CollectDefinitionIds<UFinalStatusDefinition>(AssetRegistry, ProjectIndex.StatusDefinitionPathsById, [](const UFinalStatusDefinition& Asset)
@@ -158,9 +170,19 @@ TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateEncounterDefiniti
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(EncounterDefinitionPathsById, EncounterId.Value, CurrentAssetPath);
 }
 
+TArray<FString> FFinalDataValidationProjectIndex::FindDuplicatePrototypeBootstrapDefinitionPaths(const FName BootstrapId, const FString& CurrentAssetPath) const
+{
+	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(PrototypeBootstrapDefinitionPathsById, BootstrapId, CurrentAssetPath);
+}
+
 TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateRelicDefinitionPaths(const FFinalRelicId& RelicId, const FString& CurrentAssetPath) const
 {
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(RelicDefinitionPathsById, RelicId.Value, CurrentAssetPath);
+}
+
+TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateRunRouteDefinitionPaths(const FName RouteId, const FString& CurrentAssetPath) const
+{
+	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(RunRouteDefinitionPathsById, RouteId, CurrentAssetPath);
 }
 
 TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateStatusDefinitionPaths(const FFinalStatusId& StatusId, const FString& CurrentAssetPath) const
@@ -181,6 +203,31 @@ TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateRuleConfigDefinit
 bool FFinalDataValidationProjectIndex::HasCardDefinition(const FFinalCardId& CardId) const
 {
 	return FinalDataValidationProjectIndexInternal::HasStableId(CardDefinitionPathsById, CardId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasCharacterDefinition(const FFinalCharacterId& CharacterId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(CharacterDefinitionPathsById, CharacterId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasEncounterDefinition(const FFinalEncounterId& EncounterId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(EncounterDefinitionPathsById, EncounterId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasPrototypeBootstrapDefinition(const FName BootstrapId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(PrototypeBootstrapDefinitionPathsById, BootstrapId);
+}
+
+bool FFinalDataValidationProjectIndex::HasRuleConfigDefinition(const FFinalRuleConfigId& RuleConfigId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(RuleConfigDefinitionPathsById, RuleConfigId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasRunRouteDefinition(const FName RouteId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(RunRouteDefinitionPathsById, RouteId);
 }
 
 bool FFinalDataValidationProjectIndex::HasUltimateDefinition(const FFinalUltimateId& UltimateId) const

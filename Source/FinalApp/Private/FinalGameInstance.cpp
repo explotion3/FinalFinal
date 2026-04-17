@@ -1,12 +1,8 @@
 #include "App/FinalGameInstance.h"
 
-#include "Battle/Definitions/FinalBattleEncounterDefinition.h"
-#include "Battle/Definitions/FinalBattleRuleConfig.h"
-#include "Battle/Definitions/FinalCardDefinition.h"
-#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
-#include "Run/Definitions/FinalRunRouteDefinition.h"
+#include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
@@ -15,30 +11,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalGameInstance, Log, All);
 
 namespace FinalTestBootstrap
 {
-	struct FResolvedPrototypeDefinitions
-	{
-		UFinalBattleRuleConfig* RuleConfig = nullptr;
-		UFinalBattleEncounterDefinition* EncounterDefinition = nullptr;
-		UFinalCharacterDefinition* GuardianDefinition = nullptr;
-		UFinalCharacterDefinition* SupportDefinition = nullptr;
-		UFinalCardDefinition* GuardianStrikeCard = nullptr;
-		UFinalCardDefinition* GuardianGuardCard = nullptr;
-		UFinalCardDefinition* SupportShotCard = nullptr;
-		UFinalCardDefinition* SupportFocusCard = nullptr;
-		UFinalRunRouteDefinition* PrototypeRunRoute = nullptr;
-	};
+	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
 
-	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
-	const FName EncounterId(TEXT("encounter.test.bootstrap"));
-	const FName GuardianCharacterId(TEXT("character.test.guardian"));
-	const FName SupportCharacterId(TEXT("character.test.support"));
-	const FName GuardianStrikeCardId(TEXT("card.test.guardian.strike"));
-	const FName GuardianGuardCardId(TEXT("card.test.guardian.guard"));
-	const FName SupportShotCardId(TEXT("card.test.support.shot"));
-	const FName SupportFocusCardId(TEXT("card.test.support.focus"));
-	const FName PrototypeRouteId(TEXT("run.route.test.prototype"));
-
-	void AppendMissingDefinition(TArray<FString>& OutMissingIds, const FString& StableId, const bool bIsPresent)
+	void AppendMissingReference(TArray<FString>& OutMissingIds, const FString& StableId, const bool bIsPresent)
 	{
 		if (!bIsPresent)
 		{
@@ -46,35 +21,49 @@ namespace FinalTestBootstrap
 		}
 	}
 
-	FResolvedPrototypeDefinitions ResolvePrototypeDefinitionsFromRegistry(UFinalDataRegistry* DataRegistry, TArray<FString>& OutMissingIds)
+	UFinalPrototypeBootstrapDefinition* ResolvePrototypeBootstrapDefinitionFromRegistry(UFinalDataRegistry* DataRegistry, TArray<FString>& OutMissingIds)
 	{
-		FResolvedPrototypeDefinitions Definitions;
 		if (DataRegistry == nullptr)
 		{
-			return Definitions;
+			return nullptr;
 		}
 
-		Definitions.RuleConfig = DataRegistry->FindRuleConfig(FFinalRuleConfigId(RuleConfigId));
-		Definitions.EncounterDefinition = DataRegistry->FindEncounterDefinition(FFinalEncounterId(EncounterId));
-		Definitions.GuardianDefinition = DataRegistry->FindCharacterDefinition(FFinalCharacterId(GuardianCharacterId));
-		Definitions.SupportDefinition = DataRegistry->FindCharacterDefinition(FFinalCharacterId(SupportCharacterId));
-		Definitions.GuardianStrikeCard = DataRegistry->FindCardDefinition(FFinalCardId(GuardianStrikeCardId));
-		Definitions.GuardianGuardCard = DataRegistry->FindCardDefinition(FFinalCardId(GuardianGuardCardId));
-		Definitions.SupportShotCard = DataRegistry->FindCardDefinition(FFinalCardId(SupportShotCardId));
-		Definitions.SupportFocusCard = DataRegistry->FindCardDefinition(FFinalCardId(SupportFocusCardId));
-		Definitions.PrototypeRunRoute = DataRegistry->FindRunRouteDefinition(PrototypeRouteId);
+		UFinalPrototypeBootstrapDefinition* BootstrapDefinition = DataRegistry->FindPrototypeBootstrapDefinition(PrototypeBootstrapId);
+		if (BootstrapDefinition == nullptr)
+		{
+			OutMissingIds.Add(PrototypeBootstrapId.ToString());
+			return nullptr;
+		}
 
-		AppendMissingDefinition(OutMissingIds, RuleConfigId.ToString(), Definitions.RuleConfig != nullptr);
-		AppendMissingDefinition(OutMissingIds, EncounterId.ToString(), Definitions.EncounterDefinition != nullptr);
-		AppendMissingDefinition(OutMissingIds, GuardianCharacterId.ToString(), Definitions.GuardianDefinition != nullptr);
-		AppendMissingDefinition(OutMissingIds, SupportCharacterId.ToString(), Definitions.SupportDefinition != nullptr);
-		AppendMissingDefinition(OutMissingIds, GuardianStrikeCardId.ToString(), Definitions.GuardianStrikeCard != nullptr);
-		AppendMissingDefinition(OutMissingIds, GuardianGuardCardId.ToString(), Definitions.GuardianGuardCard != nullptr);
-		AppendMissingDefinition(OutMissingIds, SupportShotCardId.ToString(), Definitions.SupportShotCard != nullptr);
-		AppendMissingDefinition(OutMissingIds, SupportFocusCardId.ToString(), Definitions.SupportFocusCard != nullptr);
-		AppendMissingDefinition(OutMissingIds, PrototypeRouteId.ToString(), Definitions.PrototypeRunRoute != nullptr);
+		if (!BootstrapDefinition->IsValidDefinition())
+		{
+			OutMissingIds.Add(FString::Printf(TEXT("%s (invalid bootstrap definition)"), *BootstrapDefinition->BootstrapId.ToString()));
+			return nullptr;
+		}
 
-		return Definitions;
+		AppendMissingReference(OutMissingIds, BootstrapDefinition->RuleConfigId.ToString(), DataRegistry->FindRuleConfig(BootstrapDefinition->RuleConfigId) != nullptr);
+		AppendMissingReference(OutMissingIds, BootstrapDefinition->EncounterId.ToString(), DataRegistry->FindEncounterDefinition(BootstrapDefinition->EncounterId) != nullptr);
+		AppendMissingReference(OutMissingIds, BootstrapDefinition->RunRouteId.ToString(), DataRegistry->FindRunRouteDefinition(BootstrapDefinition->RunRouteId) != nullptr);
+
+		for (const FFinalCharacterId& CharacterId : BootstrapDefinition->PartyCharacterIds)
+		{
+			AppendMissingReference(OutMissingIds, CharacterId.ToString(), DataRegistry->FindCharacterDefinition(CharacterId) != nullptr);
+		}
+
+		for (const FFinalPrototypeBootstrapCharacterState& CharacterState : BootstrapDefinition->InitialCharacterStates)
+		{
+			AppendMissingReference(OutMissingIds, CharacterState.CharacterId.ToString(), DataRegistry->FindCharacterDefinition(CharacterState.CharacterId) != nullptr);
+		}
+
+		for (const FFinalCardId& CardId : BootstrapDefinition->StarterDeckCardIds)
+		{
+			AppendMissingReference(OutMissingIds, CardId.ToString(), DataRegistry->FindCardDefinition(CardId) != nullptr);
+		}
+
+		TSet<FString> UniqueMissingIds(OutMissingIds);
+		OutMissingIds = UniqueMissingIds.Array();
+		OutMissingIds.Sort();
+		return BootstrapDefinition;
 	}
 }
 
@@ -101,30 +90,22 @@ bool UFinalGameInstance::EnsureTestBattleBootstrapData()
 	}
 
 	TArray<FString> MissingDefinitionIds;
-	const FinalTestBootstrap::FResolvedPrototypeDefinitions ResolvedDefinitions =
-		FinalTestBootstrap::ResolvePrototypeDefinitionsFromRegistry(DataRegistry, MissingDefinitionIds);
+	UFinalPrototypeBootstrapDefinition* BootstrapDefinition =
+		FinalTestBootstrap::ResolvePrototypeBootstrapDefinitionFromRegistry(DataRegistry, MissingDefinitionIds);
 
-	if (MissingDefinitionIds.Num() > 0)
+	if (BootstrapDefinition == nullptr || MissingDefinitionIds.Num() > 0)
 	{
 		LastTestFailureReason = FText::FromString(FString::Printf(
-			TEXT("Prototype content definitions are missing from FinalDataRegistry: %s. Run FinalPrototypeContentBootstrap commandlet or add the missing assets to the project."),
+			TEXT("Prototype bootstrap content is missing or invalid in FinalDataRegistry: %s. Run FinalPrototypeContentBootstrap commandlet or fix the referenced assets."),
 			*FString::Join(MissingDefinitionIds, TEXT(", "))));
 		return false;
 	}
 
-	TestRuleConfig = ResolvedDefinitions.RuleConfig;
-	TestEncounterDefinition = ResolvedDefinitions.EncounterDefinition;
-	TestGuardianDefinition = ResolvedDefinitions.GuardianDefinition;
-	TestSupportDefinition = ResolvedDefinitions.SupportDefinition;
-	TestGuardianStrikeCard = ResolvedDefinitions.GuardianStrikeCard;
-	TestGuardianGuardCard = ResolvedDefinitions.GuardianGuardCard;
-	TestSupportShotCard = ResolvedDefinitions.SupportShotCard;
-	TestSupportFocusCard = ResolvedDefinitions.SupportFocusCard;
-	TestPrototypeRunRoute = ResolvedDefinitions.PrototypeRunRoute;
+	TestPrototypeBootstrapDefinition = BootstrapDefinition;
 
 	bTestBattleBootstrapRegistered = true;
 
-	UE_LOG(LogFinalGameInstance, Log, TEXT("Resolved test battle bootstrap data from FinalDataRegistry assets."));
+	UE_LOG(LogFinalGameInstance, Log, TEXT("Resolved test battle bootstrap data from FinalDataRegistry bootstrap asset %s."), *BootstrapDefinition->BootstrapId.ToString());
 	return true;
 }
 
@@ -152,43 +133,29 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 	}
 
 	TArray<FFinalRunPersistentCharacterState> PartyStates;
-
-	FFinalRunPersistentCharacterState GuardianState;
-	GuardianState.CharacterId = TestGuardianDefinition->CharacterId;
-	GuardianState.CurrentStress = 0;
-	GuardianState.bCollapsed = false;
-	PartyStates.Add(GuardianState);
-
-	FFinalRunPersistentCharacterState SupportState;
-	SupportState.CharacterId = TestSupportDefinition->CharacterId;
-	SupportState.CurrentStress = 1;
-	SupportState.bCollapsed = false;
-	PartyStates.Add(SupportState);
-
-	TArray<FFinalCardId> DeckCardIds;
-	DeckCardIds.Append({
-		TestGuardianStrikeCard->CardId,
-		TestGuardianGuardCard->CardId,
-		TestSupportFocusCard->CardId,
-		TestSupportShotCard->CardId,
-		TestGuardianStrikeCard->CardId,
-		TestSupportShotCard->CardId,
-		TestGuardianGuardCard->CardId
-	});
-
-	const int32 TeamCurrentHP = TestGuardianDefinition->BaseVitalShare + TestSupportDefinition->BaseVitalShare;
+	PartyStates.Reserve(TestPrototypeBootstrapDefinition->InitialCharacterStates.Num());
+	for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : TestPrototypeBootstrapDefinition->InitialCharacterStates)
+	{
+		FFinalRunPersistentCharacterState CharacterState;
+		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
+		CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
+		CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
+		CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
+		CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
+		PartyStates.Add(CharacterState);
+	}
 
 	RunSession->ConfigureBattleStartState(
-		TestEncounterDefinition->EncounterId,
-		TestRuleConfig->RuleConfigId,
+		TestPrototypeBootstrapDefinition->EncounterId,
+		TestPrototypeBootstrapDefinition->RuleConfigId,
 		PartyStates,
-		DeckCardIds,
-		TeamCurrentHP);
-	if (!RunSession->ConfigureRunRouteById(FinalTestBootstrap::PrototypeRouteId))
+		TestPrototypeBootstrapDefinition->StarterDeckCardIds,
+		TestPrototypeBootstrapDefinition->InitialTeamCurrentHP);
+	if (!RunSession->ConfigureRunRouteById(TestPrototypeBootstrapDefinition->RunRouteId))
 	{
 		LastTestFailureReason = FText::Format(
 			NSLOCTEXT("FinalGameInstance", "ConfigurePrototypeRunRouteFailed", "Failed to configure prototype run route {0}."),
-			FText::FromName(FinalTestBootstrap::PrototypeRouteId));
+			FText::FromName(TestPrototypeBootstrapDefinition->RunRouteId));
 		return false;
 	}
 

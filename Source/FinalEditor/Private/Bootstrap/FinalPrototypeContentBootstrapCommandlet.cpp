@@ -13,6 +13,7 @@
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Misc/PackageName.h"
+#include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
@@ -40,10 +41,12 @@ namespace FinalPrototypeContentBootstrap
 	const FString EnemyEnrageIntentPath = RootPath / TEXT("EnemyIntents/DA_EnemyIntent_TestEnrage");
 	const FString EnemyPath = RootPath / TEXT("Enemies/DA_Enemy_TestRaider");
 	const FString EncounterPath = RootPath / TEXT("Encounters/DA_Encounter_TestBootstrap");
+	const FString PrototypeBootstrapPath = RootPath / TEXT("Bootstrap/DA_PrototypeBootstrap_Test");
 	const FString CharmRelicPath = RootPath / TEXT("Relics/DA_Relic_TestCharm");
 	const FString RepairKitRelicPath = RootPath / TEXT("Relics/DA_Relic_TestRepairKit");
 	const FString PrototypeRunRoutePath = RootPath / TEXT("Run/DA_RunRoute_TestPrototype");
 
+	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
 	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
 	const FName EncounterId(TEXT("encounter.test.bootstrap"));
 	const FName GuardianCharacterId(TEXT("character.test.guardian"));
@@ -687,6 +690,46 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		};
 	}
 	TrackPackage(PrototypeRunRoute, PackagesToSave);
+
+	UFinalPrototypeBootstrapDefinition* PrototypeBootstrap = LoadOrCreateAsset<UFinalPrototypeBootstrapDefinition>(PrototypeBootstrapPath, bCreatedAsset);
+	PrototypeBootstrap->BootstrapId = PrototypeBootstrapId;
+	PrototypeBootstrap->DisplayName = FText::FromString(TEXT("测试原型启动配置"));
+	PrototypeBootstrap->RuleConfigId = RuleConfig->RuleConfigId;
+	PrototypeBootstrap->EncounterId = EncounterDefinition->EncounterId;
+	PrototypeBootstrap->RunRouteId = PrototypeRunRoute->RouteId;
+	PrototypeBootstrap->PartyCharacterIds = {
+		GuardianCharacter->CharacterId,
+		SupportCharacter->CharacterId
+	};
+	PrototypeBootstrap->InitialCharacterStates.Reset();
+	{
+		FFinalPrototypeBootstrapCharacterState GuardianState;
+		GuardianState.CharacterId = GuardianCharacter->CharacterId;
+		GuardianState.CurrentStress = 0;
+		GuardianState.bCollapsed = false;
+		GuardianState.CurrentAwakenCount = 0;
+		GuardianState.CollapseCount = 0;
+		PrototypeBootstrap->InitialCharacterStates.Add(GuardianState);
+
+		FFinalPrototypeBootstrapCharacterState SupportState;
+		SupportState.CharacterId = SupportCharacter->CharacterId;
+		SupportState.CurrentStress = 1;
+		SupportState.bCollapsed = false;
+		SupportState.CurrentAwakenCount = 0;
+		SupportState.CollapseCount = 0;
+		PrototypeBootstrap->InitialCharacterStates.Add(SupportState);
+	}
+	PrototypeBootstrap->StarterDeckCardIds = {
+		GuardianStrikeCard->CardId,
+		GuardianGuardCard->CardId,
+		SupportFocusCard->CardId,
+		SupportShotCard->CardId,
+		GuardianStrikeCard->CardId,
+		SupportShotCard->CardId,
+		GuardianGuardCard->CardId
+	};
+	PrototypeBootstrap->InitialTeamCurrentHP = 42;
+	TrackPackage(PrototypeBootstrap, PackagesToSave);
 
 	SavePackages(PackagesToSave);
 
