@@ -258,7 +258,10 @@ FinalBattle      FinalRun
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并继续通过 project index 检查 card / relic / character 等稳定 ID 是否存在
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
 * 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
+* 当前 `FinalPrototypeContentBootstrap` 也开始承接真实 starter content materialize：在 `/Game/Prototype/Definitions/Starter/...` 生成 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些资产进入同一套 registry / validation / smoke test 路径，不新增 Runtime 规则分支
+* starter content 第一版仍是最小可运行录入：当前定义协议尚未承载的刀势、药引、剑阵生成、复杂治疗免疫、经济 / 商店 / 未来窗口效果只作为 Notes / 文案占位，后续应先补数据协议与规则服务，再把占位升级为权威效果
 * 当前已补 prototype vertical slice 自动化冒烟测试，走 `FinalDataRegistry / FinalRunSession / FinalBattleSession / FinalGameFlowSubsystem / FinalBattleFlowSubsystem / RunSnapshot / BattleSnapshot` 的公开面，锁住 `bootstrap -> run -> battle -> battle result -> save/load` 主线
+* 当前已补 starter bootstrap registry reference 冒烟测试，验证 `prototype.bootstrap.starter.chapter1` 及其 rule / encounter / route / character / starter deck 引用能被 `FinalDataRegistry` 解析
 * 当前不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具；Editor 自动化测试只消费现有 facade / subsystem / query API，不把 Battle / Run 私有运行时结构抬进 `Public`
 
 后续再补：
