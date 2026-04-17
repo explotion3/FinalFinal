@@ -17,6 +17,7 @@
 #include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Validation/FinalDataValidationProjectIndex.h"
 
 namespace FinalDataAssetValidation
@@ -744,6 +745,278 @@ namespace FinalDataAssetValidation
 		}
 	}
 
+	void ValidateReferencedRelicIdExists(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalRelicId& RelicId,
+		const FString& FieldName)
+	{
+		if (RelicId.IsValid() && !ProjectIndex.HasRelicDefinition(RelicId))
+		{
+			AddError(
+				Context,
+				bIsValid,
+				FString::Printf(TEXT("%s references missing RelicDefinition stable ID '%s'."), *FieldName, *RelicId.ToString()));
+		}
+	}
+
+	void ValidateRunRewardEntry(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const FFinalRunRewardEntry& RewardEntry,
+		const FString& FieldName)
+	{
+		if (RewardEntry.RewardType == EFinalRunRewardType::None)
+		{
+			AddError(Context, bIsValid, FString::Printf(TEXT("%s.RewardType must not be None."), *FieldName));
+			return;
+		}
+
+		switch (RewardEntry.RewardType)
+		{
+		case EFinalRunRewardType::Gold:
+			ValidatePositive(Context, bIsValid, RewardEntry.Value, *FString::Printf(TEXT("%s.Value"), *FieldName));
+			break;
+
+		case EFinalRunRewardType::CardGrant:
+			if (!RewardEntry.GrantedCardId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.GrantedCardId must be set for CardGrant rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedCardIdExists(Context, bIsValid, ProjectIndex, RewardEntry.GrantedCardId, FString::Printf(TEXT("%s.GrantedCardId"), *FieldName));
+			}
+			break;
+
+		case EFinalRunRewardType::RelicGrant:
+			if (!RewardEntry.GrantedRelicId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.GrantedRelicId must be set for RelicGrant rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedRelicIdExists(Context, bIsValid, ProjectIndex, RewardEntry.GrantedRelicId, FString::Printf(TEXT("%s.GrantedRelicId"), *FieldName));
+			}
+			break;
+
+		case EFinalRunRewardType::RemoveCard:
+			if (!RewardEntry.RemovedCardId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.RemovedCardId must be set for RemoveCard rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedCardIdExists(Context, bIsValid, ProjectIndex, RewardEntry.RemovedCardId, FString::Printf(TEXT("%s.RemovedCardId"), *FieldName));
+			}
+			break;
+
+		case EFinalRunRewardType::UpgradeCard:
+			if (!RewardEntry.UpgradeFromCardId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.UpgradeFromCardId must be set for UpgradeCard rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedCardIdExists(Context, bIsValid, ProjectIndex, RewardEntry.UpgradeFromCardId, FString::Printf(TEXT("%s.UpgradeFromCardId"), *FieldName));
+			}
+
+			if (!RewardEntry.UpgradeToCardId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.UpgradeToCardId must be set for UpgradeCard rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedCardIdExists(Context, bIsValid, ProjectIndex, RewardEntry.UpgradeToCardId, FString::Printf(TEXT("%s.UpgradeToCardId"), *FieldName));
+			}
+
+			if (RewardEntry.UpgradeFromCardId.IsValid()
+				&& RewardEntry.UpgradeToCardId.IsValid()
+				&& RewardEntry.UpgradeFromCardId.Value == RewardEntry.UpgradeToCardId.Value)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s upgrade payload must not reference the same card for UpgradeFromCardId and UpgradeToCardId."), *FieldName));
+			}
+			break;
+
+		case EFinalRunRewardType::Growth:
+			if (!RewardEntry.GrowthTargetCharacterId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.GrowthTargetCharacterId must be set for Growth rewards."), *FieldName));
+			}
+			else
+			{
+				ValidateReferencedCharacterIdExists(Context, bIsValid, ProjectIndex, RewardEntry.GrowthTargetCharacterId, FString::Printf(TEXT("%s.GrowthTargetCharacterId"), *FieldName));
+			}
+
+			if (RewardEntry.GrowthEffectType == EFinalRunGrowthEffectType::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.GrowthEffectType must not be None for Growth rewards."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, RewardEntry.Value, *FString::Printf(TEXT("%s.Value"), *FieldName));
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	template<typename RewardEntryArrayType>
+	void ValidateRunRewardEntries(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const FFinalDataValidationProjectIndex& ProjectIndex,
+		const RewardEntryArrayType& RewardEntries,
+		const FString& FieldName)
+	{
+		for (int32 RewardIndex = 0; RewardIndex < RewardEntries.Num(); ++RewardIndex)
+		{
+			ValidateRunRewardEntry(
+				Context,
+				bIsValid,
+				ProjectIndex,
+				RewardEntries[RewardIndex],
+				FString::Printf(TEXT("%s[%d]"), *FieldName, RewardIndex));
+		}
+	}
+
+	void ValidateRunRouteDefinition(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalRunRouteDefinition* Route,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		RequireName(Context, bIsValid, Route->RouteId, TEXT("RouteId"));
+		RequireName(Context, bIsValid, Route->EntryNodeId, TEXT("EntryNodeId"));
+
+		TSet<FName> NodeIds;
+		bool bFoundEntryNode = false;
+
+		for (int32 NodeIndex = 0; NodeIndex < Route->NodeDefinitions.Num(); ++NodeIndex)
+		{
+			const FFinalRunNodeDefinition& NodeDefinition = Route->NodeDefinitions[NodeIndex];
+			const FString NodeField = FString::Printf(TEXT("NodeDefinitions[%d]"), NodeIndex);
+
+			if (NodeDefinition.NodeId.IsNone())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.NodeId must be set."), *NodeField));
+			}
+			else
+			{
+				if (NodeDefinition.NodeId == Route->EntryNodeId)
+				{
+					bFoundEntryNode = true;
+				}
+
+				if (NodeIds.Contains(NodeDefinition.NodeId))
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.NodeId '%s' is duplicated within RouteId '%s'."), *NodeField, *NodeDefinition.NodeId.ToString(), *Route->RouteId.ToString()));
+				}
+				else
+				{
+					NodeIds.Add(NodeDefinition.NodeId);
+				}
+			}
+		}
+
+		if (!Route->EntryNodeId.IsNone() && !bFoundEntryNode)
+		{
+			AddError(Context, bIsValid, FString::Printf(TEXT("EntryNodeId '%s' must match a NodeDefinitions[*].NodeId within the same route."), *Route->EntryNodeId.ToString()));
+		}
+
+		for (int32 NodeIndex = 0; NodeIndex < Route->NodeDefinitions.Num(); ++NodeIndex)
+		{
+			const FFinalRunNodeDefinition& NodeDefinition = Route->NodeDefinitions[NodeIndex];
+			const FString NodeField = FString::Printf(TEXT("NodeDefinitions[%d]"), NodeIndex);
+
+			for (int32 NextNodeIndex = 0; NextNodeIndex < NodeDefinition.NextNodeIds.Num(); ++NextNodeIndex)
+			{
+				const FName NextNodeId = NodeDefinition.NextNodeIds[NextNodeIndex];
+				if (NextNodeId.IsNone())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.NextNodeIds[%d] must be set."), *NodeField, NextNodeIndex));
+				}
+				else if (!NodeIds.Contains(NextNodeId))
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.NextNodeIds[%d] references missing node id '%s' within RouteId '%s'."), *NodeField, NextNodeIndex, *NextNodeId.ToString(), *Route->RouteId.ToString()));
+				}
+			}
+
+			if (NodeDefinition.NodeType == EFinalRunNodeType::Battle
+				|| NodeDefinition.NodeType == EFinalRunNodeType::EliteBattle
+				|| NodeDefinition.NodeType == EFinalRunNodeType::BossBattle)
+			{
+				if (!NodeDefinition.EncounterId.IsValid())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.EncounterId must be set for battle nodes."), *NodeField));
+				}
+				else
+				{
+					ValidateReferencedEncounterIdExists(Context, bIsValid, ProjectIndex, NodeDefinition.EncounterId, FString::Printf(TEXT("%s.EncounterId"), *NodeField));
+				}
+
+				if (!NodeDefinition.RuleConfigId.IsValid())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.RuleConfigId must be set for battle nodes."), *NodeField));
+				}
+				else
+				{
+					ValidateReferencedRuleConfigIdExists(Context, bIsValid, ProjectIndex, NodeDefinition.RuleConfigId, FString::Printf(TEXT("%s.RuleConfigId"), *NodeField));
+				}
+			}
+
+			if (NodeDefinition.NodeType == EFinalRunNodeType::Reward)
+			{
+				if (NodeDefinition.RewardContent.RewardEntries.IsEmpty())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.RewardContent.RewardEntries must contain at least one reward entry."), *NodeField));
+				}
+
+				ValidateRunRewardEntries(Context, bIsValid, ProjectIndex, NodeDefinition.RewardContent.RewardEntries, FString::Printf(TEXT("%s.RewardContent.RewardEntries"), *NodeField));
+			}
+
+			if (NodeDefinition.NodeType == EFinalRunNodeType::Event)
+			{
+				if (NodeDefinition.EventContent.Options.IsEmpty())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.EventContent.Options must contain at least one option."), *NodeField));
+				}
+
+				for (int32 OptionIndex = 0; OptionIndex < NodeDefinition.EventContent.Options.Num(); ++OptionIndex)
+				{
+					const FFinalRunEventOptionDefinition& OptionDefinition = NodeDefinition.EventContent.Options[OptionIndex];
+					ValidateRunRewardEntries(
+						Context,
+						bIsValid,
+						ProjectIndex,
+						OptionDefinition.RewardEntries,
+						FString::Printf(TEXT("%s.EventContent.Options[%d].RewardEntries"), *NodeField, OptionIndex));
+				}
+			}
+
+			if (NodeDefinition.NodeType == EFinalRunNodeType::Shop)
+			{
+				if (NodeDefinition.ShopContent.Offers.IsEmpty())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.ShopContent.Offers must contain at least one offer."), *NodeField));
+				}
+
+				for (int32 OfferIndex = 0; OfferIndex < NodeDefinition.ShopContent.Offers.Num(); ++OfferIndex)
+				{
+					const FFinalRunShopOfferDefinition& OfferDefinition = NodeDefinition.ShopContent.Offers[OfferIndex];
+					ValidateRunRewardEntries(
+						Context,
+						bIsValid,
+						ProjectIndex,
+						OfferDefinition.RewardEntries,
+						FString::Printf(TEXT("%s.ShopContent.Offers[%d].RewardEntries"), *NodeField, OfferIndex));
+				}
+			}
+		}
+	}
+
 	void ValidateCardDefinitionProjectConsistency(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -906,6 +1179,21 @@ namespace FinalDataAssetValidation
 			ProjectIndex.FindDuplicateRelicDefinitionPaths(Relic->RelicId, CurrentAssetPath));
 	}
 
+	void ValidateRunRouteDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalRunRouteDefinition* Route,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("RouteId"),
+			Route->RouteId.ToString(),
+			ProjectIndex.FindDuplicateRunRouteDefinitionPaths(Route->RouteId, CurrentAssetPath));
+	}
+
 	void ValidateRuleConfigProjectConsistency(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -962,6 +1250,7 @@ bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData&
 			|| InAsset->IsA<UFinalBattleEncounterDefinition>()
 			|| InAsset->IsA<UFinalPrototypeBootstrapDefinition>()
 			|| InAsset->IsA<UFinalRelicDefinition>()
+			|| InAsset->IsA<UFinalRunRouteDefinition>()
 			|| InAsset->IsA<UFinalBattleRuleConfig>()
 			|| InAsset->IsA<UFinalStatusDefinition>()
 			|| InAsset->IsA<UFinalUltimateDefinition>());
@@ -1007,6 +1296,11 @@ EDataValidationResult UFinalDataAssetValidator::ValidateLoadedAsset_Implementati
 	{
 		FinalDataAssetValidation::ValidateRelicDefinition(InContext, bIsValid, Relic);
 		FinalDataAssetValidation::ValidateRelicDefinitionProjectConsistency(InContext, bIsValid, Relic, CurrentAssetPath, ProjectIndex);
+	}
+	else if (const UFinalRunRouteDefinition* RunRoute = Cast<UFinalRunRouteDefinition>(InAsset))
+	{
+		FinalDataAssetValidation::ValidateRunRouteDefinition(InContext, bIsValid, RunRoute, ProjectIndex);
+		FinalDataAssetValidation::ValidateRunRouteDefinitionProjectConsistency(InContext, bIsValid, RunRoute, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalBattleRuleConfig* RuleConfig = Cast<UFinalBattleRuleConfig>(InAsset))
 	{

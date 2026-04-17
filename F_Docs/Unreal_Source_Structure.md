@@ -252,8 +252,10 @@ FinalBattle      FinalRun
 
 当前已开始落地：
 * `FinalEditor` 作为 Editor-only 模块挂入 `FinalFinalEditor.Target.cs` 与 `.uproject`
-* 当前 `DataValidation` 原生校验器除了字段级检查，还会在 Editor 内扫描全项目 `FinalData` definition，检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的稳定主 ID 是否重复
+* 当前 `DataValidation` 原生校验器除了字段级检查，还会在 Editor 内扫描全项目 `FinalData` definition，检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig / RunRoute` 的稳定主 ID 是否重复
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
+* 当前已补 `RunRouteDefinition` 的 route / node / reward 内容一致性校验：入口节点存在性、节点 ID 唯一性、同 route 跳转可达性、battle 节点引用的 `EncounterId / RuleConfigId`，以及 reward / event / shop 节点的最小内容结构
+* 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并继续通过 project index 检查 card / relic / character 等稳定 ID 是否存在
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
 * 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
 * 当前已补 prototype vertical slice 自动化冒烟测试，走 `FinalDataRegistry / FinalRunSession / FinalBattleSession / FinalGameFlowSubsystem / FinalBattleFlowSubsystem / RunSnapshot / BattleSnapshot` 的公开面，锁住 `bootstrap -> run -> battle -> battle result -> save/load` 主线
