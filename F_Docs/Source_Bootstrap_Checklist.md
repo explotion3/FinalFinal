@@ -323,8 +323,10 @@
 * `Source/FinalEditor/Private/Validation/FinalDataAssetValidator.cpp`
 * `Source/FinalEditor/Private/Validation/FinalDataValidationProjectIndex.h`
 * `Source/FinalEditor/Private/Validation/FinalDataValidationProjectIndex.cpp`
+* `Source/FinalEditor/Private/Tests/FinalPrototypeSmokeTests.cpp`
 * 数据校验器已覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate`，并在 Editor 内补全局主 ID 重复扫描
 * 第一批跨资产稳定 ID 引用存在性检查已覆盖 `Character.InitialLoadoutCards[*].CardId / CharacterCardPoolIds[*] / UltimateId / SignatureStatusId`
+* 当前已补 prototype vertical slice 自动化冒烟测试，覆盖 bootstrap 发现、registry 引用解析、最小 run 启动、进入 battle 后最小推进、battle result 回写 run，以及战斗外 save/load 恢复
 * 资源检查菜单和调试面板仍后置
 
 ---

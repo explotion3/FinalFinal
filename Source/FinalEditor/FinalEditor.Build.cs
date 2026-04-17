@@ -15,7 +15,10 @@ public class FinalEditor : ModuleRules
 			"DataValidation",
 			"AssetRegistry",
 			"FinalCore",
-			"FinalData"
+			"FinalData",
+			"FinalBattle",
+			"FinalRun",
+			"FinalApp"
 		});
 	}
 }

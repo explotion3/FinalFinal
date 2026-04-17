@@ -256,7 +256,8 @@ FinalBattle      FinalRun
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
 * 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
-* 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具
+* 当前已补 prototype vertical slice 自动化冒烟测试，走 `FinalDataRegistry / FinalRunSession / FinalBattleSession / FinalGameFlowSubsystem / FinalBattleFlowSubsystem / RunSnapshot / BattleSnapshot` 的公开面，锁住 `bootstrap -> run -> battle -> battle result -> save/load` 主线
+* 当前不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具；Editor 自动化测试只消费现有 facade / subsystem / query API，不把 Battle / Run 私有运行时结构抬进 `Public`
 
 后续再补：
 * 数据批量检查入口
