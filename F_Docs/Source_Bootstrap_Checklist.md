@@ -324,8 +324,10 @@
 * `Source/FinalEditor/Private/Validation/FinalDataValidationProjectIndex.h`
 * `Source/FinalEditor/Private/Validation/FinalDataValidationProjectIndex.cpp`
 * `Source/FinalEditor/Private/Tests/FinalPrototypeSmokeTests.cpp`
-* 数据校验器已覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate`，并在 Editor 内补全局主 ID 重复扫描
+* 数据校验器已覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate / RunRoute`，并在 Editor 内补全局主 ID 重复扫描
 * 第一批跨资产稳定 ID 引用存在性检查已覆盖 `Character.InitialLoadoutCards[*].CardId / CharacterCardPoolIds[*] / UltimateId / SignatureStatusId`
+* 当前已补 `RunRouteDefinition` 校验，覆盖 `RouteId / EntryNodeId`、route 内节点唯一性、`NextNodeIds` 引用、battle 节点 `EncounterId / RuleConfigId`、以及 reward / event / shop 节点的最小结构合法性
+* 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`
 * 当前已补 prototype vertical slice 自动化冒烟测试，覆盖 bootstrap 发现、registry 引用解析、最小 run 启动、进入 battle 后最小推进、battle result 回写 run，以及战斗外 save/load 恢复
 * 资源检查菜单和调试面板仍后置
 
@@ -366,7 +368,9 @@
 
 ### 8.3 当前测试入口
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描并注册项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
-* 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，至少覆盖 `prototype.bootstrap.test` 与 `prototype.bootstrap.starter.chapter1` 这两条稳定 bootstrap 入口，以及它们引用的 rule / encounter / route / character / card / relic 资产
+* 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
+* 当前 starter bundle 也已以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
+* starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前只把已支持的伤害 / 护盾 / 抽牌等最小效果录入成可运行数据，文档中的刀势、药引、剑阵生成、复杂治疗免疫、经济 / 商店 / 未来窗口效果仍保留为内容备注或展示占位，不代表 Runtime 规则已扩展
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`

@@ -14,6 +14,7 @@
 namespace FinalPrototypeSmokeTests
 {
 	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
+	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
 	const int32 SyntheticVictoryRewardGold = 15;
 	const int32 BattleCommandSafetyLimit = 64;
 
@@ -179,6 +180,47 @@ namespace FinalPrototypeSmokeTests
 		Test.AddError(FString::Printf(TEXT("%s could not be resolved through FinalDataRegistry: %s"), *FieldName, *StableId));
 	}
 
+	bool ValidateBootstrapRegistryReferences(
+		FAutomationTestBase& Test,
+		const FAutomationContext& Context,
+		const UFinalPrototypeBootstrapDefinition& BootstrapDefinition)
+	{
+		bool bValid = true;
+
+		bValid &= Test.TestNotNull(TEXT("Bootstrap RuleConfigId should resolve through FinalDataRegistry."), Context.DataRegistry->FindRuleConfig(BootstrapDefinition.RuleConfigId));
+		bValid &= Test.TestNotNull(TEXT("Bootstrap EncounterId should resolve through FinalDataRegistry."), Context.DataRegistry->FindEncounterDefinition(BootstrapDefinition.EncounterId));
+		bValid &= Test.TestNotNull(TEXT("Bootstrap RunRouteId should resolve through FinalDataRegistry."), Context.DataRegistry->FindRunRouteDefinition(BootstrapDefinition.RunRouteId));
+
+		for (int32 Index = 0; Index < BootstrapDefinition.PartyCharacterIds.Num(); ++Index)
+		{
+			if (Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition.PartyCharacterIds[Index]) == nullptr)
+			{
+				AddMissingReferenceError(Test, FString::Printf(TEXT("PartyCharacterIds[%d]"), Index), BootstrapDefinition.PartyCharacterIds[Index].ToString());
+				bValid = false;
+			}
+		}
+
+		for (int32 Index = 0; Index < BootstrapDefinition.InitialCharacterStates.Num(); ++Index)
+		{
+			if (Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition.InitialCharacterStates[Index].CharacterId) == nullptr)
+			{
+				AddMissingReferenceError(Test, FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId"), Index), BootstrapDefinition.InitialCharacterStates[Index].CharacterId.ToString());
+				bValid = false;
+			}
+		}
+
+		for (int32 Index = 0; Index < BootstrapDefinition.StarterDeckCardIds.Num(); ++Index)
+		{
+			if (Context.DataRegistry->FindCardDefinition(BootstrapDefinition.StarterDeckCardIds[Index]) == nullptr)
+			{
+				AddMissingReferenceError(Test, FString::Printf(TEXT("StarterDeckCardIds[%d]"), Index), BootstrapDefinition.StarterDeckCardIds[Index].ToString());
+				bValid = false;
+			}
+		}
+
+		return bValid;
+	}
+
 	bool SubmitOneDeterministicBattleCommand(UFinalBattleFlowSubsystem& BattleFlowSubsystem, FString& OutFailure)
 	{
 		const FFinalBattleSnapshot Snapshot = BattleFlowSubsystem.GetCurrentSnapshot();
@@ -291,34 +333,35 @@ bool FFinalPrototypeBootstrapRegistryReferenceTest::RunTest(const FString& Param
 		return false;
 	}
 
-	TestNotNull(TEXT("Bootstrap RuleConfigId should resolve through FinalDataRegistry."), Context.DataRegistry->FindRuleConfig(BootstrapDefinition->RuleConfigId));
-	TestNotNull(TEXT("Bootstrap EncounterId should resolve through FinalDataRegistry."), Context.DataRegistry->FindEncounterDefinition(BootstrapDefinition->EncounterId));
-	TestNotNull(TEXT("Bootstrap RunRouteId should resolve through FinalDataRegistry."), Context.DataRegistry->FindRunRouteDefinition(BootstrapDefinition->RunRouteId));
+	ValidateBootstrapRegistryReferences(*this, Context, *BootstrapDefinition);
 
-	for (int32 Index = 0; Index < BootstrapDefinition->PartyCharacterIds.Num(); ++Index)
+	return !HasAnyErrors();
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalStarterBootstrapRegistryReferenceTest,
+	"Final.Editor.PrototypeSmoke.StarterBootstrapRegistryReferences",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalStarterBootstrapRegistryReferenceTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalPrototypeSmokeTests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalStarterBootstrapRegistryReferencesWorld")))
 	{
-		if (Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition->PartyCharacterIds[Index]) == nullptr)
-		{
-			AddMissingReferenceError(*this, FString::Printf(TEXT("PartyCharacterIds[%d]"), Index), BootstrapDefinition->PartyCharacterIds[Index].ToString());
-		}
+		return false;
 	}
 
-	for (int32 Index = 0; Index < BootstrapDefinition->InitialCharacterStates.Num(); ++Index)
+	UFinalPrototypeBootstrapDefinition* StarterBootstrapDefinition = Context.DataRegistry->FindPrototypeBootstrapDefinition(StarterBootstrapId);
+	if (!TestNotNull(TEXT("Starter bootstrap definition must be discoverable through FinalDataRegistry."), StarterBootstrapDefinition))
 	{
-		if (Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition->InitialCharacterStates[Index].CharacterId) == nullptr)
-		{
-			AddMissingReferenceError(*this, FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId"), Index), BootstrapDefinition->InitialCharacterStates[Index].CharacterId.ToString());
-		}
+		return false;
 	}
 
-	for (int32 Index = 0; Index < BootstrapDefinition->StarterDeckCardIds.Num(); ++Index)
-	{
-		if (Context.DataRegistry->FindCardDefinition(BootstrapDefinition->StarterDeckCardIds[Index]) == nullptr)
-		{
-			AddMissingReferenceError(*this, FString::Printf(TEXT("StarterDeckCardIds[%d]"), Index), BootstrapDefinition->StarterDeckCardIds[Index].ToString());
-		}
-	}
-
+	TestEqual(TEXT("Resolved starter bootstrap ID should match the expected starter content bundle bootstrap."), StarterBootstrapDefinition->BootstrapId, StarterBootstrapId);
+	TestTrue(TEXT("Starter bootstrap definition should satisfy its own structural validity check."), StarterBootstrapDefinition->IsValidDefinition());
+	ValidateBootstrapRegistryReferences(*this, Context, *StarterBootstrapDefinition);
 	return !HasAnyErrors();
 }
 

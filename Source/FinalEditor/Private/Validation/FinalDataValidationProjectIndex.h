@@ -23,6 +23,7 @@ struct FFinalDataValidationProjectIndex
 	bool HasCharacterDefinition(const FFinalCharacterId& CharacterId) const;
 	bool HasEncounterDefinition(const FFinalEncounterId& EncounterId) const;
 	bool HasPrototypeBootstrapDefinition(FName BootstrapId) const;
+	bool HasRelicDefinition(const FFinalRelicId& RelicId) const;
 	bool HasRuleConfigDefinition(const FFinalRuleConfigId& RuleConfigId) const;
 	bool HasRunRouteDefinition(FName RouteId) const;
 	bool HasUltimateDefinition(const FFinalUltimateId& UltimateId) const;
