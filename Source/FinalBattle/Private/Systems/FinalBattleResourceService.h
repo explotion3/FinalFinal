@@ -10,6 +10,7 @@ public:
 	void ResetRoundResources(FFinalBattleState& BattleState, int32 StartingAP) const;
 	bool HasEnoughAP(const FFinalBattleState& BattleState, int32 RequiredAP) const;
 	bool HasEnoughEP(const FFinalBattleState& BattleState, int32 RequiredEP) const;
+	void GainAP(FFinalBattleState& BattleState, int32 APToGain) const;
 	void SpendAP(FFinalBattleState& BattleState, int32 APToSpend) const;
 	void SpendEP(FFinalBattleState& BattleState, int32 EPToSpend) const;
 	void GainCardPlayEP(FFinalBattleState& BattleState, const UFinalBattleRuleConfig* RuleConfig) const;

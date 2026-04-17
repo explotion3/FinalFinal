@@ -9,9 +9,14 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -365,6 +370,105 @@ namespace FinalPrototypeContentBootstrap
 		DrawEffect->Notes = Notes;
 		Effects.Add(DrawEffect);
 		return DrawEffect;
+	}
+
+	UFinalBattleEffectHeal* AddHealEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		const float BaseValue,
+		const EFinalBattleScalarMode ScaleMode,
+		const EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectHeal* HealEffect = NewObject<UFinalBattleEffectHeal>(Owner);
+		HealEffect->EffectId = EffectId;
+		HealEffect->UnitTargetRule = TargetRule;
+		HealEffect->Scalar.BaseValue = BaseValue;
+		HealEffect->Scalar.ScaleMode = ScaleMode;
+		HealEffect->Scalar.SourceStat = SourceStat;
+		HealEffect->Notes = Notes;
+		Effects.Add(HealEffect);
+		return HealEffect;
+	}
+
+	UFinalBattleEffectApplyStatus* AddApplyStatusEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 Stacks,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectApplyStatus* ApplyStatusEffect = NewObject<UFinalBattleEffectApplyStatus>(Owner);
+		ApplyStatusEffect->EffectId = EffectId;
+		ApplyStatusEffect->UnitTargetRule = TargetRule;
+		ApplyStatusEffect->StatusDefinition = StatusDefinition;
+		ApplyStatusEffect->StatusId = StatusDefinition ? StatusDefinition->StatusId : FFinalStatusId();
+		ApplyStatusEffect->Stacks = FMath::Max(Stacks, 1);
+		ApplyStatusEffect->Notes = Notes;
+		Effects.Add(ApplyStatusEffect);
+		return ApplyStatusEffect;
+	}
+
+	UFinalBattleEffectRemoveStatus* AddRemoveStatusEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 Stacks,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectRemoveStatus* RemoveStatusEffect = NewObject<UFinalBattleEffectRemoveStatus>(Owner);
+		RemoveStatusEffect->EffectId = EffectId;
+		RemoveStatusEffect->UnitTargetRule = TargetRule;
+		RemoveStatusEffect->StatusDefinition = StatusDefinition;
+		RemoveStatusEffect->StatusId = StatusDefinition ? StatusDefinition->StatusId : FFinalStatusId();
+		RemoveStatusEffect->Stacks = FMath::Max(Stacks, 1);
+		RemoveStatusEffect->Notes = Notes;
+		Effects.Add(RemoveStatusEffect);
+		return RemoveStatusEffect;
+	}
+
+	UFinalBattleEffectGainAP* AddGainApEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		const int32 GainValue,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectGainAP* GainApEffect = NewObject<UFinalBattleEffectGainAP>(Owner);
+		GainApEffect->EffectId = EffectId;
+		GainApEffect->UnitTargetRule = TargetRule;
+		GainApEffect->GainValue = FMath::Max(GainValue, 0);
+		GainApEffect->Notes = Notes;
+		Effects.Add(GainApEffect);
+		return GainApEffect;
+	}
+
+	UFinalBattleEffectBonusBreak* AddBonusBreakEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		const float BaseValue,
+		const EFinalBattleScalarMode ScaleMode,
+		const EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None,
+		const FText& Notes = FText::GetEmpty())
+	{
+		UFinalBattleEffectBonusBreak* BonusBreakEffect = NewObject<UFinalBattleEffectBonusBreak>(Owner);
+		BonusBreakEffect->EffectId = EffectId;
+		BonusBreakEffect->UnitTargetRule = TargetRule;
+		BonusBreakEffect->Scalar.BaseValue = BaseValue;
+		BonusBreakEffect->Scalar.ScaleMode = ScaleMode;
+		BonusBreakEffect->Scalar.SourceStat = SourceStat;
+		BonusBreakEffect->Notes = Notes;
+		Effects.Add(BonusBreakEffect);
+		return BonusBreakEffect;
 	}
 }
 
@@ -911,7 +1015,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoStatus->StatusId = FFinalStatusId(StarterHuoStatusId);
 	StarterHuoStatus->DisplayName = FText::FromString(TEXT("刀势"));
 	StarterHuoStatus->StatusCategory = EFinalStatusCategory::Signature;
-	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的专属机制占位。首版 starter content 先只落稳定 ID 与说明文本，不额外补刀势运行时协议。"));
+	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的签名资源。首波 Runtime 已支持通过裂锋、铁壁回锋与断岳绝式获得层数，并由断岳斩显式消耗来追加削韧。"));
 	StarterHuoStatus->MaxStacks = 6;
 	StarterHuoStatus->DefaultDuration = 0;
 	StarterHuoStatus->OnTickEffects.Reset();
@@ -921,7 +1025,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeStatus->StatusId = FFinalStatusId(StarterYeStatusId);
 	StarterYeStatus->DisplayName = FText::FromString(TEXT("药引"));
 	StarterYeStatus->StatusCategory = EFinalStatusCategory::Signature;
-	StarterYeStatus->SummaryText = FText::FromString(TEXT("叶半夏的药引机制占位。首版 starter content 先保留文本真相，实际资源转化仍由后续协议承接。"));
+	StarterYeStatus->SummaryText = FText::FromString(TEXT("叶半夏的签名资源。首波 Runtime 已支持通过行针与调息获得层数，并由化引与回春散显式消耗换取 AP 与过牌收益。"));
 	StarterYeStatus->MaxStacks = 9;
 	StarterYeStatus->DefaultDuration = 0;
 	StarterYeStatus->OnTickEffects.Reset();
@@ -942,8 +1046,15 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoUltimate->OwnerUnitId = StarterHuoCharacterId;
 	StarterHuoUltimate->DisplayName = FText::FromString(TEXT("断岳绝式"));
 	StarterHuoUltimate->BaseCostEP = 45;
-	StarterHuoUltimate->RulesText = FText::FromString(TEXT("对单体目标造成重击，并强压韧性。当前首版仅落地高倍率伤害，额外压韧与刀势仍为文本占位。"));
+	StarterHuoUltimate->RulesText = FText::FromString(TEXT("对单体目标造成相当于攻击力 220% 的伤害，并额外造成 6 点削韧。获得 2 层刀势。"));
 	StarterHuoUltimate->Effects.Reset();
+	AddBonusBreakEffect(
+		StarterHuoUltimate,
+		StarterHuoUltimate->Effects,
+		TEXT("effect.starter.huo.ultimate.duanyuejueshi.break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		6.0f,
+		EFinalBattleScalarMode::Flat);
 	AddDamageEffect(
 		StarterHuoUltimate,
 		StarterHuoUltimate->Effects,
@@ -952,8 +1063,14 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		2.2f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
-		1,
-		FText::FromString(TEXT("首版占位：未额外落地强压韧性与刀势获得。")));
+		1);
+	AddApplyStatusEffect(
+		StarterHuoUltimate,
+		StarterHuoUltimate->Effects,
+		TEXT("effect.starter.huo.ultimate.duanyuejueshi.daoshi"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoStatus,
+		2);
 	TrackPackage(StarterHuoUltimate, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterYeUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterYeUltimatePath, bCreatedAsset);
@@ -961,23 +1078,23 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeUltimate->OwnerUnitId = StarterYeCharacterId;
 	StarterYeUltimate->DisplayName = FText::FromString(TEXT("回天续脉"));
 	StarterYeUltimate->BaseCostEP = 45;
-	StarterYeUltimate->RulesText = FText::FromString(TEXT("大幅回复队伍生命、施加免疫并回复 1 AP。当前首版以全队护盾 + 抽牌近似急救与节奏修正。"));
+	StarterYeUltimate->RulesText = FText::FromString(TEXT("回复 18 点共享生命，并回复 1 AP。免疫仍保留后续深化。"));
 	StarterYeUltimate->Effects.Reset();
-	AddShieldEffect(
+	AddHealEffect(
 		StarterYeUltimate,
 		StarterYeUltimate->Effects,
-		TEXT("effect.starter.ye.ultimate.huitianxumai.shield"),
+		TEXT("effect.starter.ye.ultimate.huitianxumai.heal"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		12.0f,
+		18.0f,
 		EFinalBattleScalarMode::Flat,
-		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首版占位：治疗、免疫与回 AP 暂以全队护盾近似。")));
-	AddDrawEffect(
+		EFinalBattleSourceStat::None);
+	AddGainApEffect(
 		StarterYeUltimate,
 		StarterYeUltimate->Effects,
-		TEXT("effect.starter.ye.ultimate.huitianxumai.draw"),
-		2,
-		FText::FromString(TEXT("首版占位：用抽牌近似药引转节奏。")));
+		TEXT("effect.starter.ye.ultimate.huitianxumai.gain_ap"),
+		EFinalBattleUnitTargetRule::Self,
+		1,
+		FText::FromString(TEXT("首波 Runtime 仅落地回复 AP，免疫仍待后续。")));
 	TrackPackage(StarterYeUltimate, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterShenUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterShenUltimatePath, bCreatedAsset);
@@ -1056,8 +1173,15 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoLieFengCard->CardType = EFinalCardType::Attack;
 	StarterHuoLieFengCard->Rarity = EFinalRarity::Common;
 	StarterHuoLieFengCard->BaseCostAP = 1;
-	StarterHuoLieFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 110% 的伤害。额外削韧与刀势仍为首版文本占位。"));
+	StarterHuoLieFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 110% 的伤害。额外造成 2 点削韧，并获得 1 层刀势。"));
 	StarterHuoLieFengCard->Effects.Reset();
+	AddBonusBreakEffect(
+		StarterHuoLieFengCard,
+		StarterHuoLieFengCard->Effects,
+		TEXT("effect.starter.huo.liefeng.break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		2.0f,
+		EFinalBattleScalarMode::Flat);
 	AddDamageEffect(
 		StarterHuoLieFengCard,
 		StarterHuoLieFengCard->Effects,
@@ -1066,8 +1190,14 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		1.1f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
-		1,
-		FText::FromString(TEXT("首版占位：未额外落地削韧与刀势。")));
+		1);
+	AddApplyStatusEffect(
+		StarterHuoLieFengCard,
+		StarterHuoLieFengCard->Effects,
+		TEXT("effect.starter.huo.liefeng.daoshi"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoStatus,
+		1);
 	TrackPackage(StarterHuoLieFengCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterHuoWenJiaCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoWenJiaCardPath, bCreatedAsset);
@@ -1077,7 +1207,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoWenJiaCard->CardType = EFinalCardType::Skill;
 	StarterHuoWenJiaCard->Rarity = EFinalRarity::Common;
 	StarterHuoWenJiaCard->BaseCostAP = 1;
-	StarterHuoWenJiaCard->RulesText = FText::FromString(TEXT("获得相当于防御力 100% 的护盾。受压得刀势仍为首版文本占位。"));
+	StarterHuoWenJiaCard->RulesText = FText::FromString(TEXT("获得相当于防御力 100% 的护盾。"));
 	StarterHuoWenJiaCard->Effects.Reset();
 	AddShieldEffect(
 		StarterHuoWenJiaCard,
@@ -1086,8 +1216,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleUnitTargetRule::Self,
 		1.0f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
-		EFinalBattleSourceStat::Defense,
-		FText::FromString(TEXT("首版占位：未额外落地受压得刀势。")));
+		EFinalBattleSourceStat::Defense);
 	TrackPackage(StarterHuoWenJiaCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterHuoDuanYueZhanCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoDuanYueZhanCardPath, bCreatedAsset);
@@ -1097,8 +1226,32 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoDuanYueZhanCard->CardType = EFinalCardType::Attack;
 	StarterHuoDuanYueZhanCard->Rarity = EFinalRarity::Common;
 	StarterHuoDuanYueZhanCard->BaseCostAP = 1;
-	StarterHuoDuanYueZhanCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 130% 的伤害。Break 追伤与额外削韧仍为首版文本占位。"));
+	StarterHuoDuanYueZhanCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 130% 的伤害。额外造成 3 点削韧。消耗 1 层刀势：再额外造成 2 点削韧。"));
 	StarterHuoDuanYueZhanCard->Effects.Reset();
+	AddBonusBreakEffect(
+		StarterHuoDuanYueZhanCard,
+		StarterHuoDuanYueZhanCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan.break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		3.0f,
+		EFinalBattleScalarMode::Flat);
+	AddRemoveStatusEffect(
+		StarterHuoDuanYueZhanCard,
+		StarterHuoDuanYueZhanCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan.consume_daoshi"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoStatus,
+		1);
+	UFinalBattleEffectBonusBreak* StarterHuoDuanYueZhanConsumeBreak = AddBonusBreakEffect(
+		StarterHuoDuanYueZhanCard,
+		StarterHuoDuanYueZhanCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan.consume_break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		2.0f,
+		EFinalBattleScalarMode::Flat);
+	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.bRequireConsumedStatus = true;
+	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.RequiredStatusId = StarterHuoStatus->StatusId;
+	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.MinimumStacks = 1;
 	AddDamageEffect(
 		StarterHuoDuanYueZhanCard,
 		StarterHuoDuanYueZhanCard->Effects,
@@ -1107,8 +1260,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		1.3f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
-		1,
-		FText::FromString(TEXT("首版占位：未额外落地 Break 条件加成与额外削韧。")));
+		1);
 	TrackPackage(StarterHuoDuanYueZhanCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterHuoTieBiHuiFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoTieBiHuiFengCardPath, bCreatedAsset);
@@ -1118,7 +1270,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoTieBiHuiFengCard->CardType = EFinalCardType::Skill;
 	StarterHuoTieBiHuiFengCard->Rarity = EFinalRarity::Common;
 	StarterHuoTieBiHuiFengCard->BaseCostAP = 1;
-	StarterHuoTieBiHuiFengCard->RulesText = FText::FromString(TEXT("获得相当于防御力 120% 的护盾。刀势与下张攻击额外削韧仍为首版文本占位。"));
+	StarterHuoTieBiHuiFengCard->RulesText = FText::FromString(TEXT("获得相当于防御力 120% 的护盾，并获得 1 层刀势。"));
 	StarterHuoTieBiHuiFengCard->Effects.Reset();
 	AddShieldEffect(
 		StarterHuoTieBiHuiFengCard,
@@ -1127,8 +1279,14 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleUnitTargetRule::Self,
 		1.2f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
-		EFinalBattleSourceStat::Defense,
-		FText::FromString(TEXT("首版占位：未额外落地刀势与下一张攻击加削韧。")));
+		EFinalBattleSourceStat::Defense);
+	AddApplyStatusEffect(
+		StarterHuoTieBiHuiFengCard,
+		StarterHuoTieBiHuiFengCard->Effects,
+		TEXT("effect.starter.huo.tiebihuifeng.daoshi"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoStatus,
+		1);
 	TrackPackage(StarterHuoTieBiHuiFengCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeXingZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeXingZhenCardPath, bCreatedAsset);
@@ -1138,7 +1296,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeXingZhenCard->CardType = EFinalCardType::Attack;
 	StarterYeXingZhenCard->Rarity = EFinalRarity::Common;
 	StarterYeXingZhenCard->BaseCostAP = 1;
-	StarterYeXingZhenCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 90% 的伤害。药引获得仍为首版文本占位。"));
+	StarterYeXingZhenCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 90% 的伤害。获得 2 层药引。"));
 	StarterYeXingZhenCard->Effects.Reset();
 	AddDamageEffect(
 		StarterYeXingZhenCard,
@@ -1148,8 +1306,14 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		0.9f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
-		1,
-		FText::FromString(TEXT("首版占位：未实际获得药引层数。")));
+		1);
+	AddApplyStatusEffect(
+		StarterYeXingZhenCard,
+		StarterYeXingZhenCard->Effects,
+		TEXT("effect.starter.ye.xingzhen.yaoyin"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterYeStatus,
+		2);
 	TrackPackage(StarterYeXingZhenCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeTiaoXiCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeTiaoXiCardPath, bCreatedAsset);
@@ -1159,17 +1323,23 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeTiaoXiCard->CardType = EFinalCardType::Skill;
 	StarterYeTiaoXiCard->Rarity = EFinalRarity::Common;
 	StarterYeTiaoXiCard->BaseCostAP = 0;
-	StarterYeTiaoXiCard->RulesText = FText::FromString(TEXT("回复 8% 生命份额血量并获得 1 层药引。当前首版以全队少量护盾近似小治疗。"));
+	StarterYeTiaoXiCard->RulesText = FText::FromString(TEXT("回复 5 点共享生命，并获得 1 层药引。"));
 	StarterYeTiaoXiCard->Effects.Reset();
-	AddShieldEffect(
+	AddHealEffect(
 		StarterYeTiaoXiCard,
 		StarterYeTiaoXiCard->Effects,
-		TEXT("effect.starter.ye.tiaoxi.shield"),
+		TEXT("effect.starter.ye.tiaoxi.heal"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		3.0f,
+		5.0f,
 		EFinalBattleScalarMode::Flat,
-		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首版占位：治疗与药引改为全队护盾近似。")));
+		EFinalBattleSourceStat::None);
+	AddApplyStatusEffect(
+		StarterYeTiaoXiCard,
+		StarterYeTiaoXiCard->Effects,
+		TEXT("effect.starter.ye.tiaoxi.yaoyin"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterYeStatus,
+		1);
 	TrackPackage(StarterYeTiaoXiCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeHuaYinCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeHuaYinCardPath, bCreatedAsset);
@@ -1179,23 +1349,40 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeHuaYinCard->CardType = EFinalCardType::Skill;
 	StarterYeHuaYinCard->Rarity = EFinalRarity::Common;
 	StarterYeHuaYinCard->BaseCostAP = 1;
-	StarterYeHuaYinCard->RulesText = FText::FromString(TEXT("回复 8% 生命份额血量。消耗 1 层药引：抽 1 张牌，并回复 1 AP。当前首版以护盾 + 抽牌近似。"));
+	StarterYeHuaYinCard->RulesText = FText::FromString(TEXT("回复 5 点共享生命。消耗 1 层药引：抽 1 张牌，并回复 1 AP。"));
 	StarterYeHuaYinCard->Effects.Reset();
-	AddShieldEffect(
+	AddHealEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
-		TEXT("effect.starter.ye.huayin.shield"),
+		TEXT("effect.starter.ye.huayin.heal"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		4.0f,
+		5.0f,
 		EFinalBattleScalarMode::Flat,
-		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首版占位：治疗、药引消耗与回 AP 暂以护盾近似。")));
-	AddDrawEffect(
+		EFinalBattleSourceStat::None);
+	AddRemoveStatusEffect(
+		StarterYeHuaYinCard,
+		StarterYeHuaYinCard->Effects,
+		TEXT("effect.starter.ye.huayin.consume_yaoyin"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterYeStatus,
+		1);
+	UFinalBattleEffectDrawCards* StarterYeHuaYinDrawEffect = AddDrawEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.draw"),
-		1,
-		FText::FromString(TEXT("首版保留抽牌节奏收益。")));
+		1);
+	StarterYeHuaYinDrawEffect->ConsumeRequirement.bRequireConsumedStatus = true;
+	StarterYeHuaYinDrawEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
+	StarterYeHuaYinDrawEffect->ConsumeRequirement.MinimumStacks = 1;
+	UFinalBattleEffectGainAP* StarterYeHuaYinGainApEffect = AddGainApEffect(
+		StarterYeHuaYinCard,
+		StarterYeHuaYinCard->Effects,
+		TEXT("effect.starter.ye.huayin.gain_ap"),
+		EFinalBattleUnitTargetRule::Self,
+		1);
+	StarterYeHuaYinGainApEffect->ConsumeRequirement.bRequireConsumedStatus = true;
+	StarterYeHuaYinGainApEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
+	StarterYeHuaYinGainApEffect->ConsumeRequirement.MinimumStacks = 1;
 	TrackPackage(StarterYeHuaYinCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeHuiChunSanCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeHuiChunSanCardPath, bCreatedAsset);
@@ -1205,17 +1392,34 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeHuiChunSanCard->CardType = EFinalCardType::Skill;
 	StarterYeHuiChunSanCard->Rarity = EFinalRarity::Common;
 	StarterYeHuiChunSanCard->BaseCostAP = 1;
-	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 20% 生命份额血量并提供免疫。当前首版以更高全队护盾近似急救稳场。"));
+	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 12 点共享生命。消耗 1 层药引：回复 1 AP。免疫仍保留后续深化。"));
 	StarterYeHuiChunSanCard->Effects.Reset();
-	AddShieldEffect(
+	AddHealEffect(
 		StarterYeHuiChunSanCard,
 		StarterYeHuiChunSanCard->Effects,
-		TEXT("effect.starter.ye.huichunsan.shield"),
+		TEXT("effect.starter.ye.huichunsan.heal"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		8.0f,
+		12.0f,
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首版占位：治疗、免疫与药引消耗暂以全队护盾近似。")));
+		FText::FromString(TEXT("首波 Runtime 先落共享生命回复，免疫仍待后续。")));
+	AddRemoveStatusEffect(
+		StarterYeHuiChunSanCard,
+		StarterYeHuiChunSanCard->Effects,
+		TEXT("effect.starter.ye.huichunsan.consume_yaoyin"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterYeStatus,
+		1);
+	UFinalBattleEffectGainAP* StarterYeHuiChunSanGainApEffect = AddGainApEffect(
+		StarterYeHuiChunSanCard,
+		StarterYeHuiChunSanCard->Effects,
+		TEXT("effect.starter.ye.huichunsan.gain_ap"),
+		EFinalBattleUnitTargetRule::Self,
+		1,
+		FText::FromString(TEXT("首波 Runtime 仅落地药引消耗后的回 AP。")));
+	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.bRequireConsumedStatus = true;
+	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
+	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.MinimumStacks = 1;
 	TrackPackage(StarterYeHuiChunSanCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenBuFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenBuFengCardPath, bCreatedAsset);

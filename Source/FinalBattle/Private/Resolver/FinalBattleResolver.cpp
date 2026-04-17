@@ -6,10 +6,16 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
@@ -43,10 +49,27 @@ struct FFinalEffectExecutionSummary
 {
 	int32 TotalDamageToEnemies = 0;
 	int32 TotalDamageToTeam = 0;
+	int32 TotalBreakDamageToEnemies = 0;
+	int32 TotalHealingToTeam = 0;
 	int32 TotalTeamShieldGained = 0;
 	int32 TotalEnemyShieldGained = 0;
+	int32 TotalStatusStacksApplied = 0;
+	int32 TotalStatusStacksRemoved = 0;
 	int32 TotalCardsDrawn = 0;
+	int32 TotalAPGained = 0;
 	int32 ResolvedEffectCount = 0;
+};
+
+struct FFinalConsumedStatusRecord
+{
+	FName OwnerUnitId = NAME_None;
+	FFinalStatusId StatusId;
+	int32 RemovedStacks = 0;
+};
+
+struct FFinalEffectExecutionContext
+{
+	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
 };
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
@@ -284,8 +307,13 @@ bool HasSupportedEffectList(const TArray<TObjectPtr<UFinalBattleEffectDefinition
 	for (const UFinalBattleEffectDefinition* EffectDefinition : Effects)
 	{
 		if (Cast<UFinalBattleEffectDamage>(EffectDefinition)
+			|| Cast<UFinalBattleEffectHeal>(EffectDefinition)
+			|| Cast<UFinalBattleEffectApplyStatus>(EffectDefinition)
+			|| Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainShield>(EffectDefinition)
-			|| Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
+			|| Cast<UFinalBattleEffectDrawCards>(EffectDefinition)
+			|| Cast<UFinalBattleEffectGainAP>(EffectDefinition)
+			|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition))
 		{
 			return true;
 		}
@@ -378,6 +406,161 @@ FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(FFinalBattleState& State, cons
 	}
 }
 
+FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectApplyStatus* EffectDefinition)
+{
+	if (EffectDefinition == nullptr)
+	{
+		return FFinalStatusId();
+	}
+
+	if (EffectDefinition->StatusId.IsValid())
+	{
+		return EffectDefinition->StatusId;
+	}
+
+	return EffectDefinition->StatusDefinition ? EffectDefinition->StatusDefinition->StatusId : FFinalStatusId();
+}
+
+FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectRemoveStatus* EffectDefinition)
+{
+	if (EffectDefinition == nullptr)
+	{
+		return FFinalStatusId();
+	}
+
+	if (EffectDefinition->StatusId.IsValid())
+	{
+		return EffectDefinition->StatusId;
+	}
+
+	return EffectDefinition->StatusDefinition ? EffectDefinition->StatusDefinition->StatusId : FFinalStatusId();
+}
+
+void RecordConsumedStatus(
+	FFinalEffectExecutionContext& Context,
+	const FName OwnerUnitId,
+	const FFinalStatusId& StatusId,
+	const int32 RemovedStacks)
+{
+	if (OwnerUnitId.IsNone() || !StatusId.IsValid() || RemovedStacks <= 0)
+	{
+		return;
+	}
+
+	if (FFinalConsumedStatusRecord* ExistingRecord = Context.ConsumedStatuses.FindByPredicate(
+		[&OwnerUnitId, &StatusId](const FFinalConsumedStatusRecord& Candidate)
+		{
+			return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
+		}))
+	{
+		ExistingRecord->RemovedStacks += RemovedStacks;
+		return;
+	}
+
+	FFinalConsumedStatusRecord& NewRecord = Context.ConsumedStatuses.AddDefaulted_GetRef();
+	NewRecord.OwnerUnitId = OwnerUnitId;
+	NewRecord.StatusId = StatusId;
+	NewRecord.RemovedStacks = RemovedStacks;
+}
+
+int32 ResolveConsumedStatusStacks(
+	const FFinalEffectExecutionContext& Context,
+	const FName OwnerUnitId,
+	const FFinalStatusId& StatusId)
+{
+	if (const FFinalConsumedStatusRecord* ExistingRecord = Context.ConsumedStatuses.FindByPredicate(
+		[&OwnerUnitId, &StatusId](const FFinalConsumedStatusRecord& Candidate)
+		{
+			return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
+		}))
+	{
+		return ExistingRecord->RemovedStacks;
+	}
+
+	return 0;
+}
+
+FName ResolveSourceOwnerUnitId(const FFinalBattleCharacterState* SourceCharacterState, const FFinalBattleEnemyState* SourceEnemyState)
+{
+	if (SourceCharacterState != nullptr)
+	{
+		return SourceCharacterState->RuntimeUnitId;
+	}
+
+	if (SourceEnemyState != nullptr)
+	{
+		return SourceEnemyState->RuntimeUnitId;
+	}
+
+	return NAME_None;
+}
+
+bool SatisfiesConsumeRequirement(
+	const FFinalBattleStatusConsumeRequirement& Requirement,
+	const FFinalEffectExecutionContext& Context,
+	const FName SourceOwnerUnitId)
+{
+	if (!Requirement.bRequireConsumedStatus)
+	{
+		return true;
+	}
+
+	return Requirement.RequiredStatusId.IsValid()
+		&& !SourceOwnerUnitId.IsNone()
+		&& ResolveConsumedStatusStacks(Context, SourceOwnerUnitId, Requirement.RequiredStatusId) >= FMath::Max(Requirement.MinimumStacks, 1);
+}
+
+TArray<FName> ResolveStatusTargetOwnerUnitIds(
+	FFinalBattleState& State,
+	const FFinalBattleCommand* Command,
+	const EFinalBattleUnitTargetRule TargetRule,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState)
+{
+	TArray<FName> TargetOwnerUnitIds;
+
+	switch (TargetRule)
+	{
+	case EFinalBattleUnitTargetRule::TeamPlayer:
+		TargetOwnerUnitIds.Add(TeamPlayerUnitId);
+		break;
+
+	case EFinalBattleUnitTargetRule::Self:
+		if (SourceCharacterState != nullptr)
+		{
+			TargetOwnerUnitIds.Add(SourceCharacterState->RuntimeUnitId);
+		}
+		else if (SourceEnemyState != nullptr)
+		{
+			TargetOwnerUnitIds.Add(SourceEnemyState->RuntimeUnitId);
+		}
+		break;
+
+	case EFinalBattleUnitTargetRule::SelectedEnemy:
+	case EFinalBattleUnitTargetRule::FirstAliveEnemy:
+		if (FFinalBattleEnemyState* TargetEnemy = ResolvePrimaryEnemyTarget(State, Command, TargetRule))
+		{
+			TargetOwnerUnitIds.Add(TargetEnemy->RuntimeUnitId);
+		}
+		break;
+
+	case EFinalBattleUnitTargetRule::AllEnemies:
+		for (const FFinalBattleEnemyState& EnemyState : State.Enemies)
+		{
+			if (EnemyState.CurrentHP > 0)
+			{
+				TargetOwnerUnitIds.Add(EnemyState.RuntimeUnitId);
+			}
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return TargetOwnerUnitIds;
+}
+
 void ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 DamageAmount)
 {
 	const int32 ShieldAbsorbed = FMath::Min(EnemyState.CurrentShield, FMath::Max(DamageAmount, 0));
@@ -413,6 +596,30 @@ int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomin
 	return HpDamage;
 }
 
+int32 ApplyTeamHealing(FFinalBattleState& State, const int32 HealingAmount)
+{
+	const int32 ClampedHealingAmount = FMath::Max(HealingAmount, 0);
+	const int32 PreviousHP = State.TeamCurrentHP;
+	State.TeamCurrentHP = FMath::Min(State.TeamCurrentHP + ClampedHealingAmount, State.TeamMaxHP);
+	return FMath::Max(State.TeamCurrentHP - PreviousHP, 0);
+}
+
+int32 ApplyHealingToEnemy(FFinalBattleEnemyState& EnemyState, const int32 HealingAmount)
+{
+	const int32 ClampedHealingAmount = FMath::Max(HealingAmount, 0);
+	const int32 PreviousHP = EnemyState.CurrentHP;
+	EnemyState.CurrentHP = FMath::Min(EnemyState.CurrentHP + ClampedHealingAmount, EnemyState.MaxHP);
+	return FMath::Max(EnemyState.CurrentHP - PreviousHP, 0);
+}
+
+int32 ApplyBonusBreakToEnemy(FFinalBattleEnemyState& EnemyState, const int32 BreakAmount)
+{
+	const int32 ClampedBreakAmount = FMath::Max(BreakAmount, 0);
+	const int32 PreviousBreakValue = EnemyState.CurrentBreakValue;
+	EnemyState.CurrentBreakValue = FMath::Max(EnemyState.CurrentBreakValue - ClampedBreakAmount, 0);
+	return FMath::Max(PreviousBreakValue - EnemyState.CurrentBreakValue, 0);
+}
+
 bool ExecuteEffectList(
 	FFinalBattleState& State,
 	const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
@@ -421,6 +628,9 @@ bool ExecuteEffectList(
 	FFinalBattleEnemyState* SourceEnemyState,
 	FFinalEffectExecutionSummary& Summary)
 {
+	FFinalEffectExecutionContext ExecutionContext;
+	const FName SourceOwnerUnitId = ResolveSourceOwnerUnitId(SourceCharacterState, SourceEnemyState);
+
 	for (UFinalBattleEffectDefinition* EffectDefinition : Effects)
 	{
 		if (EffectDefinition == nullptr)
@@ -493,6 +703,129 @@ bool ExecuteEffectList(
 			continue;
 		}
 
+		if (const UFinalBattleEffectHeal* HealEffect = Cast<UFinalBattleEffectHeal>(EffectDefinition))
+		{
+			const int32 HealAmount = ResolveScalarValue(HealEffect->Scalar, SourceCharacterState, SourceEnemyState);
+			if (HealAmount <= 0)
+			{
+				continue;
+			}
+
+			int32 AppliedHealing = 0;
+			switch (HealEffect->UnitTargetRule)
+			{
+			case EFinalBattleUnitTargetRule::TeamPlayer:
+				AppliedHealing = ApplyTeamHealing(State, HealAmount);
+				Summary.TotalHealingToTeam += AppliedHealing;
+				break;
+
+			case EFinalBattleUnitTargetRule::Self:
+				if (SourceEnemyState != nullptr)
+				{
+					AppliedHealing = ApplyHealingToEnemy(*SourceEnemyState, HealAmount);
+				}
+				else
+				{
+					AppliedHealing = ApplyTeamHealing(State, HealAmount);
+					Summary.TotalHealingToTeam += AppliedHealing;
+				}
+				break;
+
+			case EFinalBattleUnitTargetRule::AllEnemies:
+				for (FFinalBattleEnemyState& EnemyState : State.Enemies)
+				{
+					if (EnemyState.CurrentHP > 0)
+					{
+						ApplyHealingToEnemy(EnemyState, HealAmount);
+					}
+				}
+				break;
+
+			default:
+				if (FFinalBattleEnemyState* TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, HealEffect->UnitTargetRule))
+				{
+					AppliedHealing = ApplyHealingToEnemy(*TargetEnemyState, HealAmount);
+				}
+				break;
+			}
+
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectApplyStatus* ApplyStatusEffect = Cast<UFinalBattleEffectApplyStatus>(EffectDefinition))
+		{
+			const FFinalStatusId StatusId = ResolveEffectStatusId(ApplyStatusEffect);
+			if (!StatusId.IsValid() || ApplyStatusEffect->Stacks <= 0)
+			{
+				continue;
+			}
+
+			const TArray<FName> TargetOwnerUnitIds = ResolveStatusTargetOwnerUnitIds(
+				State,
+				Command,
+				ApplyStatusEffect->UnitTargetRule,
+				SourceCharacterState,
+				SourceEnemyState);
+			int32 AppliedStacks = 0;
+			for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
+			{
+				AppliedStacks += GetStatusService().AddStatusStacks(
+					State,
+					TargetOwnerUnitId,
+					SourceOwnerUnitId,
+					StatusId,
+					ApplyStatusEffect->StatusDefinition,
+					ApplyStatusEffect->Stacks,
+					ApplyStatusEffect->DurationOverride);
+			}
+
+			if (AppliedStacks <= 0)
+			{
+				continue;
+			}
+
+			Summary.TotalStatusStacksApplied += AppliedStacks;
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectRemoveStatus* RemoveStatusEffect = Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition))
+		{
+			const FFinalStatusId StatusId = ResolveEffectStatusId(RemoveStatusEffect);
+			if (!StatusId.IsValid() || RemoveStatusEffect->Stacks <= 0)
+			{
+				continue;
+			}
+
+			const TArray<FName> TargetOwnerUnitIds = ResolveStatusTargetOwnerUnitIds(
+				State,
+				Command,
+				RemoveStatusEffect->UnitTargetRule,
+				SourceCharacterState,
+				SourceEnemyState);
+			int32 RemovedStacks = 0;
+			for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
+			{
+				const int32 RemovedStacksForTarget = GetStatusService().RemoveStatusStacks(
+					State,
+					TargetOwnerUnitId,
+					StatusId,
+					RemoveStatusEffect->Stacks);
+				RemovedStacks += RemovedStacksForTarget;
+				RecordConsumedStatus(ExecutionContext, TargetOwnerUnitId, StatusId, RemovedStacksForTarget);
+			}
+
+			if (RemovedStacks <= 0)
+			{
+				continue;
+			}
+
+			Summary.TotalStatusStacksRemoved += RemovedStacks;
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
 		if (const UFinalBattleEffectGainShield* ShieldEffect = Cast<UFinalBattleEffectGainShield>(EffectDefinition))
 		{
 			const int32 ShieldAmount = ResolveScalarValue(ShieldEffect->Scalar, SourceCharacterState, SourceEnemyState);
@@ -544,9 +877,82 @@ bool ExecuteEffectList(
 
 		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
 		{
+			if (!SatisfiesConsumeRequirement(DrawCardsEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
 			const int32 HandCountBeforeDraw = State.DeckState.HandCardInstanceIds.Num();
 			DrawCards(State, FMath::Max(DrawCardsEffect->DrawCount, 0));
 			Summary.TotalCardsDrawn += FMath::Max(State.DeckState.HandCardInstanceIds.Num() - HandCountBeforeDraw, 0);
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectGainAP* GainAPEffect = Cast<UFinalBattleEffectGainAP>(EffectDefinition))
+		{
+			if (!SatisfiesConsumeRequirement(GainAPEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
+			const int32 APGain = FMath::Max(GainAPEffect->GainValue, 0);
+			if (APGain <= 0)
+			{
+				continue;
+			}
+
+			GetResourceService().GainAP(State, APGain);
+			Summary.TotalAPGained += APGain;
+			++Summary.ResolvedEffectCount;
+			continue;
+		}
+
+		if (const UFinalBattleEffectBonusBreak* BonusBreakEffect = Cast<UFinalBattleEffectBonusBreak>(EffectDefinition))
+		{
+			if (!SatisfiesConsumeRequirement(BonusBreakEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
+			const int32 BreakAmount = ResolveScalarValue(BonusBreakEffect->Scalar, SourceCharacterState, SourceEnemyState);
+			if (BreakAmount <= 0)
+			{
+				continue;
+			}
+
+			if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
+			{
+				for (FFinalBattleEnemyState& EnemyState : State.Enemies)
+				{
+					if (EnemyState.CurrentHP <= 0)
+					{
+						continue;
+					}
+
+					Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(EnemyState, BreakAmount);
+				}
+
+				++Summary.ResolvedEffectCount;
+				continue;
+			}
+
+			FFinalBattleEnemyState* TargetEnemyState = nullptr;
+			if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::Self && SourceEnemyState)
+			{
+				TargetEnemyState = SourceEnemyState;
+			}
+			else
+			{
+				TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, BonusBreakEffect->UnitTargetRule);
+			}
+
+			if (TargetEnemyState == nullptr)
+			{
+				continue;
+			}
+
+			Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(*TargetEnemyState, BreakAmount);
 			++Summary.ResolvedEffectCount;
 		}
 	}
@@ -796,20 +1202,26 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			{
 				MarkBattleResolved(State, true);
 				Event.Message = FText::Format(
-					NSLOCTEXT("FinalBattleResolver", "CardPlayVictory", "Resolved {0} effects. Damage {1}, Shield {2}, Draw {3}. Battle won."),
+					NSLOCTEXT("FinalBattleResolver", "CardPlayVictory", "Resolved {0} effects. Damage {1}, Break {2}, Heal {3}, Shield {4}, Draw {5}, AP {6}. Battle won."),
 					FText::AsNumber(Summary.ResolvedEffectCount),
 					FText::AsNumber(Summary.TotalDamageToEnemies),
+					FText::AsNumber(Summary.TotalBreakDamageToEnemies),
+					FText::AsNumber(Summary.TotalHealingToTeam),
 					FText::AsNumber(Summary.TotalTeamShieldGained),
-					FText::AsNumber(Summary.TotalCardsDrawn));
+					FText::AsNumber(Summary.TotalCardsDrawn),
+					FText::AsNumber(Summary.TotalAPGained));
 				return FinalizeBattleEvent(State, Event);
 			}
 
 			Event.Message = FText::Format(
-				NSLOCTEXT("FinalBattleResolver", "CardPlayAccepted", "Resolved {0} effects. Damage {1}, Shield {2}, Draw {3}."),
+				NSLOCTEXT("FinalBattleResolver", "CardPlayAccepted", "Resolved {0} effects. Damage {1}, Break {2}, Heal {3}, Shield {4}, Draw {5}, AP {6}."),
 				FText::AsNumber(Summary.ResolvedEffectCount),
 				FText::AsNumber(Summary.TotalDamageToEnemies),
+				FText::AsNumber(Summary.TotalBreakDamageToEnemies),
+				FText::AsNumber(Summary.TotalHealingToTeam),
 				FText::AsNumber(Summary.TotalTeamShieldGained),
-				FText::AsNumber(Summary.TotalCardsDrawn));
+				FText::AsNumber(Summary.TotalCardsDrawn),
+				FText::AsNumber(Summary.TotalAPGained));
 			break;
 		}
 
@@ -884,16 +1296,22 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			{
 				MarkBattleResolved(State, true);
 				Event.Message = FText::Format(
-					NSLOCTEXT("FinalBattleResolver", "UltimateVictory", "Ultimate resolved. Damage {0}, Shield {1}. Battle won."),
+					NSLOCTEXT("FinalBattleResolver", "UltimateVictory", "Ultimate resolved. Damage {0}, Break {1}, Heal {2}, Shield {3}, AP {4}. Battle won."),
 					FText::AsNumber(Summary.TotalDamageToEnemies),
-					FText::AsNumber(Summary.TotalTeamShieldGained));
+					FText::AsNumber(Summary.TotalBreakDamageToEnemies),
+					FText::AsNumber(Summary.TotalHealingToTeam),
+					FText::AsNumber(Summary.TotalTeamShieldGained),
+					FText::AsNumber(Summary.TotalAPGained));
 				return FinalizeBattleEvent(State, Event);
 			}
 
 			Event.Message = FText::Format(
-				NSLOCTEXT("FinalBattleResolver", "UltimateResolved", "Ultimate resolved. Damage {0}, Shield {1}."),
+				NSLOCTEXT("FinalBattleResolver", "UltimateResolved", "Ultimate resolved. Damage {0}, Break {1}, Heal {2}, Shield {3}, AP {4}."),
 				FText::AsNumber(Summary.TotalDamageToEnemies),
-				FText::AsNumber(Summary.TotalTeamShieldGained));
+				FText::AsNumber(Summary.TotalBreakDamageToEnemies),
+				FText::AsNumber(Summary.TotalHealingToTeam),
+				FText::AsNumber(Summary.TotalTeamShieldGained),
+				FText::AsNumber(Summary.TotalAPGained));
 			break;
 		}
 

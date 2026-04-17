@@ -25,6 +25,11 @@ bool FFinalBattleResourceService::HasEnoughEP(const FFinalBattleState& BattleSta
 	return BattleState.CurrentEP >= FMath::Max(RequiredEP, 0);
 }
 
+void FFinalBattleResourceService::GainAP(FFinalBattleState& BattleState, const int32 APToGain) const
+{
+	BattleState.CurrentAP = FMath::Max(BattleState.CurrentAP + FMath::Max(APToGain, 0), 0);
+}
+
 void FFinalBattleResourceService::SpendAP(FFinalBattleState& BattleState, const int32 APToSpend) const
 {
 	BattleState.CurrentAP = FMath::Max(BattleState.CurrentAP - FMath::Max(APToSpend, 0), 0);

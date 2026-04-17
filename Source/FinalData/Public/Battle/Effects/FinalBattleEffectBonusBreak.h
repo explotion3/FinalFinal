@@ -3,18 +3,19 @@
 #include "CoreMinimal.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleStatusConsumeRequirement.h"
-#include "FinalBattleEffectDrawCards.generated.h"
+#include "Types/FinalCoreTypes.h"
+#include "FinalBattleEffectBonusBreak.generated.h"
 
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
-class FINALDATA_API UFinalBattleEffectDrawCards : public UFinalBattleEffectDefinition
+class FINALDATA_API UFinalBattleEffectBonusBreak : public UFinalBattleEffectDefinition
 {
 	GENERATED_BODY()
 
 public:
-	UFinalBattleEffectDrawCards();
+	UFinalBattleEffectBonusBreak();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect", meta = (ClampMin = "1"))
-	int32 DrawCount = 1;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FFinalBattleScalarValue Scalar;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleStatusConsumeRequirement ConsumeRequirement;
