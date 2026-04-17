@@ -9,6 +9,7 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Modules/ModuleManager.h"
@@ -46,6 +47,7 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	EnemyDefinitions.Reset();
 	EnemyIntentDefinitions.Reset();
 	EncounterDefinitions.Reset();
+	PrototypeBootstrapDefinitions.Reset();
 	RelicDefinitions.Reset();
 	RunRouteDefinitions.Reset();
 	RuleConfigs.Reset();
@@ -66,6 +68,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	const int32 EnemyCount = RegisterDefinitionAssets<UFinalEnemyDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEnemyDefinition);
 	const int32 EnemyIntentCount = RegisterDefinitionAssets<UFinalEnemyIntentDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEnemyIntentDefinition);
 	const int32 EncounterCount = RegisterDefinitionAssets<UFinalBattleEncounterDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterEncounterDefinition);
+	const int32 PrototypeBootstrapCount = RegisterDefinitionAssets<UFinalPrototypeBootstrapDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterPrototypeBootstrapDefinition);
 	const int32 RelicCount = RegisterDefinitionAssets<UFinalRelicDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRelicDefinition);
 	const int32 RunRouteCount = RegisterDefinitionAssets<UFinalRunRouteDefinition>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRunRouteDefinition);
 	const int32 RuleConfigCount = RegisterDefinitionAssets<UFinalBattleRuleConfig>(*this, AssetRegistry, &UFinalDataRegistry::RegisterRuleConfig);
@@ -75,7 +78,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	UE_LOG(
 		LogFinalDataRegistry,
 		Log,
-		TEXT("Discovered runtime definitions: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d Relics=%d RunRoutes=%d"),
+		TEXT("Discovered runtime definitions: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d"),
 		RuleConfigCount,
 		CharacterCount,
 		CardCount,
@@ -84,6 +87,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 		EnemyIntentCount,
 		StatusCount,
 		EncounterCount,
+		PrototypeBootstrapCount,
 		RelicCount,
 		RunRouteCount);
 }
@@ -136,6 +140,16 @@ void UFinalDataRegistry::RegisterEncounterDefinition(UFinalBattleEncounterDefini
 	}
 
 	EncounterDefinitions.Add(Definition->EncounterId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterPrototypeBootstrapDefinition(UFinalPrototypeBootstrapDefinition* Definition)
+{
+	if (!IsValid(Definition) || Definition->BootstrapId.IsNone())
+	{
+		return;
+	}
+
+	PrototypeBootstrapDefinitions.Add(Definition->BootstrapId, Definition);
 }
 
 void UFinalDataRegistry::RegisterRelicDefinition(UFinalRelicDefinition* Definition)
@@ -240,6 +254,17 @@ UFinalBattleEncounterDefinition* UFinalDataRegistry::FindEncounterDefinition(con
 	}
 
 	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("BattleEncounterDefinition not found for id %s"), *EncounterId.ToString());
+	return nullptr;
+}
+
+UFinalPrototypeBootstrapDefinition* UFinalDataRegistry::FindPrototypeBootstrapDefinition(const FName& BootstrapId) const
+{
+	if (const TObjectPtr<UFinalPrototypeBootstrapDefinition>* Found = PrototypeBootstrapDefinitions.Find(BootstrapId))
+	{
+		return Found->Get();
+	}
+
+	UE_LOG(LogFinalDataRegistry, Verbose, TEXT("PrototypeBootstrapDefinition not found for id %s"), *BootstrapId.ToString());
 	return nullptr;
 }
 

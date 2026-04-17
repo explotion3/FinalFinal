@@ -12,6 +12,7 @@ class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 class UFinalEnemyDefinition;
 class UFinalEnemyIntentDefinition;
+class UFinalPrototypeBootstrapDefinition;
 class UFinalRunRouteDefinition;
 class UFinalStatusDefinition;
 class UFinalUltimateDefinition;
@@ -29,6 +30,7 @@ public:
 	void RegisterEnemyDefinition(UFinalEnemyDefinition* Definition);
 	void RegisterEnemyIntentDefinition(UFinalEnemyIntentDefinition* Definition);
 	void RegisterEncounterDefinition(UFinalBattleEncounterDefinition* Definition);
+	void RegisterPrototypeBootstrapDefinition(UFinalPrototypeBootstrapDefinition* Definition);
 	void RegisterRelicDefinition(UFinalRelicDefinition* Definition);
 	void RegisterRunRouteDefinition(UFinalRunRouteDefinition* Definition);
 	void RegisterRuleConfig(UFinalBattleRuleConfig* Definition);
@@ -40,6 +42,7 @@ public:
 	UFinalEnemyDefinition* FindEnemyDefinition(const FFinalEnemyId& EnemyId) const;
 	UFinalEnemyIntentDefinition* FindEnemyIntentDefinition(const FName& IntentId) const;
 	UFinalBattleEncounterDefinition* FindEncounterDefinition(const FFinalEncounterId& EncounterId) const;
+	UFinalPrototypeBootstrapDefinition* FindPrototypeBootstrapDefinition(const FName& BootstrapId) const;
 	UFinalRelicDefinition* FindRelicDefinition(const FFinalRelicId& RelicId) const;
 	UFinalRunRouteDefinition* FindRunRouteDefinition(const FName& RouteId) const;
 	UFinalBattleRuleConfig* FindRuleConfig(const FFinalRuleConfigId& RuleConfigId) const;
@@ -63,6 +66,9 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalBattleEncounterDefinition>> EncounterDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UFinalPrototypeBootstrapDefinition>> PrototypeBootstrapDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UFinalRelicDefinition>> RelicDefinitions;

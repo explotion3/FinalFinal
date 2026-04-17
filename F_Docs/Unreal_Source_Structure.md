@@ -206,7 +206,7 @@ FinalBattle      FinalRun
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描并注册项目中的 definition 资产，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
-* 当前 prototype content 已开始以真实资产落地在 `/Game/Prototype/Definitions/...`；`FinalGameInstance` 的测试入口只负责按 stable id 查询所需 rule / encounter / character / card / relic / route definition，不再主路径 `NewObject` 创建 prototype bundle
+* 当前 prototype content 已开始以真实资产落地在 `/Game/Prototype/Definitions/...`；`FinalGameInstance` 的测试入口不再分别硬编码查询 rule / encounter / route / character / card，而是先查询单一 `PrototypeBootstrapDefinition`，再按其字段驱动最小 `RunSession` 启动
 * 当前 prototype Run 图已改成 `RunRouteDefinition` 驱动：节点图和节点内容流优先挂在 `FinalData` 的 route / node definition 上，由 `FinalRunSession` 通过 route id 接管初始化；`FinalGameInstance::PrepareTestBattleRun()` 不再直接拼 `TArray<FFinalRunNodeDefinition>`
 * 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
 * 当前 Save / Load 调试入口只显示固定 slot 状态、最近 Save/Load 状态 / 失败原因，并提供原型按钮；不保存 UI 页面栈，不代表正式存档菜单
@@ -255,7 +255,7 @@ FinalBattle      FinalRun
 * 当前 `DataValidation` 原生校验器除了字段级检查，还会在 Editor 内扫描全项目 `FinalData` definition，检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig` 的稳定主 ID 是否重复
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
 * 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
-* 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / character / card / enemy / encounter / relic / route bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
+* 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
 * 当前不依赖 `FinalBattle / FinalRun / FinalApp`，不参与运行时规则真相，也不提供自动修复、批量迁移或批量改资产工具
 
 后续再补：
