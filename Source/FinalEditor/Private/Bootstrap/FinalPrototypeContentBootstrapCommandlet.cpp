@@ -1571,7 +1571,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenShouZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenShouZhenCard->BaseCostAP = 1;
 	StarterShenShouZhenCard->Keywords.Reset();
-	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得相当于防御力 80% 的护盾。当前首版仍以补 1 张牌近似手牌节奏。"));
+	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得相当于防御力 80% 的护盾。若手中有剑阵牌，抽 1 张牌。"));
 	StarterShenShouZhenCard->Effects.Reset();
 	AddShieldEffect(
 		StarterShenShouZhenCard,
@@ -1581,12 +1581,16 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		0.8f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Defense);
-	AddDrawEffect(
+	UFinalBattleEffectDrawCards* StarterShenShouZhenDraw = AddDrawEffect(
 		StarterShenShouZhenCard,
 		StarterShenShouZhenCard->Effects,
 		TEXT("effect.starter.shen.shouzhen.draw"),
 		1,
-		FText::FromString(TEXT("首版占位：未校验手中是否已有剑阵牌。")));
+		FText::FromString(TEXT("若手中有剑阵牌，则补 1 张牌。")));
+	StarterShenShouZhenDraw->HandCardRequirement.bRequireInHand = true;
+	StarterShenShouZhenDraw->HandCardRequirement.RequiredKeyword = GetSwordArrayKeyword();
+	StarterShenShouZhenDraw->HandCardRequirement.MinimumCount = 1;
+	StarterShenShouZhenDraw->HandCardRequirement.bGeneratedOnly = true;
 	TrackPackage(StarterShenShouZhenCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenYinZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenYinZhenCardPath, bCreatedAsset);

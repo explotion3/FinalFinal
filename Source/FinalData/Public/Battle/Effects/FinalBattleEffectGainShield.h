@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Battle/Effects/FinalBattleHandCardRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "FinalBattleEffectGainShield.generated.h"
 
@@ -15,4 +16,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FFinalBattleHandCardRequirement HandCardRequirement;
 };

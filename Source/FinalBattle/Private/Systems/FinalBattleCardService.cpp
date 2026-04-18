@@ -121,6 +121,52 @@ bool FFinalBattleCardService::IsCardInHand(const FFinalBattleState& BattleState,
 	return BattleState.DeckState.HandCardInstanceIds.Contains(CardInstanceId);
 }
 
+int32 FFinalBattleCardService::CountMatchingCardsInHand(
+	const FFinalBattleState& BattleState,
+	const FName RuntimeOwnerUnitId,
+	const FFinalCardId& RequiredCardId,
+	const FGameplayTag& RequiredKeyword,
+	const bool bGeneratedOnly) const
+{
+	if (RuntimeOwnerUnitId.IsNone())
+	{
+		return 0;
+	}
+
+	int32 MatchCount = 0;
+	for (const FGuid& CandidateCardInstanceId : BattleState.DeckState.HandCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
+		if (CandidateCardInstance == nullptr
+			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
+		{
+			continue;
+		}
+
+		++MatchCount;
+	}
+
+	return MatchCount;
+}
+
+bool FFinalBattleCardService::SatisfiesHandCardRequirement(
+	const FFinalBattleState& BattleState,
+	const FName RuntimeOwnerUnitId,
+	const FFinalBattleHandCardRequirement& Requirement) const
+{
+	if (!Requirement.bRequireInHand)
+	{
+		return true;
+	}
+
+	return CountMatchingCardsInHand(
+		BattleState,
+		RuntimeOwnerUnitId,
+		Requirement.RequiredCardId,
+		Requirement.RequiredKeyword,
+		Requirement.bGeneratedOnly) >= FMath::Max(Requirement.MinimumCount, 1);
+}
+
 FGuid FFinalBattleCardService::AddGeneratedCardToHand(
 	FFinalBattleState& BattleState,
 	UFinalCardDefinition* CardDefinition,
