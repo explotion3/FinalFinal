@@ -988,6 +988,7 @@ bCanCopy: true
 * 状态类条件优先使用 `ConditionType + StatusId + ExpectedValue`
 * 标签类条件优先使用 `ConditionType + RequiredTag`
 * 消耗特定卡牌、手牌中存在某标签卡、目标处于 Break，都通过条目表达，不再为单个需求新增顶层字段
+* 当前 Runtime 原型为避免直接引入完整脚本式 `ConditionSet`，已经先落了若干最小专用 requirement 结构：`StatusConsumeRequirement / GeneratedCardConsumeRequirement / HandCardRequirement / TargetStateRequirement`。其中 `TargetStateRequirement` 先挂在 `Damage` effect 上，用于要求实际敌方目标存在、存活且处于 Break；后续若统一条件集合成熟，再收敛到同一 condition 表达
 
 ### 9.3.3 BattleScalarValue
 **用途**  

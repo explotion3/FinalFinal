@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleGeneratedCardConsumeRequirement.h"
+#include "Battle/Effects/FinalBattleTargetStateRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "FinalBattleEffectDamage.generated.h"
 
@@ -22,4 +23,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleGeneratedCardConsumeRequirement GeneratedCardConsumeRequirement;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
+	FFinalBattleTargetStateRequirement TargetStateRequirement;
 };

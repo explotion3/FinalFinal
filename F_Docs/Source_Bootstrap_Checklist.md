@@ -378,7 +378,8 @@
 * starter bundle 当前已把 `锋锐剑阵` 接回 Runtime：该衍生牌现在会为自身施加 1 层 `锋锐` 状态，使下一张攻击牌伤害提高 20%，若本回合内至少一次成功对敌生命伤害则消耗，否则在玩家回合结束时过期
 * starter bundle 当前已把 `万象归阵` 改成真实规则：抽 2 张牌、生成 1 张剑阵牌到手牌，并为每名角色施加 1 层 `士气`；不再用团队护盾近似团队增益
 * starter bundle 当前已补最小 `OwnerTookHealthDamage` 触发窗口：霍断岳角色定义挂接一组 battle trigger effects，玩家共享生命实际受损时按角色顺序触发，霍断岳因此获得 1 层 `刀势`
-* starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
+* starter bundle 当前已补最小 `TargetStateRequirement`：`Damage` effect 可按实际敌方目标是否处于 Break 做 gated 执行；霍断岳 `断岳绝式` 已追加一段“目标 Break 时额外攻击倍率伤害”的真实效果
+* starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`

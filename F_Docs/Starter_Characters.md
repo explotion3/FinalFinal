@@ -38,6 +38,7 @@
 * starter 第一波 Runtime 中，`刀势` 通过已配置的霍断岳牌明确获得与消耗
 * 当前已落地的受击触发口径为：当霍断岳所属队伍生命实际受损时，霍断岳通过 `OwnerTookHealthDamage` trigger 获得 `1` 层 `刀势`
 * 当前已落地的最小兑现口径为：被配置为“消耗刀势”的攻击牌，在消耗 `1` 层后额外造成削韧
+* 当前已落地的 Break 条件口径为：`Damage` effect 可通过 `TargetStateRequirement` 要求目标敌人处于 Break；霍断岳奥义已用该协议兑现 Break 目标额外伤害
 
 ### 3.3 卡组总表
 | 卡牌 | 类型 | 费用 | 作用 |
@@ -116,7 +117,11 @@
 * `断岳绝式`：`45 EP`
 * 对单体目标造成相当于攻击力 `220%` 的伤害
 * 额外造成 `6` 点削韧
+* 若目标处于 Break，额外造成相当于攻击力 `88%` 的伤害
 * 获得 `2` 层 `刀势`
+
+当前 starter Runtime：
+* `断岳绝式` 已通过 `TargetStateRequirement(bRequireTargetBroken=true)` 追加 Break 条件 Damage effect；该额外伤害不满足条件时跳过，不影响基础伤害、削韧与刀势获得
 
 ### 3.6 技能树方向
 * 破阵分支：强化削韧与 Break 收益
