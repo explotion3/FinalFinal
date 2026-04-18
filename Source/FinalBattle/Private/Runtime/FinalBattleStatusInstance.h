@@ -12,4 +12,8 @@ struct FFinalBattleStatusInstance
 	FText DisplayName;
 	int32 CurrentStacks = 0;
 	int32 RemainingDuration = 0;
+	int32 OutgoingDamagePercentPerStack = 0;
+	bool bExpireAtPlayerTurnEnd = false;
+	bool bConsumeOnSuccessfulOwnerDamage = false;
+	bool bOnlyAffectAttackCards = false;
 };

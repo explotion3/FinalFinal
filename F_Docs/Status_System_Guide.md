@@ -291,6 +291,22 @@
 * `StatusRefreshRule`：`KeepLonger`
 * `摘要文本`：在造成伤害时参与攻击修正。
 * `适用理由`：士气当前更像角色个人输出修正，首版默认以单层刷新模型更容易控数值。
+* `starter 第一波 Runtime 字段落点`：
+  * `OutgoingDamagePercentPerStack = 20`
+  * `bExpireAtPlayerTurnEnd = true`
+  * `bConsumeOnSuccessfulOwnerDamage = false`
+  * `bOnlyAffectAttackCards = false`
+
+### 10.4.1 锋锐
+* `StatusId`：`status_shen_feng_rui`
+* `StatusCategory`：`Buff`
+* `默认归属`：沈清弦当前实际出牌的角色运行时单位
+* `摘要文本`：下一张攻击牌伤害提高 20%；若本回合未触发，则在回合结束时移除。
+* `starter 第一波 Runtime 字段落点`：
+  * `OutgoingDamagePercentPerStack = 20`
+  * `bExpireAtPlayerTurnEnd = true`
+  * `bConsumeOnSuccessfulOwnerDamage = true`
+  * `bOnlyAffectAttackCards = true`
 
 ### 10.5 刀势
 * `StatusId`：`status_dao_shi`

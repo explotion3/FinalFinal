@@ -9,13 +9,53 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+
+bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName OwnerUnitId)
+{
+	if (OwnerUnitId == TeamPlayerUnitId)
+	{
+		return true;
+	}
+
+	return BattleState.Characters.ContainsByPredicate(
+		[&OwnerUnitId](const FFinalBattleCharacterState& Candidate)
+		{
+			return Candidate.RuntimeUnitId == OwnerUnitId;
+		});
 }
 
-void FFinalBattleStatusService::TickStatusWindows(FFinalBattleState& BattleState) const
+bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& StatusInstance, const bool bIsAttackCardDamage)
 {
-	// Status timing windows are still intentionally minimal at this stage.
-	// The service exists to keep tick ownership out of the main resolver.
-	(void)BattleState;
+	if (StatusInstance.OutgoingDamagePercentPerStack == 0)
+	{
+		return false;
+	}
+
+	if (StatusInstance.bOnlyAffectAttackCards && !bIsAttackCardDamage)
+	{
+		return false;
+	}
+
+	return true;
+}
+}
+
+void FFinalBattleStatusService::ResolvePlayerTurnEndStatuses(FFinalBattleState& BattleState) const
+{
+	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
+	{
+		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
+		if (!StatusInstance.bExpireAtPlayerTurnEnd || !IsPlayerOwnedStatus(BattleState, StatusInstance.OwnerUnitId))
+		{
+			continue;
+		}
+
+		StatusInstance.RemainingDuration = FMath::Max(StatusInstance.RemainingDuration - 1, 0);
+		if (StatusInstance.RemainingDuration <= 0)
+		{
+			BattleState.StatusInstances.RemoveAt(StatusIndex);
+		}
+	}
 }
 
 int32 FFinalBattleStatusService::AddStatusStacks(
@@ -34,9 +74,13 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 
 	FFinalBattleStatusInstance* ExistingInstance = FindStatusInstance(BattleState, OwnerUnitId, StatusId);
 	const int32 MaxStacks = StatusDefinition ? StatusDefinition->MaxStacks : 0;
-	const int32 BaseDuration = DurationOverride > 0
+	int32 BaseDuration = DurationOverride > 0
 		? DurationOverride
 		: (StatusDefinition ? StatusDefinition->DefaultDuration : 0);
+	if (StatusDefinition != nullptr && StatusDefinition->bExpireAtPlayerTurnEnd && BaseDuration <= 0)
+	{
+		BaseDuration = 1;
+	}
 
 	if (ExistingInstance == nullptr)
 	{
@@ -50,6 +94,10 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 			: FText::FromName(StatusId.Value);
 		NewInstance.CurrentStacks = MaxStacks > 0 ? FMath::Min(StacksToAdd, MaxStacks) : StacksToAdd;
 		NewInstance.RemainingDuration = BaseDuration;
+		NewInstance.OutgoingDamagePercentPerStack = StatusDefinition ? StatusDefinition->OutgoingDamagePercentPerStack : 0;
+		NewInstance.bExpireAtPlayerTurnEnd = StatusDefinition ? StatusDefinition->bExpireAtPlayerTurnEnd : false;
+		NewInstance.bConsumeOnSuccessfulOwnerDamage = StatusDefinition ? StatusDefinition->bConsumeOnSuccessfulOwnerDamage : false;
+		NewInstance.bOnlyAffectAttackCards = StatusDefinition ? StatusDefinition->bOnlyAffectAttackCards : false;
 		return NewInstance.CurrentStacks;
 	}
 
@@ -62,11 +110,67 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 	{
 		ExistingInstance->DisplayName = StatusDefinition->DisplayName;
 	}
+	if (StatusDefinition != nullptr)
+	{
+		ExistingInstance->OutgoingDamagePercentPerStack = StatusDefinition->OutgoingDamagePercentPerStack;
+		ExistingInstance->bExpireAtPlayerTurnEnd = StatusDefinition->bExpireAtPlayerTurnEnd;
+		ExistingInstance->bConsumeOnSuccessfulOwnerDamage = StatusDefinition->bConsumeOnSuccessfulOwnerDamage;
+		ExistingInstance->bOnlyAffectAttackCards = StatusDefinition->bOnlyAffectAttackCards;
+	}
 	if (BaseDuration > 0)
 	{
 		ExistingInstance->RemainingDuration = FMath::Max(ExistingInstance->RemainingDuration, BaseDuration);
 	}
 	return FMath::Max(ExistingInstance->CurrentStacks - PreviousStacks, 0);
+}
+
+int32 FFinalBattleStatusService::GetOutgoingDamageModifierPercent(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const bool bIsAttackCardDamage) const
+{
+	int32 TotalModifierPercent = 0;
+
+	for (const FFinalBattleStatusInstance& StatusInstance : BattleState.StatusInstances)
+	{
+		if (StatusInstance.OwnerUnitId != OwnerUnitId
+			|| !IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage))
+		{
+			continue;
+		}
+
+		TotalModifierPercent += StatusInstance.OutgoingDamagePercentPerStack * StatusInstance.CurrentStacks;
+	}
+
+	return TotalModifierPercent;
+}
+
+int32 FFinalBattleStatusService::ConsumeOutgoingDamageModifierStacks(
+	FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const bool bIsAttackCardDamage) const
+{
+	int32 TotalRemovedStacks = 0;
+
+	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
+	{
+		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
+		if (StatusInstance.OwnerUnitId != OwnerUnitId
+			|| !StatusInstance.bConsumeOnSuccessfulOwnerDamage
+			|| !IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage))
+		{
+			continue;
+		}
+
+		StatusInstance.CurrentStacks = FMath::Max(StatusInstance.CurrentStacks - 1, 0);
+		++TotalRemovedStacks;
+		if (StatusInstance.CurrentStacks <= 0)
+		{
+			BattleState.StatusInstances.RemoveAt(StatusIndex);
+		}
+	}
+
+	return TotalRemovedStacks;
 }
 
 int32 FFinalBattleStatusService::RemoveStatusStacks(

@@ -83,6 +83,7 @@ struct FFinalEffectExecutionContext
 {
 	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
 	TArray<FFinalConsumedGeneratedCardRecord> ConsumedGeneratedCards;
+	bool bAppliedSuccessfulEnemyHpDamage = false;
 };
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
@@ -669,6 +670,13 @@ TArray<FName> ResolveStatusTargetOwnerUnitIds(
 		TargetOwnerUnitIds.Add(TeamPlayerUnitId);
 		break;
 
+	case EFinalBattleUnitTargetRule::AllPlayerCharacters:
+		for (const FFinalBattleCharacterState& CharacterState : State.Characters)
+		{
+			TargetOwnerUnitIds.Add(CharacterState.RuntimeUnitId);
+		}
+		break;
+
 	case EFinalBattleUnitTargetRule::Self:
 		if (SourceCharacterState != nullptr)
 		{
@@ -705,7 +713,18 @@ TArray<FName> ResolveStatusTargetOwnerUnitIds(
 	return TargetOwnerUnitIds;
 }
 
-void ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 DamageAmount)
+int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPercent)
+{
+	if (BaseDamage <= 0 || ModifierPercent == 0)
+	{
+		return BaseDamage;
+	}
+
+	const float ModifierScale = 1.0f + (static_cast<float>(ModifierPercent) / 100.0f);
+	return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseDamage) * ModifierScale), 0);
+}
+
+int32 ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 DamageAmount)
 {
 	const int32 ShieldAbsorbed = FMath::Min(EnemyState.CurrentShield, FMath::Max(DamageAmount, 0));
 	EnemyState.CurrentShield -= ShieldAbsorbed;
@@ -724,10 +743,11 @@ void ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& EnemyS
 				State.CurrentTargetUnitId = NextTarget->RuntimeUnitId;
 			}
 		}
-		return;
+		return HpDamage;
 	}
 
 	RefreshEnemyIntentState(State, EnemyState, State.CurrentRound, true);
+	return HpDamage;
 }
 
 int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomingDamage)
@@ -768,12 +788,14 @@ bool ExecuteEffectList(
 	FFinalBattleState& State,
 	const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
 	const FFinalBattleCommand* Command,
+	const UFinalCardDefinition* SourceCardDefinition,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
 	FFinalEffectExecutionSummary& Summary)
 {
 	FFinalEffectExecutionContext ExecutionContext;
 	const FName SourceOwnerUnitId = ResolveSourceOwnerUnitId(SourceCharacterState, SourceEnemyState);
+	const bool bIsAttackCardDamage = SourceCardDefinition != nullptr && SourceCardDefinition->CardType == EFinalCardType::Attack;
 
 	for (UFinalBattleEffectDefinition* EffectDefinition : Effects)
 	{
@@ -790,7 +812,11 @@ bool ExecuteEffectList(
 			}
 
 			const int32 HitCount = FMath::Max(DamageEffect->HitCount, 1);
-			const int32 DamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
+			const int32 BaseDamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
+			const int32 DamageModifierPercent = SourceCharacterState != nullptr
+				? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
+				: 0;
+			const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent);
 			if (DamagePerHit <= 0)
 			{
 				continue;
@@ -818,7 +844,8 @@ bool ExecuteEffectList(
 
 					for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 					{
-						ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
+						const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
+						ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 						Summary.TotalDamageToEnemies += DamagePerHit;
 					}
 				}
@@ -844,7 +871,8 @@ bool ExecuteEffectList(
 
 			for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 			{
-				ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
+				const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
+				ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 				Summary.TotalDamageToEnemies += DamagePerHit;
 			}
 
@@ -1195,6 +1223,11 @@ bool ExecuteEffectList(
 		}
 	}
 
+	if (SourceCharacterState != nullptr && ExecutionContext.bAppliedSuccessfulEnemyHpDamage)
+	{
+		GetStatusService().ConsumeOutgoingDamageModifierStacks(State, SourceOwnerUnitId, bIsAttackCardDamage);
+	}
+
 	return Summary.ResolvedEffectCount > 0;
 }
 }
@@ -1426,7 +1459,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 			FFinalEffectExecutionSummary Summary;
-			ExecuteEffectList(State, CardInstance->SourceDefinition->Effects, &Command, OwnerCharacterState, nullptr, Summary);
+			ExecuteEffectList(State, CardInstance->SourceDefinition->Effects, &Command, CardInstance->SourceDefinition, OwnerCharacterState, nullptr, Summary);
 
 			Event.EventType = EFinalBattleEventType::CardResolved;
 			Event.SourceUnitId = CardInstance->RuntimeOwnerUnitId;
@@ -1515,7 +1548,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			GetResourceService().SpendEP(State, OwnerCharacterState->UltimateCostEP);
 
 			FFinalEffectExecutionSummary Summary;
-			ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, OwnerCharacterState, nullptr, Summary);
+			ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, nullptr, OwnerCharacterState, nullptr, Summary);
 
 			Event.EventType = EFinalBattleEventType::UltimateResolved;
 			Event.TargetUnitId = Command.TargetUnitId != NAME_None ? Command.TargetUnitId : State.CurrentTargetUnitId;
@@ -1568,7 +1601,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 
 					if (EnemyState.CurrentIntentDefinition && HasSupportedEffectList(EnemyState.CurrentIntentDefinition->Effects))
 					{
-						ExecuteEffectList(MutableState, EnemyState.CurrentIntentDefinition->Effects, nullptr, nullptr, &EnemyState, Summary);
+						ExecuteEffectList(MutableState, EnemyState.CurrentIntentDefinition->Effects, nullptr, nullptr, nullptr, &EnemyState, Summary);
 					}
 					else
 					{
