@@ -1120,9 +1120,9 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 
 	UFinalStatusDefinition* StarterYeImmunityStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterYeImmunityStatusPath, bCreatedAsset);
 	StarterYeImmunityStatus->StatusId = FFinalStatusId(StarterYeImmunityStatusId);
-	StarterYeImmunityStatus->DisplayName = FText::FromString(TEXT("免疫"));
+	StarterYeImmunityStatus->DisplayName = FText::FromString(TEXT("生命免疫"));
 	StarterYeImmunityStatus->StatusCategory = EFinalStatusCategory::Buff;
-	StarterYeImmunityStatus->SummaryText = FText::FromString(TEXT("抵消下一次穿透护盾的共享生命伤害；触发后消耗，若到玩家回合结束仍未触发则失效。"));
+	StarterYeImmunityStatus->SummaryText = FText::FromString(TEXT("抵消下一次穿透护盾的共享生命伤害；这是免疫体系下的首版生命保护子类。触发后消耗，若到玩家回合结束仍未触发则失效。"));
 	StarterYeImmunityStatus->MaxStacks = 1;
 	StarterYeImmunityStatus->DefaultDuration = 1;
 	StarterYeImmunityStatus->OutgoingDamagePercentPerStack = 0;
@@ -1230,7 +1230,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeUltimate->OwnerUnitId = StarterYeCharacterId;
 	StarterYeUltimate->DisplayName = FText::FromString(TEXT("回天续脉"));
 	StarterYeUltimate->BaseCostEP = 45;
-	StarterYeUltimate->RulesText = FText::FromString(TEXT("回复 18 点共享生命，获得 1 层免疫，并回复 1 AP。"));
+	StarterYeUltimate->RulesText = FText::FromString(TEXT("回复 18 点共享生命，获得 1 层生命免疫，并回复 1 AP。"));
 	StarterYeUltimate->Effects.Reset();
 	AddHealEffect(
 		StarterYeUltimate,
@@ -1247,7 +1247,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleUnitTargetRule::TeamPlayer,
 		StarterYeImmunityStatus,
 		1,
-		FText::FromString(TEXT("对 team_player 施加一次共享生命伤害免疫。")));
+		FText::FromString(TEXT("对 team_player 施加一次生命免疫。")));
 	AddGainApEffect(
 		StarterYeUltimate,
 		StarterYeUltimate->Effects,
@@ -1560,7 +1560,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		12.0f,
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("当前免疫入口集中在回天续脉；回春散只保留治疗与药引回 AP。")));
+		FText::FromString(TEXT("当前生命免疫入口集中在回天续脉；回春散只保留治疗与药引回 AP。")));
 	AddRemoveStatusEffect(
 		StarterYeHuiChunSanCard,
 		StarterYeHuiChunSanCard->Effects,

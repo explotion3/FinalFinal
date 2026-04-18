@@ -108,7 +108,7 @@ Break 可打断或延后敌方行动，并为玩家提供额外收益。
 4. 再触发基于“实际伤害 / 实际生命损失”的后续规则
 
 #### 4.1.1 玩家共享生命伤害保护
-当前 Runtime 已有最小 incoming team HP damage protection 协议，用于处理 `免疫` 这类玩家侧共享生命保护状态。
+当前 Runtime 已有最小 incoming team HP damage protection 协议，用于处理 `生命免疫` 这类玩家侧共享生命保护状态。`免疫` 仍是“抵消或忽略特定负面效果”的上位概念，当前只落地了共享生命 HP damage protection 子类。
 
 玩家侧受到伤害时，当前顺序为：
 1. 先由 `TeamShield` 抵消总伤害
