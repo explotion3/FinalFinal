@@ -87,10 +87,13 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenYinZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinZhen");
 	const FString StarterShenGuoPaiJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenGuoPaiJianZhen");
 	const FString StarterShenPoZhenJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenPoZhenJianZhen");
+	const FString StarterShenFengRuiJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenFengRuiJianZhen");
 	const FString StarterShenYinBaoJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinBaoJianZhen");
 	const FString StarterHuoStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_HuoDaoShi");
 	const FString StarterYeStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeYaoYin");
 	const FString StarterShenStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenJianZhen");
+	const FString StarterShenShiQiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenShiQi");
+	const FString StarterShenFengRuiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenFengRui");
 	const FString StarterHuoUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_HuoDuanyue");
 	const FString StarterYeUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_YeBanxia");
 	const FString StarterShenUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_ShenQingxian");
@@ -145,6 +148,8 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterHuoStatusId(TEXT("status.starter.huo.daoshi"));
 	const FName StarterYeStatusId(TEXT("status.starter.ye.yaoyin"));
 	const FName StarterShenStatusId(TEXT("status.starter.shen.jianzhen"));
+	const FName StarterShenShiQiStatusId(TEXT("status.starter.shen.shiqi"));
+	const FName StarterShenFengRuiStatusId(TEXT("status.starter.shen.fengrui"));
 	const FName StarterHuoUltimateId(TEXT("ultimate.starter.huo.duanyuejueshi"));
 	const FName StarterYeUltimateId(TEXT("ultimate.starter.ye.huitianxumai"));
 	const FName StarterShenUltimateId(TEXT("ultimate.starter.shen.wanxiangguizhen"));
@@ -161,6 +166,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenYinZhenCardId(TEXT("card.starter.shen.yinzhen"));
 	const FName StarterShenGuoPaiJianZhenCardId(TEXT("card.starter.shen.guopaijianzhen"));
 	const FName StarterShenPoZhenJianZhenCardId(TEXT("card.starter.shen.pozhenjianzhen"));
+	const FName StarterShenFengRuiJianZhenCardId(TEXT("card.starter.shen.fengruijianzhen"));
 	const FName StarterShenYinBaoJianZhenCardId(TEXT("card.starter.shen.yinbaojianzhen"));
 	const FName StarterBladeEnemyId(TEXT("enemy.starter.bandit.blade"));
 	const FName StarterCrossbowEnemyId(TEXT("enemy.starter.bandit.crossbow"));
@@ -1110,8 +1116,40 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenStatus->SummaryText = FText::FromString(TEXT("沈清弦的剑阵本体已改为 Battle 内衍生牌协议；此签名状态资产仅保留角色签名展示占位。"));
 	StarterShenStatus->MaxStacks = 9;
 	StarterShenStatus->DefaultDuration = 0;
+	StarterShenStatus->OutgoingDamagePercentPerStack = 0;
+	StarterShenStatus->bExpireAtPlayerTurnEnd = false;
+	StarterShenStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterShenStatus->bOnlyAffectAttackCards = false;
 	StarterShenStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenStatus, PackagesToSave);
+
+	UFinalStatusDefinition* StarterShenShiQiStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenShiQiStatusPath, bCreatedAsset);
+	StarterShenShiQiStatus->StatusId = FFinalStatusId(StarterShenShiQiStatusId);
+	StarterShenShiQiStatus->DisplayName = FText::FromString(TEXT("士气"));
+	StarterShenShiQiStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterShenShiQiStatus->SummaryText = FText::FromString(TEXT("本回合内伤害提高 20%。"));
+	StarterShenShiQiStatus->MaxStacks = 9;
+	StarterShenShiQiStatus->DefaultDuration = 0;
+	StarterShenShiQiStatus->OutgoingDamagePercentPerStack = 20;
+	StarterShenShiQiStatus->bExpireAtPlayerTurnEnd = true;
+	StarterShenShiQiStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterShenShiQiStatus->bOnlyAffectAttackCards = false;
+	StarterShenShiQiStatus->OnTickEffects.Reset();
+	TrackPackage(StarterShenShiQiStatus, PackagesToSave);
+
+	UFinalStatusDefinition* StarterShenFengRuiStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenFengRuiStatusPath, bCreatedAsset);
+	StarterShenFengRuiStatus->StatusId = FFinalStatusId(StarterShenFengRuiStatusId);
+	StarterShenFengRuiStatus->DisplayName = FText::FromString(TEXT("锋锐"));
+	StarterShenFengRuiStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterShenFengRuiStatus->SummaryText = FText::FromString(TEXT("下一张攻击牌伤害提高 20%，若本回合未触发则在回合结束时失效。"));
+	StarterShenFengRuiStatus->MaxStacks = 9;
+	StarterShenFengRuiStatus->DefaultDuration = 0;
+	StarterShenFengRuiStatus->OutgoingDamagePercentPerStack = 20;
+	StarterShenFengRuiStatus->bExpireAtPlayerTurnEnd = true;
+	StarterShenFengRuiStatus->bConsumeOnSuccessfulOwnerDamage = true;
+	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
+	StarterShenFengRuiStatus->OnTickEffects.Reset();
+	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterHuoUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterHuoUltimatePath, bCreatedAsset);
 	StarterHuoUltimate->UltimateId = FFinalUltimateId(StarterHuoUltimateId);
@@ -1174,23 +1212,8 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenUltimate->OwnerUnitId = StarterShenCharacterId;
 	StarterShenUltimate->DisplayName = FText::FromString(TEXT("万象归阵"));
 	StarterShenUltimate->BaseCostEP = 45;
-	StarterShenUltimate->RulesText = FText::FromString(TEXT("团队支援、阵牌扩散与后续深化仍待补。当前首版以抽牌与全队护盾近似团队增益。"));
+	StarterShenUltimate->RulesText = FText::FromString(TEXT("抽 2 张牌。生成 1 张剑阵牌到手牌。每名角色获得 1 层士气。"));
 	StarterShenUltimate->Effects.Reset();
-	AddDrawEffect(
-		StarterShenUltimate,
-		StarterShenUltimate->Effects,
-		TEXT("effect.starter.shen.ultimate.wanxiangguizhen.draw"),
-		2,
-		FText::FromString(TEXT("首版占位：未实际生成剑阵牌。")));
-	AddShieldEffect(
-		StarterShenUltimate,
-		StarterShenUltimate->Effects,
-		TEXT("effect.starter.shen.ultimate.wanxiangguizhen.shield"),
-		EFinalBattleUnitTargetRule::TeamPlayer,
-		5.0f,
-		EFinalBattleScalarMode::Flat,
-		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首版占位：士气与阵势扩散暂以全队护盾近似。")));
 	TrackPackage(StarterShenUltimate, PackagesToSave);
 
 	UFinalCharacterDefinition* StarterHuoCharacter = LoadOrCreateAsset<UFinalCharacterDefinition>(StarterHuoCharacterPath, bCreatedAsset);
@@ -1553,12 +1576,33 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		TEXT("effect.starter.shen.guopaijianzhen.draw"),
 		1);
 	TrackPackage(StarterShenGuoPaiJianZhenCard, PackagesToSave);
+	UFinalCardDefinition* StarterShenFengRuiJianZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenFengRuiJianZhenCardPath, bCreatedAsset);
+	StarterShenFengRuiJianZhenCard->CardId = FFinalCardId(StarterShenFengRuiJianZhenCardId);
+	StarterShenFengRuiJianZhenCard->OwnerUnitId = StarterShenCharacterId;
+	StarterShenFengRuiJianZhenCard->DisplayName = FText::FromString(TEXT("锋锐剑阵"));
+	StarterShenFengRuiJianZhenCard->CardType = EFinalCardType::Skill;
+	StarterShenFengRuiJianZhenCard->Rarity = EFinalRarity::Common;
+	StarterShenFengRuiJianZhenCard->BaseCostAP = 0;
+	StarterShenFengRuiJianZhenCard->Keywords.Reset();
+	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetRetainKeyword());
+	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetExpendKeyword());
+	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
+	StarterShenFengRuiJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。获得 1 层锋锐，使下一张攻击牌伤害提高 20%。"));
+	StarterShenFengRuiJianZhenCard->Effects.Reset();
+	AddApplyStatusEffect(
+		StarterShenFengRuiJianZhenCard,
+		StarterShenFengRuiJianZhenCard->Effects,
+		TEXT("effect.starter.shen.fengruijianzhen.apply_fengrui"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterShenFengRuiStatus,
+		1);
+	TrackPackage(StarterShenFengRuiJianZhenCard, PackagesToSave);
 	AddGenerateCardEffect(
 		StarterShenBuFengCard,
 		StarterShenBuFengCard->Effects,
 		TEXT("effect.starter.shen.bufeng.generate_jianzhen"),
 		nullptr,
-		TArray<UFinalCardDefinition*>{ StarterShenGuoPaiJianZhenCard, StarterShenPoZhenJianZhenCard },
+		TArray<UFinalCardDefinition*>{ StarterShenGuoPaiJianZhenCard, StarterShenPoZhenJianZhenCard, StarterShenFengRuiJianZhenCard },
 		1,
 		true);
 	TrackPackage(StarterShenBuFengCard, PackagesToSave);
@@ -1659,6 +1703,31 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.MinimumCount = 1;
 	TrackPackage(StarterShenYinBaoJianZhenCard, PackagesToSave);
 
+	StarterShenUltimate->RulesText = FText::FromString(TEXT("抽 2 张牌。生成 1 张剑阵牌到手牌。每名角色获得 1 层士气。"));
+	StarterShenUltimate->Effects.Reset();
+	AddDrawEffect(
+		StarterShenUltimate,
+		StarterShenUltimate->Effects,
+		TEXT("effect.starter.shen.ultimate.wanxiangguizhen.draw"),
+		2);
+	AddGenerateCardEffect(
+		StarterShenUltimate,
+		StarterShenUltimate->Effects,
+		TEXT("effect.starter.shen.ultimate.wanxiangguizhen.generate_jianzhen"),
+		nullptr,
+		TArray<UFinalCardDefinition*>{ StarterShenGuoPaiJianZhenCard, StarterShenPoZhenJianZhenCard, StarterShenFengRuiJianZhenCard },
+		1,
+		true,
+		FText::FromString(TEXT("首版随机生成 1 张剑阵牌到手牌。")));
+	AddApplyStatusEffect(
+		StarterShenUltimate,
+		StarterShenUltimate->Effects,
+		TEXT("effect.starter.shen.ultimate.wanxiangguizhen.apply_shiqi"),
+		EFinalBattleUnitTargetRule::AllPlayerCharacters,
+		StarterShenShiQiStatus,
+		1);
+	TrackPackage(StarterShenUltimate, PackagesToSave);
+
 	StarterHuoCharacter->InitialLoadoutCards = {
 		MakeLoadoutEntry(StarterHuoLieFengCard->CardId, 2, EFinalLoadoutRole::BaseAttack),
 		MakeLoadoutEntry(StarterHuoWenJiaCard->CardId, 1, EFinalLoadoutRole::BaseDefense),
@@ -1697,7 +1766,8 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		StarterShenBuFengCard->CardId,
 		StarterShenShouZhenCard->CardId,
 		StarterShenYinZhenCard->CardId,
-		StarterShenYinBaoJianZhenCard->CardId
+		StarterShenYinBaoJianZhenCard->CardId,
+		StarterShenFengRuiJianZhenCard->CardId
 	};
 	TrackPackage(StarterShenCharacter, PackagesToSave);
 

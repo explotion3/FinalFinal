@@ -208,7 +208,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	TFunctionRef<FFinalBattleEnemyActionResult(FFinalBattleState&, FFinalBattleEnemyState&)> ExecuteEnemyAction) const
 {
 	FFinalBattleEndTurnResult Result;
-	StatusService.TickStatusWindows(BattleState);
+	StatusService.ResolvePlayerTurnEndStatuses(BattleState);
 
 	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)
 	{
@@ -262,7 +262,6 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 		? FMath::Max(RuleConfig->InitialHandSize, 0)
 		: BattleState.DeckState.HandCardInstanceIds.Num();
 	CardService.DrawUpToHandSize(BattleState, TargetHandSize);
-	StatusService.TickStatusWindows(BattleState);
 
 	return Result;
 }

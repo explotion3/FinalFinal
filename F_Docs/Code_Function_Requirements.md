@@ -263,7 +263,9 @@
 * starter content 当前已把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`布锋` 随机生成衍生剑阵牌、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为 battle 内衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌后兑现伤害/抽牌
 * Battle 当前已补最小 `HandCardRequirement` 协议，至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
-* starter content 仍保留占位的内容包括：`锋锐剑阵`、`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、受压得刀势、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
+* Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态
+* starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
+* starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、受压得刀势、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
 * prototype 启动配置也应收回到 `FinalData` 的 bootstrap/profile definition，例如 `PrototypeBootstrapDefinition`，承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / 初始角色持久状态 / InitialTeamCurrentHP`；`FinalApp` 运行时只查询一个 bootstrap stable id
 * 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌

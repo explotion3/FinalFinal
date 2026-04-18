@@ -56,7 +56,8 @@ enum class EFinalBattleUnitTargetRule : uint8
 	TeamPlayer,
 	SelectedEnemy,
 	FirstAliveEnemy,
-	AllEnemies
+	AllEnemies,
+	AllPlayerCharacters
 };
 
 UENUM(BlueprintType)

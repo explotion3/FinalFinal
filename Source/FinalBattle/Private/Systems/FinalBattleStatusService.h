@@ -12,7 +12,7 @@ class UFinalStatusDefinition;
 class FFinalBattleStatusService
 {
 public:
-	void TickStatusWindows(FFinalBattleState& BattleState) const;
+	void ResolvePlayerTurnEndStatuses(FFinalBattleState& BattleState) const;
 	int32 AddStatusStacks(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,
@@ -21,6 +21,14 @@ public:
 		const UFinalStatusDefinition* StatusDefinition,
 		int32 StacksToAdd,
 		int32 DurationOverride = 0) const;
+	int32 GetOutgoingDamageModifierPercent(
+		const FFinalBattleState& BattleState,
+		FName OwnerUnitId,
+		bool bIsAttackCardDamage) const;
+	int32 ConsumeOutgoingDamageModifierStacks(
+		FFinalBattleState& BattleState,
+		FName OwnerUnitId,
+		bool bIsAttackCardDamage) const;
 	int32 RemoveStatusStacks(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,
