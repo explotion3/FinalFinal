@@ -3,6 +3,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
+#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
@@ -1093,7 +1094,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoStatus->StatusId = FFinalStatusId(StarterHuoStatusId);
 	StarterHuoStatus->DisplayName = FText::FromString(TEXT("刀势"));
 	StarterHuoStatus->StatusCategory = EFinalStatusCategory::Signature;
-	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的签名资源。首波 Runtime 已支持通过裂锋、铁壁回锋与断岳绝式获得层数，并由断岳斩显式消耗来追加削韧。"));
+	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的签名资源。Runtime 已支持通过牌效果和 OwnerTookHealthDamage 触发获得层数，并由断岳斩显式消耗来追加削韧。"));
 	StarterHuoStatus->MaxStacks = 6;
 	StarterHuoStatus->DefaultDuration = 0;
 	StarterHuoStatus->OnTickEffects.Reset();
@@ -1229,6 +1230,19 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoCharacter->EpGainPerAP = 1;
 	StarterHuoCharacter->UltimateId = StarterHuoUltimate->UltimateId;
 	StarterHuoCharacter->SignatureStatusId = StarterHuoStatus->StatusId;
+	StarterHuoCharacter->BattleTriggers.Reset();
+	{
+		FFinalBattleTriggerDefinition& TookDamageTrigger = StarterHuoCharacter->BattleTriggers.AddDefaulted_GetRef();
+		TookDamageTrigger.TriggerWindow = EFinalBattleTriggerWindow::OwnerTookHealthDamage;
+		AddApplyStatusEffect(
+			StarterHuoCharacter,
+			TookDamageTrigger.Effects,
+			TEXT("effect.starter.huo.trigger.took_damage.daoshi"),
+			EFinalBattleUnitTargetRule::Self,
+			StarterHuoStatus,
+			1,
+			FText::FromString(TEXT("受压得刀势：霍断岳所属队伍生命受损时，霍断岳获得 1 层刀势。")));
+	}
 	TrackPackage(StarterHuoCharacter, PackagesToSave);
 
 	UFinalCharacterDefinition* StarterYeCharacter = LoadOrCreateAsset<UFinalCharacterDefinition>(StarterYeCharacterPath, bCreatedAsset);

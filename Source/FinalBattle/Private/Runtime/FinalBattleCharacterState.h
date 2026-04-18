@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
 #include "Ids/FinalIds.h"
 
 class UFinalUltimateDefinition;
@@ -25,4 +26,5 @@ struct FFinalBattleCharacterState
 	int32 UltimateCostEP = 0;
 	UFinalUltimateDefinition* UltimateDefinition = nullptr;
 	bool bUltimateUsedThisBattle = false;
+	TArray<FFinalBattleTriggerDefinition> BattleTriggers;
 };

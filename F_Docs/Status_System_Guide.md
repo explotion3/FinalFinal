@@ -175,6 +175,9 @@
 * 崩溃时
 * 苏醒时
 
+当前 Runtime 已落地的最小 battle trigger window：
+* `OwnerTookHealthDamage`：当玩家共享生命实际下降时触发；当前按角色站位顺序检查 `CharacterDefinition.BattleTriggers`，并从运行时 `FinalBattleCharacterState` 执行对应 effect list。该窗口当前用于霍断岳“受压得刀势”。
+
 ### 6.3 首版默认状态时点表
 * `灼烧`：当前只作用于敌方单位；在敌方回合开始窗口结算
 * `中毒`：当前只作用于敌方单位；在玩家结束回合后的敌方行动前窗口结算
@@ -241,7 +244,7 @@
 
 ## 9. 首版角色专属状态清单
 ### 9.1 霍断岳
-* `刀势`：霍断岳专属状态；默认按层数累积；starter 第一波 Runtime 先通过已配置牌显式获得/消耗，主要用于攻击牌额外削韧联动
+* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 通过已配置牌和 `OwnerTookHealthDamage` trigger 获得，并由明确配置的攻击牌消耗来追加削韧
 
 ### 9.2 叶半夏
 * `药引`：叶半夏专属状态；默认按层数累积；不自动生效，只有被牌明确消耗时才结算收益
@@ -316,7 +319,7 @@
 * `StatusMergeRule`：`ByOwner`
 * `StatusStackRule`：`AddAndClamp`
 * `StatusRefreshRule`：`NoRefresh`
-* `摘要文本`：按层数累积；starter 第一波 Runtime 由霍断岳的已配置牌显式消耗，用于追加削韧。
+* `摘要文本`：按层数累积；starter Runtime 已支持已配置牌获得、受队伍生命伤害触发获得，以及由明确配置的攻击牌消耗来追加削韧。
 * `适用理由`：刀势是典型层数资源，重点在累积与消耗，不需要按回合刷新持续值；完整“所有攻击默认消耗”的通用挂钩留待后续深化。
 
 ### 10.6 药引

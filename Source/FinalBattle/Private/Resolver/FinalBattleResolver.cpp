@@ -91,6 +91,14 @@ const FFinalBattleCardService& GetCardService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleTurnService& GetTurnService();
 const FFinalBattleStatusService& GetStatusService();
+bool ExecuteEffectList(
+	FFinalBattleState& State,
+	const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+	const FFinalBattleCommand* Command,
+	const UFinalCardDefinition* SourceCardDefinition,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState,
+	FFinalEffectExecutionSummary& Summary);
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
 {
@@ -760,6 +768,48 @@ int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomin
 	return HpDamage;
 }
 
+void ExecuteOwnerTookHealthDamageTriggers(FFinalBattleState& State, FFinalEffectExecutionSummary& Summary)
+{
+	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
+	{
+		if (CharacterState.bCollapsed)
+		{
+			continue;
+		}
+
+		for (const FFinalBattleTriggerDefinition& TriggerDefinition : CharacterState.BattleTriggers)
+		{
+			if (TriggerDefinition.TriggerWindow != EFinalBattleTriggerWindow::OwnerTookHealthDamage
+				|| TriggerDefinition.Effects.IsEmpty())
+			{
+				continue;
+			}
+
+			ExecuteEffectList(
+				State,
+				TriggerDefinition.Effects,
+				nullptr,
+				nullptr,
+				&CharacterState,
+				nullptr,
+				Summary);
+		}
+	}
+}
+
+int32 ApplyTeamIncomingDamageAndTriggers(
+	FFinalBattleState& State,
+	const int32 TotalIncomingDamage,
+	FFinalEffectExecutionSummary& Summary)
+{
+	const int32 HpDamage = ApplyTeamIncomingDamage(State, TotalIncomingDamage);
+	if (HpDamage > 0)
+	{
+		ExecuteOwnerTookHealthDamageTriggers(State, Summary);
+	}
+	return HpDamage;
+}
+
 int32 ApplyTeamHealing(FFinalBattleState& State, const int32 HealingAmount)
 {
 	const int32 ClampedHealingAmount = FMath::Max(HealingAmount, 0);
@@ -826,7 +876,8 @@ bool ExecuteEffectList(
 			{
 				for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 				{
-					Summary.TotalDamageToTeam += ApplyTeamIncomingDamage(State, DamagePerHit);
+					const int32 HpDamage = ApplyTeamIncomingDamageAndTriggers(State, DamagePerHit, Summary);
+					Summary.TotalDamageToTeam += HpDamage;
 				}
 
 				++Summary.ResolvedEffectCount;
@@ -1277,6 +1328,7 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		CharacterState.RuntimeDefense = PartyEntry.CharacterDefinition->BaseDefense;
 		CharacterState.RuntimeBreakRate = PartyEntry.CharacterDefinition->BaseBreakRate;
 		CharacterState.UltimateId = PartyEntry.CharacterDefinition->UltimateId;
+		CharacterState.BattleTriggers = PartyEntry.CharacterDefinition->BattleTriggers;
 		if (PartyEntry.UltimateDefinition != nullptr)
 		{
 			CharacterState.UltimateDefinition = PartyEntry.UltimateDefinition;
@@ -1605,7 +1657,11 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 					}
 					else
 					{
-						Summary.TotalDamageToTeam += ApplyTeamIncomingDamage(MutableState, FMath::Max(EnemyState.RuntimeDamagePower, 0));
+						const int32 HpDamage = ApplyTeamIncomingDamageAndTriggers(
+							MutableState,
+							FMath::Max(EnemyState.RuntimeDamagePower, 0),
+							Summary);
+						Summary.TotalDamageToTeam += HpDamage;
 					}
 
 					ActionResult.DamageToTeam = Summary.TotalDamageToTeam;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
@@ -72,4 +73,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
 	FFinalStatusId SignatureStatusId;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
+	TArray<FFinalBattleTriggerDefinition> BattleTriggers;
 };
