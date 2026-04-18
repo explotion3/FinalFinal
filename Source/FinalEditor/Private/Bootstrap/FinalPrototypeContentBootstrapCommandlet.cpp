@@ -93,6 +93,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenYinBaoJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinBaoJianZhen");
 	const FString StarterHuoStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_HuoDaoShi");
 	const FString StarterYeStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeYaoYin");
+	const FString StarterYeImmunityStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeMianYi");
 	const FString StarterShenStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenJianZhen");
 	const FString StarterShenShiQiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenShiQi");
 	const FString StarterShenFengRuiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenFengRui");
@@ -149,6 +150,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenCharacterId(TEXT("character.starter.shen.qingxian"));
 	const FName StarterHuoStatusId(TEXT("status.starter.huo.daoshi"));
 	const FName StarterYeStatusId(TEXT("status.starter.ye.yaoyin"));
+	const FName StarterYeImmunityStatusId(TEXT("status.starter.ye.mianyi"));
 	const FName StarterShenStatusId(TEXT("status.starter.shen.jianzhen"));
 	const FName StarterShenShiQiStatusId(TEXT("status.starter.shen.shiqi"));
 	const FName StarterShenFengRuiStatusId(TEXT("status.starter.shen.fengrui"));
@@ -1116,6 +1118,22 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeStatus->OnTickEffects.Reset();
 	TrackPackage(StarterYeStatus, PackagesToSave);
 
+	UFinalStatusDefinition* StarterYeImmunityStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterYeImmunityStatusPath, bCreatedAsset);
+	StarterYeImmunityStatus->StatusId = FFinalStatusId(StarterYeImmunityStatusId);
+	StarterYeImmunityStatus->DisplayName = FText::FromString(TEXT("免疫"));
+	StarterYeImmunityStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterYeImmunityStatus->SummaryText = FText::FromString(TEXT("抵消下一次穿透护盾的共享生命伤害；触发后消耗，若到玩家回合结束仍未触发则失效。"));
+	StarterYeImmunityStatus->MaxStacks = 1;
+	StarterYeImmunityStatus->DefaultDuration = 1;
+	StarterYeImmunityStatus->OutgoingDamagePercentPerStack = 0;
+	StarterYeImmunityStatus->bExpireAtPlayerTurnEnd = true;
+	StarterYeImmunityStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterYeImmunityStatus->bOnlyAffectAttackCards = false;
+	StarterYeImmunityStatus->IncomingTeamHealthDamageReductionPercentPerStack = 100;
+	StarterYeImmunityStatus->bConsumeOnPreventedTeamHealthDamage = true;
+	StarterYeImmunityStatus->OnTickEffects.Reset();
+	TrackPackage(StarterYeImmunityStatus, PackagesToSave);
+
 	UFinalStatusDefinition* StarterShenStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenStatusPath, bCreatedAsset);
 	StarterShenStatus->StatusId = FFinalStatusId(StarterShenStatusId);
 	StarterShenStatus->DisplayName = FText::FromString(TEXT("阵诀"));
@@ -1212,7 +1230,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeUltimate->OwnerUnitId = StarterYeCharacterId;
 	StarterYeUltimate->DisplayName = FText::FromString(TEXT("回天续脉"));
 	StarterYeUltimate->BaseCostEP = 45;
-	StarterYeUltimate->RulesText = FText::FromString(TEXT("回复 18 点共享生命，并回复 1 AP。免疫仍保留后续深化。"));
+	StarterYeUltimate->RulesText = FText::FromString(TEXT("回复 18 点共享生命，获得 1 层免疫，并回复 1 AP。"));
 	StarterYeUltimate->Effects.Reset();
 	AddHealEffect(
 		StarterYeUltimate,
@@ -1222,13 +1240,21 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		18.0f,
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None);
+	AddApplyStatusEffect(
+		StarterYeUltimate,
+		StarterYeUltimate->Effects,
+		TEXT("effect.starter.ye.ultimate.huitianxumai.immunity"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		StarterYeImmunityStatus,
+		1,
+		FText::FromString(TEXT("对 team_player 施加一次共享生命伤害免疫。")));
 	AddGainApEffect(
 		StarterYeUltimate,
 		StarterYeUltimate->Effects,
 		TEXT("effect.starter.ye.ultimate.huitianxumai.gain_ap"),
 		EFinalBattleUnitTargetRule::Self,
 		1,
-		FText::FromString(TEXT("首波 Runtime 仅落地回复 AP，免疫仍待后续。")));
+		FText::FromString(TEXT("回天续脉的少量 AP 修正。")));
 	TrackPackage(StarterYeUltimate, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterShenUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterShenUltimatePath, bCreatedAsset);
@@ -1524,7 +1550,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterYeHuiChunSanCard->CardType = EFinalCardType::Skill;
 	StarterYeHuiChunSanCard->Rarity = EFinalRarity::Common;
 	StarterYeHuiChunSanCard->BaseCostAP = 1;
-	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 12 点共享生命。消耗 1 层药引：回复 1 AP。免疫仍保留后续深化。"));
+	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 12 点共享生命。消耗 1 层药引：回复 1 AP。"));
 	StarterYeHuiChunSanCard->Effects.Reset();
 	AddHealEffect(
 		StarterYeHuiChunSanCard,
@@ -1534,7 +1560,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		12.0f,
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None,
-		FText::FromString(TEXT("首波 Runtime 先落共享生命回复，免疫仍待后续。")));
+		FText::FromString(TEXT("当前免疫入口集中在回天续脉；回春散只保留治疗与药引回 AP。")));
 	AddRemoveStatusEffect(
 		StarterYeHuiChunSanCard,
 		StarterYeHuiChunSanCard->Effects,
