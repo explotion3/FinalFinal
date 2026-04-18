@@ -231,6 +231,7 @@
 * `护体`：受击时参与减伤计算；玩家侧通常按队伍共享状态处理
 * `士气`：造成伤害时参与攻击修正；玩家侧通常按角色个人状态处理
 * `免疫`：用于抵消或忽略特定负面效果；玩家侧通常按队伍共享状态处理
+  * `生命免疫`：当前 Runtime 已落地的免疫子类，用于抵消下一次穿透护盾的玩家共享生命 HP damage
 
 ### 8.2 通用负面状态
 * `中毒`：当前只作用于敌方单位；在玩家结束回合后的敌方行动前窗口结算
@@ -341,14 +342,19 @@
 * `StatusMergeRule`：`ByOwner`
 * `StatusStackRule`：`RefreshOnly`
 * `StatusRefreshRule`：`KeepLonger`
-* `摘要文本`：抵消下一次穿透护盾的玩家共享生命 HP damage；触发后消耗，若到玩家回合结束仍未触发则过期。
-* `当前 Runtime 字段`：
+* `摘要文本`：用于抵消或忽略特定负面效果。
+* `适用理由`：免疫当前更像单层防护状态，首版默认优先采用单实例刷新模型。
+* `当前 Runtime 子类`：`生命免疫`
+  * `StatusId`：`status.starter.ye.mianyi`
+  * `DisplayName`：`生命免疫`
+  * `摘要文本`：抵消下一次穿透护盾的玩家共享生命 HP damage；触发后消耗，若到玩家回合结束仍未触发则过期。
+* `生命免疫 Runtime 字段`：
   * `IncomingTeamHealthDamageReductionPercentPerStack = 100`
   * `bConsumeOnPreventedTeamHealthDamage = true`
   * `bExpireAtPlayerTurnEnd = true`
-* `结算顺序`：先由护盾抵消总伤害，再由免疫抵消剩余 pending Team HP damage，保护后的实际 HP damage 才扣 `TeamCurrentHP`。
-* `触发边界`：若免疫完全抵消本次 HP damage，则不触发 `OwnerTookHealthDamage`。
-* `适用理由`：免疫当前更像单层共享生命防护状态，首版默认优先采用单实例刷新模型。
+* `生命免疫结算顺序`：先由护盾抵消总伤害，再由生命免疫抵消剩余 pending Team HP damage，保护后的实际 HP damage 才扣 `TeamCurrentHP`。
+* `生命免疫触发边界`：若生命免疫完全抵消本次 HP damage，则不触发 `OwnerTookHealthDamage`。
+* `未落地范围`：免疫中毒、免疫控制、免疫压力、免疫崩溃等更泛化负面效果免疫，仍需要后续补独立协议。
 
 ## 11. 状态文本规范
 状态文案默认遵守以下原则：

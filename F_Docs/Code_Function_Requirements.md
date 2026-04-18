@@ -267,7 +267,7 @@
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
 * Battle 当前已补最小 `OwnerTookHealthDamage` 触发窗口协议：`CharacterDefinition` 可配置 battle trigger effect list，初始化时镜像到 `FinalBattleCharacterState`，当玩家共享生命实际下降时由 `FinalBattleResolver` 按角色顺序执行；当前 starter 已用它把霍断岳“受压得刀势”收回 Runtime
 * Battle 当前已补最小 `TargetStateRequirement` 协议：`Damage` effect 可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；requirement 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
-* Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的免疫保护收回 Runtime
+* Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime。`免疫` 仍是上位状态概念，`生命免疫` 只是当前已落地的共享生命 HP damage protection 子类
 * starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
 * prototype 启动配置也应收回到 `FinalData` 的 bootstrap/profile definition，例如 `PrototypeBootstrapDefinition`，承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / 初始角色持久状态 / InitialTeamCurrentHP`；`FinalApp` 运行时只查询一个 bootstrap stable id
 * 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
