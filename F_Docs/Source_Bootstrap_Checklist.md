@@ -377,7 +377,8 @@
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正百分比、在一次成功对敌伤害后消费带 `bConsumeOnSuccessfulOwnerDamage` 的状态 1 层，并在玩家结束回合进入敌方行动前统一递减 `bExpireAtPlayerTurnEnd` 状态
 * starter bundle 当前已把 `锋锐剑阵` 接回 Runtime：该衍生牌现在会为自身施加 1 层 `锋锐` 状态，使下一张攻击牌伤害提高 20%，若本回合内至少一次成功对敌生命伤害则消耗，否则在玩家回合结束时过期
 * starter bundle 当前已把 `万象归阵` 改成真实规则：抽 2 张牌、生成 1 张剑阵牌到手牌，并为每名角色施加 1 层 `士气`；不再用团队护盾近似团队增益
-* starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、受压得刀势、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
+* starter bundle 当前已补最小 `OwnerTookHealthDamage` 触发窗口：霍断岳角色定义挂接一组 battle trigger effects，玩家共享生命实际受损时按角色顺序触发，霍断岳因此获得 1 层 `刀势`
+* starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`
