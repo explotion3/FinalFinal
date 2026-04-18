@@ -430,6 +430,50 @@ FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(FFinalBattleState& State, cons
 	}
 }
 
+bool HasTargetStateRequirement(const FFinalBattleTargetStateRequirement& Requirement)
+{
+	return Requirement.bRequireEnemyTarget
+		|| Requirement.bRequireTargetBroken
+		|| Requirement.bRequireTargetAlive;
+}
+
+bool IsEnemyBroken(const FFinalBattleEnemyState& EnemyState)
+{
+	return EnemyState.CurrentBreakValue <= 0;
+}
+
+bool SatisfiesTargetStateRequirement(
+	const FFinalBattleTargetStateRequirement& Requirement,
+	const FFinalBattleEnemyState* TargetEnemyState)
+{
+	if (!HasTargetStateRequirement(Requirement))
+	{
+		return true;
+	}
+
+	if (Requirement.bRequireEnemyTarget && TargetEnemyState == nullptr)
+	{
+		return false;
+	}
+
+	if (TargetEnemyState == nullptr)
+	{
+		return false;
+	}
+
+	if (Requirement.bRequireTargetAlive && TargetEnemyState->CurrentHP <= 0)
+	{
+		return false;
+	}
+
+	if (Requirement.bRequireTargetBroken && !IsEnemyBroken(*TargetEnemyState))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectApplyStatus* EffectDefinition)
 {
 	if (EffectDefinition == nullptr)
@@ -874,6 +918,11 @@ bool ExecuteEffectList(
 
 			if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::TeamPlayer)
 			{
+				if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, nullptr))
+				{
+					continue;
+				}
+
 				for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 				{
 					const int32 HpDamage = ApplyTeamIncomingDamageAndTriggers(State, DamagePerHit, Summary);
@@ -886,9 +935,15 @@ bool ExecuteEffectList(
 
 			if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
 			{
+				bool bAppliedDamageToAnyEnemy = false;
 				for (FFinalBattleEnemyState& EnemyState : State.Enemies)
 				{
 					if (EnemyState.CurrentHP <= 0)
+					{
+						continue;
+					}
+
+					if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, &EnemyState))
 					{
 						continue;
 					}
@@ -898,7 +953,13 @@ bool ExecuteEffectList(
 						const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
 						ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 						Summary.TotalDamageToEnemies += DamagePerHit;
+						bAppliedDamageToAnyEnemy = true;
 					}
+				}
+
+				if (!bAppliedDamageToAnyEnemy)
+				{
+					continue;
 				}
 
 				++Summary.ResolvedEffectCount;
@@ -916,6 +977,11 @@ bool ExecuteEffectList(
 			}
 
 			if (TargetEnemyState == nullptr)
+			{
+				continue;
+			}
+
+			if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, TargetEnemyState))
 			{
 				continue;
 			}

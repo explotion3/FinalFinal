@@ -20,6 +20,7 @@
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
+#include "Battle/Effects/FinalBattleTargetStateRequirement.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -350,7 +351,8 @@ namespace FinalPrototypeContentBootstrap
 		const EFinalBattleScalarMode ScaleMode,
 		const EFinalBattleSourceStat SourceStat,
 		const int32 HitCount = 1,
-		const FText& Notes = FText::GetEmpty())
+		const FText& Notes = FText::GetEmpty(),
+		const FFinalBattleTargetStateRequirement* TargetStateRequirement = nullptr)
 	{
 		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(Owner);
 		DamageEffect->EffectId = EffectId;
@@ -360,6 +362,10 @@ namespace FinalPrototypeContentBootstrap
 		DamageEffect->Scalar.SourceStat = SourceStat;
 		DamageEffect->HitCount = HitCount;
 		DamageEffect->Notes = Notes;
+		if (TargetStateRequirement != nullptr)
+		{
+			DamageEffect->TargetStateRequirement = *TargetStateRequirement;
+		}
 		Effects.Add(DamageEffect);
 		return DamageEffect;
 	}
@@ -1157,7 +1163,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterHuoUltimate->OwnerUnitId = StarterHuoCharacterId;
 	StarterHuoUltimate->DisplayName = FText::FromString(TEXT("断岳绝式"));
 	StarterHuoUltimate->BaseCostEP = 45;
-	StarterHuoUltimate->RulesText = FText::FromString(TEXT("对单体目标造成相当于攻击力 220% 的伤害，并额外造成 6 点削韧。获得 2 层刀势。"));
+	StarterHuoUltimate->RulesText = FText::FromString(TEXT("对单体目标造成相当于攻击力 220% 的伤害，并额外造成 6 点削韧。若目标处于 Break，额外造成相当于攻击力 88% 的伤害。获得 2 层刀势。"));
 	StarterHuoUltimate->Effects.Reset();
 	AddBonusBreakEffect(
 		StarterHuoUltimate,
@@ -1175,6 +1181,23 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack,
 		1);
+	{
+		FFinalBattleTargetStateRequirement BrokenTargetRequirement;
+		BrokenTargetRequirement.bRequireEnemyTarget = true;
+		BrokenTargetRequirement.bRequireTargetBroken = true;
+		BrokenTargetRequirement.bRequireTargetAlive = true;
+		AddDamageEffect(
+			StarterHuoUltimate,
+			StarterHuoUltimate->Effects,
+			TEXT("effect.starter.huo.ultimate.duanyuejueshi.break_damage"),
+			EFinalBattleUnitTargetRule::SelectedEnemy,
+			0.88f,
+			EFinalBattleScalarMode::SourceStatMultiplier,
+			EFinalBattleSourceStat::Attack,
+			1,
+			FText::FromString(TEXT("目标处于 Break 时执行的额外伤害。")),
+			&BrokenTargetRequirement);
+	}
 	AddApplyStatusEffect(
 		StarterHuoUltimate,
 		StarterHuoUltimate->Effects,

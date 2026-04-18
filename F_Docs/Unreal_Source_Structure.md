@@ -267,7 +267,9 @@ FinalBattle      FinalRun
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波收回到 Runtime：`锋锐剑阵` 施加 1 层会在下一张攻击牌成功造成敌方生命伤害后消耗的 `锋锐`；`万象归阵` 改为抽牌 + 生成剑阵牌 + 为每名角色施加 1 层 `士气`
 * `FinalData` / `FinalBattle` 当前还补了最小 battle trigger 协议：`FinalBattleTriggerDefinition` 定义 `OwnerTookHealthDamage` 窗口，`CharacterDefinition` 承载触发 effect list，`FinalBattleResolver` 在玩家共享生命实际下降后从 runtime character state 执行触发效果
 * starter content 现在已用该 trigger 协议把霍断岳“受压得刀势”收回 Runtime：霍断岳所属队伍生命实际受损时获得 1 层 `刀势`
-* starter content 仍保留占位的部分包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、复杂 Break 条件追伤、经济 / 商店 / 未来窗口效果；这些内容仍应先补协议与规则服务，再从 Notes / 文案占位升级为权威效果
+* `FinalData` / `FinalBattle` 当前还补了最小 target state requirement 协议：`FinalBattleTargetStateRequirement` 挂在 `Damage` effect 上，Resolver 基于敌人权威 `CurrentBreakValue` 判断目标是否 Break；不满足时只跳过该 effect，不影响同张牌其他效果
+* starter content 现在已用该 target state requirement 把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
+* starter content 仍保留占位的部分包括：`万象归阵` 的阵牌扩散、免疫、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口效果；这些内容仍应先补协议与规则服务，再从 Notes / 文案占位升级为权威效果
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的运行时单点真相：默认使用 `prototype.bootstrap.starter.chapter1`，并保留 `prototype.bootstrap.test` 作为调试回切入口；`FinalBattlePlayerController` 和 `PrototypeRunDebugScreen` 只透传切换请求，不各自缓存 bootstrap 状态
 * 当前已补 prototype vertical slice 自动化冒烟测试，走 `FinalDataRegistry / FinalRunSession / FinalBattleSession / FinalGameFlowSubsystem / FinalBattleFlowSubsystem / RunSnapshot / BattleSnapshot` 的公开面，锁住 `bootstrap -> run -> battle -> battle result -> save/load` 主线
 * 当前已补 starter bootstrap registry reference 冒烟测试，验证 `prototype.bootstrap.starter.chapter1` 及其 rule / encounter / route / character / starter deck 引用能被 `FinalDataRegistry` 解析
