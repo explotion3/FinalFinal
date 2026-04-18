@@ -16,6 +16,7 @@
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleHandCardRequirement.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleGeneratedCardConsumeRequirement.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
@@ -572,6 +573,20 @@ bool SatisfiesGeneratedCardConsumeRequirement(
 			Requirement.RequiredKeyword) >= FMath::Max(Requirement.MinimumCount, 1);
 }
 
+bool SatisfiesHandCardRequirement(
+	const FFinalBattleHandCardRequirement& Requirement,
+	const FFinalBattleState& State,
+	const FName SourceOwnerUnitId)
+{
+	if (!Requirement.bRequireInHand)
+	{
+		return true;
+	}
+
+	return !SourceOwnerUnitId.IsNone()
+		&& GetCardService().SatisfiesHandCardRequirement(State, SourceOwnerUnitId, Requirement);
+}
+
 UFinalCardDefinition* ResolveGeneratedCardDefinition(
 	const UFinalBattleEffectGenerateCard* GenerateCardEffect,
 	const int32 GenerationIndex)
@@ -1036,6 +1051,11 @@ bool ExecuteEffectList(
 
 		if (const UFinalBattleEffectGainShield* ShieldEffect = Cast<UFinalBattleEffectGainShield>(EffectDefinition))
 		{
+			if (!SatisfiesHandCardRequirement(ShieldEffect->HandCardRequirement, State, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
 			const int32 ShieldAmount = ResolveScalarValue(ShieldEffect->Scalar, SourceCharacterState, SourceEnemyState);
 			if (ShieldAmount <= 0)
 			{
@@ -1086,6 +1106,11 @@ bool ExecuteEffectList(
 		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
 		{
 			if (!SatisfiesConsumeRequirement(DrawCardsEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+			{
+				continue;
+			}
+
+			if (!SatisfiesHandCardRequirement(DrawCardsEffect->HandCardRequirement, State, SourceOwnerUnitId))
 			{
 				continue;
 			}

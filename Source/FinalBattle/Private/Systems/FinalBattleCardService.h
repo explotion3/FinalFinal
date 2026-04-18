@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Effects/FinalBattleHandCardRequirement.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
 
@@ -21,6 +22,16 @@ public:
 	FFinalBattleCardInstance* FindCardInstance(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	const FFinalBattleCardInstance* FindCardInstance(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	bool IsCardInHand(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
+	int32 CountMatchingCardsInHand(
+		const FFinalBattleState& BattleState,
+		FName RuntimeOwnerUnitId,
+		const FFinalCardId& RequiredCardId,
+		const FGameplayTag& RequiredKeyword,
+		bool bGeneratedOnly) const;
+	bool SatisfiesHandCardRequirement(
+		const FFinalBattleState& BattleState,
+		FName RuntimeOwnerUnitId,
+		const FFinalBattleHandCardRequirement& Requirement) const;
 	FGuid AddGeneratedCardToHand(
 		FFinalBattleState& BattleState,
 		UFinalCardDefinition* CardDefinition,
