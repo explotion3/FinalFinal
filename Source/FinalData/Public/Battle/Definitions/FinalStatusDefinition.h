@@ -43,6 +43,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	bool bOnlyAffectAttackCards = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	bool bConsumeOnPreventedTeamHealthDamage = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Status")
 	TArray<TObjectPtr<UFinalBattleEffectDefinition>> OnTickEffects;
 };

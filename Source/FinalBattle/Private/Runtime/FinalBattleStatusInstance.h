@@ -16,4 +16,6 @@ struct FFinalBattleStatusInstance
 	bool bExpireAtPlayerTurnEnd = false;
 	bool bConsumeOnSuccessfulOwnerDamage = false;
 	bool bOnlyAffectAttackCards = false;
+	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
+	bool bConsumeOnPreventedTeamHealthDamage = false;
 };

@@ -29,6 +29,8 @@ public:
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,
 		bool bIsAttackCardDamage) const;
+	int32 GetIncomingTeamHealthDamageReductionPercent(const FFinalBattleState& BattleState) const;
+	int32 ApplyIncomingTeamHealthDamageProtection(FFinalBattleState& BattleState, int32 IncomingHealthDamage) const;
 	int32 RemoveStatusStacks(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,

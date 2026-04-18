@@ -107,10 +107,22 @@ Break 可打断或延后敌方行动，并为玩家提供额外收益。
 3. 得到实际伤害或实际生命损失
 4. 再触发基于“实际伤害 / 实际生命损失”的后续规则
 
+#### 4.1.1 玩家共享生命伤害保护
+当前 Runtime 已有最小 incoming team HP damage protection 协议，用于处理 `免疫` 这类玩家侧共享生命保护状态。
+
+玩家侧受到伤害时，当前顺序为：
+1. 先由 `TeamShield` 抵消总伤害
+2. 剩余会穿透护盾的部分形成 pending Team HP damage
+3. 再读取 `team_player` 上的状态保护，按 `IncomingTeamHealthDamageReductionPercentPerStack` 抵消 pending Team HP damage
+4. 保护后的实际 Team HP damage 才扣除 `TeamCurrentHP`
+5. 只有实际 `TeamCurrentHP` 下降时，才触发 `OwnerTookHealthDamage` 等基于实际生命损失的窗口
+
+若保护状态完全抵消本次 pending Team HP damage，则本次不产生实际生命损失，也不会触发霍断岳“受压得刀势”等受生命伤害触发。
+
 ### 4.2 压力转化顺序
 敌人攻击玩家时，默认按以下顺序处理：
 1. 伤害结算到队伍总生命
-2. 得到本次独立受击事件的实际生命损失
+2. 护盾与共享生命伤害保护结算后，得到本次独立受击事件的实际生命损失
 3. 将该实际生命损失按压力规则换算
 4. 为本次独立受击事件随机选择一名合法角色承担压力
 5. 结算随机保护

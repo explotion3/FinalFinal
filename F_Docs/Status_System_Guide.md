@@ -341,8 +341,14 @@
 * `StatusMergeRule`：`ByOwner`
 * `StatusStackRule`：`RefreshOnly`
 * `StatusRefreshRule`：`KeepLonger`
-* `摘要文本`：用于抵消或忽略特定负面效果。
-* `适用理由`：免疫当前更像单层防护状态，首版默认优先采用单实例刷新模型。
+* `摘要文本`：抵消下一次穿透护盾的玩家共享生命 HP damage；触发后消耗，若到玩家回合结束仍未触发则过期。
+* `当前 Runtime 字段`：
+  * `IncomingTeamHealthDamageReductionPercentPerStack = 100`
+  * `bConsumeOnPreventedTeamHealthDamage = true`
+  * `bExpireAtPlayerTurnEnd = true`
+* `结算顺序`：先由护盾抵消总伤害，再由免疫抵消剩余 pending Team HP damage，保护后的实际 HP damage 才扣 `TeamCurrentHP`。
+* `触发边界`：若免疫完全抵消本次 HP damage，则不触发 `OwnerTookHealthDamage`。
+* `适用理由`：免疫当前更像单层共享生命防护状态，首版默认优先采用单实例刷新模型。
 
 ## 11. 状态文本规范
 状态文案默认遵守以下原则：

@@ -38,6 +38,13 @@ bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& Status
 
 	return true;
 }
+
+bool IsIncomingTeamHealthDamageProtectionApplicable(const FFinalBattleStatusInstance& StatusInstance)
+{
+	return StatusInstance.OwnerUnitId == TeamPlayerUnitId
+		&& StatusInstance.CurrentStacks > 0
+		&& StatusInstance.IncomingTeamHealthDamageReductionPercentPerStack > 0;
+}
 }
 
 void FFinalBattleStatusService::ResolvePlayerTurnEndStatuses(FFinalBattleState& BattleState) const
@@ -98,6 +105,8 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 		NewInstance.bExpireAtPlayerTurnEnd = StatusDefinition ? StatusDefinition->bExpireAtPlayerTurnEnd : false;
 		NewInstance.bConsumeOnSuccessfulOwnerDamage = StatusDefinition ? StatusDefinition->bConsumeOnSuccessfulOwnerDamage : false;
 		NewInstance.bOnlyAffectAttackCards = StatusDefinition ? StatusDefinition->bOnlyAffectAttackCards : false;
+		NewInstance.IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition ? StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack : 0;
+		NewInstance.bConsumeOnPreventedTeamHealthDamage = StatusDefinition ? StatusDefinition->bConsumeOnPreventedTeamHealthDamage : false;
 		return NewInstance.CurrentStacks;
 	}
 
@@ -116,6 +125,8 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 		ExistingInstance->bExpireAtPlayerTurnEnd = StatusDefinition->bExpireAtPlayerTurnEnd;
 		ExistingInstance->bConsumeOnSuccessfulOwnerDamage = StatusDefinition->bConsumeOnSuccessfulOwnerDamage;
 		ExistingInstance->bOnlyAffectAttackCards = StatusDefinition->bOnlyAffectAttackCards;
+		ExistingInstance->IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack;
+		ExistingInstance->bConsumeOnPreventedTeamHealthDamage = StatusDefinition->bConsumeOnPreventedTeamHealthDamage;
 	}
 	if (BaseDuration > 0)
 	{
@@ -171,6 +182,67 @@ int32 FFinalBattleStatusService::ConsumeOutgoingDamageModifierStacks(
 	}
 
 	return TotalRemovedStacks;
+}
+
+int32 FFinalBattleStatusService::GetIncomingTeamHealthDamageReductionPercent(const FFinalBattleState& BattleState) const
+{
+	int32 TotalReductionPercent = 0;
+
+	for (const FFinalBattleStatusInstance& StatusInstance : BattleState.StatusInstances)
+	{
+		if (!IsIncomingTeamHealthDamageProtectionApplicable(StatusInstance))
+		{
+			continue;
+		}
+
+		TotalReductionPercent += StatusInstance.IncomingTeamHealthDamageReductionPercentPerStack * StatusInstance.CurrentStacks;
+	}
+
+	return FMath::Clamp(TotalReductionPercent, 0, 100);
+}
+
+int32 FFinalBattleStatusService::ApplyIncomingTeamHealthDamageProtection(
+	FFinalBattleState& BattleState,
+	const int32 IncomingHealthDamage) const
+{
+	const int32 ClampedIncomingHealthDamage = FMath::Max(IncomingHealthDamage, 0);
+	if (ClampedIncomingHealthDamage <= 0)
+	{
+		return 0;
+	}
+
+	const int32 ReductionPercent = GetIncomingTeamHealthDamageReductionPercent(BattleState);
+	if (ReductionPercent <= 0)
+	{
+		return ClampedIncomingHealthDamage;
+	}
+
+	const int32 PreventedHealthDamage = FMath::Clamp(
+		FMath::RoundToInt(static_cast<float>(ClampedIncomingHealthDamage) * static_cast<float>(ReductionPercent) / 100.0f),
+		0,
+		ClampedIncomingHealthDamage);
+	if (PreventedHealthDamage <= 0)
+	{
+		return ClampedIncomingHealthDamage;
+	}
+
+	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
+	{
+		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
+		if (!IsIncomingTeamHealthDamageProtectionApplicable(StatusInstance)
+			|| !StatusInstance.bConsumeOnPreventedTeamHealthDamage)
+		{
+			continue;
+		}
+
+		StatusInstance.CurrentStacks = FMath::Max(StatusInstance.CurrentStacks - 1, 0);
+		if (StatusInstance.CurrentStacks <= 0)
+		{
+			BattleState.StatusInstances.RemoveAt(StatusIndex);
+		}
+	}
+
+	return FMath::Max(ClampedIncomingHealthDamage - PreventedHealthDamage, 0);
 }
 
 int32 FFinalBattleStatusService::RemoveStatusStacks(

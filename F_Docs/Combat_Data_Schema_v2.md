@@ -1701,6 +1701,11 @@ DamageToBreakCap: 6
 * `RemainingDuration`
 * `DurationType`
 * `AppliedSequence`
+* `OutgoingDamagePercentPerStack`
+* `IncomingTeamHealthDamageReductionPercentPerStack`
+* `bExpireAtPlayerTurnEnd`
+* `bConsumeOnSuccessfulOwnerDamage`
+* `bConsumeOnPreventedTeamHealthDamage`
 
 ### 10.7 BattlePassiveInstance
 **用途**  

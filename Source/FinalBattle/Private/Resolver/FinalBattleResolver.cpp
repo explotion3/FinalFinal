@@ -807,7 +807,8 @@ int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomin
 	const int32 ShieldAbsorbed = FMath::Min(State.TeamShield, FMath::Max(TotalIncomingDamage, 0));
 	State.TeamShield -= ShieldAbsorbed;
 
-	const int32 HpDamage = FMath::Max(TotalIncomingDamage - ShieldAbsorbed, 0);
+	const int32 IncomingHpDamage = FMath::Max(TotalIncomingDamage - ShieldAbsorbed, 0);
+	const int32 HpDamage = GetStatusService().ApplyIncomingTeamHealthDamageProtection(State, IncomingHpDamage);
 	State.TeamCurrentHP = FMath::Max(0, State.TeamCurrentHP - HpDamage);
 	return HpDamage;
 }
