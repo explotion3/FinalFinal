@@ -7,6 +7,7 @@
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
+#include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleStatusInstance.h"
 #include "Runtime/FinalTeamDeckState.h"
 
@@ -29,6 +30,7 @@ struct FFinalBattleState
 	int32 LastEventSequence = 0;
 	TArray<FFinalBattleCharacterState> Characters;
 	TArray<FFinalBattleStartRelicInput> ActiveRelics;
+	TArray<FFinalBattleRelicRuntimeState> RelicRuntimeStates;
 	TArray<FFinalBattleEnemyState> Enemies;
 	TArray<FFinalBattleCardInstance> CardInstances;
 	TArray<FFinalBattleStatusInstance> StatusInstances;

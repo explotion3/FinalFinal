@@ -143,9 +143,10 @@
 * 处理遗物触发窗口
 * 记录每回合、每战斗、每效果的触发次数
 * 不允许遗物直接绕过命令与规则结算层改状态
-* 当前最小竖切至少支持两类小窗口遗物协议：
+* 当前最小竖切至少支持两类小窗口遗物协议，并已开始补 `RuntimeTriggers` 通用协议：
 * `battle-start`：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
 * `player-turn-start`：由 `RelicDefinition` 提供少量玩家回合开始 effect，在 Battle 初始化后保留到权威状态，并在玩家回合开始窗口真实落地并写入 `BattleEvent`
+* `RuntimeTriggers`：第一版是通用遗物触发协议，不命名为 BattleTriggers；当前只支持 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，由 `FinalBattleRelicService` 读取私有 `BattleRelicRuntimeState` 计数并写入 `RelicTriggered`
 
 优先级：
 * `P1`
@@ -185,7 +186,8 @@
 * 当前已开始真实承接实现的 Battle 私有 system 至少包括：
   * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、以及 `ConsumePile` 去向
   * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
-  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进、玩家回合开始窗口与遗物触发入口
+  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接
+  * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、`RuntimeTriggers` 运行时计数、`PlayerTeamTookHealthDamage` 触发窗口与 `ActiveRelics` 投影维护
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
 * `FinalBattleResolver` 负责 command dispatch、战斗初始化、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现
 
@@ -202,7 +204,7 @@
 * 维护牌组、遗物、金币、事件结果
 * 维护跨战斗保留状态，例如 `CollapseCount`
 * 为战斗开始提供当前队伍、当前牌组和遭遇输入
-* 为战斗开始提供当前遗物的最小 battle-start 输入，并通过 `FinalBattleStartRequest -> FFinalBattleInitContext` 显式传入 Battle，但不让 `FinalBattle` 直接读取 `RunState`
+* 为战斗开始提供当前遗物的最小 battle 输入，并通过 `FinalBattleStartRequest -> FFinalBattleInitContext` 显式传入 Battle；输入至少包含 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers` 的 Battle-domain 子集，但不让 `FinalBattle` 直接读取 `RunState`
 * 在战斗结束后消费战斗结果并回写单局状态
 * 对外至少提供当前构筑的只读查询面，让 UI 能读取当前牌库条目与遗物条目，而不直接访问 `RunState` 容器真相
 
@@ -327,14 +329,14 @@
 当前已开始落地：
 * `FinalEditor` 已建立最小 Editor-only 数据资产校验器
 * 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
-* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项与最小 relic battle-start / player-turn-start effect 合法性
+* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项、最小 relic battle-start / player-turn-start effect 合法性，以及 relic `RuntimeTriggers` 的 Domain / Window / Effects / Value 合法性
 * 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig / RunRoute` 的主 ID 是否重复
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
 * 当前已补 `RunRouteDefinition` 内容一致性校验：`RouteId / EntryNodeId`、同 route 内 `NodeDefinitions[*].NodeId` 唯一性、`NextNodeIds[*]` 可达性，以及 battle / reward / event / shop 节点的最小结构合法性
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并对缺失 stable id、非法 growth effect、自指升级和非正数值给出明确错误
 * 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
 * 当前已补 prototype vertical slice 的 Editor 自动化冒烟测试，覆盖 `prototype.bootstrap.test / prototype.bootstrap.starter.chapter1` 等 stable id 的发现、bootstrap 核心引用经 `FinalDataRegistry` 解析、bootstrap 启动最小 run、run 进入 battle 并执行最小推进、battle result 回写 run，以及战斗外 `ExportSaveData / RestoreFromSaveData`
-* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`
+* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`，`RuntimeTriggers` 还要求 `Domain / Window` 非空且 `Effects` 非空
 * 不做自动修复、复杂编辑器 UI、内容资产迁移，也不改变 Runtime 规则语义
 
 优先级：

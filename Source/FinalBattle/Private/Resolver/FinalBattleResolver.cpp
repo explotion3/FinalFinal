@@ -25,6 +25,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTurnService.h"
@@ -88,6 +89,7 @@ struct FFinalEffectExecutionContext
 
 void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
 const FFinalBattleCardService& GetCardService();
+const FFinalBattleRelicService& GetRelicService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleTurnService& GetTurnService();
 const FFinalBattleStatusService& GetStatusService();
@@ -268,6 +270,12 @@ const FFinalBattleCardService& GetCardService()
 {
 	static const FFinalBattleCardService CardService;
 	return CardService;
+}
+
+const FFinalBattleRelicService& GetRelicService()
+{
+	static const FFinalBattleRelicService RelicService;
+	return RelicService;
 }
 
 const FFinalBattleResourceService& GetResourceService()
@@ -850,6 +858,13 @@ int32 ApplyTeamIncomingDamageAndTriggers(
 	const int32 HpDamage = ApplyTeamIncomingDamage(State, TotalIncomingDamage);
 	if (HpDamage > 0)
 	{
+		TArray<FFinalBattleEvent> RelicEvents;
+		GetRelicService().HandlePlayerTeamTookHealthDamage(State, HpDamage, RelicEvents);
+		for (const FFinalBattleEvent& RelicEvent : RelicEvents)
+		{
+			AppendBattleEvent(State, RelicEvent);
+		}
+
 		ExecuteOwnerTookHealthDamageTriggers(State, Summary);
 	}
 	return HpDamage;
@@ -1489,7 +1504,7 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 	FinalizeBattleEvent(State, SessionStartedEvent);
 
 	TArray<FFinalBattleEvent> BattleStartRelicEvents;
-	GetTurnService().ApplyBattleStartRelicEffects(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
+	GetRelicService().InitializeRelics(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : BattleStartRelicEvents)
 	{
 		AppendBattleEvent(State, RelicEvent);
@@ -1711,6 +1726,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 				State,
 				RuleConfig,
 				GetCardService(),
+				GetRelicService(),
 				GetResourceService(),
 				GetStatusService(),
 				[](FFinalBattleState& MutableState, FFinalBattleEnemyState& EnemyState) -> FFinalBattleEnemyActionResult

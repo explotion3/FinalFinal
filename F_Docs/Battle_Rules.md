@@ -115,9 +115,10 @@ Break 可打断或延后敌方行动，并为玩家提供额外收益。
 2. 剩余会穿透护盾的部分形成 pending Team HP damage
 3. 再读取 `team_player` 上的状态保护，按 `IncomingTeamHealthDamageReductionPercentPerStack` 抵消 pending Team HP damage
 4. 保护后的实际 Team HP damage 才扣除 `TeamCurrentHP`
-5. 只有实际 `TeamCurrentHP` 下降时，才触发 `OwnerTookHealthDamage` 等基于实际生命损失的窗口
+5. 只有实际 `TeamCurrentHP` 下降时，才触发 `OwnerTookHealthDamage`、`PlayerTeamTookHealthDamage` 等基于实际生命损失的窗口
 
 若保护状态完全抵消本次 pending Team HP damage，则本次不产生实际生命损失，也不会触发霍断岳“受压得刀势”等受生命伤害触发。
+同理，护心铜镜这类 `PlayerTeamTookHealthDamage` 遗物也不会在生命免疫完全抵消 HP damage 时触发。
 
 ### 4.2 压力转化顺序
 敌人攻击玩家时，默认按以下顺序处理：

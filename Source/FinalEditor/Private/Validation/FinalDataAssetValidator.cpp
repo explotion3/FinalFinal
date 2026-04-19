@@ -431,6 +431,33 @@ namespace FinalDataAssetValidation
 			}
 			ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("PlayerTurnStartEffects[%d].Value"), Index));
 		}
+
+		for (int32 TriggerIndex = 0; TriggerIndex < Relic->RuntimeTriggers.Num(); ++TriggerIndex)
+		{
+			const FFinalRelicRuntimeTriggerDefinition& Trigger = Relic->RuntimeTriggers[TriggerIndex];
+			if (Trigger.Domain == EFinalRelicTriggerDomain::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Domain must not be None."), TriggerIndex));
+			}
+			if (Trigger.Window == EFinalRelicTriggerWindow::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Window must not be None."), TriggerIndex));
+			}
+			if (Trigger.Effects.IsEmpty())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Effects must contain at least one effect."), TriggerIndex));
+			}
+
+			for (int32 EffectIndex = 0; EffectIndex < Trigger.Effects.Num(); ++EffectIndex)
+			{
+				const FFinalRelicRuntimeTriggerEffectDefinition& Effect = Trigger.Effects[EffectIndex];
+				if (Effect.EffectType == EFinalRelicTriggerEffectType::None)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Effects[%d].EffectType must not be None."), TriggerIndex, EffectIndex));
+				}
+				ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("RuntimeTriggers[%d].Effects[%d].Value"), TriggerIndex, EffectIndex));
+			}
+		}
 	}
 
 	void ValidateRuleConfig(FDataValidationContext& Context, bool& bIsValid, const UFinalBattleRuleConfig* RuleConfig)

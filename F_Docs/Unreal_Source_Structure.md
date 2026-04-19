@@ -223,7 +223,8 @@ FinalBattle      FinalRun
   * `BattleHUDScreen` 显示精简 `ActiveRelics` 摘要，并把 `RelicTriggered` 作为顶部交互反馈的一部分
   * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、区分 `BattleStartEffects / PlayerTurnStartEffects` 的 `BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
   * `BattleDirector` 只保留简短的世界层 relic 提示，不重复堆叠完整列表
-* 当前 `ActiveRelics` 允许承载少量 battle-start / player-turn-start 遗物输入；窗口深化继续留在 `FinalBattle`，不回流到 `FinalApp`
+* 当前 `ActiveRelics` 允许承载少量 battle-start / player-turn-start 遗物输入，并已补 `RuntimeTriggers` 的 Battle-domain 子集投影；窗口深化继续留在 `FinalBattle`，不回流到 `FinalApp`
+* 当前 `FinalBattleRelicService` 与私有 `BattleRelicRuntimeState` 承接遗物运行时计数；第一版 runtime window 只落地 `PlayerTeamTookHealthDamage -> GainShield`，用于护心铜镜
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
@@ -256,7 +257,7 @@ FinalBattle      FinalRun
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：角色的初始卡组、角色卡池、奥义 ID、招牌状态 ID
 * 当前已补 `RunRouteDefinition` 的 route / node / reward 内容一致性校验：入口节点存在性、节点 ID 唯一性、同 route 跳转可达性、battle 节点引用的 `EncounterId / RuleConfigId`，以及 reward / event / shop 节点的最小内容结构
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并继续通过 project index 检查 card / relic / character 等稳定 ID 是否存在
-* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
+* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers`，以免未来窗口、经济、商店类合法遗物被当前最小战斗窗口误拦截
 * 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
 * 当前 `FinalPrototypeContentBootstrap` 也开始承接真实 starter content materialize：在 `/Game/Prototype/Definitions/Starter/...` 生成 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些资产进入同一套 registry / validation / smoke test 路径，不新增 Runtime 规则分支
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 真相收回到 `FinalData + FinalBattle`：当前最小 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，并由 `FinalBattleStatusService` 维护状态层数与快照展示
