@@ -117,6 +117,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterBootstrapPath = StarterRootPath / TEXT("Bootstrap/DA_PrototypeBootstrap_StarterChapter1");
 	const FString StarterRunRoutePath = StarterRootPath / TEXT("Run/DA_RunRoute_StarterChapter1");
 	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
+	const FString StarterTokenZeroDrawRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_TokenZeroDraw");
 
 	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
 	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
@@ -178,6 +179,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterInstructorEnemyId(TEXT("enemy.starter.blackwind.instructor"));
 	const FName StarterRouteId(TEXT("run.route.starter.chapter1"));
 	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
+	const FName StarterTokenZeroDrawRelicId(TEXT("relic_token_zero_draw"));
 	const FName StarterOpeningBattleNodeId(TEXT("run.starter.node.battle.roadblock"));
 	const FName StarterRewardNodeId(TEXT("run.starter.node.reward.spoils"));
 	const FName StarterEventNodeId(TEXT("run.starter.node.event.cliff_notice"));
@@ -1198,6 +1200,29 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EffectDefinition.Value = 8;
 	}
 	TrackPackage(StarterBronzeMirrorGuardRelic, PackagesToSave);
+
+	UFinalRelicDefinition* StarterTokenZeroDrawRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterTokenZeroDrawRelicPath, bCreatedAsset);
+	StarterTokenZeroDrawRelic->RelicId = FFinalRelicId(StarterTokenZeroDrawRelicId);
+	StarterTokenZeroDrawRelic->DisplayId = TEXT("Relic.Starter.TokenZeroDraw");
+	StarterTokenZeroDrawRelic->DisplayName = FText::FromString(TEXT("阵门木签"));
+	StarterTokenZeroDrawRelic->Rarity = EFinalRarity::Common;
+	StarterTokenZeroDrawRelic->Description = FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。"));
+	StarterTokenZeroDrawRelic->BattleStartEffects.Reset();
+	StarterTokenZeroDrawRelic->PlayerTurnStartEffects.Reset();
+	StarterTokenZeroDrawRelic->RuntimeTriggers.Reset();
+	{
+		FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = StarterTokenZeroDrawRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRelicTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRelicTriggerWindow::PlayerCardResolved;
+		TriggerDefinition.Limit = EFinalRelicTriggerLimit::OncePerPlayerTurn;
+		TriggerDefinition.CardCondition.bRequireCardCostAP = true;
+		TriggerDefinition.CardCondition.RequiredCardCostAP = 0;
+
+		FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition = TriggerDefinition.Effects.AddDefaulted_GetRef();
+		EffectDefinition.EffectType = EFinalRelicTriggerEffectType::DrawCards;
+		EffectDefinition.Value = 1;
+	}
+	TrackPackage(StarterTokenZeroDrawRelic, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterHuoUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterHuoUltimatePath, bCreatedAsset);
 	StarterHuoUltimate->UltimateId = FFinalUltimateId(StarterHuoUltimateId);

@@ -2,6 +2,7 @@
 
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
+#include "Systems/FinalBattleCardService.h"
 
 namespace
 {
@@ -10,6 +11,7 @@ const FName RelicGainShieldTag(TEXT("battle.relic.effect.gain_shield"));
 const FName RelicTurnStartGainAPTag(TEXT("battle.relic.effect.turn_start_gain_ap"));
 const FName RelicTurnStartGainShieldTag(TEXT("battle.relic.effect.turn_start_gain_shield"));
 const FName RelicTeamHealthDamageGainShieldTag(TEXT("battle.relic.trigger.player_team_took_health_damage.gain_shield"));
+const FName RelicPlayerCardResolvedDrawCardsTag(TEXT("battle.relic.trigger.player_card_resolved.draw_cards"));
 
 FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
 {
@@ -85,6 +87,28 @@ bool CanTriggerRuntimeRelicEffect(const FFinalBattleRelicRuntimeTriggerState& Tr
 	default:
 		return true;
 	}
+}
+
+bool SatisfiesCardCondition(
+	const FFinalRelicRuntimeCardConditionDefinition& CardCondition,
+	const FFinalBattleResolvedCardTriggerContext& CardContext)
+{
+	if (CardCondition.bRequireCardCostAP && CardContext.RuntimeCostAP != CardCondition.RequiredCardCostAP)
+	{
+		return false;
+	}
+
+	if (CardCondition.bRequireCardType && CardContext.CardType != CardCondition.RequiredCardType)
+	{
+		return false;
+	}
+
+	if (CardCondition.RequiredKeyword.IsValid() && !CardContext.RuntimeKeywords.HasTagExact(CardCondition.RequiredKeyword))
+	{
+		return false;
+	}
+
+	return true;
 }
 }
 
@@ -335,6 +359,75 @@ void FFinalBattleRelicService::HandlePlayerTeamTookHealthDamage(
 							FText::AsNumber(EffectDefinition.Value))));
 					bAppliedAnyEffect = true;
 					break;
+
+				default:
+					break;
+				}
+			}
+
+			if (bAppliedAnyEffect)
+			{
+				++TriggerState.TriggeredCountThisPlayerTurn;
+				++TriggerState.TriggeredCountThisBattle;
+			}
+		}
+	}
+}
+
+void FFinalBattleRelicService::HandlePlayerCardResolved(
+	FFinalBattleState& BattleState,
+	const FFinalBattleResolvedCardTriggerContext& CardContext,
+	const FFinalBattleCardService& CardService,
+	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
+{
+	if (!CardContext.CardId.IsValid() || CardContext.RuntimeOwnerUnitId.IsNone())
+	{
+		return;
+	}
+
+	for (FFinalBattleRelicRuntimeState& RuntimeState : BattleState.RelicRuntimeStates)
+	{
+		if (!RuntimeState.RelicId.IsValid())
+		{
+			continue;
+		}
+
+		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
+		{
+			const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
+				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerCardResolved
+				|| !CanTriggerRuntimeRelicEffect(TriggerState)
+				|| !SatisfiesCardCondition(TriggerDefinition.CardCondition, CardContext))
+			{
+				continue;
+			}
+
+			bool bAppliedAnyEffect = false;
+			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
+			{
+				if (!IsValidRuntimeTriggerEffect(EffectDefinition))
+				{
+					continue;
+				}
+
+				switch (EffectDefinition.EffectType)
+				{
+				case EFinalRelicTriggerEffectType::DrawCards:
+					{
+						const int32 DrawnCount = CardService.DrawCards(BattleState, EffectDefinition.Value);
+						OutGeneratedEvents.Add(BuildRelicTriggeredEvent(
+							RuntimeState.RelicId,
+							RelicPlayerCardResolvedDrawCardsTag,
+							DrawnCount,
+							BattleState.DeckState.HandCardInstanceIds.Num(),
+							FText::Format(
+								NSLOCTEXT("FinalBattleRelicService", "RelicPlayerCardResolvedDrawCards", "{0} triggered after a card resolved and drew {1} card(s)."),
+								RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
+								FText::AsNumber(DrawnCount))));
+						bAppliedAnyEffect = true;
+						break;
+					}
 
 				default:
 					break;

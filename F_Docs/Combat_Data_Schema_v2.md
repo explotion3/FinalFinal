@@ -1300,7 +1300,7 @@ Tags: [Breaker, CharacterResource]
 * `RelicThemeTags`：遗物主题标签，协议见 `8.38 RelicThemeTag`
 * `BattleStartEffects`：兼容字段，表达当前最小 battle-start 数值触发
 * `PlayerTurnStartEffects`：兼容字段，表达当前最小玩家回合开始数值触发
-* `RuntimeTriggers`：通用遗物触发协议；第一版只落地 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`
+* `RuntimeTriggers`：通用遗物触发协议；当前已落地 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，以及 `Domain=Battle / Window=PlayerCardResolved / CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) / Effect=DrawCards`
 * `bUnique`：是否唯一
 * `AudioProfileId`：音频配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `VfxProfileId`：特效配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
@@ -1309,6 +1309,7 @@ Tags: [Breaker, CharacterResource]
 * 遗物效果统一复用 `UBattleEffectDefinition` 基类族
 * `每回合第一次 / 每场第一次` 这类限制不写死在字段名里，由运行时 `BattleRelicRuntimeState` 记录触发次数与轮次标记
 * `RuntimeTriggers` 不命名为 `BattleTriggers`，以便后续承载 Run domain；当前 `BattleStartEffects / PlayerTurnStartEffects` 仍保留兼容，后续可逐步收敛
+* `PlayerCardResolved` 的第一版条件只承载卡牌结算上下文里的最小字段：运行时 AP 费用、可选 CardType、可选 Keyword；不在遗物结算层写具体 RelicId 特判
 * 当前首发遗物中出现的 `额外削韧 / 获得护盾 / 抽牌 / 获得 AP / 获得 EP / 回复生命 / 降低压力 / Break 后费用修正` 都必须能直接由 `Effects` 表达
 
 ### 9.9 EventDefinition

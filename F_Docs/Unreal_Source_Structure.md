@@ -224,7 +224,7 @@ FinalBattle      FinalRun
   * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、区分 `BattleStartEffects / PlayerTurnStartEffects` 的 `BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
   * `BattleDirector` 只保留简短的世界层 relic 提示，不重复堆叠完整列表
 * 当前 `ActiveRelics` 允许承载少量 battle-start / player-turn-start 遗物输入，并已补 `RuntimeTriggers` 的 Battle-domain 子集投影；窗口深化继续留在 `FinalBattle`，不回流到 `FinalApp`
-* 当前 `FinalBattleRelicService` 与私有 `BattleRelicRuntimeState` 承接遗物运行时计数；第一版 runtime window 只落地 `PlayerTeamTookHealthDamage -> GainShield`，用于护心铜镜
+* 当前 `FinalBattleRelicService` 与私有 `BattleRelicRuntimeState` 承接遗物运行时计数；已落地 `PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，以及 `PlayerCardResolved + CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) -> DrawCards` 用于阵门木签
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换

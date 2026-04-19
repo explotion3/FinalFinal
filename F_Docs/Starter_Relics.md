@@ -39,7 +39,7 @@
 * `每回合你的第一张攻击牌额外造成 1 点削韧。`
 
 Runtime 状态：
-* 尚未落地。本轮只落地通用 `RuntimeTriggers` 第一版和护心铜镜，不处理攻击牌首次削韧窗口。
+* 尚未落地。当前 RuntimeTriggers 已支持 `PlayerCardResolved` 与最小卡牌条件，但本轮只用于阵门木签的 0 AP 抽牌，不处理攻击牌首次削韧窗口。
 
 ### 3.2 护心铜镜
 定位：提高承压稳定性的基础遗物。
@@ -62,6 +62,10 @@ Runtime 状态：
 
 效果文本：
 * `每回合第一次打出 0 AP 牌时，抽 1 张牌。`
+
+Runtime 状态：
+* 已进入 Runtime。资产 `relic_token_zero_draw` 使用 `RelicDefinition.RuntimeTriggers`，配置为 `Domain=Battle`、`Window=PlayerCardResolved`、`Limit=OncePerPlayerTurn`、`CardCondition.RequiredCardCostAP=0`、`Effect=DrawCards(1)`。
+* 触发口径是玩家卡牌成功结算后；命令被拒绝不会触发，卡牌内部分 follow-up effect 因条件不满足而跳过不影响“这张牌已成功结算”的窗口。
 
 ### 3.5 山道旧钱
 定位：强化前期经济与商店修正的基础遗物。
