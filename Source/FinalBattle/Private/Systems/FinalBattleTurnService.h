@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
-#include "Run/Bridge/FinalBattleRelicPayload.h"
 
 class UFinalBattleRuleConfig;
 class FFinalBattleCardService;
+class FFinalBattleRelicService;
 class FFinalBattleResourceService;
 class FFinalBattleStatusService;
 struct FFinalBattleEnemyState;
@@ -30,15 +30,11 @@ struct FFinalBattleEndTurnResult
 class FFinalBattleTurnService
 {
 public:
-	void ApplyBattleStartRelicEffects(
-		FFinalBattleState& BattleState,
-		TArray<FFinalBattleStartRelicInput> ActiveRelics,
-		TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
-	void ApplyPlayerTurnStartRelicEffects(FFinalBattleState& BattleState, TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
 	FFinalBattleEndTurnResult ResolveEndTurn(
 		FFinalBattleState& BattleState,
 		const UFinalBattleRuleConfig* RuleConfig,
 		const FFinalBattleCardService& CardService,
+		const FFinalBattleRelicService& RelicService,
 		const FFinalBattleResourceService& ResourceService,
 		const FFinalBattleStatusService& StatusService,
 		TFunctionRef<FFinalBattleEnemyActionResult(FFinalBattleState&, FFinalBattleEnemyState&)> ExecuteEnemyAction) const;

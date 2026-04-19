@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "Run/Definitions/FinalRelicBattleTypes.h"
+#include "Run/Definitions/FinalRelicRuntimeTriggerTypes.h"
 #include "FinalBattleRelicPayload.generated.h"
 
 USTRUCT(BlueprintType)
@@ -48,4 +49,7 @@ struct FINALDATA_API FFinalBattleStartRelicInput
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
 	TArray<FFinalBattlePlayerTurnStartRelicEffectInput> PlayerTurnStartEffects;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
+	TArray<FFinalRelicRuntimeTriggerDefinition> RuntimeTriggers;
 };

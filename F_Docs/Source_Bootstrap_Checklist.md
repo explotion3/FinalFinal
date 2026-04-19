@@ -100,6 +100,7 @@
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicBattleTypes.h`
+* `Source/FinalData/Public/Run/Definitions/FinalRelicRuntimeTriggerTypes.h`
 * `Source/FinalData/Public/Run/Bridge/FinalBattleRelicPayload.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
 * `Source/FinalData/Public/Queries/FinalDataRegistry.h`
@@ -131,6 +132,7 @@
 * `Source/FinalBattle/Private/Runtime/FinalBattleEnemyState.h`
 * `Source/FinalBattle/Private/Runtime/FinalTeamDeckState.h`
 * `Source/FinalBattle/Private/Runtime/FinalBattleCardInstance.h`
+* `Source/FinalBattle/Private/Runtime/FinalBattleRelicRuntimeState.h`
 * `Source/FinalBattle/Private/Runtime/FinalBattleStatusInstance.h`
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.h`
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.cpp`
@@ -138,6 +140,8 @@
 * `Source/FinalBattle/Private/Systems/FinalBattleCardService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleResourceService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleResourceService.cpp`
+* `Source/FinalBattle/Private/Systems/FinalBattleRelicService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleRelicService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleStatusService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleStatusService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.h`
@@ -155,18 +159,19 @@
 * 第二批可补最小 relic 触发深化：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入
 * 先支持 `battle-start` 的 AP / Shield 修正
 * 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
+* 当前已新增通用 `RuntimeTriggers` 第一版：`Domain=Battle / Window=PlayerTeamTookHealthDamage / Limit=OncePerPlayerTurn / Effect=GainShield`，用于护心铜镜这类基于实际生命损失后的遗物触发
 
 #### 当前口径
 * `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator
 * `PlayCard / PlayUltimate / EndTurn` 的卡牌区变更、资源调整、回合推进细节已开始迁入 `Private/Systems`
 * `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建，并已补最小衍生牌生成/入手/ConsumePile 通路
 * `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置
-* `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration、battle-start / player-turn-start relic 数值触发与玩家回合开始窗口衔接
+* `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration 与玩家回合开始窗口衔接
+* `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` 窗口与 `RelicTriggered` 事件生成
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
 #### 暂不创建
-* 遗物运行时状态
 * 被动运行时状态
 * 完整战斗日志回放
 * 多阶段首领专用服务
@@ -274,7 +279,6 @@
 
 ### 6.2 FinalBattle
 * `FinalBattlePassiveInstance.h`
-* `FinalBattleRelicRuntimeState.h`
 * `FinalCollapseAwakenService.h`
 * `FinalBattleLogService.h`
 
@@ -328,6 +332,7 @@
 * 第一批跨资产稳定 ID 引用存在性检查已覆盖 `Character.InitialLoadoutCards[*].CardId / CharacterCardPoolIds[*] / UltimateId / SignatureStatusId`
 * 当前已补 `RunRouteDefinition` 校验，覆盖 `RouteId / EntryNodeId`、route 内节点唯一性、`NextNodeIds` 引用、battle 节点 `EncounterId / RuleConfigId`、以及 reward / event / shop 节点的最小结构合法性
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`
+* 当前已补 relic `RuntimeTriggers` 校验：有条目时要求 `Domain / Window` 非空、`Effects` 非空、`EffectType != None` 且 `Value > 0`；不要求每个 relic 都带 runtime trigger
 * 当前已补 prototype vertical slice 自动化冒烟测试，覆盖 bootstrap 发现、registry 引用解析、最小 run 启动、进入 battle 后最小推进、battle result 回写 run，以及战斗外 save/load 恢复
 * 资源检查菜单和调试面板仍后置
 

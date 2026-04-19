@@ -373,7 +373,36 @@ TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunS
 			RelicInput.PlayerTurnStartEffects.Add(EffectInput);
 		}
 
-		if (RelicInput.BattleStartEffects.Num() > 0 || RelicInput.PlayerTurnStartEffects.Num() > 0)
+		for (const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition : RelicDefinition->RuntimeTriggers)
+		{
+			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
+				|| TriggerDefinition.Window == EFinalRelicTriggerWindow::None
+				|| TriggerDefinition.Effects.IsEmpty())
+			{
+				continue;
+			}
+
+			FFinalRelicRuntimeTriggerDefinition TriggerInput = TriggerDefinition;
+			TriggerInput.Effects.Reset();
+			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
+			{
+				if (EffectDefinition.EffectType == EFinalRelicTriggerEffectType::None || EffectDefinition.Value <= 0)
+				{
+					continue;
+				}
+
+				TriggerInput.Effects.Add(EffectDefinition);
+			}
+
+			if (!TriggerInput.Effects.IsEmpty())
+			{
+				RelicInput.RuntimeTriggers.Add(MoveTemp(TriggerInput));
+			}
+		}
+
+		if (RelicInput.BattleStartEffects.Num() > 0
+			|| RelicInput.PlayerTurnStartEffects.Num() > 0
+			|| RelicInput.RuntimeTriggers.Num() > 0)
 		{
 			BattleStartRelics.Add(MoveTemp(RelicInput));
 		}

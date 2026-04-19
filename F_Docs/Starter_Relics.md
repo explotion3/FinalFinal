@@ -38,11 +38,18 @@
 效果文本：
 * `每回合你的第一张攻击牌额外造成 1 点削韧。`
 
+Runtime 状态：
+* 尚未落地。本轮只落地通用 `RuntimeTriggers` 第一版和护心铜镜，不处理攻击牌首次削韧窗口。
+
 ### 3.2 护心铜镜
 定位：提高承压稳定性的基础遗物。
 
 效果文本：
 * `每回合第一次承受实际生命损失后，获得 8 护盾。`
+
+Runtime 状态：
+* 已进入 Runtime。资产 `relic_bronze_mirror_guard` 使用 `RelicDefinition.RuntimeTriggers`，配置为 `Domain=Battle`、`Window=PlayerTeamTookHealthDamage`、`Limit=OncePerPlayerTurn`、`Effect=GainShield(8)`。
+* 触发口径沿用 `Battle_Rules.md` 的“实际生命损失”：护盾与生命免疫结算后，只有 `TeamCurrentHP` 真实下降才会触发；若生命免疫完全抵消本次 HP damage，则不会触发护心铜镜。
 
 ### 3.3 回春药囊
 定位：强化治疗减压闭环的基础遗物。

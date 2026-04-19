@@ -1298,6 +1298,9 @@ Tags: [Breaker, CharacterResource]
 * `Description`：补充说明文本
 * `Icon`：图标资源，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `RelicThemeTags`：遗物主题标签，协议见 `8.38 RelicThemeTag`
+* `BattleStartEffects`：兼容字段，表达当前最小 battle-start 数值触发
+* `PlayerTurnStartEffects`：兼容字段，表达当前最小玩家回合开始数值触发
+* `RuntimeTriggers`：通用遗物触发协议；第一版只落地 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`
 * `bUnique`：是否唯一
 * `AudioProfileId`：音频配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `VfxProfileId`：特效配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
@@ -1305,6 +1308,7 @@ Tags: [Breaker, CharacterResource]
 **说明**
 * 遗物效果统一复用 `UBattleEffectDefinition` 基类族
 * `每回合第一次 / 每场第一次` 这类限制不写死在字段名里，由运行时 `BattleRelicRuntimeState` 记录触发次数与轮次标记
+* `RuntimeTriggers` 不命名为 `BattleTriggers`，以便后续承载 Run domain；当前 `BattleStartEffects / PlayerTurnStartEffects` 仍保留兼容，后续可逐步收敛
 * 当前首发遗物中出现的 `额外削韧 / 获得护盾 / 抽牌 / 获得 AP / 获得 EP / 回复生命 / 降低压力 / Break 后费用修正` 都必须能直接由 `Effects` 表达
 
 ### 9.9 EventDefinition
@@ -1727,8 +1731,11 @@ DamageToBreakCap: 6
 
 **核心字段**
 * `RelicId`
-* `EffectRuntimeStates`
-* `CustomCounters`
+* `DisplayId`
+* `DisplayName`
+* `RuntimeTriggers`
+* `TriggerStates`
+* `CustomCounters`（后续复杂遗物再补）
 
 **说明**
 * `BattleRelicRuntimeState` 只负责这件遗物的总运行时容器，不直接把多条效果混成一组计数

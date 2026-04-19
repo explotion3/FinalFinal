@@ -116,6 +116,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterEliteEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_Instructor");
 	const FString StarterBootstrapPath = StarterRootPath / TEXT("Bootstrap/DA_PrototypeBootstrap_StarterChapter1");
 	const FString StarterRunRoutePath = StarterRootPath / TEXT("Run/DA_RunRoute_StarterChapter1");
+	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
 
 	const FName PrototypeBootstrapId(TEXT("prototype.bootstrap.test"));
 	const FName RuleConfigId(TEXT("rule.test.bootstrap"));
@@ -176,6 +177,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterCrossbowEnemyId(TEXT("enemy.starter.bandit.crossbow"));
 	const FName StarterInstructorEnemyId(TEXT("enemy.starter.blackwind.instructor"));
 	const FName StarterRouteId(TEXT("run.route.starter.chapter1"));
+	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
 	const FName StarterOpeningBattleNodeId(TEXT("run.starter.node.battle.roadblock"));
 	const FName StarterRewardNodeId(TEXT("run.starter.node.reward.spoils"));
 	const FName StarterEventNodeId(TEXT("run.starter.node.event.cliff_notice"));
@@ -1175,6 +1177,27 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
 	StarterShenFengRuiStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
+
+	UFinalRelicDefinition* StarterBronzeMirrorGuardRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterBronzeMirrorGuardRelicPath, bCreatedAsset);
+	StarterBronzeMirrorGuardRelic->RelicId = FFinalRelicId(StarterBronzeMirrorGuardRelicId);
+	StarterBronzeMirrorGuardRelic->DisplayId = TEXT("Relic.Starter.BronzeMirrorGuard");
+	StarterBronzeMirrorGuardRelic->DisplayName = FText::FromString(TEXT("护心铜镜"));
+	StarterBronzeMirrorGuardRelic->Rarity = EFinalRarity::Common;
+	StarterBronzeMirrorGuardRelic->Description = FText::FromString(TEXT("每回合第一次承受实际生命损失后，获得 8 护盾。"));
+	StarterBronzeMirrorGuardRelic->BattleStartEffects.Reset();
+	StarterBronzeMirrorGuardRelic->PlayerTurnStartEffects.Reset();
+	StarterBronzeMirrorGuardRelic->RuntimeTriggers.Reset();
+	{
+		FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = StarterBronzeMirrorGuardRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRelicTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRelicTriggerWindow::PlayerTeamTookHealthDamage;
+		TriggerDefinition.Limit = EFinalRelicTriggerLimit::OncePerPlayerTurn;
+
+		FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition = TriggerDefinition.Effects.AddDefaulted_GetRef();
+		EffectDefinition.EffectType = EFinalRelicTriggerEffectType::GainShield;
+		EffectDefinition.Value = 8;
+	}
+	TrackPackage(StarterBronzeMirrorGuardRelic, PackagesToSave);
 
 	UFinalUltimateDefinition* StarterHuoUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(StarterHuoUltimatePath, bCreatedAsset);
 	StarterHuoUltimate->UltimateId = FFinalUltimateId(StarterHuoUltimateId);
