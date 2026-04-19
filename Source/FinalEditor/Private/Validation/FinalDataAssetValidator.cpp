@@ -447,6 +447,10 @@ namespace FinalDataAssetValidation
 			{
 				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Effects must contain at least one effect."), TriggerIndex));
 			}
+			if (Trigger.CardCondition.bRequireCardCostAP && Trigger.CardCondition.RequiredCardCostAP < 0)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].CardCondition.RequiredCardCostAP must be >= 0."), TriggerIndex));
+			}
 
 			for (int32 EffectIndex = 0; EffectIndex < Trigger.Effects.Num(); ++EffectIndex)
 			{

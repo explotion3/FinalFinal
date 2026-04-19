@@ -159,7 +159,7 @@
 * 第二批可补最小 relic 触发深化：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入
 * 先支持 `battle-start` 的 AP / Shield 修正
 * 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
-* 当前已新增通用 `RuntimeTriggers` 第一版：`Domain=Battle / Window=PlayerTeamTookHealthDamage / Limit=OncePerPlayerTurn / Effect=GainShield`，用于护心铜镜这类基于实际生命损失后的遗物触发
+* 当前已新增通用 `RuntimeTriggers` 第一版并继续扩到第二个 Battle 窗口：`PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，`PlayerCardResolved + CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) -> DrawCards` 用于阵门木签
 
 #### 当前口径
 * `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator
@@ -167,7 +167,7 @@
 * `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建，并已补最小衍生牌生成/入手/ConsumePile 通路
 * `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置
 * `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration 与玩家回合开始窗口衔接
-* `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` 窗口与 `RelicTriggered` 事件生成
+* `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 窗口与 `RelicTriggered` 事件生成
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
@@ -332,7 +332,7 @@
 * 第一批跨资产稳定 ID 引用存在性检查已覆盖 `Character.InitialLoadoutCards[*].CardId / CharacterCardPoolIds[*] / UltimateId / SignatureStatusId`
 * 当前已补 `RunRouteDefinition` 校验，覆盖 `RouteId / EntryNodeId`、route 内节点唯一性、`NextNodeIds` 引用、battle 节点 `EncounterId / RuleConfigId`、以及 reward / event / shop 节点的最小结构合法性
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`
-* 当前已补 relic `RuntimeTriggers` 校验：有条目时要求 `Domain / Window` 非空、`Effects` 非空、`EffectType != None` 且 `Value > 0`；不要求每个 relic 都带 runtime trigger
+* 当前已补 relic `RuntimeTriggers` 校验：有条目时要求 `Domain / Window` 非空、`Effects` 非空、`EffectType != None` 且 `Value > 0`；启用卡牌费用条件时要求费用非负；不要求每个 relic 都带 runtime trigger
 * 当前已补 prototype vertical slice 自动化冒烟测试，覆盖 bootstrap 发现、registry 引用解析、最小 run 启动、进入 battle 后最小推进、battle result 回写 run，以及战斗外 save/load 恢复
 * 资源检查菜单和调试面板仍后置
 

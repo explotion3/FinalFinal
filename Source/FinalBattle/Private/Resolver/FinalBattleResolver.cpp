@@ -1587,19 +1587,38 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			}
 
 			const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
+			const UFinalCardDefinition* SourceCardDefinition = CardInstance->SourceDefinition;
+			const FName ResolvedRuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
+			const FGuid ResolvedCardInstanceId = CardInstance->CardInstanceId;
+			const FFinalCardId ResolvedCardId = CardInstance->CardId;
+
+			FFinalBattleResolvedCardTriggerContext RelicCardContext;
+			RelicCardContext.RuntimeOwnerUnitId = ResolvedRuntimeOwnerUnitId;
+			RelicCardContext.CardId = ResolvedCardId;
+			RelicCardContext.CardType = SourceCardDefinition->CardType;
+			RelicCardContext.RuntimeCostAP = CardInstance->RuntimeCostAP;
+			RelicCardContext.RuntimeKeywords = CardInstance->RuntimeKeywords;
+			RelicCardContext.bGeneratedCard = CardInstance->bGeneratedCard;
 
 			GetResourceService().SpendAP(State, CardInstance->RuntimeCostAP);
 			GetResourceService().GainCardPlayEP(State, RuleConfig);
 			GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 			FFinalEffectExecutionSummary Summary;
-			ExecuteEffectList(State, CardInstance->SourceDefinition->Effects, &Command, CardInstance->SourceDefinition, OwnerCharacterState, nullptr, Summary);
+			ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, Summary);
+
+			TArray<FFinalBattleEvent> RelicEvents;
+			GetRelicService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), RelicEvents);
+			for (const FFinalBattleEvent& RelicEvent : RelicEvents)
+			{
+				AppendBattleEvent(State, RelicEvent);
+			}
 
 			Event.EventType = EFinalBattleEventType::CardResolved;
-			Event.SourceUnitId = CardInstance->RuntimeOwnerUnitId;
+			Event.SourceUnitId = ResolvedRuntimeOwnerUnitId;
 			Event.TargetUnitId = Command.TargetUnitId != NAME_None ? Command.TargetUnitId : State.CurrentTargetUnitId;
-			Event.CardInstanceId = CardInstance->CardInstanceId;
-			Event.CardId = CardInstance->CardId;
+			Event.CardInstanceId = ResolvedCardInstanceId;
+			Event.CardId = ResolvedCardId;
 			Event.PrimaryValue = Summary.TotalDamageToEnemies;
 			Event.SecondaryValue = Summary.TotalCardsDrawn;
 
