@@ -18,6 +18,12 @@ public:
 	FFinalBattleSnapshot BuildSnapshot(const FFinalBattleState& State) const;
 
 private:
+	FFinalBattleEvent ExecutePlayCardCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const;
+	FFinalBattleEvent ExecutePlayUltimateCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const;
+	FFinalBattleEvent ExecuteEndTurnCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const;
+	FFinalBattleEvent ExecuteSelectTargetCommand(FFinalBattleState& State, const FFinalBattleCommand& Command) const;
+	FFinalBattleEvent ExecuteUnsupportedCommand(FFinalBattleState& State) const;
+
 	static FName MakePlayerUnitId(int32 Index);
 	static FName MakeEnemyUnitId(int32 Index);
 };
