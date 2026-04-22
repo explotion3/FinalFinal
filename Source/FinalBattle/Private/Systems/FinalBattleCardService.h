@@ -33,12 +33,21 @@ public:
 	FFinalBattleCardInstance* FindCardInstance(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	const FFinalBattleCardInstance* FindCardInstance(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	bool IsCardInHand(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
+	int32 CountMatchingCardsInZone(
+		const FFinalBattleState& BattleState,
+		EFinalBattleCardZone SourceZone,
+		const FFinalBattleCardMatchCriteria& Criteria) const;
 	int32 CountMatchingCardsInHand(
 		const FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,
 		const FFinalCardId& RequiredCardId,
 		const FGameplayTag& RequiredKeyword,
 		bool bGeneratedOnly) const;
+	bool SatisfiesMatchCriteriaInZone(
+		const FFinalBattleState& BattleState,
+		EFinalBattleCardZone SourceZone,
+		const FFinalBattleCardMatchCriteria& Criteria,
+		int32 MinimumCount) const;
 	bool SatisfiesHandCardRequirement(
 		const FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,

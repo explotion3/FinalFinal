@@ -1,5 +1,6 @@
 #include "Systems/FinalBattleCardService.h"
 
+#include "Algo/RandomShuffle.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
@@ -158,12 +159,36 @@ FFinalBattleCardInstance* ResolveCardInstanceById(FFinalBattleState& BattleState
 const FFinalBattleCardInstance* ResolveCardInstanceById(const FFinalBattleState& BattleState, const FGuid& CardInstanceId)
 {
 	const int32* CardInstanceIndex = BattleState.CardInstanceIndexById.Find(CardInstanceId);
-	if (CardInstanceIndex == nullptr || !BattleState.CardInstances.IsValidIndex(*CardInstanceIndex))
+	if (CardInstanceIndex == nullptr)
 	{
+		const bool bMissingIndexedCardExists = BattleState.CardInstances.ContainsByPredicate(
+			[&CardInstanceId](const FFinalBattleCardInstance& Candidate)
+			{
+				return Candidate.CardInstanceId == CardInstanceId;
+			});
+		ensureMsgf(
+			!bMissingIndexedCardExists,
+			TEXT("Battle card instance index is missing an entry for CardInstanceId %s."),
+			*CardInstanceId.ToString());
+		return nullptr;
+	}
+
+	if (!BattleState.CardInstances.IsValidIndex(*CardInstanceIndex))
+	{
+		ensureMsgf(
+			false,
+			TEXT("Battle card instance index for CardInstanceId %s points to invalid index %d."),
+			*CardInstanceId.ToString(),
+			*CardInstanceIndex);
 		return nullptr;
 	}
 
 	const FFinalBattleCardInstance& CardInstance = BattleState.CardInstances[*CardInstanceIndex];
+	ensureMsgf(
+		CardInstance.CardInstanceId == CardInstanceId,
+		TEXT("Battle card instance index for CardInstanceId %s points to mismatched CardInstanceId %s."),
+		*CardInstanceId.ToString(),
+		*CardInstance.CardInstanceId.ToString());
 	return CardInstance.CardInstanceId == CardInstanceId ? &CardInstance : nullptr;
 }
 }
@@ -217,6 +242,21 @@ bool FFinalBattleCardService::IsCardInHand(const FFinalBattleState& BattleState,
 	return BattleState.DeckState.HandCardInstanceIds.Contains(CardInstanceId);
 }
 
+int32 FFinalBattleCardService::CountMatchingCardsInZone(
+	const FFinalBattleState& BattleState,
+	const EFinalBattleCardZone SourceZone,
+	const FFinalBattleCardMatchCriteria& Criteria) const
+{
+	TArray<FGuid> MatchingCardInstanceIds;
+	CollectMatchingCardInstanceIdsInZone(
+		BattleState,
+		SourceZone,
+		Criteria,
+		MAX_int32,
+		MatchingCardInstanceIds);
+	return MatchingCardInstanceIds.Num();
+}
+
 int32 FFinalBattleCardService::CountMatchingCardsInHand(
 	const FFinalBattleState& BattleState,
 	const FName RuntimeOwnerUnitId,
@@ -230,14 +270,16 @@ int32 FFinalBattleCardService::CountMatchingCardsInHand(
 	Criteria.RequiredKeyword = RequiredKeyword;
 	Criteria.bGeneratedOnly = bGeneratedOnly;
 
-	TArray<FGuid> MatchingCardInstanceIds;
-	CollectMatchingCardInstanceIdsInZone(
-		BattleState,
-		EFinalBattleCardZone::Hand,
-		Criteria,
-		MAX_int32,
-		MatchingCardInstanceIds);
-	return MatchingCardInstanceIds.Num();
+	return CountMatchingCardsInZone(BattleState, EFinalBattleCardZone::Hand, Criteria);
+}
+
+bool FFinalBattleCardService::SatisfiesMatchCriteriaInZone(
+	const FFinalBattleState& BattleState,
+	const EFinalBattleCardZone SourceZone,
+	const FFinalBattleCardMatchCriteria& Criteria,
+	const int32 MinimumCount) const
+{
+	return CountMatchingCardsInZone(BattleState, SourceZone, Criteria) >= FMath::Max(MinimumCount, 1);
 }
 
 bool FFinalBattleCardService::SatisfiesHandCardRequirement(
@@ -250,12 +292,13 @@ bool FFinalBattleCardService::SatisfiesHandCardRequirement(
 		return true;
 	}
 
-	return CountMatchingCardsInHand(
-		BattleState,
-		RuntimeOwnerUnitId,
-		Requirement.RequiredCardId,
-		Requirement.RequiredKeyword,
-		Requirement.bGeneratedOnly) >= FMath::Max(Requirement.MinimumCount, 1);
+	FFinalBattleCardMatchCriteria Criteria;
+	Criteria.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
+	Criteria.RequiredCardId = Requirement.RequiredCardId;
+	Criteria.RequiredKeyword = Requirement.RequiredKeyword;
+	Criteria.bGeneratedOnly = Requirement.bGeneratedOnly;
+
+	return SatisfiesMatchCriteriaInZone(BattleState, EFinalBattleCardZone::Hand, Criteria, Requirement.MinimumCount);
 }
 
 FGuid FFinalBattleCardService::CreateCardInstance(
@@ -432,6 +475,7 @@ bool FFinalBattleCardService::RefillDrawPileFromDiscard(FFinalBattleState& Battl
 
 	BattleState.DeckState.DrawPileCardInstanceIds.Append(BattleState.DeckState.DiscardPileCardInstanceIds);
 	BattleState.DeckState.DiscardPileCardInstanceIds.Reset();
+	Algo::RandomShuffle(BattleState.DeckState.DrawPileCardInstanceIds);
 	return BattleState.DeckState.DrawPileCardInstanceIds.Num() > 0;
 }
 

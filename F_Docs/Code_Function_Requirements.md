@@ -95,6 +95,7 @@
 * 统一承接卡牌实例创建、牌区迁移与牌区放置，不让外层直接改 `DeckState.*CardInstanceIds`
 * 统一承接按条件匹配并迁移卡牌实例的牌区操作，避免长出多套 `FromHandToX` 私有实现
 * Battle 私有运行时状态应维护 `CardInstanceId -> CardInstance` 的最小索引，供 `FinalBattleCardService` 统一收口实例查找；卡牌匹配条件收口到 Battle 私有 criteria，不再继续堆散 API 参数
+* `FinalBattleCardService` 还应提供一层清晰的只读卡牌查询：至少区分“统计某牌区内匹配数量”“判定某牌区内是否满足最低匹配数”；抽牌堆耗尽时应先将弃牌堆洗回抽牌堆，再继续抽牌
 
 重点规则来源：
 * [Battle_Rules.md](Battle_Rules.md)
