@@ -189,9 +189,9 @@
 * `FinalApp` 应基于这组公开字段落统一的 BattleEvent presentation/helper 与只读事件账本 UI，服务 HUD、Debug、世界提示与未来 replay-ready 消费，但不承担规则推导
 * `FinalBattleResolver` 当前继续作为唯一对外规则入口，但私有实现细节应回收到 `FinalBattle/Private/Systems`
 * 当前已开始真实承接实现的 Battle 私有 system 至少包括：
-  * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
+  * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、固定数量抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
   * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
-  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接
+  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
   * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、`RuntimeTriggers` 运行时计数、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 触发窗口与 `ActiveRelics` 投影维护
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
 * `FinalBattleResolver` 负责 command dispatch、战斗初始化、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现

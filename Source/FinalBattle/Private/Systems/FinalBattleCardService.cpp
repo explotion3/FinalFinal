@@ -491,11 +491,6 @@ int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const i
 	return DrawnCount;
 }
 
-int32 FFinalBattleCardService::DrawUpToHandSize(FFinalBattleState& BattleState, const int32 TargetHandSize) const
-{
-	return DrawCards(BattleState, FMath::Max(TargetHandSize - BattleState.DeckState.HandCardInstanceIds.Num(), 0));
-}
-
 void FFinalBattleCardService::BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const
 {
 	for (const FGuid& CardInstanceId : BattleState.DeckState.HandCardInstanceIds)

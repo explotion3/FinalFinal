@@ -473,6 +473,7 @@ namespace FinalDataAssetValidation
 
 		ValidateNonNegative(Context, bIsValid, RuleConfig->InitialAP, TEXT("InitialAP"));
 		ValidateNonNegative(Context, bIsValid, RuleConfig->InitialHandSize, TEXT("InitialHandSize"));
+		ValidateNonNegative(Context, bIsValid, RuleConfig->TurnStartDrawCount, TEXT("TurnStartDrawCount"));
 		ValidatePositive(Context, bIsValid, RuleConfig->HandLimit, TEXT("HandLimit"));
 		ValidatePositive(Context, bIsValid, RuleConfig->MaxEP, TEXT("MaxEP"));
 		ValidateNonNegative(Context, bIsValid, RuleConfig->EndTurnEpGain, TEXT("EndTurnEpGain"));

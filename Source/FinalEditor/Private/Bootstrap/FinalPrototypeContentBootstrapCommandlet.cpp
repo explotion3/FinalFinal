@@ -580,6 +580,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	RuleConfig->RuleConfigId = FFinalRuleConfigId(RuleConfigId);
 	RuleConfig->InitialAP = 3;
 	RuleConfig->InitialHandSize = 5;
+	RuleConfig->TurnStartDrawCount = 5;
 	RuleConfig->HandLimit = 10;
 	RuleConfig->MaxEP = 70;
 	RuleConfig->EndTurnEpGain = 3;
@@ -1084,6 +1085,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 	StarterRuleConfig->RuleConfigId = FFinalRuleConfigId(StarterRuleConfigId);
 	StarterRuleConfig->InitialAP = 3;
 	StarterRuleConfig->InitialHandSize = 5;
+	StarterRuleConfig->TurnStartDrawCount = 5;
 	StarterRuleConfig->HandLimit = 10;
 	StarterRuleConfig->MaxEP = 70;
 	StarterRuleConfig->EndTurnEpGain = 3;

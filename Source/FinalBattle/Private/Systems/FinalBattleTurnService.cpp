@@ -82,10 +82,10 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 		EnemyState.bActedThisRound = false;
 	}
 
-	const int32 TargetHandSize = RuleConfig
-		? FMath::Max(RuleConfig->InitialHandSize, 0)
-		: BattleState.DeckState.HandCardInstanceIds.Num();
-	CardService.DrawUpToHandSize(BattleState, TargetHandSize);
+	const int32 TurnStartDrawCount = RuleConfig
+		? FMath::Max(RuleConfig->TurnStartDrawCount, 0)
+		: 0;
+	CardService.DrawCards(BattleState, TurnStartDrawCount);
 
 	return Result;
 }

@@ -1525,6 +1525,7 @@ EnemyRoster:
 * `RuleConfigId`：规则配置唯一 ID
 * `InitialAP`：战斗初始 AP
 * `InitialHandSize`：战斗初始抽牌数
+* `TurnStartDrawCount`：每个玩家回合开始固定抽牌数
 * `HandLimit`：手牌上限
 * `MaxEP`：EP 上限
 * `EndTurnEpGain`：回合结束获得的 EP
@@ -1561,6 +1562,7 @@ EnemyRoster:
 RuleConfigId: rule_default_ch1
 InitialAP: 3
 InitialHandSize: 5
+TurnStartDrawCount: 5
 HandLimit: 10
   MaxEP: 70
   EndTurnEpGain: 3

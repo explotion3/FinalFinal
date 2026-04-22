@@ -21,6 +21,9 @@ public:
 	int32 InitialHandSize = 5;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")
+	int32 TurnStartDrawCount = 5;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")
 	int32 HandLimit = 10;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")

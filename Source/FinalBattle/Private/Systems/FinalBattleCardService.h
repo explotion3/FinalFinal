@@ -105,9 +105,6 @@ public:
 	// 抽指定数量的牌；若抽牌堆为空，会先尝试把弃牌堆洗回抽牌堆。
 	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
 
-	// 将手牌补到目标数量，不足部分通过抽牌完成。
-	int32 DrawUpToHandSize(FFinalBattleState& BattleState, int32 TargetHandSize) const;
-
 	// 基于当前手牌实例构建对外只读的手牌视图数据。
 	void BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const;
 
