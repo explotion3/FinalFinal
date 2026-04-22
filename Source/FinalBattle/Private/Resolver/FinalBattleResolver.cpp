@@ -971,15 +971,17 @@ bool ExecuteConsumeGeneratedCardEffect(
 	}
 
 	TArray<FGuid> ConsumedCardInstanceIds;
+	FFinalBattleCardMatchCriteria MatchCriteria;
+	MatchCriteria.RuntimeOwnerUnitId = SourceOwnerUnitId;
+	MatchCriteria.RequiredCardId = ConsumeGeneratedCardEffect->RequiredCardId;
+	MatchCriteria.RequiredKeyword = ConsumeGeneratedCardEffect->RequiredKeyword;
+	MatchCriteria.bGeneratedOnly = ConsumeGeneratedCardEffect->bGeneratedOnly;
 	const int32 ConsumedCount = GetCardService().MoveMatchingCardsBetweenZones(
 		State,
-		SourceOwnerUnitId,
 		EFinalBattleCardZone::Hand,
 		EFinalBattleCardZone::ConsumePile,
-		ConsumeGeneratedCardEffect->RequiredCardId,
-		ConsumeGeneratedCardEffect->RequiredKeyword,
+		MatchCriteria,
 		TargetConsumeCount,
-		ConsumeGeneratedCardEffect->bGeneratedOnly,
 		&ConsumedCardInstanceIds);
 	if (ConsumedCount <= 0)
 	{

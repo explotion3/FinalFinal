@@ -263,6 +263,7 @@ FinalBattle      FinalRun
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 真相收回到 `FinalData + FinalBattle`：当前最小 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，并由 `FinalBattleStatusService` 维护状态层数与快照展示
 * starter content 现已进一步把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`GenerateCard / ConsumeGeneratedCard` 协议落入 `FinalData`，`FinalBattleCardService` 负责衍生牌实例创建、牌区迁移/放置、按条件匹配后的牌区迁移，以及关键词驱动的保留/消耗解释与 `ConsumePile` 去向，`布锋 / 引阵 / 过牌剑阵 / 破阵剑阵 / 引爆剑阵` 已进入最小闭环
 * `FinalData` / `FinalBattle` 当前还补了一层最小 `HandCardRequirement` 协议，用于按当前手牌内容 gated 执行现有效果；`FinalBattleCardService` 负责统计某个 RuntimeOwner 当前手牌中满足 `CardId / Keyword / MinimumCount / GeneratedOnly` 条件的卡数量，并供 Resolver 做效果放行
+* `FinalBattleState` 当前已补 Battle 私有 `CardInstanceId -> CardInstances` 最小索引，供 `FinalBattleCardService` 统一收口实例查找；卡牌匹配条件则收口到 Battle 私有 criteria，而不再继续堆散 API 参数
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则，不再保留 Battle 侧近似实现
 * `FinalData` / `FinalBattle` 当前还补了最小“状态驱动的攻击修正”协议：`StatusDefinition` 暴露 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 在运行时维护对应镜像值，并由 Resolver 在伤害链里统一读取
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波收回到 Runtime：`锋锐剑阵` 施加 1 层会在下一张攻击牌成功造成敌方生命伤害后消耗的 `锋锐`；`万象归阵` 改为抽牌 + 生成剑阵牌 + 为每名角色施加 1 层 `士气`

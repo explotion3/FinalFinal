@@ -4,6 +4,7 @@
 #include "Battle/Effects/FinalBattleHandCardRequirement.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Systems/FinalBattleCardMatchCriteria.h"
 
 class UFinalCardDefinition;
 struct FFinalBattleCardInstance;
@@ -54,13 +55,10 @@ public:
 		EFinalBattleCardZone Zone) const;
 	int32 MoveMatchingCardsBetweenZones(
 		FFinalBattleState& BattleState,
-		FName RuntimeOwnerUnitId,
 		EFinalBattleCardZone SourceZone,
 		EFinalBattleCardZone DestinationZone,
-		const FFinalCardId& RequiredCardId,
-		const FGameplayTag& RequiredKeyword,
+		const FFinalBattleCardMatchCriteria& Criteria,
 		int32 MoveCount,
-		bool bGeneratedOnly,
 		TArray<FGuid>* OutMovedCardInstanceIds = nullptr) const;
 	void MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
@@ -71,12 +69,9 @@ private:
 	bool RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const;
 	void CollectMatchingCardInstanceIdsInZone(
 		const FFinalBattleState& BattleState,
-		FName RuntimeOwnerUnitId,
 		EFinalBattleCardZone SourceZone,
-		const FFinalCardId& RequiredCardId,
-		const FGameplayTag& RequiredKeyword,
+		const FFinalBattleCardMatchCriteria& Criteria,
 		int32 MaxCount,
-		bool bGeneratedOnly,
 		TArray<FGuid>& OutCardInstanceIds) const;
 	void RemoveCardInstanceFromAllZones(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 };

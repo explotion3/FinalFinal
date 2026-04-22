@@ -118,32 +118,53 @@ void InsertCardInstanceIntoZoneArray(TArray<FGuid>& ZoneArray, const FGuid& Card
 
 bool MatchesGeneratedCardFilter(
 	const FFinalBattleCardInstance& CardInstance,
-	const FName RuntimeOwnerUnitId,
-	const FFinalCardId& RequiredCardId,
-	const FGameplayTag& RequiredKeyword,
-	const bool bGeneratedOnly)
+	const FFinalBattleCardMatchCriteria& Criteria)
 {
-	if (CardInstance.RuntimeOwnerUnitId != RuntimeOwnerUnitId)
+	if (CardInstance.RuntimeOwnerUnitId != Criteria.RuntimeOwnerUnitId)
 	{
 		return false;
 	}
 
-	if (bGeneratedOnly && !CardInstance.bGeneratedCard)
+	if (Criteria.bGeneratedOnly && !CardInstance.bGeneratedCard)
 	{
 		return false;
 	}
 
-	if (RequiredCardId.IsValid() && CardInstance.CardId != RequiredCardId)
+	if (Criteria.RequiredCardId.IsValid() && CardInstance.CardId != Criteria.RequiredCardId)
 	{
 		return false;
 	}
 
-	if (RequiredKeyword.IsValid() && !CardInstance.RuntimeKeywords.HasTagExact(RequiredKeyword))
+	if (Criteria.RequiredKeyword.IsValid() && !CardInstance.RuntimeKeywords.HasTagExact(Criteria.RequiredKeyword))
 	{
 		return false;
 	}
 
 	return true;
+}
+
+FFinalBattleCardInstance* ResolveCardInstanceById(FFinalBattleState& BattleState, const FGuid& CardInstanceId)
+{
+	const int32* CardInstanceIndex = BattleState.CardInstanceIndexById.Find(CardInstanceId);
+	if (CardInstanceIndex == nullptr || !BattleState.CardInstances.IsValidIndex(*CardInstanceIndex))
+	{
+		return nullptr;
+	}
+
+	FFinalBattleCardInstance& CardInstance = BattleState.CardInstances[*CardInstanceIndex];
+	return CardInstance.CardInstanceId == CardInstanceId ? &CardInstance : nullptr;
+}
+
+const FFinalBattleCardInstance* ResolveCardInstanceById(const FFinalBattleState& BattleState, const FGuid& CardInstanceId)
+{
+	const int32* CardInstanceIndex = BattleState.CardInstanceIndexById.Find(CardInstanceId);
+	if (CardInstanceIndex == nullptr || !BattleState.CardInstances.IsValidIndex(*CardInstanceIndex))
+	{
+		return nullptr;
+	}
+
+	const FFinalBattleCardInstance& CardInstance = BattleState.CardInstances[*CardInstanceIndex];
+	return CardInstance.CardInstanceId == CardInstanceId ? &CardInstance : nullptr;
 }
 }
 
@@ -183,20 +204,12 @@ void FFinalBattleCardService::InitializeDeckCards(
 
 FFinalBattleCardInstance* FFinalBattleCardService::FindCardInstance(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
 {
-	return BattleState.CardInstances.FindByPredicate(
-		[&CardInstanceId](const FFinalBattleCardInstance& Candidate)
-		{
-			return Candidate.CardInstanceId == CardInstanceId;
-		});
+	return ResolveCardInstanceById(BattleState, CardInstanceId);
 }
 
 const FFinalBattleCardInstance* FFinalBattleCardService::FindCardInstance(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
 {
-	return BattleState.CardInstances.FindByPredicate(
-		[&CardInstanceId](const FFinalBattleCardInstance& Candidate)
-		{
-			return Candidate.CardInstanceId == CardInstanceId;
-		});
+	return ResolveCardInstanceById(BattleState, CardInstanceId);
 }
 
 bool FFinalBattleCardService::IsCardInHand(const FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
@@ -211,15 +224,18 @@ int32 FFinalBattleCardService::CountMatchingCardsInHand(
 	const FGameplayTag& RequiredKeyword,
 	const bool bGeneratedOnly) const
 {
+	FFinalBattleCardMatchCriteria Criteria;
+	Criteria.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
+	Criteria.RequiredCardId = RequiredCardId;
+	Criteria.RequiredKeyword = RequiredKeyword;
+	Criteria.bGeneratedOnly = bGeneratedOnly;
+
 	TArray<FGuid> MatchingCardInstanceIds;
 	CollectMatchingCardInstanceIdsInZone(
 		BattleState,
-		RuntimeOwnerUnitId,
 		EFinalBattleCardZone::Hand,
-		RequiredCardId,
-		RequiredKeyword,
+		Criteria,
 		MAX_int32,
-		bGeneratedOnly,
 		MatchingCardInstanceIds);
 	return MatchingCardInstanceIds.Num();
 }
@@ -266,6 +282,7 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 	InitializeRuntimeKeywordState(CardInstance);
 
 	BattleState.CardInstances.Add(CardInstance);
+	BattleState.CardInstanceIndexById.Add(CardInstance.CardInstanceId, BattleState.CardInstances.Num() - 1);
 	return CardInstance.CardInstanceId;
 }
 
@@ -292,17 +309,14 @@ bool FFinalBattleCardService::MoveCardInstanceToZone(
 
 int32 FFinalBattleCardService::MoveMatchingCardsBetweenZones(
 	FFinalBattleState& BattleState,
-	const FName RuntimeOwnerUnitId,
 	const EFinalBattleCardZone SourceZone,
 	const EFinalBattleCardZone DestinationZone,
-	const FFinalCardId& RequiredCardId,
-	const FGameplayTag& RequiredKeyword,
+	const FFinalBattleCardMatchCriteria& Criteria,
 	const int32 MoveCount,
-	const bool bGeneratedOnly,
 	TArray<FGuid>* OutMovedCardInstanceIds) const
 {
 	const int32 TargetMoveCount = FMath::Max(MoveCount, 0);
-	if (TargetMoveCount <= 0 || RuntimeOwnerUnitId.IsNone())
+	if (TargetMoveCount <= 0 || Criteria.RuntimeOwnerUnitId.IsNone())
 	{
 		return 0;
 	}
@@ -315,12 +329,9 @@ int32 FFinalBattleCardService::MoveMatchingCardsBetweenZones(
 	TArray<FGuid> MatchedCardInstanceIds;
 	CollectMatchingCardInstanceIdsInZone(
 		BattleState,
-		RuntimeOwnerUnitId,
 		SourceZone,
-		RequiredCardId,
-		RequiredKeyword,
+		Criteria,
 		TargetMoveCount,
-		bGeneratedOnly,
 		MatchedCardInstanceIds);
 
 	int32 MovedCount = 0;
@@ -435,17 +446,14 @@ void FFinalBattleCardService::RemoveCardInstanceFromAllZones(FFinalBattleState& 
 
 void FFinalBattleCardService::CollectMatchingCardInstanceIdsInZone(
 	const FFinalBattleState& BattleState,
-	const FName RuntimeOwnerUnitId,
 	const EFinalBattleCardZone SourceZone,
-	const FFinalCardId& RequiredCardId,
-	const FGameplayTag& RequiredKeyword,
+	const FFinalBattleCardMatchCriteria& Criteria,
 	const int32 MaxCount,
-	const bool bGeneratedOnly,
 	TArray<FGuid>& OutCardInstanceIds) const
 {
 	OutCardInstanceIds.Reset();
 
-	if (RuntimeOwnerUnitId.IsNone() || MaxCount <= 0)
+	if (Criteria.RuntimeOwnerUnitId.IsNone() || MaxCount <= 0)
 	{
 		return;
 	}
@@ -463,7 +471,7 @@ void FFinalBattleCardService::CollectMatchingCardInstanceIdsInZone(
 		const FGuid CandidateCardInstanceId = (*SourceZoneArray)[CardIndex];
 		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
 		if (CandidateCardInstance == nullptr
-			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
+			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, Criteria))
 		{
 			continue;
 		}

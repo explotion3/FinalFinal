@@ -33,6 +33,7 @@ struct FFinalBattleState
 	TArray<FFinalBattleRelicRuntimeState> RelicRuntimeStates;
 	TArray<FFinalBattleEnemyState> Enemies;
 	TArray<FFinalBattleCardInstance> CardInstances;
+	TMap<FGuid, int32> CardInstanceIndexById;
 	TArray<FFinalBattleStatusInstance> StatusInstances;
 	FFinalTeamDeckState DeckState;
 	TArray<FFinalBattleEvent> BattleLogEntries;
