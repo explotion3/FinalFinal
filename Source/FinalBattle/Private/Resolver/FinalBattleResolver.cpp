@@ -932,12 +932,16 @@ bool ExecuteGenerateCardEffect(
 			continue;
 		}
 
-		const FGuid GeneratedCardInstanceId = GetCardService().AddGeneratedCardToHand(
+		const FGuid GeneratedCardInstanceId = GetCardService().CreateCardInstance(
 			State,
 			SelectedCardDefinition,
 			SourceOwnerUnitId,
 			GenerateCardEffect->bGeneratedCard,
 			GenerateCardEffect->bTemporaryCard);
+		if (GeneratedCardInstanceId.IsValid())
+		{
+			GetCardService().AddCardInstanceToZone(State, GeneratedCardInstanceId, EFinalBattleCardZone::Hand);
+		}
 		if (GeneratedCardInstanceId.IsValid())
 		{
 			++GeneratedCardCount;
