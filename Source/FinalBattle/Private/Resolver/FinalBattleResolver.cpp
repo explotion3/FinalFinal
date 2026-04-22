@@ -3,13 +3,13 @@
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
-#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleEnemyActionService.h"
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
@@ -183,6 +183,12 @@ const FFinalBattleEffectExecutionService& GetEffectExecutionService()
 {
 	static const FFinalBattleEffectExecutionService EffectExecutionService;
 	return EffectExecutionService;
+}
+
+const FFinalBattleEnemyActionService& GetEnemyActionService()
+{
+	static const FFinalBattleEnemyActionService EnemyActionService;
+	return EnemyActionService;
 }
 
 const FFinalBattleInitializationService& GetInitializationService()
@@ -439,29 +445,8 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 		GetRelicService(),
 		GetResourceService(),
 		GetStatusService(),
-		[](FFinalBattleState& MutableState, FFinalBattleEnemyState& EnemyState) -> FFinalBattleEnemyActionResult
-		{
-			FFinalBattleEnemyActionResult ActionResult;
-			FFinalBattleEffectExecutionSummary Summary;
-
-			if (EnemyState.CurrentIntentDefinition && GetEffectExecutionService().HasSupportedEffectList(EnemyState.CurrentIntentDefinition->Effects))
-			{
-				GetEffectExecutionService().ExecuteEffectList(MutableState, EnemyState.CurrentIntentDefinition->Effects, nullptr, nullptr, nullptr, &EnemyState, Summary);
-			}
-			else
-			{
-				const int32 HpDamage = GetEffectExecutionService().ApplyTeamIncomingDamageAndTriggers(
-					MutableState,
-					FMath::Max(EnemyState.RuntimeDamagePower, 0),
-					Summary);
-				Summary.TotalDamageToTeam += HpDamage;
-			}
-
-			ActionResult.DamageToTeam = Summary.TotalDamageToTeam;
-			ActionResult.EnemyShieldGained = Summary.TotalEnemyShieldGained;
-			ActionResult.ResolvedEffectCount = Summary.ResolvedEffectCount;
-			return ActionResult;
-		});
+		GetEnemyActionService(),
+		GetEffectExecutionService());
 
 	for (const FFinalBattleEvent& GeneratedEvent : EndTurnResult.GeneratedEvents)
 	{

@@ -5,10 +5,11 @@
 
 class UFinalBattleRuleConfig;
 class FFinalBattleCardService;
+class FFinalBattleEffectExecutionService;
+class FFinalBattleEnemyActionService;
 class FFinalBattleRelicService;
 class FFinalBattleResourceService;
 class FFinalBattleStatusService;
-struct FFinalBattleEnemyState;
 struct FFinalBattleState;
 
 struct FFinalBattleEnemyActionResult
@@ -37,5 +38,6 @@ public:
 		const FFinalBattleRelicService& RelicService,
 		const FFinalBattleResourceService& ResourceService,
 		const FFinalBattleStatusService& StatusService,
-		TFunctionRef<FFinalBattleEnemyActionResult(FFinalBattleState&, FFinalBattleEnemyState&)> ExecuteEnemyAction) const;
+		const FFinalBattleEnemyActionService& EnemyActionService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService) const;
 };

@@ -4,6 +4,8 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleEffectExecutionService.h"
+#include "Systems/FinalBattleEnemyActionService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
@@ -27,7 +29,8 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	const FFinalBattleRelicService& RelicService,
 	const FFinalBattleResourceService& ResourceService,
 	const FFinalBattleStatusService& StatusService,
-	TFunctionRef<FFinalBattleEnemyActionResult(FFinalBattleState&, FFinalBattleEnemyState&)> ExecuteEnemyAction) const
+	const FFinalBattleEnemyActionService& EnemyActionService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService) const
 {
 	FFinalBattleEndTurnResult Result;
 	CardService.ResolveEndTurnHandCleanup(BattleState);
@@ -40,7 +43,10 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 			continue;
 		}
 
-		const FFinalBattleEnemyActionResult ActionResult = ExecuteEnemyAction(BattleState, EnemyState);
+		const FFinalBattleEnemyActionResult ActionResult = EnemyActionService.ResolveEnemyAction(
+			BattleState,
+			EnemyState,
+			EffectExecutionService);
 		Result.TotalDamageToTeam += ActionResult.DamageToTeam;
 		Result.TotalEnemyShieldGained += ActionResult.EnemyShieldGained;
 		Result.ResolvedEffectCount += ActionResult.ResolvedEffectCount;

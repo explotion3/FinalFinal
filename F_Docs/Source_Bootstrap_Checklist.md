@@ -148,6 +148,8 @@
 * `Source/FinalBattle/Private/Systems/FinalBattleStatusService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.cpp`
+* `Source/FinalBattle/Private/Systems/FinalBattleEnemyActionService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleEnemyActionService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalEnemyIntentService.h`
 
 #### 首批目标
@@ -170,6 +172,7 @@
 * `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建，并已补最小衍生牌生成/入手/ConsumePile 通路
 * `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置
 * `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration 与玩家回合开始窗口衔接
+* `FinalBattleEnemyActionService` 当前承接单个敌人的 intent effect / fallback 普攻解析，`TurnService` 只编排回合窗口与敌人行动事件聚合
 * `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 窗口与 `RelicTriggered` 事件生成
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
