@@ -199,7 +199,8 @@
   * `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
   * `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
   * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
-* `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现；单位查询和默认目标查找统一下沉到 `FinalBattleUnitService`
+  * `FinalBattleSnapshotBuilder`：统一承接 `FinalBattleState -> FinalBattleSnapshot` 的只读查询投影，编排角色、奥义、敌人、牌堆计数、状态和手牌视图
+* `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot builder facade，不继续作为所有战斗细节的单文件实现；单位查询和默认目标查找统一下沉到 `FinalBattleUnitService`
 
 优先级：
 * `P1`
