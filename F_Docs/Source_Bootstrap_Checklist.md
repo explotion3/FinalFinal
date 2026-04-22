@@ -136,6 +136,8 @@
 * `Source/FinalBattle/Private/Runtime/FinalBattleStatusInstance.h`
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.h`
 * `Source/FinalBattle/Private/Resolver/FinalBattleResolver.cpp`
+* `Source/FinalBattle/Private/Systems/FinalBattleInitializationService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleInitializationService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleCardService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleCardService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleResourceService.h`
@@ -163,6 +165,7 @@
 
 #### 当前口径
 * `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator
+* `FinalBattleInitializationService` 当前承接遭遇 / 规则 / init context 到初始 BattleState 的展开，包括角色、敌人、初始手牌、初始 intent、默认目标、`SessionStarted` 与 battle-start relic 初始化
 * `PlayCard / PlayUltimate / EndTurn` 的卡牌区变更、资源调整、回合推进细节已开始迁入 `Private/Systems`
 * `FinalBattleCardService` 当前承接手牌 / 牌堆去向、卡牌实例查找、抽牌与手牌视图构建，并已补最小衍生牌生成/入手/ConsumePile 通路
 * `FinalBattleResourceService` 当前承接 AP / EP 初始化、打牌 / 回合结束 EP 增减与玩家回合开始 AP 重置

@@ -3,10 +3,7 @@
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
-#include "Battle/Definitions/FinalCharacterDefinition.h"
-#include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
-#include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
@@ -16,13 +13,12 @@
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
+#include "Systems/FinalBattleInitializationService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTurnService.h"
 #include "Systems/FinalEnemyIntentService.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleResolver, Log, All);
 
 namespace
 {
@@ -60,15 +56,6 @@ FFinalBattleEnemyState* FindEnemyState(FFinalBattleState& State, const FName Run
 		});
 }
 
-FFinalBattleEnemyState* FindFirstAliveEnemy(FFinalBattleState& State)
-{
-	return State.Enemies.FindByPredicate(
-		[](const FFinalBattleEnemyState& Candidate)
-		{
-			return Candidate.CurrentHP > 0;
-		});
-}
-
 bool AreAllEnemiesDefeated(const FFinalBattleState& State)
 {
 	if (State.Enemies.Num() == 0)
@@ -85,52 +72,6 @@ bool AreAllEnemiesDefeated(const FFinalBattleState& State)
 	}
 
 	return true;
-}
-
-int32 ResolveAwakenThreshold(const FFinalBattleCharacterState& CharacterState, const UFinalBattleRuleConfig* RuleConfig)
-{
-	if (RuleConfig == nullptr)
-	{
-		return 0;
-	}
-
-	if (const int32* DirectThreshold = RuleConfig->AwakenThresholdByCollapseCount.Find(CharacterState.CollapseCount))
-	{
-		return *DirectThreshold;
-	}
-
-	if (RuleConfig->AwakenThresholdByCollapseCount.Num() == 0)
-	{
-		return 0;
-	}
-
-	int32 FallbackThreshold = 0;
-	int32 FallbackCollapseCount = MIN_int32;
-	for (const TPair<int32, int32>& Entry : RuleConfig->AwakenThresholdByCollapseCount)
-	{
-		if (Entry.Key <= CharacterState.CollapseCount && Entry.Key >= FallbackCollapseCount)
-		{
-			FallbackCollapseCount = Entry.Key;
-			FallbackThreshold = Entry.Value;
-		}
-	}
-
-	if (FallbackCollapseCount != MIN_int32)
-	{
-		return FallbackThreshold;
-	}
-
-	int32 LowestCollapseCount = MAX_int32;
-	for (const TPair<int32, int32>& Entry : RuleConfig->AwakenThresholdByCollapseCount)
-	{
-		if (Entry.Key < LowestCollapseCount)
-		{
-			LowestCollapseCount = Entry.Key;
-			FallbackThreshold = Entry.Value;
-		}
-	}
-
-	return FallbackThreshold;
 }
 
 bool CanActivateUltimate(const FFinalBattleState& State, const FFinalBattleCharacterState& CharacterState)
@@ -244,196 +185,26 @@ const FFinalBattleEffectExecutionService& GetEffectExecutionService()
 	return EffectExecutionService;
 }
 
-void RefreshEnemyIntentState(FFinalBattleEnemyState& EnemyState, const int32 PreviewRound)
+const FFinalBattleInitializationService& GetInitializationService()
 {
-	GetEnemyIntentService().RefreshIntent(EnemyState, PreviewRound);
-}
-
-void RefreshEnemyIntentState(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 PreviewRound, const bool bEmitPhaseChangeEvent)
-{
-	const FName PreviousPhaseTag = EnemyState.CurrentPhaseTag;
-	GetEnemyIntentService().RefreshIntent(EnemyState, PreviewRound);
-
-	if (!bEmitPhaseChangeEvent
-		|| EnemyState.CurrentHP <= 0
-		|| PreviousPhaseTag == EnemyState.CurrentPhaseTag
-		|| EnemyState.CurrentPhaseTag == NAME_None)
-	{
-		return;
-	}
-
-	FFinalBattleEvent PhaseChangedEvent;
-	PhaseChangedEvent.EventType = EFinalBattleEventType::PhaseChanged;
-	PhaseChangedEvent.SourceUnitId = EnemyState.RuntimeUnitId;
-	PhaseChangedEvent.RelatedTag = EnemyState.CurrentPhaseTag;
-	PhaseChangedEvent.Message = FText::Format(
-		NSLOCTEXT("FinalBattleResolver", "EnemyPhaseChanged", "{0} shifted from {1} to {2}."),
-		EnemyState.DisplayName.IsEmpty() ? FText::FromName(EnemyState.RuntimeUnitId) : EnemyState.DisplayName,
-		PreviousPhaseTag == NAME_None ? FText::FromString(TEXT("none")) : FText::FromName(PreviousPhaseTag),
-		FText::FromName(EnemyState.CurrentPhaseTag));
-	GetEventService().AppendBattleEvent(State, PhaseChangedEvent);
-}
-
-void AdvanceEnemyIntentState(FFinalBattleEnemyState& EnemyState, const int32 CurrentRound)
-{
-	GetEnemyIntentService().CommitCurrentIntentExecution(EnemyState, CurrentRound);
-	GetEnemyIntentService().RefreshIntent(EnemyState, CurrentRound + 1);
+	static const FFinalBattleInitializationService InitializationService;
+	return InitializationService;
 }
 
 }
 
 void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBattleEncounterDefinition* EncounterDefinition, const UFinalBattleRuleConfig* RuleConfig, const FFinalBattleInitContext& InitContext) const
 {
-	State = FFinalBattleState{};
-	State.BattleId = FGuid::NewGuid();
-	State.CurrentRound = 1;
-	GetResourceService().InitializeBattleResources(State, RuleConfig);
-	GetCardService().InitializeDeckState(State.DeckState);
-	State.TeamCurrentHP = 0;
-	State.TeamMaxHP = 0;
-	TMap<FName, FName> TemplateToRuntimeUnitMap;
-
-	if (EncounterDefinition)
-	{
-		State.EncounterId = EncounterDefinition->EncounterId;
-		State.EncounterDisplayName = EncounterDefinition->DisplayName;
-	}
-
-	if (RuleConfig)
-	{
-		State.RuleConfigId = RuleConfig->RuleConfigId;
-	}
-
-	for (int32 Index = 0; Index < InitContext.PartyMembers.Num(); ++Index)
-	{
-		const FFinalBattleCharacterInitData& PartyEntry = InitContext.PartyMembers[Index];
-		if (PartyEntry.CharacterDefinition == nullptr || !PartyEntry.CharacterDefinition->CharacterId.IsValid())
-		{
-			continue;
-		}
-
-		FFinalBattleCharacterState CharacterState;
-		CharacterState.RuntimeUnitId = MakePlayerUnitId(Index);
-		CharacterState.CharacterId = PartyEntry.CharacterDefinition->CharacterId;
-		CharacterState.DisplayName = PartyEntry.CharacterDefinition->DisplayName;
-		CharacterState.CurrentStress = PartyEntry.CurrentStress;
-		CharacterState.StressCap = PartyEntry.CharacterDefinition->BaseStressCap;
-		CharacterState.bCollapsed = PartyEntry.bCollapsed;
-		CharacterState.CurrentAwakenCount = PartyEntry.CurrentAwakenCount;
-		CharacterState.CollapseCount = PartyEntry.CollapseCount;
-		CharacterState.CurrentAwakenThreshold = ResolveAwakenThreshold(CharacterState, RuleConfig);
-		CharacterState.VitalShare = PartyEntry.CharacterDefinition->BaseVitalShare;
-		CharacterState.RuntimeAttack = PartyEntry.CharacterDefinition->BaseAttack;
-		CharacterState.RuntimeDefense = PartyEntry.CharacterDefinition->BaseDefense;
-		CharacterState.RuntimeBreakRate = PartyEntry.CharacterDefinition->BaseBreakRate;
-		CharacterState.UltimateId = PartyEntry.CharacterDefinition->UltimateId;
-		CharacterState.BattleTriggers = PartyEntry.CharacterDefinition->BattleTriggers;
-		if (PartyEntry.UltimateDefinition != nullptr)
-		{
-			CharacterState.UltimateDefinition = PartyEntry.UltimateDefinition;
-			CharacterState.UltimateDisplayName = PartyEntry.UltimateDefinition->DisplayName;
-			CharacterState.UltimateCostEP = PartyEntry.UltimateDefinition->BaseCostEP;
-		}
-		State.Characters.Add(MoveTemp(CharacterState));
-
-		TemplateToRuntimeUnitMap.Add(PartyEntry.CharacterDefinition->CharacterId.Value, State.Characters.Last().RuntimeUnitId);
-
-		if (!PartyEntry.bCollapsed)
-		{
-			State.TeamMaxHP += PartyEntry.CharacterDefinition->BaseVitalShare;
-		}
-	}
-
-	State.TeamCurrentHP = InitContext.TeamCurrentHP > 0
-		? FMath::Min(InitContext.TeamCurrentHP, State.TeamMaxHP)
-		: State.TeamMaxHP;
-
-	GetCardService().InitializeDeckCards(State, InitContext.DeckDefinitions, TemplateToRuntimeUnitMap);
-	GetCardService().PrepareInitialDrawPile(State);
-
-	const int32 InitialHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : 0;
-	GetCardService().DrawCards(State, InitialHandSize);
-
-	if (!EncounterDefinition)
-	{
-		return;
-	}
-
-	for (int32 Index = 0; Index < EncounterDefinition->EnemyRoster.Num(); ++Index)
-	{
-		const FFinalEnemyRosterEntry& Entry = EncounterDefinition->EnemyRoster[Index];
-		UFinalEnemyDefinition* LoadedEnemy = Entry.EnemyDefinition.LoadSynchronous();
-
-		FFinalBattleEnemyState EnemyState;
-		EnemyState.RuntimeUnitId = MakeEnemyUnitId(Index);
-		EnemyState.PositionIndex = Entry.PositionIndex;
-		EnemyState.SpawnWave = Entry.SpawnWave;
-
-		if (LoadedEnemy)
-		{
-			EnemyState.EnemyId = LoadedEnemy->EnemyId;
-			EnemyState.DisplayName = LoadedEnemy->DisplayName;
-			EnemyState.RoleTags = LoadedEnemy->RoleTags;
-			EnemyState.MaxHP = LoadedEnemy->MaxHP;
-			EnemyState.CurrentHP = LoadedEnemy->MaxHP;
-			EnemyState.CurrentShield = 0;
-			EnemyState.MaxBreakValue = LoadedEnemy->MaxBreakValue;
-			EnemyState.CurrentBreakValue = LoadedEnemy->MaxBreakValue;
-			EnemyState.CurrentInitiative = LoadedEnemy->InitialInitiativeValue;
-			EnemyState.RuntimeDamagePower = LoadedEnemy->BaseDamagePower;
-			EnemyState.IntentSelectRule = LoadedEnemy->IntentSelectRule;
-			EnemyState.PhaseSequence = LoadedEnemy->PhaseSequence;
-			EnemyState.PhaseSequence.Sort(
-				[](const FFinalEnemyPhaseDefinition& Left, const FFinalEnemyPhaseDefinition& Right)
-				{
-					return Left.MaxHpPercent > Right.MaxHpPercent;
-				});
-
-			for (const TSoftObjectPtr<UFinalEnemyIntentDefinition>& IntentReference : LoadedEnemy->IntentPool)
-			{
-				if (UFinalEnemyIntentDefinition* LoadedIntent = IntentReference.LoadSynchronous())
-				{
-					FFinalBattleEnemyIntentRuntimeState& IntentState = EnemyState.IntentRuntimeStates.AddDefaulted_GetRef();
-					IntentState.Definition = LoadedIntent;
-					IntentState.IntentId = LoadedIntent->IntentId;
-				}
-			}
-
-			RefreshEnemyIntentState(EnemyState, State.CurrentRound);
-		}
-		else
-		{
-			EnemyState.DisplayName = FText::FromString(TEXT("Missing Enemy Definition"));
-		}
-
-		State.Enemies.Add(MoveTemp(EnemyState));
-	}
-
-	if (FFinalBattleEnemyState* DefaultTargetEnemy = FindFirstAliveEnemy(State))
-	{
-		State.CurrentTargetUnitId = DefaultTargetEnemy->RuntimeUnitId;
-	}
-
-	FFinalBattleEvent SessionStartedEvent;
-	SessionStartedEvent.EventType = EFinalBattleEventType::SessionStarted;
-	SessionStartedEvent.Message = FText::Format(
-		NSLOCTEXT("FinalBattleResolver", "SessionStarted", "Battle started: {0}."),
-		State.EncounterDisplayName.IsEmpty() ? FText::FromName(State.EncounterId.Value) : State.EncounterDisplayName);
-	GetEventService().FinalizeBattleEvent(State, SessionStartedEvent);
-
-	TArray<FFinalBattleEvent> BattleStartRelicEvents;
-	GetRelicService().InitializeRelics(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
-	for (const FFinalBattleEvent& RelicEvent : BattleStartRelicEvents)
-	{
-		GetEventService().AppendBattleEvent(State, RelicEvent);
-	}
-
-	UE_LOG(LogFinalBattleResolver, Log, TEXT("Initialized battle session with %d enemy entries."), State.Enemies.Num());
-}
-
-FName FFinalBattleResolver::MakePlayerUnitId(int32 Index)
-{
-	return FName(*FString::Printf(TEXT("unit_player_%d"), Index + 1));
+	GetInitializationService().InitializeBattle(
+		State,
+		EncounterDefinition,
+		RuleConfig,
+		InitContext,
+		GetCardService(),
+		GetEventService(),
+		GetRelicService(),
+		GetResourceService(),
+		GetEnemyIntentService());
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const
@@ -869,7 +640,3 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 	return Snapshot;
 }
 
-FName FFinalBattleResolver::MakeEnemyUnitId(int32 Index)
-{
-	return FName(*FString::Printf(TEXT("unit_enemy_%d"), Index + 1));
-}

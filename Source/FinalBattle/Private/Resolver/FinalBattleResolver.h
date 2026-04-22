@@ -11,7 +11,7 @@ class UFinalBattleRuleConfig;
 struct FFinalBattleState;
 
 // Battle 规则编排器。
-// 职责：初始化战斗、分发 BattleCommand、统一写入 BattleEvent、构建 BattleSnapshot。
+// 职责：作为对外 facade 调用初始化服务、分发 BattleCommand、统一写入 BattleEvent、构建 BattleSnapshot。
 // 非职责：不长期承载具体卡牌效果、状态窗口、资源变化、牌区迁移、遗物触发细节；这些应下沉到 Private/Systems。
 class FFinalBattleResolver
 {
@@ -40,10 +40,4 @@ private:
 
 	// 处理当前不支持的命令类型。
 	FFinalBattleEvent ExecuteUnsupportedCommand(FFinalBattleState& State) const;
-
-	// 生成玩家单位的默认运行时 Id。
-	static FName MakePlayerUnitId(int32 Index);
-
-	// 生成敌方单位的默认运行时 Id。
-	static FName MakeEnemyUnitId(int32 Index);
 };
