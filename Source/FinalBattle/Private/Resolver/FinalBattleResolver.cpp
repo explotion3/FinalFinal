@@ -1578,9 +1578,10 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		: State.TeamMaxHP;
 
 	GetCardService().InitializeDeckCards(State, InitContext.DeckDefinitions, TemplateToRuntimeUnitMap);
+	GetCardService().PrepareInitialDrawPile(State);
 
 	const int32 InitialHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : 0;
-	GetCardService().DrawCards(State, FMath::Min(InitialHandSize, State.DeckState.DrawPileCardInstanceIds.Num()));
+	GetCardService().DrawCards(State, InitialHandSize);
 
 	if (!EncounterDefinition)
 	{

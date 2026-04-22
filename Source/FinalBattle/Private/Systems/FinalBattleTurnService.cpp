@@ -30,6 +30,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	TFunctionRef<FFinalBattleEnemyActionResult(FFinalBattleState&, FFinalBattleEnemyState&)> ExecuteEnemyAction) const
 {
 	FFinalBattleEndTurnResult Result;
+	CardService.ResolveEndTurnHandCleanup(BattleState);
 	StatusService.ResolvePlayerTurnEndStatuses(BattleState);
 
 	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)

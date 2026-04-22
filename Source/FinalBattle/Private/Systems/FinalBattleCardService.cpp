@@ -20,6 +20,11 @@ FGameplayTag GetExpendKeyword()
 	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Expend"));
 }
 
+FGameplayTag GetOpeningKeyword()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening"));
+}
+
 bool HasRetainKeyword(const FGameplayTagContainer& Keywords)
 {
 	return Keywords.HasTagExact(GetRetainKeyword());
@@ -28,6 +33,11 @@ bool HasRetainKeyword(const FGameplayTagContainer& Keywords)
 bool HasExpendKeyword(const FGameplayTagContainer& Keywords)
 {
 	return Keywords.HasTagExact(GetExpendKeyword());
+}
+
+bool HasOpeningKeyword(const FGameplayTagContainer& Keywords)
+{
+	return Keywords.HasTagExact(GetOpeningKeyword());
 }
 
 int32 ResolveInitialRecycleCount(const FGameplayTagContainer& Keywords)
@@ -227,6 +237,42 @@ void FFinalBattleCardService::InitializeDeckCards(
 	}
 }
 
+void FFinalBattleCardService::PrepareInitialDrawPile(FFinalBattleState& BattleState) const
+{
+	if (BattleState.DeckState.DrawPileCardInstanceIds.Num() <= 0)
+	{
+		return;
+	}
+
+	Algo::RandomShuffle(BattleState.DeckState.DrawPileCardInstanceIds);
+
+	TArray<FGuid> OpeningCardInstanceIds;
+	TArray<FGuid> RemainingCardInstanceIds;
+	OpeningCardInstanceIds.Reserve(BattleState.DeckState.DrawPileCardInstanceIds.Num());
+	RemainingCardInstanceIds.Reserve(BattleState.DeckState.DrawPileCardInstanceIds.Num());
+
+	for (const FGuid& CardInstanceId : BattleState.DeckState.DrawPileCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+		if (CardInstance != nullptr && HasOpeningKeyword(CardInstance->RuntimeKeywords))
+		{
+			OpeningCardInstanceIds.Add(CardInstanceId);
+			continue;
+		}
+
+		RemainingCardInstanceIds.Add(CardInstanceId);
+	}
+
+	if (OpeningCardInstanceIds.Num() <= 0)
+	{
+		return;
+	}
+
+	BattleState.DeckState.DrawPileCardInstanceIds.Reset();
+	BattleState.DeckState.DrawPileCardInstanceIds.Append(OpeningCardInstanceIds);
+	BattleState.DeckState.DrawPileCardInstanceIds.Append(RemainingCardInstanceIds);
+}
+
 FFinalBattleCardInstance* FFinalBattleCardService::FindCardInstance(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
 {
 	return ResolveCardInstanceById(BattleState, CardInstanceId);
@@ -393,6 +439,22 @@ int32 FFinalBattleCardService::MoveMatchingCardsBetweenZones(
 	}
 
 	return MovedCount;
+}
+
+void FFinalBattleCardService::ResolveEndTurnHandCleanup(FFinalBattleState& BattleState) const
+{
+	const TArray<FGuid> HandCardInstanceIds = BattleState.DeckState.HandCardInstanceIds;
+
+	for (const FGuid& CardInstanceId : HandCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+		if (CardInstance == nullptr || CardInstance->RuntimeBehavior.bRetained)
+		{
+			continue;
+		}
+
+		MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DiscardPile);
+	}
 }
 
 void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
