@@ -10,6 +10,9 @@ class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
 struct FFinalBattleState;
 
+// Battle 规则编排器。
+// 职责：初始化战斗、分发 BattleCommand、统一写入 BattleEvent、构建 BattleSnapshot。
+// 非职责：不长期承载具体卡牌效果、状态窗口、资源变化、牌区迁移、遗物触发细节；这些应下沉到 Private/Systems。
 class FFinalBattleResolver
 {
 public:

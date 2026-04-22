@@ -266,11 +266,11 @@ FinalBattle      FinalRun
 * `FinalBattleState` 当前已补 Battle 私有 `CardInstanceId -> CardInstances` 最小索引，供 `FinalBattleCardService` 统一收口实例查找；卡牌匹配条件则收口到 Battle 私有 criteria，而不再继续堆散 API 参数
 * `FinalBattleCardService` 当前还开始分出更清晰的只读查询层：区分“按 criteria 统计某牌区内匹配数量”“按 criteria 判定某牌区是否满足最低数量”；抽牌堆耗尽时由私有 helper 先把弃牌堆洗回抽牌堆，再继续固定数量抽牌；同时已收口初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理；玩家新回合抽牌数量由 `BattleRuleConfig.TurnStartDrawCount` 驱动，不再补到目标手牌数
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则，不再保留 Battle 侧近似实现
-* `FinalData` / `FinalBattle` 当前还补了最小“状态驱动的攻击修正”协议：`StatusDefinition` 暴露 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 在运行时维护对应镜像值，并由 Resolver 在伤害链里统一读取
+* `FinalData` / `FinalBattle` 当前还补了最小“状态驱动的攻击修正”协议：`StatusDefinition` 暴露 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 在运行时维护对应镜像值，并由 `FinalBattleEffectExecutionService` 在伤害链里统一读取
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波收回到 Runtime：`锋锐剑阵` 施加 1 层会在下一张攻击牌成功造成敌方生命伤害后消耗的 `锋锐`；`万象归阵` 改为抽牌 + 生成剑阵牌 + 为每名角色施加 1 层 `士气`
-* `FinalData` / `FinalBattle` 当前还补了最小 battle trigger 协议：`FinalBattleTriggerDefinition` 定义 `OwnerTookHealthDamage` 窗口，`CharacterDefinition` 承载触发 effect list，`FinalBattleResolver` 在玩家共享生命实际下降后从 runtime character state 执行触发效果
+* `FinalData` / `FinalBattle` 当前还补了最小 battle trigger 协议：`FinalBattleTriggerDefinition` 定义 `OwnerTookHealthDamage` 窗口，`CharacterDefinition` 承载触发 effect list，`FinalBattleEffectExecutionService` 在玩家共享生命实际下降后从 runtime character state 执行触发效果
 * starter content 现在已用该 trigger 协议把霍断岳“受压得刀势”收回 Runtime：霍断岳所属队伍生命实际受损时获得 1 层 `刀势`
-* `FinalData` / `FinalBattle` 当前还补了最小 target state requirement 协议：`FinalBattleTargetStateRequirement` 挂在 `Damage` effect 上，Resolver 基于敌人权威 `CurrentBreakValue` 判断目标是否 Break；不满足时只跳过该 effect，不影响同张牌其他效果
+* `FinalData` / `FinalBattle` 当前还补了最小 target state requirement 协议：`FinalBattleTargetStateRequirement` 挂在 `Damage` effect 上，`FinalBattleEffectExecutionService` 基于敌人权威 `CurrentBreakValue` 判断目标是否 Break；不满足时只跳过该 effect，不影响同张牌其他效果
 * starter content 现在已用该 target state requirement 把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
 * `FinalData` / `FinalBattle` 当前还补了最小 incoming team HP damage protection 协议：`StatusDefinition` 暴露 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，运行时镜像到 `BattleStatusInstance`，`FinalBattleStatusService` 在护盾吸收后、扣 `TeamCurrentHP` 前应用并按需消耗保护状态
 * starter content 现在已用该 protection 协议把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime：奥义对 `team_player` 施加 1 层生命免疫，抵消下一次穿透护盾的共享生命伤害；`免疫` 仍保持为通用上位状态概念
@@ -542,6 +542,7 @@ Source
 * `FFinalBattleStatusService`
 * `UFinalBattleBreakService`
 * `FFinalBattleTurnService`
+* `FFinalBattleEffectExecutionService`
 * `FFinalEnemyIntentService`
 * `UFinalCollapseAwakenService`
 * `UFinalBattleLogService`
@@ -549,7 +550,7 @@ Source
 规则：
 * Service 可以互相协作，但由 Resolver 或 Session 统一编排
 * 不允许多个 Service 同时持有彼此的状态真相副本
-* 当前代码口径中，`FinalBattleCardService / ResourceService / TurnService / StatusService / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
+* 当前代码口径中，`FinalBattleCardService / ResourceService / TurnService / StatusService / EffectExecutionService / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
 
 ### 8.3 Run 入口
 推荐：
