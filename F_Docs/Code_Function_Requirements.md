@@ -195,6 +195,7 @@
   * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、`RuntimeTriggers` 运行时计数、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 触发窗口与 `ActiveRelics` 投影维护
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
   * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar/target/consume requirement 判定，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / ConsumeGeneratedCard` 的 Battle 私有解释执行
+  * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
 * `FinalBattleResolver` 负责 command dispatch、战斗初始化、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现
 
 优先级：

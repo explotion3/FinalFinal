@@ -20,6 +20,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
@@ -51,8 +52,8 @@ struct FFinalBattleEffectExecutionContext
 	bool bAppliedSuccessfulEnemyHpDamage = false;
 };
 
-void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event);
 const FFinalBattleCardService& GetCardService();
+const FFinalBattleEventService& GetEventService();
 const FFinalBattleRelicService& GetRelicService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleStatusService& GetStatusService();
@@ -65,17 +66,6 @@ bool ExecuteEffectListInternal(
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
 	FFinalBattleEffectExecutionSummary& Summary);
-
-void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
-{
-	FFinalBattleEvent EventToAppend = Event;
-	EventToAppend.EventSequence = ++State.LastEventSequence;
-	EventToAppend.BattleId = State.BattleId;
-	EventToAppend.Round = EventToAppend.Round > 0 ? EventToAppend.Round : State.CurrentRound;
-	EventToAppend.bBattleEnded = State.bBattleEnded;
-	EventToAppend.bPlayerVictory = State.bPlayerVictory;
-	State.BattleLogEntries.Add(MoveTemp(EventToAppend));
-}
 
 FFinalBattleEnemyState* FindEnemyState(FFinalBattleState& State, const FName RuntimeUnitId)
 {
@@ -105,6 +95,12 @@ const FFinalBattleCardService& GetCardService()
 {
 	static const FFinalBattleCardService CardService;
 	return CardService;
+}
+
+const FFinalBattleEventService& GetEventService()
+{
+	static const FFinalBattleEventService EventService;
+	return EventService;
 }
 
 const FFinalBattleRelicService& GetRelicService()
@@ -147,7 +143,7 @@ void RefreshEnemyIntentState(FFinalBattleState& State, FFinalBattleEnemyState& E
 		EnemyState.DisplayName.IsEmpty() ? FText::FromName(EnemyState.RuntimeUnitId) : EnemyState.DisplayName,
 		PreviousPhaseTag == NAME_None ? FText::FromString(TEXT("none")) : FText::FromName(PreviousPhaseTag),
 		FText::FromName(EnemyState.CurrentPhaseTag));
-	AppendBattleEvent(State, PhaseChangedEvent);
+	GetEventService().AppendBattleEvent(State, PhaseChangedEvent);
 }
 
 bool HasSupportedEffectListInternal(const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects)
@@ -680,7 +676,7 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 		GetRelicService().HandlePlayerTeamTookHealthDamage(State, HpDamage, RelicEvents);
 		for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 		{
-			AppendBattleEvent(State, RelicEvent);
+			GetEventService().AppendBattleEvent(State, RelicEvent);
 		}
 
 		ExecuteOwnerTookHealthDamageTriggersInternal(State, Summary);

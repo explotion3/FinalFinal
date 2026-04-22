@@ -13,6 +13,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
 #include "Systems/FinalBattleRelicService.h"
@@ -40,23 +41,6 @@ const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
 const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 
-
-void AppendBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
-{
-	FFinalBattleEvent EventToAppend = Event;
-	EventToAppend.EventSequence = ++State.LastEventSequence;
-	EventToAppend.BattleId = State.BattleId;
-	EventToAppend.Round = EventToAppend.Round > 0 ? EventToAppend.Round : State.CurrentRound;
-	EventToAppend.bBattleEnded = State.bBattleEnded;
-	EventToAppend.bPlayerVictory = State.bPlayerVictory;
-	State.BattleLogEntries.Add(MoveTemp(EventToAppend));
-}
-
-FFinalBattleEvent FinalizeBattleEvent(FFinalBattleState& State, const FFinalBattleEvent& Event)
-{
-	AppendBattleEvent(State, Event);
-	return State.BattleLogEntries.Last();
-}
 
 const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& State, const FName RuntimeUnitId)
 {
@@ -218,6 +202,12 @@ const FFinalEnemyIntentService& GetEnemyIntentService()
 	return IntentService;
 }
 
+const FFinalBattleEventService& GetEventService()
+{
+	static const FFinalBattleEventService EventService;
+	return EventService;
+}
+
 const FFinalBattleCardService& GetCardService()
 {
 	static const FFinalBattleCardService CardService;
@@ -281,7 +271,7 @@ void RefreshEnemyIntentState(FFinalBattleState& State, FFinalBattleEnemyState& E
 		EnemyState.DisplayName.IsEmpty() ? FText::FromName(EnemyState.RuntimeUnitId) : EnemyState.DisplayName,
 		PreviousPhaseTag == NAME_None ? FText::FromString(TEXT("none")) : FText::FromName(PreviousPhaseTag),
 		FText::FromName(EnemyState.CurrentPhaseTag));
-	AppendBattleEvent(State, PhaseChangedEvent);
+	GetEventService().AppendBattleEvent(State, PhaseChangedEvent);
 }
 
 void AdvanceEnemyIntentState(FFinalBattleEnemyState& EnemyState, const int32 CurrentRound)
@@ -429,13 +419,13 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 	SessionStartedEvent.Message = FText::Format(
 		NSLOCTEXT("FinalBattleResolver", "SessionStarted", "Battle started: {0}."),
 		State.EncounterDisplayName.IsEmpty() ? FText::FromName(State.EncounterId.Value) : State.EncounterDisplayName);
-	FinalizeBattleEvent(State, SessionStartedEvent);
+	GetEventService().FinalizeBattleEvent(State, SessionStartedEvent);
 
 	TArray<FFinalBattleEvent> BattleStartRelicEvents;
 	GetRelicService().InitializeRelics(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : BattleStartRelicEvents)
 	{
-		AppendBattleEvent(State, RelicEvent);
+		GetEventService().AppendBattleEvent(State, RelicEvent);
 	}
 
 	UE_LOG(LogFinalBattleResolver, Log, TEXT("Initialized battle session with %d enemy entries."), State.Enemies.Num());
@@ -458,7 +448,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			RejectCardInstanceMissingTag,
 			FText::FromString(TEXT("Card instance was not found.")));
 		Event.CardInstanceId = Command.CardInstanceId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (CardInstance->SourceDefinition == nullptr)
@@ -469,7 +459,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			FText::FromString(TEXT("Card definition is missing for the selected card.")));
 		Event.CardInstanceId = Command.CardInstanceId;
 		Event.CardId = CardInstance->CardId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (!GetCardService().IsCardInHand(State, Command.CardInstanceId))
@@ -480,7 +470,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			FText::FromString(TEXT("Card instance is not in hand.")));
 		Event.CardInstanceId = Command.CardInstanceId;
 		Event.CardId = CardInstance->CardId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (!GetResourceService().HasEnoughAP(State, CardInstance->RuntimeCostAP))
@@ -493,7 +483,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		Event.CardId = CardInstance->CardId;
 		Event.PrimaryValue = CardInstance->RuntimeCostAP;
 		Event.SecondaryValue = State.CurrentAP;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (!GetEffectExecutionService().HasSupportedEffect(CardInstance->SourceDefinition))
@@ -504,7 +494,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			FText::FromString(TEXT("Selected card has no supported effects.")));
 		Event.CardInstanceId = Command.CardInstanceId;
 		Event.CardId = CardInstance->CardId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
@@ -532,7 +522,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetRelicService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), RelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 	{
-		AppendBattleEvent(State, RelicEvent);
+		GetEventService().AppendBattleEvent(State, RelicEvent);
 	}
 
 	Event.EventType = EFinalBattleEventType::CardResolved;
@@ -555,7 +545,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			FText::AsNumber(Summary.TotalTeamShieldGained),
 			FText::AsNumber(Summary.TotalCardsDrawn),
 			FText::AsNumber(Summary.TotalAPGained));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	Event.Message = FText::Format(
@@ -567,7 +557,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		FText::AsNumber(Summary.TotalTeamShieldGained),
 		FText::AsNumber(Summary.TotalCardsDrawn),
 		FText::AsNumber(Summary.TotalAPGained));
-	return FinalizeBattleEvent(State, Event);
+	return GetEventService().FinalizeBattleEvent(State, Event);
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const
@@ -582,7 +572,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			RejectUltimateOwnerMissingTag,
 			FText::FromString(TEXT("Ultimate owner was not found.")));
 		Event.SourceUnitId = Command.UltimateOwnerUnitId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	Event.SourceUnitId = OwnerCharacterState->RuntimeUnitId;
@@ -594,7 +584,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			EFinalBattleCommandRejectReason::UltimateBlockedByCollapse,
 			RejectUltimateBlockedByCollapseTag,
 			FText::FromString(TEXT("Collapsed characters cannot use ultimates.")));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (OwnerCharacterState->bUltimateUsedThisBattle)
@@ -603,7 +593,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			EFinalBattleCommandRejectReason::UltimateAlreadyUsed,
 			RejectUltimateAlreadyUsedTag,
 			FText::FromString(TEXT("Ultimate was already used this battle.")));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (OwnerCharacterState->UltimateDefinition == nullptr || !GetEffectExecutionService().HasSupportedEffect(OwnerCharacterState->UltimateDefinition))
@@ -612,7 +602,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			EFinalBattleCommandRejectReason::UltimateDefinitionUnavailable,
 			RejectUltimateDefinitionMissingTag,
 			FText::FromString(TEXT("Ultimate definition is unavailable or has no supported effects.")));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	if (!GetResourceService().HasEnoughEP(State, OwnerCharacterState->UltimateCostEP))
@@ -623,7 +613,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			FText::FromString(TEXT("Not enough EP to use the selected ultimate.")));
 		Event.PrimaryValue = OwnerCharacterState->UltimateCostEP;
 		Event.SecondaryValue = State.CurrentEP;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	GetResourceService().SpendEP(State, OwnerCharacterState->UltimateCostEP);
@@ -654,7 +644,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			FText::AsNumber(Summary.TotalHealingToTeam),
 			FText::AsNumber(Summary.TotalTeamShieldGained),
 			FText::AsNumber(Summary.TotalAPGained));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	Event.Message = FText::Format(
@@ -664,7 +654,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 		FText::AsNumber(Summary.TotalHealingToTeam),
 		FText::AsNumber(Summary.TotalTeamShieldGained),
 		FText::AsNumber(Summary.TotalAPGained));
-	return FinalizeBattleEvent(State, Event);
+	return GetEventService().FinalizeBattleEvent(State, Event);
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const
@@ -704,7 +694,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 
 	for (const FFinalBattleEvent& GeneratedEvent : EndTurnResult.GeneratedEvents)
 	{
-		AppendBattleEvent(State, GeneratedEvent);
+		GetEventService().AppendBattleEvent(State, GeneratedEvent);
 	}
 
 	if (EndTurnResult.bBattleLost)
@@ -719,7 +709,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 			FText::AsNumber(EndTurnResult.ResolvedEffectCount),
 			FText::AsNumber(EndTurnResult.TotalDamageToTeam),
 			FText::AsNumber(EndTurnResult.TotalEnemyShieldGained));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	Event.EventType = EFinalBattleEventType::TurnTransition;
@@ -733,7 +723,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 		FText::AsNumber(EndTurnResult.TotalEnemyShieldGained),
 		FText::AsNumber(State.TeamShield));
 	Event.Round = State.CurrentRound;
-	return FinalizeBattleEvent(State, Event);
+	return GetEventService().FinalizeBattleEvent(State, Event);
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecuteSelectTargetCommand(FFinalBattleState& State, const FFinalBattleCommand& Command) const
@@ -748,14 +738,14 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteSelectTargetCommand(FFinalBattleS
 			RejectInvalidTargetTag,
 			FText::FromString(TEXT("Target is not a valid living enemy.")));
 		Event.TargetUnitId = Command.TargetUnitId;
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	State.CurrentTargetUnitId = Command.TargetUnitId;
 	Event.EventType = EFinalBattleEventType::TargetChanged;
 	Event.TargetUnitId = Command.TargetUnitId;
 	Event.Message = FText::FromString(TEXT("Target updated."));
-	return FinalizeBattleEvent(State, Event);
+	return GetEventService().FinalizeBattleEvent(State, Event);
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecuteUnsupportedCommand(FFinalBattleState& State) const
@@ -764,7 +754,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteUnsupportedCommand(FFinalBattleSt
 		EFinalBattleCommandRejectReason::UnsupportedCommand,
 		RejectUnsupportedCommandTag,
 		FText::FromString(TEXT("Unsupported command.")));
-	return FinalizeBattleEvent(State, Event);
+	return GetEventService().FinalizeBattleEvent(State, Event);
 }
 
 FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State, const FFinalBattleCommand& Command, const UFinalBattleRuleConfig* RuleConfig) const
@@ -777,7 +767,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteCommand(FFinalBattleState& State,
 			EFinalBattleCommandRejectReason::BattleAlreadyResolved,
 			RejectBattleResolvedTag,
 			FText::FromString(TEXT("Battle is already resolved.")));
-		return FinalizeBattleEvent(State, Event);
+		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
 	switch (Command.CommandType)
