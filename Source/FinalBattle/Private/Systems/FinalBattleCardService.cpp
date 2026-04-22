@@ -176,7 +176,7 @@ void FFinalBattleCardService::InitializeDeckCards(
 			false);
 		if (CardInstanceId.IsValid())
 		{
-			AddCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DrawPileBottom);
+			MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DrawPileBottom);
 		}
 	}
 }
@@ -269,7 +269,7 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 	return CardInstance.CardInstanceId;
 }
 
-bool FFinalBattleCardService::AddCardInstanceToZone(
+bool FFinalBattleCardService::MoveCardInstanceToZone(
 	FFinalBattleState& BattleState,
 	const FGuid& CardInstanceId,
 	const EFinalBattleCardZone Zone) const
@@ -326,7 +326,7 @@ int32 FFinalBattleCardService::MoveMatchingCardsBetweenZones(
 	int32 MovedCount = 0;
 	for (const FGuid& MatchedCardInstanceId : MatchedCardInstanceIds)
 	{
-		if (!AddCardInstanceToZone(BattleState, MatchedCardInstanceId, DestinationZone))
+		if (!MoveCardInstanceToZone(BattleState, MatchedCardInstanceId, DestinationZone))
 		{
 			continue;
 		}
@@ -346,11 +346,11 @@ void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleSta
 	const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
 	if (CardInstance != nullptr && CardInstance->RuntimeBehavior.bConsumeOnPlay)
 	{
-		AddCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::ConsumePile);
+		MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::ConsumePile);
 		return;
 	}
 
-	AddCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DiscardPile);
+	MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DiscardPile);
 }
 
 int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const int32 DrawCount) const
@@ -361,17 +361,14 @@ int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const i
 	{
 		if (BattleState.DeckState.DrawPileCardInstanceIds.Num() == 0)
 		{
-			if (BattleState.DeckState.DiscardPileCardInstanceIds.Num() == 0)
+			if (!RefillDrawPileFromDiscard(BattleState))
 			{
 				return DrawnCount;
 			}
-
-			BattleState.DeckState.DrawPileCardInstanceIds.Append(BattleState.DeckState.DiscardPileCardInstanceIds);
-			BattleState.DeckState.DiscardPileCardInstanceIds.Reset();
 		}
 
 		const FGuid DrawnCardId = BattleState.DeckState.DrawPileCardInstanceIds[0];
-		AddCardInstanceToZone(BattleState, DrawnCardId, EFinalBattleCardZone::Hand);
+		MoveCardInstanceToZone(BattleState, DrawnCardId, EFinalBattleCardZone::Hand);
 		++DrawnCount;
 	}
 
@@ -413,6 +410,18 @@ void FFinalBattleCardService::BuildHandCardViews(const FFinalBattleState& Battle
 
 		OutViews.Add(MoveTemp(CardView));
 	}
+}
+
+bool FFinalBattleCardService::RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const
+{
+	if (BattleState.DeckState.DiscardPileCardInstanceIds.Num() == 0)
+	{
+		return false;
+	}
+
+	BattleState.DeckState.DrawPileCardInstanceIds.Append(BattleState.DeckState.DiscardPileCardInstanceIds);
+	BattleState.DeckState.DiscardPileCardInstanceIds.Reset();
+	return BattleState.DeckState.DrawPileCardInstanceIds.Num() > 0;
 }
 
 void FFinalBattleCardService::RemoveCardInstanceFromAllZones(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const

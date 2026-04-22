@@ -48,7 +48,7 @@ public:
 		FName RuntimeOwnerUnitId,
 		bool bGeneratedCard = false,
 		bool bTemporaryCard = false) const;
-	bool AddCardInstanceToZone(
+	bool MoveCardInstanceToZone(
 		FFinalBattleState& BattleState,
 		const FGuid& CardInstanceId,
 		EFinalBattleCardZone Zone) const;
@@ -68,6 +68,7 @@ public:
 	void BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const;
 
 private:
+	bool RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const;
 	void CollectMatchingCardInstanceIdsInZone(
 		const FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,

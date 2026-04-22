@@ -940,7 +940,7 @@ bool ExecuteGenerateCardEffect(
 			GenerateCardEffect->bTemporaryCard);
 		if (GeneratedCardInstanceId.IsValid())
 		{
-			GetCardService().AddCardInstanceToZone(State, GeneratedCardInstanceId, EFinalBattleCardZone::Hand);
+			GetCardService().MoveCardInstanceToZone(State, GeneratedCardInstanceId, EFinalBattleCardZone::Hand);
 		}
 		if (GeneratedCardInstanceId.IsValid())
 		{
