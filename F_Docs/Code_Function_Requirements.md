@@ -92,6 +92,7 @@
 * 处理抽牌、弃牌、生成、复制、回收、进入持续区
 * 处理关键词对牌区去向的改写
 * 统一解释卡牌实例的 `Retain / Expend` 关键词，并维护实例层 `bRetained / bConsumeOnPlay / RecycleCount`
+* 统一承接卡牌实例创建与牌区放置，不让外层直接改 `DeckState.*CardInstanceIds`
 
 重点规则来源：
 * [Battle_Rules.md](Battle_Rules.md)

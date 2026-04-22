@@ -11,6 +11,16 @@ struct FFinalBattleCardViewData;
 struct FFinalBattleState;
 struct FFinalTeamDeckState;
 
+enum class EFinalBattleCardZone : uint8
+{
+	Hand,
+	DrawPileTop,
+	DrawPileBottom,
+	DiscardPile,
+	OngoingZone,
+	ConsumePile
+};
+
 class FFinalBattleCardService
 {
 public:
@@ -32,12 +42,16 @@ public:
 		const FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,
 		const FFinalBattleHandCardRequirement& Requirement) const;
-	FGuid AddGeneratedCardToHand(
+	FGuid CreateCardInstance(
 		FFinalBattleState& BattleState,
 		UFinalCardDefinition* CardDefinition,
 		FName RuntimeOwnerUnitId,
-		bool bGeneratedCard,
-		bool bTemporaryCard) const;
+		bool bGeneratedCard = false,
+		bool bTemporaryCard = false) const;
+	bool AddCardInstanceToZone(
+		FFinalBattleState& BattleState,
+		const FGuid& CardInstanceId,
+		EFinalBattleCardZone Zone) const;
 	int32 ConsumeMatchingCardsFromHand(
 		FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,
@@ -50,4 +64,7 @@ public:
 	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
 	int32 DrawUpToHandSize(FFinalBattleState& BattleState, int32 TargetHandSize) const;
 	void BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const;
+
+private:
+	void RemoveCardInstanceFromAllZones(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 };
