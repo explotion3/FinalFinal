@@ -15,15 +15,19 @@ class FINALDATA_API UFinalBattleEffectDamage : public UFinalBattleEffectDefiniti
 public:
 	UFinalBattleEffectDamage();
 
+	// 单次伤害的基础数值来源。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
 
+	// 本效果会重复命中的次数。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect", meta = (ClampMin = "1"))
 	int32 HitCount = 1;
 
+	// 伤害生效前要求已消耗衍生牌的条件。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleGeneratedCardConsumeRequirement GeneratedCardConsumeRequirement;
 
+	// 目标需要满足的状态条件。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleTargetStateRequirement TargetStateRequirement;
 };

@@ -261,7 +261,7 @@ FinalBattle      FinalRun
 * 当前 `FinalEditor` 还提供 `FinalPrototypeContentBootstrap` commandlet，用于把 prototype rule / encounter / route / bootstrap / character / card / enemy / relic bundle 生成或刷新为真实 Content 资产，避免运行时继续依赖 `FinalApp` 瞬时造数
 * 当前 `FinalPrototypeContentBootstrap` 也开始承接真实 starter content materialize：在 `/Game/Prototype/Definitions/Starter/...` 生成 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些资产进入同一套 registry / validation / smoke test 路径，不新增 Runtime 规则分支
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 真相收回到 `FinalData + FinalBattle`：当前最小 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，并由 `FinalBattleStatusService` 维护状态层数与快照展示
-* starter content 现已进一步把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`GenerateCard / ConsumeGeneratedCard` 协议落入 `FinalData`，`FinalBattleCardService` 负责衍生牌实例生成、入手、保留/消耗与 `ConsumePile` 去向，`布锋 / 引阵 / 过牌剑阵 / 破阵剑阵 / 引爆剑阵` 已进入最小闭环
+* starter content 现已进一步把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`GenerateCard / ConsumeGeneratedCard` 协议落入 `FinalData`，`FinalBattleCardService` 负责衍生牌实例生成、入手、关键词驱动的保留/消耗解释与 `ConsumePile` 去向，`布锋 / 引阵 / 过牌剑阵 / 破阵剑阵 / 引爆剑阵` 已进入最小闭环
 * `FinalData` / `FinalBattle` 当前还补了一层最小 `HandCardRequirement` 协议，用于按当前手牌内容 gated 执行现有效果；`FinalBattleCardService` 负责统计某个 RuntimeOwner 当前手牌中满足 `CardId / Keyword / MinimumCount / GeneratedOnly` 条件的卡数量，并供 Resolver 做效果放行
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则，不再保留 Battle 侧近似实现
 * `FinalData` / `FinalBattle` 当前还补了最小“状态驱动的攻击修正”协议：`StatusDefinition` 暴露 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 在运行时维护对应镜像值，并由 Resolver 在伤害链里统一读取

@@ -6,6 +6,13 @@
 
 class UFinalCardDefinition;
 
+struct FFinalBattleCardRuntimeBehavior
+{
+	int32 RecycleCount = 0;
+	bool bRetained = false;
+	bool bConsumeOnPlay = false;
+};
+
 struct FFinalBattleCardInstance
 {
 	FGuid CardInstanceId;
@@ -14,8 +21,7 @@ struct FFinalBattleCardInstance
 	int32 RuntimeCostAP = 0;
 	FGameplayTagContainer RuntimeKeywords;
 	UFinalCardDefinition* SourceDefinition = nullptr;
-	bool bRetained = false;
+	FFinalBattleCardRuntimeBehavior RuntimeBehavior;
 	bool bGeneratedCard = false;
 	bool bTemporaryCard = false;
-	bool bConsumeOnPlay = false;
 };

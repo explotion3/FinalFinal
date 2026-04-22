@@ -13,6 +13,7 @@ class FINALDATA_API UFinalBattleEffectHeal : public UFinalBattleEffectDefinition
 public:
 	UFinalBattleEffectHeal();
 
+	// 治疗数值来源。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
 };

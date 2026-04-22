@@ -37,9 +37,7 @@ public:
 		UFinalCardDefinition* CardDefinition,
 		FName RuntimeOwnerUnitId,
 		bool bGeneratedCard,
-		bool bTemporaryCard,
-		bool bRetainInHand,
-		bool bConsumeOnPlay) const;
+		bool bTemporaryCard) const;
 	int32 ConsumeMatchingCardsFromHand(
 		FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,

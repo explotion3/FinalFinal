@@ -19,6 +19,28 @@ FGameplayTag GetExpendKeyword()
 	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Expend"));
 }
 
+bool HasRetainKeyword(const FGameplayTagContainer& Keywords)
+{
+	return Keywords.HasTagExact(GetRetainKeyword());
+}
+
+bool HasExpendKeyword(const FGameplayTagContainer& Keywords)
+{
+	return Keywords.HasTagExact(GetExpendKeyword());
+}
+
+int32 ResolveInitialRecycleCount(const FGameplayTagContainer& Keywords)
+{
+	return 0;
+}
+
+void InitializeRuntimeKeywordState(FFinalBattleCardInstance& CardInstance)
+{
+	CardInstance.RuntimeBehavior.bRetained = HasRetainKeyword(CardInstance.RuntimeKeywords);
+	CardInstance.RuntimeBehavior.bConsumeOnPlay = HasExpendKeyword(CardInstance.RuntimeKeywords);
+	CardInstance.RuntimeBehavior.RecycleCount = ResolveInitialRecycleCount(CardInstance.RuntimeKeywords);
+}
+
 const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& BattleState, const FName RuntimeUnitId)
 {
 	return BattleState.Characters.FindByPredicate(
@@ -90,9 +112,7 @@ void FFinalBattleCardService::InitializeDeckCards(
 			CardDefinition,
 			RuntimeOwnerUnitId,
 			false,
-			false,
-			CardDefinition->Keywords.HasTagExact(GetRetainKeyword()),
-			CardDefinition->Keywords.HasTagExact(GetExpendKeyword()));
+			false);
 		RemoveCardInstanceId(BattleState.DeckState.HandCardInstanceIds, CardInstanceId);
 		BattleState.DeckState.DrawPileCardInstanceIds.Add(CardInstanceId);
 	}
@@ -172,9 +192,7 @@ FGuid FFinalBattleCardService::AddGeneratedCardToHand(
 	UFinalCardDefinition* CardDefinition,
 	const FName RuntimeOwnerUnitId,
 	const bool bGeneratedCard,
-	const bool bTemporaryCard,
-	const bool bRetainInHand,
-	const bool bConsumeOnPlay) const
+	const bool bTemporaryCard) const
 {
 	if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
 	{
@@ -190,8 +208,7 @@ FGuid FFinalBattleCardService::AddGeneratedCardToHand(
 	CardInstance.SourceDefinition = CardDefinition;
 	CardInstance.bGeneratedCard = bGeneratedCard;
 	CardInstance.bTemporaryCard = bTemporaryCard;
-	CardInstance.bRetained = bRetainInHand || CardInstance.RuntimeKeywords.HasTagExact(GetRetainKeyword());
-	CardInstance.bConsumeOnPlay = bConsumeOnPlay || CardInstance.RuntimeKeywords.HasTagExact(GetExpendKeyword());
+	InitializeRuntimeKeywordState(CardInstance);
 
 	BattleState.CardInstances.Add(CardInstance);
 	BattleState.DeckState.HandCardInstanceIds.Add(CardInstance.CardInstanceId);
@@ -248,7 +265,7 @@ void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleSta
 	BattleState.DeckState.HandCardInstanceIds.RemoveSingle(CardInstanceId);
 
 	const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
-	if (CardInstance != nullptr && CardInstance->bConsumeOnPlay)
+	if (CardInstance != nullptr && CardInstance->RuntimeBehavior.bConsumeOnPlay)
 	{
 		BattleState.DeckState.ConsumePileCardInstanceIds.Add(CardInstanceId);
 		return;
@@ -310,7 +327,7 @@ void FFinalBattleCardService::BuildHandCardViews(const FFinalBattleState& Battle
 			: EFinalCardType::Attack;
 		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
 		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
-		CardView.bRetained = CardInstance->bRetained;
+		CardView.bRetained = CardInstance->RuntimeBehavior.bRetained;
 		if (const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(BattleState, CardInstance->RuntimeOwnerUnitId))
 		{
 			CardView.bCollapsedCard = OwnerCharacterState->bCollapsed;

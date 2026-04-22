@@ -14,9 +14,11 @@ class FINALDATA_API UFinalBattleEffectGainShield : public UFinalBattleEffectDefi
 public:
 	UFinalBattleEffectGainShield();
 
+	// 护盾数值来源。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
 
+	// 生效前要求当前手牌满足的条件。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleHandCardRequirement HandCardRequirement;
 };
