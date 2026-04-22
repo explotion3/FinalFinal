@@ -971,9 +971,11 @@ bool ExecuteConsumeGeneratedCardEffect(
 	}
 
 	TArray<FGuid> ConsumedCardInstanceIds;
-	const int32 ConsumedCount = GetCardService().ConsumeMatchingCardsFromHand(
+	const int32 ConsumedCount = GetCardService().MoveMatchingCardsBetweenZones(
 		State,
 		SourceOwnerUnitId,
+		EFinalBattleCardZone::Hand,
+		EFinalBattleCardZone::ConsumePile,
 		ConsumeGeneratedCardEffect->RequiredCardId,
 		ConsumeGeneratedCardEffect->RequiredKeyword,
 		TargetConsumeCount,

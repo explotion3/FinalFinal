@@ -52,19 +52,30 @@ public:
 		FFinalBattleState& BattleState,
 		const FGuid& CardInstanceId,
 		EFinalBattleCardZone Zone) const;
-	int32 ConsumeMatchingCardsFromHand(
+	int32 MoveMatchingCardsBetweenZones(
 		FFinalBattleState& BattleState,
 		FName RuntimeOwnerUnitId,
+		EFinalBattleCardZone SourceZone,
+		EFinalBattleCardZone DestinationZone,
 		const FFinalCardId& RequiredCardId,
 		const FGameplayTag& RequiredKeyword,
-		int32 ConsumeCount,
+		int32 MoveCount,
 		bool bGeneratedOnly,
-		TArray<FGuid>* OutConsumedCardInstanceIds = nullptr) const;
+		TArray<FGuid>* OutMovedCardInstanceIds = nullptr) const;
 	void MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
 	int32 DrawUpToHandSize(FFinalBattleState& BattleState, int32 TargetHandSize) const;
 	void BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const;
 
 private:
+	void CollectMatchingCardInstanceIdsInZone(
+		const FFinalBattleState& BattleState,
+		FName RuntimeOwnerUnitId,
+		EFinalBattleCardZone SourceZone,
+		const FFinalCardId& RequiredCardId,
+		const FGameplayTag& RequiredKeyword,
+		int32 MaxCount,
+		bool bGeneratedOnly,
+		TArray<FGuid>& OutCardInstanceIds) const;
 	void RemoveCardInstanceFromAllZones(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 };

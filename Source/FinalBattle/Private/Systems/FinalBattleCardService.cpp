@@ -80,6 +80,31 @@ TArray<FGuid>* ResolveZoneArray(FFinalTeamDeckState& DeckState, const EFinalBatt
 	}
 }
 
+const TArray<FGuid>* ResolveZoneArray(const FFinalTeamDeckState& DeckState, const EFinalBattleCardZone Zone)
+{
+	switch (Zone)
+	{
+	case EFinalBattleCardZone::Hand:
+		return &DeckState.HandCardInstanceIds;
+
+	case EFinalBattleCardZone::DrawPileTop:
+	case EFinalBattleCardZone::DrawPileBottom:
+		return &DeckState.DrawPileCardInstanceIds;
+
+	case EFinalBattleCardZone::DiscardPile:
+		return &DeckState.DiscardPileCardInstanceIds;
+
+	case EFinalBattleCardZone::OngoingZone:
+		return &DeckState.OngoingZoneCardInstanceIds;
+
+	case EFinalBattleCardZone::ConsumePile:
+		return &DeckState.ConsumePileCardInstanceIds;
+
+	default:
+		return nullptr;
+	}
+}
+
 void InsertCardInstanceIntoZoneArray(TArray<FGuid>& ZoneArray, const FGuid& CardInstanceId, const EFinalBattleCardZone Zone)
 {
 	if (Zone == EFinalBattleCardZone::DrawPileTop)
@@ -186,25 +211,17 @@ int32 FFinalBattleCardService::CountMatchingCardsInHand(
 	const FGameplayTag& RequiredKeyword,
 	const bool bGeneratedOnly) const
 {
-	if (RuntimeOwnerUnitId.IsNone())
-	{
-		return 0;
-	}
-
-	int32 MatchCount = 0;
-	for (const FGuid& CandidateCardInstanceId : BattleState.DeckState.HandCardInstanceIds)
-	{
-		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
-		if (CandidateCardInstance == nullptr
-			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
-		{
-			continue;
-		}
-
-		++MatchCount;
-	}
-
-	return MatchCount;
+	TArray<FGuid> MatchingCardInstanceIds;
+	CollectMatchingCardInstanceIdsInZone(
+		BattleState,
+		RuntimeOwnerUnitId,
+		EFinalBattleCardZone::Hand,
+		RequiredCardId,
+		RequiredKeyword,
+		MAX_int32,
+		bGeneratedOnly,
+		MatchingCardInstanceIds);
+	return MatchingCardInstanceIds.Num();
 }
 
 bool FFinalBattleCardService::SatisfiesHandCardRequirement(
@@ -273,48 +290,55 @@ bool FFinalBattleCardService::AddCardInstanceToZone(
 	return true;
 }
 
-int32 FFinalBattleCardService::ConsumeMatchingCardsFromHand(
+int32 FFinalBattleCardService::MoveMatchingCardsBetweenZones(
 	FFinalBattleState& BattleState,
 	const FName RuntimeOwnerUnitId,
+	const EFinalBattleCardZone SourceZone,
+	const EFinalBattleCardZone DestinationZone,
 	const FFinalCardId& RequiredCardId,
 	const FGameplayTag& RequiredKeyword,
-	const int32 ConsumeCount,
+	const int32 MoveCount,
 	const bool bGeneratedOnly,
-	TArray<FGuid>* OutConsumedCardInstanceIds) const
+	TArray<FGuid>* OutMovedCardInstanceIds) const
 {
-	const int32 TargetConsumeCount = FMath::Max(ConsumeCount, 0);
-	if (TargetConsumeCount <= 0 || RuntimeOwnerUnitId.IsNone())
+	const int32 TargetMoveCount = FMath::Max(MoveCount, 0);
+	if (TargetMoveCount <= 0 || RuntimeOwnerUnitId.IsNone())
 	{
 		return 0;
 	}
 
-	if (OutConsumedCardInstanceIds != nullptr)
+	if (OutMovedCardInstanceIds != nullptr)
 	{
-		OutConsumedCardInstanceIds->Reset();
+		OutMovedCardInstanceIds->Reset();
 	}
 
-	int32 ConsumedCount = 0;
-	for (int32 HandIndex = BattleState.DeckState.HandCardInstanceIds.Num() - 1;
-		HandIndex >= 0 && ConsumedCount < TargetConsumeCount;
-		--HandIndex)
+	TArray<FGuid> MatchedCardInstanceIds;
+	CollectMatchingCardInstanceIdsInZone(
+		BattleState,
+		RuntimeOwnerUnitId,
+		SourceZone,
+		RequiredCardId,
+		RequiredKeyword,
+		TargetMoveCount,
+		bGeneratedOnly,
+		MatchedCardInstanceIds);
+
+	int32 MovedCount = 0;
+	for (const FGuid& MatchedCardInstanceId : MatchedCardInstanceIds)
 	{
-		const FGuid CandidateCardInstanceId = BattleState.DeckState.HandCardInstanceIds[HandIndex];
-		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
-		if (CandidateCardInstance == nullptr
-			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
+		if (!AddCardInstanceToZone(BattleState, MatchedCardInstanceId, DestinationZone))
 		{
 			continue;
 		}
 
-		AddCardInstanceToZone(BattleState, CandidateCardInstanceId, EFinalBattleCardZone::ConsumePile);
-		if (OutConsumedCardInstanceIds != nullptr)
+		if (OutMovedCardInstanceIds != nullptr)
 		{
-			OutConsumedCardInstanceIds->Add(CandidateCardInstanceId);
+			OutMovedCardInstanceIds->Add(MatchedCardInstanceId);
 		}
-		++ConsumedCount;
+		++MovedCount;
 	}
 
-	return ConsumedCount;
+	return MovedCount;
 }
 
 void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const
@@ -398,4 +422,43 @@ void FFinalBattleCardService::RemoveCardInstanceFromAllZones(FFinalBattleState& 
 	RemoveCardInstanceId(BattleState.DeckState.DiscardPileCardInstanceIds, CardInstanceId);
 	RemoveCardInstanceId(BattleState.DeckState.OngoingZoneCardInstanceIds, CardInstanceId);
 	RemoveCardInstanceId(BattleState.DeckState.ConsumePileCardInstanceIds, CardInstanceId);
+}
+
+void FFinalBattleCardService::CollectMatchingCardInstanceIdsInZone(
+	const FFinalBattleState& BattleState,
+	const FName RuntimeOwnerUnitId,
+	const EFinalBattleCardZone SourceZone,
+	const FFinalCardId& RequiredCardId,
+	const FGameplayTag& RequiredKeyword,
+	const int32 MaxCount,
+	const bool bGeneratedOnly,
+	TArray<FGuid>& OutCardInstanceIds) const
+{
+	OutCardInstanceIds.Reset();
+
+	if (RuntimeOwnerUnitId.IsNone() || MaxCount <= 0)
+	{
+		return;
+	}
+
+	const TArray<FGuid>* SourceZoneArray = ResolveZoneArray(BattleState.DeckState, SourceZone);
+	if (SourceZoneArray == nullptr)
+	{
+		return;
+	}
+
+	for (int32 CardIndex = SourceZoneArray->Num() - 1;
+		CardIndex >= 0 && OutCardInstanceIds.Num() < MaxCount;
+		--CardIndex)
+	{
+		const FGuid CandidateCardInstanceId = (*SourceZoneArray)[CardIndex];
+		const FFinalBattleCardInstance* CandidateCardInstance = FindCardInstance(BattleState, CandidateCardInstanceId);
+		if (CandidateCardInstance == nullptr
+			|| !MatchesGeneratedCardFilter(*CandidateCardInstance, RuntimeOwnerUnitId, RequiredCardId, RequiredKeyword, bGeneratedOnly))
+		{
+			continue;
+		}
+
+		OutCardInstanceIds.Add(CandidateCardInstanceId);
+	}
 }
