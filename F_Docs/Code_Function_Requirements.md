@@ -197,7 +197,8 @@
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
   * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar/target/consume requirement 判定，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / ConsumeGeneratedCard` 的 Battle 私有解释执行
   * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
-* `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot orchestration，不继续作为所有战斗细节的单文件实现
+  * `FinalBattleSnapshotBuilder`：统一承接 `FinalBattleState -> FinalBattleSnapshot` 的只读查询投影，编排角色、奥义、敌人、牌堆计数、状态和手牌视图
+* `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot builder facade，不继续作为所有战斗细节的单文件实现
 
 优先级：
 * `P1`

@@ -148,6 +148,8 @@
 * `Source/FinalBattle/Private/Systems/FinalBattleStatusService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleTurnService.cpp`
+* `Source/FinalBattle/Private/Systems/FinalBattleSnapshotBuilder.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleSnapshotBuilder.cpp`
 * `Source/FinalBattle/Private/Systems/FinalEnemyIntentService.h`
 
 #### 首批目标
@@ -172,6 +174,7 @@
 * `FinalBattleTurnService` 当前承接 `EndTurn` 后敌人行动 orchestration 与玩家回合开始窗口衔接
 * `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 窗口与 `RelicTriggered` 事件生成
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
+* `FinalBattleSnapshotBuilder` 当前承接 `BattleSnapshot` 只读查询投影，Resolver 只保留对外 `BuildSnapshot()` facade
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
 #### 暂不创建
