@@ -1250,6 +1250,171 @@ bool ExecuteGainAPEffect(
 	return true;
 }
 
+bool ExecuteDamageEffect(
+	FFinalBattleState& State,
+	const UFinalBattleEffectDamage* DamageEffect,
+	const FFinalBattleCommand* Command,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState,
+	const FName SourceOwnerUnitId,
+	const bool bIsAttackCardDamage,
+	FFinalEffectExecutionContext& ExecutionContext,
+	FFinalEffectExecutionSummary& Summary)
+{
+	if (!SatisfiesGeneratedCardConsumeRequirement(DamageEffect->GeneratedCardConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+	{
+		return false;
+	}
+
+	const int32 HitCount = FMath::Max(DamageEffect->HitCount, 1);
+	const int32 BaseDamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
+	const int32 DamageModifierPercent = SourceCharacterState != nullptr
+		? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
+		: 0;
+	const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent);
+	if (DamagePerHit <= 0)
+	{
+		return false;
+	}
+
+	if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::TeamPlayer)
+	{
+		if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, nullptr))
+		{
+			return false;
+		}
+
+		for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
+		{
+			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggers(State, DamagePerHit, Summary);
+			Summary.TotalDamageToTeam += HpDamage;
+		}
+
+		++Summary.ResolvedEffectCount;
+		return true;
+	}
+
+	if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
+	{
+		bool bAppliedDamageToAnyEnemy = false;
+		for (FFinalBattleEnemyState& EnemyState : State.Enemies)
+		{
+			if (EnemyState.CurrentHP <= 0)
+			{
+				continue;
+			}
+
+			if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, &EnemyState))
+			{
+				continue;
+			}
+
+			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
+			{
+				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
+				ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
+				Summary.TotalDamageToEnemies += DamagePerHit;
+				bAppliedDamageToAnyEnemy = true;
+			}
+		}
+
+		if (!bAppliedDamageToAnyEnemy)
+		{
+			return false;
+		}
+
+		++Summary.ResolvedEffectCount;
+		return true;
+	}
+
+	FFinalBattleEnemyState* TargetEnemyState = nullptr;
+	if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::Self && SourceEnemyState)
+	{
+		TargetEnemyState = SourceEnemyState;
+	}
+	else
+	{
+		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, DamageEffect->UnitTargetRule);
+	}
+
+	if (TargetEnemyState == nullptr)
+	{
+		return false;
+	}
+
+	if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, TargetEnemyState))
+	{
+		return false;
+	}
+
+	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
+	{
+		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
+		ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
+		Summary.TotalDamageToEnemies += DamagePerHit;
+	}
+
+	++Summary.ResolvedEffectCount;
+	return true;
+}
+
+bool ExecuteBonusBreakEffect(
+	FFinalBattleState& State,
+	const UFinalBattleEffectBonusBreak* BonusBreakEffect,
+	const FFinalBattleCommand* Command,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState,
+	const FName SourceOwnerUnitId,
+	const FFinalEffectExecutionContext& ExecutionContext,
+	FFinalEffectExecutionSummary& Summary)
+{
+	if (!SatisfiesConsumeRequirement(BonusBreakEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
+	{
+		return false;
+	}
+
+	const int32 BreakAmount = ResolveScalarValue(BonusBreakEffect->Scalar, SourceCharacterState, SourceEnemyState);
+	if (BreakAmount <= 0)
+	{
+		return false;
+	}
+
+	if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
+	{
+		for (FFinalBattleEnemyState& EnemyState : State.Enemies)
+		{
+			if (EnemyState.CurrentHP <= 0)
+			{
+				continue;
+			}
+
+			Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(EnemyState, BreakAmount);
+		}
+
+		++Summary.ResolvedEffectCount;
+		return true;
+	}
+
+	FFinalBattleEnemyState* TargetEnemyState = nullptr;
+	if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::Self && SourceEnemyState)
+	{
+		TargetEnemyState = SourceEnemyState;
+	}
+	else
+	{
+		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, BonusBreakEffect->UnitTargetRule);
+	}
+
+	if (TargetEnemyState == nullptr)
+	{
+		return false;
+	}
+
+	Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(*TargetEnemyState, BreakAmount);
+	++Summary.ResolvedEffectCount;
+	return true;
+}
+
 bool ExecuteEffectList(
 	FFinalBattleState& State,
 	const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
@@ -1272,100 +1437,7 @@ bool ExecuteEffectList(
 
 		if (const UFinalBattleEffectDamage* DamageEffect = Cast<UFinalBattleEffectDamage>(EffectDefinition))
 		{
-			if (!SatisfiesGeneratedCardConsumeRequirement(DamageEffect->GeneratedCardConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
-			{
-				continue;
-			}
-
-			const int32 HitCount = FMath::Max(DamageEffect->HitCount, 1);
-			const int32 BaseDamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
-			const int32 DamageModifierPercent = SourceCharacterState != nullptr
-				? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
-				: 0;
-			const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent);
-			if (DamagePerHit <= 0)
-			{
-				continue;
-			}
-
-			if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::TeamPlayer)
-			{
-				if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, nullptr))
-				{
-					continue;
-				}
-
-				for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
-				{
-					const int32 HpDamage = ApplyTeamIncomingDamageAndTriggers(State, DamagePerHit, Summary);
-					Summary.TotalDamageToTeam += HpDamage;
-				}
-
-				++Summary.ResolvedEffectCount;
-				continue;
-			}
-
-			if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
-			{
-				bool bAppliedDamageToAnyEnemy = false;
-				for (FFinalBattleEnemyState& EnemyState : State.Enemies)
-				{
-					if (EnemyState.CurrentHP <= 0)
-					{
-						continue;
-					}
-
-					if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, &EnemyState))
-					{
-						continue;
-					}
-
-					for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
-					{
-						const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
-						ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
-						Summary.TotalDamageToEnemies += DamagePerHit;
-						bAppliedDamageToAnyEnemy = true;
-					}
-				}
-
-				if (!bAppliedDamageToAnyEnemy)
-				{
-					continue;
-				}
-
-				++Summary.ResolvedEffectCount;
-				continue;
-			}
-
-			FFinalBattleEnemyState* TargetEnemyState = nullptr;
-			if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::Self && SourceEnemyState)
-			{
-				TargetEnemyState = SourceEnemyState;
-			}
-			else
-			{
-				TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, DamageEffect->UnitTargetRule);
-			}
-
-			if (TargetEnemyState == nullptr)
-			{
-				continue;
-			}
-
-			if (!SatisfiesTargetStateRequirement(DamageEffect->TargetStateRequirement, TargetEnemyState))
-			{
-				continue;
-			}
-
-			for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
-			{
-				const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
-				ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
-				Summary.TotalDamageToEnemies += DamagePerHit;
-			}
-
-			++Summary.ResolvedEffectCount;
+			ExecuteDamageEffect(State, DamageEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, bIsAttackCardDamage, ExecutionContext, Summary);
 			continue;
 		}
 
@@ -1419,50 +1491,8 @@ bool ExecuteEffectList(
 
 		if (const UFinalBattleEffectBonusBreak* BonusBreakEffect = Cast<UFinalBattleEffectBonusBreak>(EffectDefinition))
 		{
-			if (!SatisfiesConsumeRequirement(BonusBreakEffect->ConsumeRequirement, ExecutionContext, SourceOwnerUnitId))
-			{
-				continue;
-			}
-
-			const int32 BreakAmount = ResolveScalarValue(BonusBreakEffect->Scalar, SourceCharacterState, SourceEnemyState);
-			if (BreakAmount <= 0)
-			{
-				continue;
-			}
-
-			if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::AllEnemies)
-			{
-				for (FFinalBattleEnemyState& EnemyState : State.Enemies)
-				{
-					if (EnemyState.CurrentHP <= 0)
-					{
-						continue;
-					}
-
-					Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(EnemyState, BreakAmount);
-				}
-
-				++Summary.ResolvedEffectCount;
-				continue;
-			}
-
-			FFinalBattleEnemyState* TargetEnemyState = nullptr;
-			if (BonusBreakEffect->UnitTargetRule == EFinalBattleUnitTargetRule::Self && SourceEnemyState)
-			{
-				TargetEnemyState = SourceEnemyState;
-			}
-			else
-			{
-				TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, BonusBreakEffect->UnitTargetRule);
-			}
-
-			if (TargetEnemyState == nullptr)
-			{
-				continue;
-			}
-
-			Summary.TotalBreakDamageToEnemies += ApplyBonusBreakToEnemy(*TargetEnemyState, BreakAmount);
-			++Summary.ResolvedEffectCount;
+			ExecuteBonusBreakEffect(State, BonusBreakEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, ExecutionContext, Summary);
+			continue;
 		}
 	}
 
