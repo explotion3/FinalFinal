@@ -10,6 +10,7 @@ class FFinalBattleEnemyActionService;
 class FFinalBattleRelicService;
 class FFinalBattleResourceService;
 class FFinalBattleStatusService;
+class FFinalBattleUnitService;
 struct FFinalBattleState;
 
 struct FFinalBattleEnemyActionResult
@@ -39,5 +40,6 @@ public:
 		const FFinalBattleResourceService& ResourceService,
 		const FFinalBattleStatusService& StatusService,
 		const FFinalBattleEnemyActionService& EnemyActionService,
+		const FFinalBattleUnitService& UnitService,
 		const FFinalBattleEffectExecutionService& EffectExecutionService) const;
 };

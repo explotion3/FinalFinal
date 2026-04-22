@@ -6,6 +6,7 @@ class FFinalBattleCardService;
 class FFinalBattleEventService;
 class FFinalBattleRelicService;
 class FFinalBattleResourceService;
+class FFinalBattleUnitService;
 class FFinalEnemyIntentService;
 class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
@@ -26,5 +27,6 @@ public:
 		const FFinalBattleEventService& EventService,
 		const FFinalBattleRelicService& RelicService,
 		const FFinalBattleResourceService& ResourceService,
+		const FFinalBattleUnitService& UnitService,
 		const FFinalEnemyIntentService& EnemyIntentService) const;
 };

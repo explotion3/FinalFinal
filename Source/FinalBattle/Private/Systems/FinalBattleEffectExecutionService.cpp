@@ -24,6 +24,7 @@
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
+#include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 namespace
@@ -65,25 +66,8 @@ bool ExecuteEffectListInternal(
 	const UFinalCardDefinition* SourceCardDefinition,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary);
-
-FFinalBattleEnemyState* FindEnemyState(FFinalBattleState& State, const FName RuntimeUnitId)
-{
-	return State.Enemies.FindByPredicate(
-		[&RuntimeUnitId](const FFinalBattleEnemyState& Candidate)
-		{
-			return Candidate.RuntimeUnitId == RuntimeUnitId;
-		});
-}
-
-FFinalBattleEnemyState* FindFirstAliveEnemy(FFinalBattleState& State)
-{
-	return State.Enemies.FindByPredicate(
-		[](const FFinalBattleEnemyState& Candidate)
-		{
-			return Candidate.CurrentHP > 0;
-		});
-}
 
 const FFinalEnemyIntentService& GetEnemyIntentService()
 {
@@ -222,7 +206,11 @@ int32 ResolveScalarValue(const FFinalBattleScalarValue& Scalar, const FFinalBatt
 	return FMath::Max(FMath::RoundToInt(ResultValue), 0);
 }
 
-FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(FFinalBattleState& State, const FFinalBattleCommand* Command, const EFinalBattleUnitTargetRule TargetRule)
+FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(
+	FFinalBattleState& State,
+	const FFinalBattleCommand* Command,
+	const EFinalBattleUnitTargetRule TargetRule,
+	const FFinalBattleUnitService& UnitService)
 {
 	switch (TargetRule)
 	{
@@ -231,21 +219,21 @@ FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(FFinalBattleState& State, cons
 			FFinalBattleEnemyState* SelectedEnemyState = nullptr;
 			if (Command && Command->TargetUnitId != NAME_None)
 			{
-				SelectedEnemyState = FindEnemyState(State, Command->TargetUnitId);
+				SelectedEnemyState = UnitService.FindEnemyState(State, Command->TargetUnitId);
 			}
 			else if (State.CurrentTargetUnitId != NAME_None)
 			{
-				SelectedEnemyState = FindEnemyState(State, State.CurrentTargetUnitId);
+				SelectedEnemyState = UnitService.FindEnemyState(State, State.CurrentTargetUnitId);
 			}
 
 			return (SelectedEnemyState != nullptr && SelectedEnemyState->CurrentHP > 0)
 				? SelectedEnemyState
-				: FindFirstAliveEnemy(State);
+				: UnitService.FindFirstAliveEnemy(State);
 		}
 
 	case EFinalBattleUnitTargetRule::FirstAliveEnemy:
 	case EFinalBattleUnitTargetRule::AllEnemies:
-		return FindFirstAliveEnemy(State);
+		return UnitService.FindFirstAliveEnemy(State);
 
 	default:
 		return nullptr;
@@ -534,7 +522,8 @@ TArray<FName> ResolveStatusTargetOwnerUnitIds(
 	const FFinalBattleCommand* Command,
 	const EFinalBattleUnitTargetRule TargetRule,
 	const FFinalBattleCharacterState* SourceCharacterState,
-	FFinalBattleEnemyState* SourceEnemyState)
+	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService)
 {
 	TArray<FName> TargetOwnerUnitIds;
 
@@ -564,7 +553,7 @@ TArray<FName> ResolveStatusTargetOwnerUnitIds(
 
 	case EFinalBattleUnitTargetRule::SelectedEnemy:
 	case EFinalBattleUnitTargetRule::FirstAliveEnemy:
-		if (FFinalBattleEnemyState* TargetEnemy = ResolvePrimaryEnemyTarget(State, Command, TargetRule))
+		if (FFinalBattleEnemyState* TargetEnemy = ResolvePrimaryEnemyTarget(State, Command, TargetRule, UnitService))
 		{
 			TargetOwnerUnitIds.Add(TargetEnemy->RuntimeUnitId);
 		}
@@ -598,7 +587,11 @@ int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPe
 	return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseDamage) * ModifierScale), 0);
 }
 
-int32 ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 DamageAmount)
+int32 ApplyDamageToEnemy(
+	FFinalBattleState& State,
+	FFinalBattleEnemyState& EnemyState,
+	const int32 DamageAmount,
+	const FFinalBattleUnitService& UnitService)
 {
 	const int32 ShieldAbsorbed = FMath::Min(EnemyState.CurrentShield, FMath::Max(DamageAmount, 0));
 	EnemyState.CurrentShield -= ShieldAbsorbed;
@@ -612,7 +605,7 @@ int32 ApplyDamageToEnemy(FFinalBattleState& State, FFinalBattleEnemyState& Enemy
 		if (State.CurrentTargetUnitId == EnemyState.RuntimeUnitId)
 		{
 			State.CurrentTargetUnitId = NAME_None;
-			if (FFinalBattleEnemyState* NextTarget = FindFirstAliveEnemy(State))
+			if (FFinalBattleEnemyState* NextTarget = UnitService.FindFirstAliveEnemy(State))
 			{
 				State.CurrentTargetUnitId = NextTarget->RuntimeUnitId;
 			}
@@ -635,7 +628,10 @@ int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomin
 	return HpDamage;
 }
 
-void ExecuteOwnerTookHealthDamageTriggersInternal(FFinalBattleState& State, FFinalBattleEffectExecutionSummary& Summary)
+void ExecuteOwnerTookHealthDamageTriggersInternal(
+	FFinalBattleState& State,
+	const FFinalBattleUnitService& UnitService,
+	FFinalBattleEffectExecutionSummary& Summary)
 {
 	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
 	{
@@ -659,6 +655,7 @@ void ExecuteOwnerTookHealthDamageTriggersInternal(FFinalBattleState& State, FFin
 				nullptr,
 				&CharacterState,
 				nullptr,
+				UnitService,
 				Summary);
 		}
 	}
@@ -667,6 +664,7 @@ void ExecuteOwnerTookHealthDamageTriggersInternal(FFinalBattleState& State, FFin
 int32 ApplyTeamIncomingDamageAndTriggersInternal(
 	FFinalBattleState& State,
 	const int32 TotalIncomingDamage,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	const int32 HpDamage = ApplyTeamIncomingDamage(State, TotalIncomingDamage);
@@ -679,7 +677,7 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 			GetEventService().AppendBattleEvent(State, RelicEvent);
 		}
 
-		ExecuteOwnerTookHealthDamageTriggersInternal(State, Summary);
+		ExecuteOwnerTookHealthDamageTriggersInternal(State, UnitService, Summary);
 	}
 	return HpDamage;
 }
@@ -803,6 +801,7 @@ bool ExecuteHealEffect(
 	const FFinalBattleCommand* Command,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	const int32 HealAmount = ResolveScalarValue(HealEffect->Scalar, SourceCharacterState, SourceEnemyState);
@@ -842,7 +841,7 @@ bool ExecuteHealEffect(
 		break;
 
 	default:
-		if (FFinalBattleEnemyState* TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, HealEffect->UnitTargetRule))
+		if (FFinalBattleEnemyState* TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, HealEffect->UnitTargetRule, UnitService))
 		{
 			AppliedHealing = ApplyHealingToEnemy(*TargetEnemyState, HealAmount);
 		}
@@ -860,6 +859,7 @@ bool ExecuteApplyStatusEffect(
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
 	const FName SourceOwnerUnitId,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	const FFinalStatusId StatusId = ResolveEffectStatusId(ApplyStatusEffect);
@@ -873,7 +873,8 @@ bool ExecuteApplyStatusEffect(
 		Command,
 		ApplyStatusEffect->UnitTargetRule,
 		SourceCharacterState,
-		SourceEnemyState);
+		SourceEnemyState,
+		UnitService);
 	int32 AppliedStacks = 0;
 	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
 	{
@@ -903,6 +904,7 @@ bool ExecuteRemoveStatusEffect(
 	const FFinalBattleCommand* Command,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
@@ -917,7 +919,8 @@ bool ExecuteRemoveStatusEffect(
 		Command,
 		RemoveStatusEffect->UnitTargetRule,
 		SourceCharacterState,
-		SourceEnemyState);
+		SourceEnemyState,
+		UnitService);
 	int32 RemovedStacks = 0;
 	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
 	{
@@ -1061,6 +1064,7 @@ bool ExecuteDamageEffect(
 	FFinalBattleEnemyState* SourceEnemyState,
 	const FName SourceOwnerUnitId,
 	const bool bIsAttackCardDamage,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
@@ -1089,7 +1093,7 @@ bool ExecuteDamageEffect(
 
 		for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 		{
-			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(State, DamagePerHit, Summary);
+			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(State, DamagePerHit, UnitService, Summary);
 			Summary.TotalDamageToTeam += HpDamage;
 		}
 
@@ -1114,7 +1118,7 @@ bool ExecuteDamageEffect(
 
 			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 			{
-				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit);
+				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit, UnitService);
 				ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 				Summary.TotalDamageToEnemies += DamagePerHit;
 				bAppliedDamageToAnyEnemy = true;
@@ -1137,7 +1141,7 @@ bool ExecuteDamageEffect(
 	}
 	else
 	{
-		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, DamageEffect->UnitTargetRule);
+		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, DamageEffect->UnitTargetRule, UnitService);
 	}
 
 	if (TargetEnemyState == nullptr)
@@ -1152,7 +1156,7 @@ bool ExecuteDamageEffect(
 
 	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 	{
-		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit);
+		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit, UnitService);
 		ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 		Summary.TotalDamageToEnemies += DamagePerHit;
 	}
@@ -1168,6 +1172,7 @@ bool ExecuteBonusBreakEffect(
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
 	const FName SourceOwnerUnitId,
+	const FFinalBattleUnitService& UnitService,
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
@@ -1205,7 +1210,7 @@ bool ExecuteBonusBreakEffect(
 	}
 	else
 	{
-		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, BonusBreakEffect->UnitTargetRule);
+		TargetEnemyState = ResolvePrimaryEnemyTarget(State, Command, BonusBreakEffect->UnitTargetRule, UnitService);
 	}
 
 	if (TargetEnemyState == nullptr)
@@ -1225,6 +1230,7 @@ bool ExecuteEffectListInternal(
 	const UFinalCardDefinition* SourceCardDefinition,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	FFinalBattleEffectExecutionContext ExecutionContext;
@@ -1240,7 +1246,7 @@ bool ExecuteEffectListInternal(
 
 		if (const UFinalBattleEffectDamage* DamageEffect = Cast<UFinalBattleEffectDamage>(EffectDefinition))
 		{
-			ExecuteDamageEffect(State, DamageEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, bIsAttackCardDamage, ExecutionContext, Summary);
+			ExecuteDamageEffect(State, DamageEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, bIsAttackCardDamage, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 
@@ -1258,19 +1264,19 @@ bool ExecuteEffectListInternal(
 
 		if (const UFinalBattleEffectHeal* HealEffect = Cast<UFinalBattleEffectHeal>(EffectDefinition))
 		{
-			ExecuteHealEffect(State, HealEffect, Command, SourceCharacterState, SourceEnemyState, Summary);
+			ExecuteHealEffect(State, HealEffect, Command, SourceCharacterState, SourceEnemyState, UnitService, Summary);
 			continue;
 		}
 
 		if (const UFinalBattleEffectApplyStatus* ApplyStatusEffect = Cast<UFinalBattleEffectApplyStatus>(EffectDefinition))
 		{
-			ExecuteApplyStatusEffect(State, ApplyStatusEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, Summary);
+			ExecuteApplyStatusEffect(State, ApplyStatusEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, UnitService, Summary);
 			continue;
 		}
 
 		if (const UFinalBattleEffectRemoveStatus* RemoveStatusEffect = Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition))
 		{
-			ExecuteRemoveStatusEffect(State, RemoveStatusEffect, Command, SourceCharacterState, SourceEnemyState, ExecutionContext, Summary);
+			ExecuteRemoveStatusEffect(State, RemoveStatusEffect, Command, SourceCharacterState, SourceEnemyState, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 
@@ -1294,7 +1300,7 @@ bool ExecuteEffectListInternal(
 
 		if (const UFinalBattleEffectBonusBreak* BonusBreakEffect = Cast<UFinalBattleEffectBonusBreak>(EffectDefinition))
 		{
-			ExecuteBonusBreakEffect(State, BonusBreakEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, ExecutionContext, Summary);
+			ExecuteBonusBreakEffect(State, BonusBreakEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 	}
@@ -1330,15 +1336,17 @@ bool FFinalBattleEffectExecutionService::ExecuteEffectList(
 	const UFinalCardDefinition* SourceCardDefinition,
 	const FFinalBattleCharacterState* SourceCharacterState,
 	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary) const
 {
-	return ExecuteEffectListInternal(State, Effects, Command, SourceCardDefinition, SourceCharacterState, SourceEnemyState, Summary);
+	return ExecuteEffectListInternal(State, Effects, Command, SourceCardDefinition, SourceCharacterState, SourceEnemyState, UnitService, Summary);
 }
 
 int32 FFinalBattleEffectExecutionService::ApplyTeamIncomingDamageAndTriggers(
 	FFinalBattleState& State,
 	const int32 TotalIncomingDamage,
+	const FFinalBattleUnitService& UnitService,
 	FFinalBattleEffectExecutionSummary& Summary) const
 {
-	return ApplyTeamIncomingDamageAndTriggersInternal(State, TotalIncomingDamage, Summary);
+	return ApplyTeamIncomingDamageAndTriggersInternal(State, TotalIncomingDamage, UnitService, Summary);
 }

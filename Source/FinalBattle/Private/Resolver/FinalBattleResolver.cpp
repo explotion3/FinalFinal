@@ -18,6 +18,7 @@
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTurnService.h"
+#include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 namespace
@@ -37,24 +38,6 @@ const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
 const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 
-
-const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& State, const FName RuntimeUnitId)
-{
-	return State.Characters.FindByPredicate(
-		[&RuntimeUnitId](const FFinalBattleCharacterState& Candidate)
-		{
-			return Candidate.RuntimeUnitId == RuntimeUnitId;
-		});
-}
-
-FFinalBattleEnemyState* FindEnemyState(FFinalBattleState& State, const FName RuntimeUnitId)
-{
-	return State.Enemies.FindByPredicate(
-		[&RuntimeUnitId](const FFinalBattleEnemyState& Candidate)
-		{
-			return Candidate.RuntimeUnitId == RuntimeUnitId;
-		});
-}
 
 bool AreAllEnemiesDefeated(const FFinalBattleState& State)
 {
@@ -99,11 +82,6 @@ FFinalBattleEvent BuildRejectedCommandEvent(
 	SetRejectReason(Event, RejectReason, ReasonTag);
 	Event.Message = Message;
 	return Event;
-}
-
-FName ResolveCommandTargetUnitId(const FFinalBattleState& State, const FFinalBattleCommand& Command)
-{
-	return Command.TargetUnitId != NAME_None ? Command.TargetUnitId : State.CurrentTargetUnitId;
 }
 
 FFinalBattlePhaseProgressViewData BuildPhaseProgress(const FFinalBattleEnemyState& EnemyState)
@@ -179,6 +157,12 @@ const FFinalBattleStatusService& GetStatusService()
 	return StatusService;
 }
 
+const FFinalBattleUnitService& GetUnitService()
+{
+	static const FFinalBattleUnitService UnitService;
+	return UnitService;
+}
+
 const FFinalBattleEffectExecutionService& GetEffectExecutionService()
 {
 	static const FFinalBattleEffectExecutionService EffectExecutionService;
@@ -210,6 +194,7 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		GetEventService(),
 		GetRelicService(),
 		GetResourceService(),
+		GetUnitService(),
 		GetEnemyIntentService());
 }
 
@@ -274,7 +259,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
-	const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
+	const FFinalBattleCharacterState* OwnerCharacterState = GetUnitService().FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
 	const UFinalCardDefinition* SourceCardDefinition = CardInstance->SourceDefinition;
 	const FName ResolvedRuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
 	const FGuid ResolvedCardInstanceId = CardInstance->CardInstanceId;
@@ -293,7 +278,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 	FFinalBattleEffectExecutionSummary Summary;
-	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, Summary);
+	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, GetUnitService(), Summary);
 
 	TArray<FFinalBattleEvent> RelicEvents;
 	GetRelicService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), RelicEvents);
@@ -304,7 +289,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 
 	Event.EventType = EFinalBattleEventType::CardResolved;
 	Event.SourceUnitId = ResolvedRuntimeOwnerUnitId;
-	Event.TargetUnitId = ResolveCommandTargetUnitId(State, Command);
+	Event.TargetUnitId = GetUnitService().ResolveCommandTargetUnitId(State, Command);
 	Event.CardInstanceId = ResolvedCardInstanceId;
 	Event.CardId = ResolvedCardId;
 	Event.PrimaryValue = Summary.TotalDamageToEnemies;
@@ -341,7 +326,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 {
 	FFinalBattleEvent Event;
 
-	const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(State, Command.UltimateOwnerUnitId);
+	const FFinalBattleCharacterState* OwnerCharacterState = GetUnitService().FindCharacterState(State, Command.UltimateOwnerUnitId);
 	if (OwnerCharacterState == nullptr)
 	{
 		Event = BuildRejectedCommandEvent(
@@ -396,17 +381,13 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 	GetResourceService().SpendEP(State, OwnerCharacterState->UltimateCostEP);
 
 	FFinalBattleEffectExecutionSummary Summary;
-	GetEffectExecutionService().ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, nullptr, OwnerCharacterState, nullptr, Summary);
+	GetEffectExecutionService().ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, nullptr, OwnerCharacterState, nullptr, GetUnitService(), Summary);
 
 	Event.EventType = EFinalBattleEventType::UltimateResolved;
-	Event.TargetUnitId = ResolveCommandTargetUnitId(State, Command);
+	Event.TargetUnitId = GetUnitService().ResolveCommandTargetUnitId(State, Command);
 	Event.PrimaryValue = Summary.TotalDamageToEnemies;
 	Event.SecondaryValue = Summary.TotalTeamShieldGained;
-	if (FFinalBattleCharacterState* MutableOwnerCharacterState = State.Characters.FindByPredicate(
-		[&Command](const FFinalBattleCharacterState& Candidate)
-		{
-			return Candidate.RuntimeUnitId == Command.UltimateOwnerUnitId;
-		}))
+	if (FFinalBattleCharacterState* MutableOwnerCharacterState = GetUnitService().FindCharacterState(State, Command.UltimateOwnerUnitId))
 	{
 		MutableOwnerCharacterState->bUltimateUsedThisBattle = true;
 	}
@@ -446,6 +427,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 		GetResourceService(),
 		GetStatusService(),
 		GetEnemyActionService(),
+		GetUnitService(),
 		GetEffectExecutionService());
 
 	for (const FFinalBattleEvent& GeneratedEvent : EndTurnResult.GeneratedEvents)
@@ -486,7 +468,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteSelectTargetCommand(FFinalBattleS
 {
 	FFinalBattleEvent Event;
 
-	FFinalBattleEnemyState* SelectedEnemy = FindEnemyState(State, Command.TargetUnitId);
+	FFinalBattleEnemyState* SelectedEnemy = GetUnitService().FindEnemyState(State, Command.TargetUnitId);
 	if (SelectedEnemy == nullptr || SelectedEnemy->CurrentHP <= 0)
 	{
 		Event = BuildRejectedCommandEvent(
@@ -620,7 +602,7 @@ FFinalBattleSnapshot FFinalBattleResolver::BuildSnapshot(const FFinalBattleState
 	}
 
 	GetStatusService().BuildStatusSnapshotData(State, Snapshot.CharacterStatuses, Snapshot.TeamStatuses, Snapshot.Statuses);
-	GetCardService().BuildHandCardViews(State, Snapshot.HandCards);
+	GetCardService().BuildHandCardViews(State, GetUnitService(), Snapshot.HandCards);
 
 	return Snapshot;
 }

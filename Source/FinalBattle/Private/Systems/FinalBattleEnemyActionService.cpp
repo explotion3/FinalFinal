@@ -9,6 +9,7 @@
 FFinalBattleEnemyActionResult FFinalBattleEnemyActionService::ResolveEnemyAction(
 	FFinalBattleState& BattleState,
 	FFinalBattleEnemyState& EnemyState,
+	const FFinalBattleUnitService& UnitService,
 	const FFinalBattleEffectExecutionService& EffectExecutionService) const
 {
 	FFinalBattleEnemyActionResult ActionResult;
@@ -24,6 +25,7 @@ FFinalBattleEnemyActionResult FFinalBattleEnemyActionService::ResolveEnemyAction
 			nullptr,
 			nullptr,
 			&EnemyState,
+			UnitService,
 			Summary);
 	}
 	else
@@ -31,6 +33,7 @@ FFinalBattleEnemyActionResult FFinalBattleEnemyActionService::ResolveEnemyAction
 		const int32 HpDamage = EffectExecutionService.ApplyTeamIncomingDamageAndTriggers(
 			BattleState,
 			FMath::Max(EnemyState.RuntimeDamagePower, 0),
+			UnitService,
 			Summary);
 		Summary.TotalDamageToTeam += HpDamage;
 	}

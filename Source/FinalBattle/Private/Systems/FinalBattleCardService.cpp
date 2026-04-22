@@ -7,6 +7,7 @@
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Runtime/FinalTeamDeckState.h"
+#include "Systems/FinalBattleUnitService.h"
 
 namespace
 {
@@ -50,15 +51,6 @@ void InitializeRuntimeKeywordState(FFinalBattleCardInstance& CardInstance)
 	CardInstance.RuntimeBehavior.bRetained = HasRetainKeyword(CardInstance.RuntimeKeywords);
 	CardInstance.RuntimeBehavior.bConsumeOnPlay = HasExpendKeyword(CardInstance.RuntimeKeywords);
 	CardInstance.RuntimeBehavior.RecycleCount = ResolveInitialRecycleCount(CardInstance.RuntimeKeywords);
-}
-
-const FFinalBattleCharacterState* FindCharacterState(const FFinalBattleState& BattleState, const FName RuntimeUnitId)
-{
-	return BattleState.Characters.FindByPredicate(
-		[&RuntimeUnitId](const FFinalBattleCharacterState& Candidate)
-		{
-			return Candidate.RuntimeUnitId == RuntimeUnitId;
-		});
 }
 
 bool RemoveCardInstanceId(TArray<FGuid>& CardInstanceIds, const FGuid& CardInstanceId)
@@ -491,7 +483,10 @@ int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const i
 	return DrawnCount;
 }
 
-void FFinalBattleCardService::BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const
+void FFinalBattleCardService::BuildHandCardViews(
+	const FFinalBattleState& BattleState,
+	const FFinalBattleUnitService& UnitService,
+	TArray<FFinalBattleCardViewData>& OutViews) const
 {
 	for (const FGuid& CardInstanceId : BattleState.DeckState.HandCardInstanceIds)
 	{
@@ -514,7 +509,7 @@ void FFinalBattleCardService::BuildHandCardViews(const FFinalBattleState& Battle
 		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
 		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
 		CardView.bRetained = CardInstance->RuntimeBehavior.bRetained;
-		if (const FFinalBattleCharacterState* OwnerCharacterState = FindCharacterState(BattleState, CardInstance->RuntimeOwnerUnitId))
+		if (const FFinalBattleCharacterState* OwnerCharacterState = UnitService.FindCharacterState(BattleState, CardInstance->RuntimeOwnerUnitId))
 		{
 			CardView.bCollapsedCard = OwnerCharacterState->bCollapsed;
 		}

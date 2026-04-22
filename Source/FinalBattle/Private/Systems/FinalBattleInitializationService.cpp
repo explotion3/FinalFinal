@@ -15,6 +15,7 @@
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
+#include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleInitializationService, Log, All);
@@ -77,15 +78,6 @@ int32 ResolveAwakenThreshold(const FFinalBattleCharacterState& CharacterState, c
 	return FallbackThreshold;
 }
 
-FFinalBattleEnemyState* FindFirstAliveEnemy(FFinalBattleState& State)
-{
-	return State.Enemies.FindByPredicate(
-		[](const FFinalBattleEnemyState& Candidate)
-		{
-			return Candidate.CurrentHP > 0;
-		});
-}
-
 void RefreshEnemyIntentState(
 	const FFinalEnemyIntentService& EnemyIntentService,
 	FFinalBattleEnemyState& EnemyState,
@@ -104,6 +96,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 	const FFinalBattleEventService& EventService,
 	const FFinalBattleRelicService& RelicService,
 	const FFinalBattleResourceService& ResourceService,
+	const FFinalBattleUnitService& UnitService,
 	const FFinalEnemyIntentService& EnemyIntentService) const
 {
 	State = FFinalBattleState{};
@@ -233,7 +226,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 		State.Enemies.Add(MoveTemp(EnemyState));
 	}
 
-	if (FFinalBattleEnemyState* DefaultTargetEnemy = FindFirstAliveEnemy(State))
+	if (FFinalBattleEnemyState* DefaultTargetEnemy = UnitService.FindFirstAliveEnemy(State))
 	{
 		State.CurrentTargetUnitId = DefaultTargetEnemy->RuntimeUnitId;
 	}

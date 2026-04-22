@@ -7,6 +7,7 @@
 #include "Systems/FinalBattleCardMatchCriteria.h"
 
 class UFinalCardDefinition;
+class FFinalBattleUnitService;
 struct FFinalBattleCardInstance;
 struct FFinalBattleCardViewData;
 struct FFinalBattleState;
@@ -106,7 +107,10 @@ public:
 	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
 
 	// 基于当前手牌实例构建对外只读的手牌视图数据。
-	void BuildHandCardViews(const FFinalBattleState& BattleState, TArray<FFinalBattleCardViewData>& OutViews) const;
+	void BuildHandCardViews(
+		const FFinalBattleState& BattleState,
+		const FFinalBattleUnitService& UnitService,
+		TArray<FFinalBattleCardViewData>& OutViews) const;
 
 private:
 	// 抽牌堆为空时，把弃牌堆洗回抽牌堆。

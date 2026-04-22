@@ -545,6 +545,7 @@ Source
 * `FFinalBattleTurnService`
 * `FFinalBattleEffectExecutionService`
 * `FFinalBattleEnemyActionService`
+* `FFinalBattleUnitService`
 * `FFinalBattleEventService`
 * `FFinalEnemyIntentService`
 * `UFinalCollapseAwakenService`
@@ -553,7 +554,8 @@ Source
 规则：
 * Service 可以互相协作，但由 Resolver 或 Session 统一编排
 * 不允许多个 Service 同时持有彼此的状态真相副本
-* 当前代码口径中，`FinalBattleInitializationService / CardService / ResourceService / TurnService / StatusService / EffectExecutionService / EnemyActionService / EventService / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
+* 当前代码口径中，`FinalBattleInitializationService / CardService / ResourceService / TurnService / StatusService / EffectExecutionService / EnemyActionService / UnitService / EventService / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
+* `FinalBattleUnitService` 统一承接 character / enemy / first alive enemy / command target resolve 查询；复杂目标过滤、随机目标、群体目标选择若后续增长，再单独拆 `FinalBattleTargetService`
 
 ### 8.3 Run 入口
 推荐：

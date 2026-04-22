@@ -4,6 +4,7 @@
 #include "Systems/FinalBattleTurnService.h"
 
 class FFinalBattleEffectExecutionService;
+class FFinalBattleUnitService;
 struct FFinalBattleEnemyState;
 struct FFinalBattleState;
 
@@ -15,5 +16,6 @@ public:
 	FFinalBattleEnemyActionResult ResolveEnemyAction(
 		FFinalBattleState& BattleState,
 		FFinalBattleEnemyState& EnemyState,
+		const FFinalBattleUnitService& UnitService,
 		const FFinalBattleEffectExecutionService& EffectExecutionService) const;
 };
