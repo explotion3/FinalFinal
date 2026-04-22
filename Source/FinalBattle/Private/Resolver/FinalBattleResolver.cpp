@@ -937,9 +937,7 @@ bool ExecuteGenerateCardEffect(
 			SelectedCardDefinition,
 			SourceOwnerUnitId,
 			GenerateCardEffect->bGeneratedCard,
-			GenerateCardEffect->bTemporaryCard,
-			GenerateCardEffect->bRetainInHand,
-			GenerateCardEffect->bConsumeOnPlay);
+			GenerateCardEffect->bTemporaryCard);
 		if (GeneratedCardInstanceId.IsValid())
 		{
 			++GeneratedCardCount;

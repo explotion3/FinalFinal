@@ -11,18 +11,23 @@ class FINALDATA_API UFinalBattleEffectDefinition : public UObject
 	GENERATED_BODY()
 
 public:
+	// 该效果条目的稳定 Id。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FName EffectId = NAME_None;
 
+	// 该效果的具体类型。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	EFinalBattleEffectType EffectType = EFinalBattleEffectType::Damage;
 
+	// 该效果使用的目标规则。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	EFinalBattleUnitTargetRule UnitTargetRule = EFinalBattleUnitTargetRule::None;
 
+	// 兼容简单效果的直接数值字段。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	float FlatValue = 0.0f;
 
+	// 面向编辑器和设计文档的备注文本。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FText Notes;
 };

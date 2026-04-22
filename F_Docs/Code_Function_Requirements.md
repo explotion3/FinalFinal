@@ -91,6 +91,7 @@
 * 维护抽牌堆、手牌区、弃牌堆、持续区、消耗区
 * 处理抽牌、弃牌、生成、复制、回收、进入持续区
 * 处理关键词对牌区去向的改写
+* 统一解释卡牌实例的 `Retain / Expend` 关键词，并维护实例层 `bRetained / bConsumeOnPlay / RecycleCount`
 
 重点规则来源：
 * [Battle_Rules.md](Battle_Rules.md)

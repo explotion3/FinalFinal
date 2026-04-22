@@ -533,8 +533,6 @@ namespace FinalPrototypeContentBootstrap
 		GenerateCardEffect->bChooseRandomCandidate = bChooseRandomCandidate;
 		GenerateCardEffect->bGeneratedCard = true;
 		GenerateCardEffect->bTemporaryCard = true;
-		GenerateCardEffect->bRetainInHand = true;
-		GenerateCardEffect->bConsumeOnPlay = true;
 		GenerateCardEffect->Notes = Notes;
 		Effects.Add(GenerateCardEffect);
 		return GenerateCardEffect;

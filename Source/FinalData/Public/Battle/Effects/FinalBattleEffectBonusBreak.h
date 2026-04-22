@@ -14,9 +14,11 @@ class FINALDATA_API UFinalBattleEffectBonusBreak : public UFinalBattleEffectDefi
 public:
 	UFinalBattleEffectBonusBreak();
 
+	// 额外削韧数值来源。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
 
+	// 生效前要求本次效果链已消耗的状态条件。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleStatusConsumeRequirement ConsumeRequirement;
 };

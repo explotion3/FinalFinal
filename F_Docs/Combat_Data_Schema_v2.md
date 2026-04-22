@@ -1050,9 +1050,12 @@ bCanCopy: true
   * `PassiveId`
   * `DurationOverride`
 * `UBattleEffect_GenerateCard`
-  * `GeneratedCardIds`
-  * `DestinationCardZone`
-  * `bUsePreferredGeneratedCard`
+  * `GeneratedCardDefinition`
+  * `CandidateCardDefinitions`
+  * `GenerateCount`
+  * `bChooseRandomCandidate`
+  * `bGeneratedCard`
+  * `bTemporaryCard`
 * `UBattleEffect_CopyCard`
   * `CardSelectionScope`
   * `CardSelectionRule`
@@ -1060,6 +1063,7 @@ bCanCopy: true
 
 **说明**
 * `BattleResolver` 的职责应收缩为效果编排，不再继续膨胀成大型字段解释器
+* `UBattleEffect_GenerateCard` 只负责描述“生成什么牌、生成几张、是否为 generated/temporary”；`保留 / 消耗` 不再在 effect 上重复保存布尔语义，而由 `CardDefinition.Keywords` 与 `BattleCardInstance.RuntimeKeywords` 统一解释
 * 卡牌、敌人意图、遗物、奥义应尽量共用同一套效果基类族
 * 条件优先写入 `FBattleEffectConditionSet`
 * 数值优先写入 `FBattleScalarValue`
@@ -1690,6 +1694,7 @@ DamageToBreakCap: 6
 * `RuntimeOwnerUnitId` 一律使用 `RuntimeUnitId` 或 `ReservedTeamUnitId`
 * 通用卡、衍生牌、敌方塞入牌都通过 `RuntimeOwnerUnitId` 决定按谁的属性与联动结算
 * `保留 / 消耗 / 回收X / 主导` 的当前实际状态优先维护在实例层，不回写模板
+* 当前第一版已由 `FinalBattleCardService` 统一解释 `Retain / Expend` 关键词，并写入 `bRetained / bConsumeOnPlay`；`RecycleCount` 已作为 `回收X` 的实例层预留承载，但尚未实现完整结算
 * 崩溃卡形态不作为实例常驻字段保存；是否以崩溃卡表现，改由 `RuntimeOwnerUnitId` 对应角色是否处于 `bCollapsed`，以及该牌当前是否位于手牌区动态推导
 * 表现层若需要临时高亮或替换文案，应基于 `RulesText + RuntimeKeywords + TempModifiers` 动态生成，不单独保存一份 `RuntimeRulesText`
 
