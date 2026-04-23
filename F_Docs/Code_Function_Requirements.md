@@ -151,7 +151,7 @@
 * 当前最小竖切至少支持两类小窗口遗物协议，并已开始补 `RuntimeTriggers` 通用协议：
 * `battle-start`：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
 * `player-turn-start`：由 `RelicDefinition` 提供少量玩家回合开始 effect，在 Battle 初始化后保留到权威状态，并在玩家回合开始窗口真实落地并写入 `BattleEvent`
-* `RuntimeTriggers`：通用遗物触发协议，不命名为 BattleTriggers；当前支持 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，以及 `Domain=Battle / Window=PlayerCardResolved / CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) / Effect=DrawCards`；由 `FinalBattleRelicService` 读取私有 `BattleRelicRuntimeState` 计数并写入 `RelicTriggered`
+* `RuntimeTriggers`：通用遗物触发协议，不命名为 BattleTriggers；当前支持 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，以及 `Domain=Battle / Window=PlayerCardResolved / CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) / Effect=DrawCards`；由 `FinalBattleTriggerService` 读取私有 `BattleRelicRuntimeState` 计数并写入 `RelicTriggered`
 
 优先级：
 * `P1`
@@ -193,7 +193,8 @@
   * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、固定数量抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
   * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
   * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
-  * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、`RuntimeTriggers` 运行时计数、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 触发窗口与 `ActiveRelics` 投影维护
+* `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、runtime trigger 计数重置与 `ActiveRelics` 投影维护
+* `FinalBattleTriggerService`：Battle 内 trigger window 分发与执行，当前统一承接 `OwnerTookHealthDamage / PlayerTeamTookHealthDamage / PlayerCardResolved`
   * `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired` 三类上下文，并供 `Effect.Conditions[]` 与 relic card trigger 复用同一套运行时判断基础
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
   * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
@@ -282,7 +283,7 @@
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
-* Battle 当前已补最小 `OwnerTookHealthDamage` 触发窗口协议：`CharacterDefinition` 可配置 battle trigger effect list，初始化时镜像到 `FinalBattleCharacterState`，当玩家共享生命实际下降时由 `FinalBattleResolver` 按角色顺序执行；当前 starter 已用它把霍断岳“受压得刀势”收回 Runtime
+* Battle 当前已补最小 `OwnerTookHealthDamage` 触发窗口协议：`CharacterDefinition` 可配置 battle trigger effect list，初始化时镜像到 `FinalBattleCharacterState`，当玩家共享生命实际下降时由 `FinalBattleTriggerService` 按角色顺序执行；当前 starter 已用它把霍断岳“受压得刀势”收回 Runtime
 * `TargetState` 条件可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；condition 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
 * Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime。`免疫` 仍是上位状态概念，`生命免疫` 只是当前已落地的共享生命 HP damage protection 子类
 * starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果

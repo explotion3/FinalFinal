@@ -5,11 +5,13 @@
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
+#include "Systems/FinalBattleTriggerService.h"
 
 FFinalBattleEnemyActionResult FFinalBattleEnemyActionService::ResolveEnemyAction(
 	FFinalBattleState& BattleState,
 	FFinalBattleEnemyState& EnemyState,
 	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleTriggerService& TriggerService,
 	const FFinalBattleEffectExecutionService& EffectExecutionService) const
 {
 	FFinalBattleEnemyActionResult ActionResult;
@@ -34,6 +36,7 @@ FFinalBattleEnemyActionResult FFinalBattleEnemyActionService::ResolveEnemyAction
 			BattleState,
 			FMath::Max(EnemyState.RuntimeDamagePower, 0),
 			UnitService,
+			TriggerService,
 			Summary);
 		Summary.TotalDamageToTeam += HpDamage;
 	}

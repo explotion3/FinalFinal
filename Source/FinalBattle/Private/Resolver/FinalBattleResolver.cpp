@@ -9,6 +9,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEnemyActionService.h"
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
@@ -19,6 +20,7 @@
 #include "Systems/FinalBattleSnapshotBuilder.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTurnService.h"
+#include "Systems/FinalBattleTriggerService.h"
 #include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
@@ -100,6 +102,12 @@ const FFinalBattleCardService& GetCardService()
 	return CardService;
 }
 
+const FFinalBattleConditionService& GetConditionService()
+{
+	static const FFinalBattleConditionService ConditionService;
+	return ConditionService;
+}
+
 const FFinalBattleRelicService& GetRelicService()
 {
 	static const FFinalBattleRelicService RelicService;
@@ -146,6 +154,12 @@ const FFinalBattleSnapshotBuilder& GetSnapshotBuilder()
 {
 	static const FFinalBattleSnapshotBuilder SnapshotBuilder;
 	return SnapshotBuilder;
+}
+
+const FFinalBattleTriggerService& GetTriggerService()
+{
+	static const FFinalBattleTriggerService TriggerService;
+	return TriggerService;
 }
 
 const FFinalBattleInitializationService& GetInitializationService()
@@ -254,7 +268,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, GetUnitService(), Summary);
 
 	TArray<FFinalBattleEvent> RelicEvents;
-	GetRelicService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), RelicEvents);
+	GetTriggerService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), GetConditionService(), RelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 	{
 		GetEventService().AppendBattleEvent(State, RelicEvent);
@@ -400,6 +414,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 		GetResourceService(),
 		GetStatusService(),
 		GetEnemyActionService(),
+		GetTriggerService(),
 		GetUnitService(),
 		GetEffectExecutionService());
 

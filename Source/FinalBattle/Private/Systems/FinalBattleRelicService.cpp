@@ -2,8 +2,6 @@
 
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
-#include "Systems/FinalBattleCardService.h"
-#include "Systems/FinalBattleConditionService.h"
 
 namespace
 {
@@ -11,8 +9,6 @@ const FName RelicGainAPTag(TEXT("battle.relic.effect.gain_ap"));
 const FName RelicGainShieldTag(TEXT("battle.relic.effect.gain_shield"));
 const FName RelicTurnStartGainAPTag(TEXT("battle.relic.effect.turn_start_gain_ap"));
 const FName RelicTurnStartGainShieldTag(TEXT("battle.relic.effect.turn_start_gain_shield"));
-const FName RelicTeamHealthDamageGainShieldTag(TEXT("battle.relic.trigger.player_team_took_health_damage.gain_shield"));
-const FName RelicPlayerCardResolvedDrawCardsTag(TEXT("battle.relic.trigger.player_card_resolved.draw_cards"));
 
 FText ResolveBattleRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
 {
@@ -74,27 +70,6 @@ bool IsSupportedBattleRuntimeTrigger(const FFinalRelicRuntimeTriggerDefinition& 
 	return false;
 }
 
-bool CanTriggerRuntimeRelicEffect(const FFinalBattleRelicRuntimeTriggerState& TriggerState)
-{
-	switch (TriggerState.TriggerDefinition.Limit)
-	{
-	case EFinalRelicTriggerLimit::OncePerPlayerTurn:
-		return TriggerState.TriggeredCountThisPlayerTurn <= 0;
-
-	case EFinalRelicTriggerLimit::OncePerBattle:
-		return TriggerState.TriggeredCountThisBattle <= 0;
-
-	case EFinalRelicTriggerLimit::None:
-	default:
-		return true;
-	}
-}
-
-const FFinalBattleConditionService& GetConditionService()
-{
-	static const FFinalBattleConditionService ConditionService;
-	return ConditionService;
-}
 }
 
 void FFinalBattleRelicService::InitializeRelics(
@@ -289,140 +264,6 @@ void FFinalBattleRelicService::ResetPlayerTurnTriggerCounts(FFinalBattleState& B
 			if (TriggerState.TriggerDefinition.Limit == EFinalRelicTriggerLimit::OncePerPlayerTurn)
 			{
 				TriggerState.TriggeredCountThisPlayerTurn = 0;
-			}
-		}
-	}
-}
-
-void FFinalBattleRelicService::HandlePlayerTeamTookHealthDamage(
-	FFinalBattleState& BattleState,
-	const int32 ActualHealthDamage,
-	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
-{
-	if (ActualHealthDamage <= 0)
-	{
-		return;
-	}
-
-	for (FFinalBattleRelicRuntimeState& RuntimeState : BattleState.RelicRuntimeStates)
-	{
-		if (!RuntimeState.RelicId.IsValid())
-		{
-			continue;
-		}
-
-		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
-		{
-			const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
-			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerTeamTookHealthDamage
-				|| !CanTriggerRuntimeRelicEffect(TriggerState))
-			{
-				continue;
-			}
-
-			bool bAppliedAnyEffect = false;
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
-			{
-				if (!IsValidRuntimeTriggerEffect(EffectDefinition))
-				{
-					continue;
-				}
-
-				switch (EffectDefinition.EffectType)
-				{
-				case EFinalRelicTriggerEffectType::GainShield:
-					BattleState.TeamShield += EffectDefinition.Value;
-					OutGeneratedEvents.Add(BuildRelicTriggeredEvent(
-						RuntimeState.RelicId,
-						RelicTeamHealthDamageGainShieldTag,
-						EffectDefinition.Value,
-						BattleState.TeamShield,
-						FText::Format(
-							NSLOCTEXT("FinalBattleRelicService", "RelicTeamHealthDamageGainShield", "{0} triggered after actual health loss and granted {1} shield."),
-							RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-							FText::AsNumber(EffectDefinition.Value))));
-					bAppliedAnyEffect = true;
-					break;
-
-				default:
-					break;
-				}
-			}
-
-			if (bAppliedAnyEffect)
-			{
-				++TriggerState.TriggeredCountThisPlayerTurn;
-				++TriggerState.TriggeredCountThisBattle;
-			}
-		}
-	}
-}
-
-void FFinalBattleRelicService::HandlePlayerCardResolved(
-	FFinalBattleState& BattleState,
-	const FFinalBattleResolvedCardTriggerContext& CardContext,
-	const FFinalBattleCardService& CardService,
-	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
-{
-	if (!CardContext.CardId.IsValid() || CardContext.RuntimeOwnerUnitId.IsNone())
-	{
-		return;
-	}
-
-	for (FFinalBattleRelicRuntimeState& RuntimeState : BattleState.RelicRuntimeStates)
-	{
-		if (!RuntimeState.RelicId.IsValid())
-		{
-			continue;
-		}
-
-		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
-		{
-			const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
-			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerCardResolved
-				|| !CanTriggerRuntimeRelicEffect(TriggerState)
-				|| !GetConditionService().SatisfiesResolvedCardCondition(TriggerDefinition.CardCondition, CardContext))
-			{
-				continue;
-			}
-
-			bool bAppliedAnyEffect = false;
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
-			{
-				if (!IsValidRuntimeTriggerEffect(EffectDefinition))
-				{
-					continue;
-				}
-
-				switch (EffectDefinition.EffectType)
-				{
-				case EFinalRelicTriggerEffectType::DrawCards:
-					{
-						const int32 DrawnCount = CardService.DrawCards(BattleState, EffectDefinition.Value);
-						OutGeneratedEvents.Add(BuildRelicTriggeredEvent(
-							RuntimeState.RelicId,
-							RelicPlayerCardResolvedDrawCardsTag,
-							DrawnCount,
-							BattleState.DeckState.HandCardInstanceIds.Num(),
-							FText::Format(
-								NSLOCTEXT("FinalBattleRelicService", "RelicPlayerCardResolvedDrawCards", "{0} triggered after a card resolved and drew {1} card(s)."),
-								RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-								FText::AsNumber(DrawnCount))));
-						bAppliedAnyEffect = true;
-						break;
-					}
-
-				default:
-					break;
-				}
-			}
-
-			if (bAppliedAnyEffect)
-			{
-				++TriggerState.TriggeredCountThisPlayerTurn;
-				++TriggerState.TriggeredCountThisBattle;
 			}
 		}
 	}

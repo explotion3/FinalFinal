@@ -9,6 +9,7 @@
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
+#include "Systems/FinalBattleTriggerService.h"
 #include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
@@ -31,6 +32,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	const FFinalBattleResourceService& ResourceService,
 	const FFinalBattleStatusService& StatusService,
 	const FFinalBattleEnemyActionService& EnemyActionService,
+	const FFinalBattleTriggerService& TriggerService,
 	const FFinalBattleUnitService& UnitService,
 	const FFinalBattleEffectExecutionService& EffectExecutionService) const
 {
@@ -49,6 +51,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 			BattleState,
 			EnemyState,
 			UnitService,
+			TriggerService,
 			EffectExecutionService);
 		Result.TotalDamageToTeam += ActionResult.DamageToTeam;
 		Result.TotalEnemyShieldGained += ActionResult.EnemyShieldGained;

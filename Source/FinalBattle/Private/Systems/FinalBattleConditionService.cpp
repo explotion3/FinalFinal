@@ -11,6 +11,7 @@
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleRelicService.h"
+#include "Systems/FinalBattleTriggerService.h"
 
 namespace
 {

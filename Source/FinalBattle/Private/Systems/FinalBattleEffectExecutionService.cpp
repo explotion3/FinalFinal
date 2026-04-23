@@ -22,9 +22,9 @@
 #include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
-#include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
+#include "Systems/FinalBattleTriggerService.h"
 #include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
@@ -34,8 +34,9 @@ const FName TeamPlayerUnitId(TEXT("team_player"));
 
 const FFinalBattleCardService& GetCardService();
 const FFinalBattleConditionService& GetConditionService();
+const FFinalBattleEffectExecutionService& GetEffectExecutionService();
 const FFinalBattleEventService& GetEventService();
-const FFinalBattleRelicService& GetRelicService();
+const FFinalBattleTriggerService& GetTriggerService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleStatusService& GetStatusService();
 const FFinalEnemyIntentService& GetEnemyIntentService();
@@ -67,16 +68,22 @@ const FFinalBattleConditionService& GetConditionService()
 	return ConditionService;
 }
 
+const FFinalBattleEffectExecutionService& GetEffectExecutionService()
+{
+	static const FFinalBattleEffectExecutionService EffectExecutionService;
+	return EffectExecutionService;
+}
+
 const FFinalBattleEventService& GetEventService()
 {
 	static const FFinalBattleEventService EventService;
 	return EventService;
 }
 
-const FFinalBattleRelicService& GetRelicService()
+const FFinalBattleTriggerService& GetTriggerService()
 {
-	static const FFinalBattleRelicService RelicService;
-	return RelicService;
+	static const FFinalBattleTriggerService TriggerService;
+	return TriggerService;
 }
 
 const FFinalBattleResourceService& GetResourceService()
@@ -467,56 +474,25 @@ int32 ApplyTeamIncomingDamage(FFinalBattleState& State, const int32 TotalIncomin
 	return HpDamage;
 }
 
-void ExecuteOwnerTookHealthDamageTriggersInternal(
-	FFinalBattleState& State,
-	const FFinalBattleUnitService& UnitService,
-	FFinalBattleEffectExecutionSummary& Summary)
-{
-	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
-	{
-		if (CharacterState.bCollapsed)
-		{
-			continue;
-		}
-
-		for (const FFinalBattleTriggerDefinition& TriggerDefinition : CharacterState.BattleTriggers)
-		{
-			if (TriggerDefinition.TriggerWindow != EFinalBattleTriggerWindow::OwnerTookHealthDamage
-				|| TriggerDefinition.Effects.IsEmpty())
-			{
-				continue;
-			}
-
-			ExecuteEffectListInternal(
-				State,
-				TriggerDefinition.Effects,
-				nullptr,
-				nullptr,
-				&CharacterState,
-				nullptr,
-				UnitService,
-				Summary);
-		}
-	}
-}
-
 int32 ApplyTeamIncomingDamageAndTriggersInternal(
 	FFinalBattleState& State,
 	const int32 TotalIncomingDamage,
 	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleTriggerService& TriggerService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	const int32 HpDamage = ApplyTeamIncomingDamage(State, TotalIncomingDamage);
 	if (HpDamage > 0)
 	{
 		TArray<FFinalBattleEvent> RelicEvents;
-		GetRelicService().HandlePlayerTeamTookHealthDamage(State, HpDamage, RelicEvents);
+		TriggerService.HandlePlayerTeamTookHealthDamage(State, HpDamage, GetCardService(), RelicEvents);
 		for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 		{
 			GetEventService().AppendBattleEvent(State, RelicEvent);
 		}
 
-		ExecuteOwnerTookHealthDamageTriggersInternal(State, UnitService, Summary);
+		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, EffectExecutionService, Summary);
 	}
 	return HpDamage;
 }
@@ -995,7 +971,13 @@ bool ExecuteDamageEffect(
 
 		for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 		{
-			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(State, DamagePerHit, UnitService, Summary);
+			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(
+				State,
+				DamagePerHit,
+				UnitService,
+				GetTriggerService(),
+				GetEffectExecutionService(),
+				Summary);
 			Summary.TotalDamageToTeam += HpDamage;
 		}
 
@@ -1275,7 +1257,8 @@ int32 FFinalBattleEffectExecutionService::ApplyTeamIncomingDamageAndTriggers(
 	FFinalBattleState& State,
 	const int32 TotalIncomingDamage,
 	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleTriggerService& TriggerService,
 	FFinalBattleEffectExecutionSummary& Summary) const
 {
-	return ApplyTeamIncomingDamageAndTriggersInternal(State, TotalIncomingDamage, UnitService, Summary);
+	return ApplyTeamIncomingDamageAndTriggersInternal(State, TotalIncomingDamage, UnitService, TriggerService, *this, Summary);
 }

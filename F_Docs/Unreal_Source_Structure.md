@@ -225,7 +225,7 @@ FinalBattle      FinalRun
   * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、区分 `BattleStartEffects / PlayerTurnStartEffects` 的 `BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
   * `BattleDirector` 只保留简短的世界层 relic 提示，不重复堆叠完整列表
 * 当前 `ActiveRelics` 允许承载少量 battle-start / player-turn-start 遗物输入，并已补 `RuntimeTriggers` 的 Battle-domain 子集投影；窗口深化继续留在 `FinalBattle`，不回流到 `FinalApp`
-* 当前 `FinalBattleRelicService` 与私有 `BattleRelicRuntimeState` 承接遗物运行时计数；已落地 `PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，以及 `PlayerCardResolved + CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) -> DrawCards` 用于阵门木签
+* 当前 `FinalBattleRelicService` 与私有 `BattleRelicRuntimeState` 承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置与 `ActiveRelics` 投影；Battle 内 `PlayerTeamTookHealthDamage -> GainShield`（护心铜镜）和 `PlayerCardResolved + CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) -> DrawCards`（阵门木签）窗口分发已收口到 `FinalBattleTriggerService`
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
@@ -265,13 +265,13 @@ FinalBattle      FinalRun
 * starter content 现已进一步把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`GenerateCard / MoveCards` 协议落入 `FinalData`，`FinalBattleCardService` 负责衍生牌实例创建、牌区迁移/放置、按条件匹配后的牌区迁移，以及关键词驱动的保留/消耗解释与 `ConsumePile` 去向；旧 `ConsumeGeneratedCard` 专用效果已被 `MoveCards(Hand -> ConsumePile)` 取代，`布锋 / 引阵 / 过牌剑阵 / 破阵剑阵 / 引爆剑阵` 已进入最小闭环
 * `FinalData` / `FinalBattle` 当前已把 effect requirement 第一阶段收口到对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / StatusChanged / MovedCards` 四类内联条件对象；`FinalBattleConditionService` 统一承接 AND 判定，并按 `GetConditionContext()` 把条件明确分派到 `SourceOnly / ChainRecord / TargetRequired` 三类求值路径；`HandCard` 条件仍由 `FinalBattleCardService` 负责统计某个 RuntimeOwner 当前手牌中满足 `CardId / Keyword / MinimumCount / GeneratedOnly` 条件的卡数量，`MovedCards` 条件则读取同一效果链内 `MoveCards` 真实移动记录，`StatusChanged` 条件第一版只读取同一效果链内 `RemoveStatus -> Removed` 的真实状态变化记录
 * Battle 当前已把 effect list scratch state 结构化为 `ConditionEvaluationContext + EffectChainRecordContext + EffectTransientContext`：前者描述当前读哪些事实，后两者分别承载“可被后续 condition 读取的真实记录”和“只服务本条执行流程的临时标记”
-* `FinalBattleRelicService` 当前在 `PlayerCardResolved` 窗口也复用 `FinalBattleConditionService` 的卡牌事实匹配逻辑，不再维持独立 card condition 判断分支
+* `FinalBattleTriggerService` 当前在 `PlayerCardResolved` 窗口也复用 `FinalBattleConditionService` 的卡牌事实匹配逻辑，不再维持独立 card condition 判断分支
 * `FinalBattleState` 当前已补 Battle 私有 `CardInstanceId -> CardInstances` 最小索引，供 `FinalBattleCardService` 统一收口实例查找；卡牌匹配条件则收口到 Battle 私有 criteria，而不再继续堆散 API 参数
 * `FinalBattleCardService` 当前还开始分出更清晰的只读查询层：区分“按 criteria 统计某牌区内匹配数量”“按 criteria 判定某牌区是否满足最低数量”；抽牌堆耗尽时由私有 helper 先把弃牌堆洗回抽牌堆，再继续固定数量抽牌；同时已收口初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理；玩家新回合抽牌数量由 `BattleRuleConfig.TurnStartDrawCount` 驱动，不再补到目标手牌数
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则，不再保留 Battle 侧近似实现
 * `FinalData` / `FinalBattle` 当前还补了最小“状态驱动的攻击修正”协议：`StatusDefinition` 暴露 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 在运行时维护对应镜像值，并由 `FinalBattleEffectExecutionService` 在伤害链里统一读取
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波收回到 Runtime：`锋锐剑阵` 施加 1 层会在下一张攻击牌成功造成敌方生命伤害后消耗的 `锋锐`；`万象归阵` 改为抽牌 + 生成剑阵牌 + 为每名角色施加 1 层 `士气`
-* `FinalData` / `FinalBattle` 当前还补了最小 battle trigger 协议：`FinalBattleTriggerDefinition` 定义 `OwnerTookHealthDamage` 窗口，`CharacterDefinition` 承载触发 effect list，`FinalBattleEffectExecutionService` 在玩家共享生命实际下降后从 runtime character state 执行触发效果
+* `FinalData` / `FinalBattle` 当前还补了最小 battle trigger 协议：`FinalBattleTriggerDefinition` 定义 `OwnerTookHealthDamage` 窗口，`CharacterDefinition` 承载触发 effect list，`FinalBattleTriggerService` 在玩家共享生命实际下降后从 runtime character state 执行触发效果
 * starter content 现在已用该 trigger 协议把霍断岳“受压得刀势”收回 Runtime：霍断岳所属队伍生命实际受损时获得 1 层 `刀势`
 * `TargetState` 条件基于敌人权威 `CurrentBreakValue` 判断目标是否 Break；不满足时只跳过该 effect，不影响同张牌其他效果，不再作为 `Damage` 子类专属字段存在
 * starter content 现在已用该 target state requirement 把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime

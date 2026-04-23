@@ -6,6 +6,7 @@
 class UFinalBattleEffectDefinition;
 class UFinalCardDefinition;
 class UFinalUltimateDefinition;
+class FFinalBattleTriggerService;
 class FFinalBattleUnitService;
 struct FFinalBattleCharacterState;
 struct FFinalBattleCommand;
@@ -33,5 +34,6 @@ public:
 		FFinalBattleState& State,
 		int32 TotalIncomingDamage,
 		const FFinalBattleUnitService& UnitService,
+		const FFinalBattleTriggerService& TriggerService,
 		FFinalBattleEffectExecutionSummary& Summary) const;
 };
