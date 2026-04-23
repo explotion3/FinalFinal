@@ -11,6 +11,8 @@ class FINALDATA_API UFinalBattleConditionTargetState : public UFinalBattleCondit
 	GENERATED_BODY()
 
 public:
+	virtual EFinalBattleConditionContext GetConditionContext() const override { return EFinalBattleConditionContext::TargetRequired; }
+
 	// 生效前要求当前目标满足的状态条件。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Condition")
 	FFinalBattleTargetStateRequirement Requirement;

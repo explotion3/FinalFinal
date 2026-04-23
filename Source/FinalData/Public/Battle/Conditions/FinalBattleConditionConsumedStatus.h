@@ -11,6 +11,8 @@ class FINALDATA_API UFinalBattleConditionConsumedStatus : public UFinalBattleCon
 	GENERATED_BODY()
 
 public:
+	virtual EFinalBattleConditionContext GetConditionContext() const override { return EFinalBattleConditionContext::ChainRecord; }
+
 	// 生效前要求本次效果链已消耗过指定状态层数。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Condition")
 	FFinalBattleStatusConsumeRequirement Requirement;

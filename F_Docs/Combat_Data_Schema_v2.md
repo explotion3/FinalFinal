@@ -962,7 +962,7 @@ bCanCopy: true
 统一承载效果触发条件，避免条件字段散落到每个具体 effect 子类中。
 
 **当前 Runtime 第一阶段**
-* `UFinalBattleConditionDefinition`：抽象基类，包含 `ConditionId / Notes`
+* `UFinalBattleConditionDefinition`：抽象基类，包含 `ConditionId / Notes`，并由 C++ 类型通过 `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired` 判定上下文
 * `UFinalBattleConditionHandCard`：承载 `FFinalBattleHandCardRequirement`
 * `UFinalBattleConditionTargetState`：承载 `FFinalBattleTargetStateRequirement`
 * `UFinalBattleConditionConsumedStatus`：承载 `FFinalBattleStatusConsumeRequirement`
@@ -971,6 +971,7 @@ bCanCopy: true
 **说明**
 * 当前 `Conditions[]` 固定为全部 AND，不做 OR / NOT / 嵌套组
 * `Break` 条件、手牌条件、状态消耗条件、效果链内卡牌移动记录条件都写入 `Conditions[]`
+* `TargetRequired` 条件只在目标解析后判定；`SourceOnly / ChainRecord` 条件只在目标解析前判定，避免同一 effect 读取自己后续目标侧副作用
 * 具体 effect 子类只保留 payload，例如伤害数值、抽牌数量、护盾数值、削韧数值
 * `FFinalBattle*Requirement` 结构只作为 condition payload，源码归属在 `Battle/Conditions/Requirements`，不再放在 `Battle/Effects`
 * `FinalData` 只定义条件数据；条件判断由 `FinalBattleEffectExecutionService` 在 Battle Runtime 中执行

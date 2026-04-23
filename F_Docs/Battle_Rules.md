@@ -182,6 +182,7 @@ Break 的打断优先于同一张牌结算完成后的先机插队判定。
 
 ### 5.5 Break 条件效果
 当前 Runtime 已把 effect requirement 收口到 `Effect.Conditions[]`。第一阶段支持 `HandCard / TargetState / ConsumedStatus / MovedCards` 四类对象化条件，并由 `FinalBattleEffectExecutionService` 在效果执行前统一判定。  
+每个 condition 类型由 C++ 声明其判定上下文：`SourceOnly / ChainRecord` 在目标解析前判定，`TargetRequired` 在目标解析后判定。  
 Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新增第二套 Break 真相。  
 若 condition 不满足，该效果段跳过且不产生副作用；同一张牌或奥义中的其他效果段继续按原顺序结算。
 

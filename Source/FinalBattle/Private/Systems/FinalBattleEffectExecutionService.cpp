@@ -599,9 +599,11 @@ enum class EFinalBattleConditionEvaluationPhase : uint8
 	All
 };
 
-bool IsTargetCondition(const UFinalBattleConditionDefinition* Condition)
+EFinalBattleConditionContext ResolveConditionContext(const UFinalBattleConditionDefinition* Condition)
 {
-	return Cast<UFinalBattleConditionTargetState>(Condition) != nullptr;
+	return Condition != nullptr
+		? Condition->GetConditionContext()
+		: EFinalBattleConditionContext::SourceOnly;
 }
 
 bool EvaluateEffectCondition(
@@ -654,15 +656,17 @@ bool SatisfiesEffectConditions(
 
 	for (const UFinalBattleConditionDefinition* Condition : EffectDefinition->Conditions)
 	{
-		const bool bIsTargetCondition = IsTargetCondition(Condition);
-		if (Phase == EFinalBattleConditionEvaluationPhase::PreTarget && bIsTargetCondition)
+		const EFinalBattleConditionContext ConditionContext = ResolveConditionContext(Condition);
+		if (Phase == EFinalBattleConditionEvaluationPhase::PreTarget
+			&& ConditionContext == EFinalBattleConditionContext::TargetRequired)
 		{
 			// Target-state conditions require a resolved target. They are checked
 			// later in PostTarget for target-driven effects.
 			continue;
 		}
 
-		if (Phase == EFinalBattleConditionEvaluationPhase::PostTarget && !bIsTargetCondition)
+		if (Phase == EFinalBattleConditionEvaluationPhase::PostTarget
+			&& ConditionContext != EFinalBattleConditionContext::TargetRequired)
 		{
 			// Non-target conditions are chain/source gates. Rechecking them after
 			// target resolution would make one effect observe its own target-side
