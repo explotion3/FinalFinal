@@ -51,10 +51,19 @@ struct FFinalConsumedGeneratedCardRecord
 	FGameplayTagContainer RuntimeKeywords;
 };
 
+// Per-effect-list scratch context. This is not persisted to FFinalBattleState.
+// Producer effects write what they actually changed, and later Conditions read
+// those records to decide whether dependent effects in the same list may run.
 struct FFinalBattleEffectExecutionContext
 {
+	// Produced by RemoveStatus effects; consumed by ConsumedStatus conditions.
 	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
+
+	// Produced by ConsumeGeneratedCard effects; consumed by ConsumedGeneratedCard conditions.
 	TArray<FFinalConsumedGeneratedCardRecord> ConsumedGeneratedCards;
+
+	// Set when any Damage effect actually reduces an enemy HP total. Used after
+	// the whole list resolves so "next successful attack" statuses consume once.
 	bool bAppliedSuccessfulEnemyHpDamage = false;
 };
 
@@ -524,8 +533,16 @@ bool SatisfiesConsumeRequirement(
 
 enum class EFinalBattleConditionEvaluationPhase : uint8
 {
+	// Evaluate source/chain conditions before a concrete target exists.
+	// Target-state conditions are intentionally skipped in this phase.
 	PreTarget,
+
+	// Evaluate target-state conditions after a concrete target has been resolved.
+	// Source/chain conditions were already checked in PreTarget and are skipped.
 	PostTarget,
+
+	// Evaluate every condition in one pass. Use for effects that do not need a
+	// target resolution split.
 	All
 };
 
@@ -587,11 +604,16 @@ bool SatisfiesEffectConditions(
 		const bool bIsTargetCondition = IsTargetCondition(Condition);
 		if (Phase == EFinalBattleConditionEvaluationPhase::PreTarget && bIsTargetCondition)
 		{
+			// Target-state conditions require a resolved target. They are checked
+			// later in PostTarget for target-driven effects.
 			continue;
 		}
 
 		if (Phase == EFinalBattleConditionEvaluationPhase::PostTarget && !bIsTargetCondition)
 		{
+			// Non-target conditions are chain/source gates. Rechecking them after
+			// target resolution would make one effect observe its own target-side
+			// mutations, so they remain PreTarget-only.
 			continue;
 		}
 

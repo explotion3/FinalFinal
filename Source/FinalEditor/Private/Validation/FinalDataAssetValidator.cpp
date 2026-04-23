@@ -13,10 +13,12 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
@@ -89,6 +91,11 @@ namespace FinalDataAssetValidation
 	{
 		Context.AddError(FText::FromString(Message));
 		bIsValid = false;
+	}
+
+	void AddWarning(FDataValidationContext& Context, const FString& Message)
+	{
+		Context.AddWarning(FText::FromString(Message));
 	}
 
 	void RequireName(FDataValidationContext& Context, bool& bIsValid, const FName Value, const TCHAR* FieldName)
@@ -307,6 +314,154 @@ namespace FinalDataAssetValidation
 		}
 	}
 
+	FFinalStatusId ResolveRemoveStatusEffectStatusId(const UFinalBattleEffectRemoveStatus* RemoveStatusEffect)
+	{
+		if (RemoveStatusEffect == nullptr)
+		{
+			return FFinalStatusId();
+		}
+
+		if (RemoveStatusEffect->StatusId.IsValid())
+		{
+			return RemoveStatusEffect->StatusId;
+		}
+
+		return RemoveStatusEffect->StatusDefinition ? RemoveStatusEffect->StatusDefinition->StatusId : FFinalStatusId();
+	}
+
+	bool CanEarlierRemoveStatusSatisfy(
+		const UFinalBattleEffectRemoveStatus* RemoveStatusEffect,
+		const FFinalBattleStatusConsumeRequirement& Requirement)
+	{
+		if (RemoveStatusEffect == nullptr || !Requirement.bRequireConsumedStatus || !Requirement.RequiredStatusId.IsValid())
+		{
+			return false;
+		}
+
+		return ResolveRemoveStatusEffectStatusId(RemoveStatusEffect) == Requirement.RequiredStatusId
+			&& RemoveStatusEffect->Stacks >= FMath::Max(Requirement.MinimumStacks, 1);
+	}
+
+	bool CanEarlierConsumeGeneratedCardSatisfy(
+		const UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect,
+		const FFinalBattleGeneratedCardConsumeRequirement& Requirement)
+	{
+		if (ConsumeGeneratedCardEffect == nullptr || !Requirement.bRequireConsumedGeneratedCard)
+		{
+			return false;
+		}
+
+		if (ConsumeGeneratedCardEffect->ConsumeCount < FMath::Max(Requirement.MinimumCount, 1))
+		{
+			return false;
+		}
+
+		if (Requirement.RequiredCardId.IsValid()
+			&& ConsumeGeneratedCardEffect->RequiredCardId.IsValid()
+			&& ConsumeGeneratedCardEffect->RequiredCardId != Requirement.RequiredCardId)
+		{
+			return false;
+		}
+
+		if (Requirement.RequiredKeyword.IsValid()
+			&& ConsumeGeneratedCardEffect->RequiredKeyword.IsValid()
+			&& ConsumeGeneratedCardEffect->RequiredKeyword != Requirement.RequiredKeyword)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	template<typename EffectArrayType>
+	bool HasEarlierRemoveStatusProducer(
+		const EffectArrayType& Effects,
+		const int32 ConditionEffectIndex,
+		const FFinalBattleStatusConsumeRequirement& Requirement)
+	{
+		for (int32 ProducerIndex = 0; ProducerIndex < ConditionEffectIndex; ++ProducerIndex)
+		{
+			if (CanEarlierRemoveStatusSatisfy(Cast<const UFinalBattleEffectRemoveStatus>(Effects[ProducerIndex].Get()), Requirement))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template<typename EffectArrayType>
+	bool HasEarlierConsumeGeneratedCardProducer(
+		const EffectArrayType& Effects,
+		const int32 ConditionEffectIndex,
+		const FFinalBattleGeneratedCardConsumeRequirement& Requirement)
+	{
+		for (int32 ProducerIndex = 0; ProducerIndex < ConditionEffectIndex; ++ProducerIndex)
+		{
+			if (CanEarlierConsumeGeneratedCardSatisfy(Cast<const UFinalBattleEffectConsumeGeneratedCard>(Effects[ProducerIndex].Get()), Requirement))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template<typename EffectArrayType>
+	void ValidateEffectConditionChain(
+		FDataValidationContext& Context,
+		const EffectArrayType& Effects,
+		const TCHAR* FieldName)
+	{
+		for (int32 EffectIndex = 0; EffectIndex < Effects.Num(); ++EffectIndex)
+		{
+			const UFinalBattleEffectDefinition* Effect = Effects[EffectIndex].Get();
+			if (Effect == nullptr)
+			{
+				continue;
+			}
+
+			for (int32 ConditionIndex = 0; ConditionIndex < Effect->Conditions.Num(); ++ConditionIndex)
+			{
+				const UFinalBattleConditionDefinition* Condition = Effect->Conditions[ConditionIndex].Get();
+				const FString ConditionFieldName = FString::Printf(TEXT("%s[%d].Conditions[%d]"), FieldName, EffectIndex, ConditionIndex);
+
+				if (const UFinalBattleConditionConsumedStatus* ConsumedStatusCondition = Cast<const UFinalBattleConditionConsumedStatus>(Condition))
+				{
+					const FFinalBattleStatusConsumeRequirement& Requirement = ConsumedStatusCondition->Requirement;
+					if (Requirement.bRequireConsumedStatus
+						&& Requirement.RequiredStatusId.IsValid()
+						&& !HasEarlierRemoveStatusProducer(Effects, EffectIndex, Requirement))
+					{
+						AddWarning(
+							Context,
+							FString::Printf(
+								TEXT("%s requires consumed status '%s', but no earlier RemoveStatus effect in %s can obviously produce that chain record."),
+								*ConditionFieldName,
+								*Requirement.RequiredStatusId.Value.ToString(),
+								FieldName));
+					}
+					continue;
+				}
+
+				if (const UFinalBattleConditionConsumedGeneratedCard* ConsumedGeneratedCardCondition = Cast<const UFinalBattleConditionConsumedGeneratedCard>(Condition))
+				{
+					const FFinalBattleGeneratedCardConsumeRequirement& Requirement = ConsumedGeneratedCardCondition->Requirement;
+					if (Requirement.bRequireConsumedGeneratedCard
+						&& !HasEarlierConsumeGeneratedCardProducer(Effects, EffectIndex, Requirement))
+					{
+						AddWarning(
+							Context,
+							FString::Printf(
+								TEXT("%s requires consumed generated cards, but no earlier ConsumeGeneratedCard effect in %s can obviously produce that chain record."),
+								*ConditionFieldName,
+								FieldName));
+					}
+				}
+			}
+		}
+	}
+
 	template<typename EffectArrayType>
 	void ValidateEffectArray(
 		FDataValidationContext& Context,
@@ -328,6 +483,8 @@ namespace FinalDataAssetValidation
 				Effects[Index].Get(),
 				FString::Printf(TEXT("%s[%d]"), FieldName, Index));
 		}
+
+		ValidateEffectConditionChain(Context, Effects, FieldName);
 	}
 
 	void ValidateCardDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalCardDefinition* Card)
