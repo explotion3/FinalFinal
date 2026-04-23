@@ -29,7 +29,7 @@ class FINALDATA_API UFinalBattleEncounterDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Encounter")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|Encounter")
 	FFinalEncounterId EncounterId;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Encounter")

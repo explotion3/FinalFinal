@@ -17,6 +17,18 @@ class UFinalRunRouteDefinition;
 class UFinalStatusDefinition;
 class UFinalUltimateDefinition;
 
+USTRUCT()
+struct FINALDATA_API FFinalDataRegistryAssetEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	FSoftObjectPath AssetPath;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> LoadedAsset = nullptr;
+};
+
 UCLASS()
 class FINALDATA_API UFinalDataRegistry : public UGameInstanceSubsystem
 {
@@ -52,36 +64,42 @@ public:
 private:
 	void DiscoverRuntimeDefinitions();
 
-	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalCharacterDefinition>> CharacterDefinitions;
+	template <typename TDefinition>
+	TDefinition* FindLoadedDefinition(TMap<FName, FFinalDataRegistryAssetEntry>& DefinitionEntries, FName StableId, const TCHAR* DefinitionTypeName);
+
+	template <typename TDefinition>
+	void RegisterLoadedDefinition(TMap<FName, FFinalDataRegistryAssetEntry>& DefinitionEntries, FName StableId, TDefinition* Definition);
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalCardDefinition>> CardDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> CharacterDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalEnemyDefinition>> EnemyDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> CardDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalEnemyIntentDefinition>> EnemyIntentDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> EnemyDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalBattleEncounterDefinition>> EncounterDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> EnemyIntentDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalPrototypeBootstrapDefinition>> PrototypeBootstrapDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> EncounterDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalRelicDefinition>> RelicDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> PrototypeBootstrapDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalRunRouteDefinition>> RunRouteDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> RelicDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalBattleRuleConfig>> RuleConfigs;
+	TMap<FName, FFinalDataRegistryAssetEntry> RunRouteDefinitions;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalStatusDefinition>> StatusDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> RuleConfigs;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<UFinalUltimateDefinition>> UltimateDefinitions;
+	TMap<FName, FFinalDataRegistryAssetEntry> StatusDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> UltimateDefinitions;
 };

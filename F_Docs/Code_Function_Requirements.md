@@ -269,6 +269,7 @@
 * `RemoveCard / UpgradeCard` 落地前应校验必要 payload、对应 card definition、以及 `RunDeck` 中是否存在目标卡；`UpgradeCard` 还应校验升级结果不是无效或自指
 * `Growth` 当前阶段可先支持锚定 `RunPersistentCharacterState` 的最小 typed payload，例如 `GrowthTargetCharacterId + GrowthEffectType + Value`，并真实落地到 `CurrentStress / CurrentAwakenCount / CollapseCount`
 * `FinalDataRegistry` 运行时应先承担 definition 资产发现/加载主路径，至少覆盖 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
+* `FinalDataRegistry` 启动期不应再对全部 definition 资产调用 `GetAsset()`；当前主路径应只读取 `AssetRegistrySearchable` stable id tag，建立 `StableId -> SoftObjectPath` 索引，并在 `FindXxxDefinition(...)` 首次被调用时同步按需加载并缓存目标 definition
 * prototype content 应优先落成项目里的真实 definition 资产，由 `FinalDataRegistry` 在运行时发现并注册；`FinalApp` 的测试入口只按 stable id 查询这些内容，不再主路径 `NewObject` 创建 definition bundle
 * 当前 prototype bundle 推荐落在 `/Game/Prototype/Definitions/...`，并由 Editor 侧的 `FinalPrototypeContentBootstrap` commandlet 负责生成或刷新；运行时若缺少对应 stable id，应返回明确缺失错误，而不是继续让 `FinalApp` 充当主内容源
 * 当前已开始录入真实 starter content：`FinalPrototypeContentBootstrap` 会同时刷新 `/Game/Prototype/Definitions/Starter/...` 下的 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些内容仍通过 `FinalDataRegistry` 与 Editor validation 进入现有数据驱动体系，不回写成 `FinalApp` 或规则层硬编码
@@ -327,6 +328,7 @@
 职责：
 * 加载角色、卡牌、敌人、状态、遗物、事件、遭遇、规则配置等定义
 * 通过稳定 ID 提供查询入口
+* 启动期只建立 stable id 到 soft object path 的索引；具体 definition 对象由查询入口按需加载，避免 PIE 启动阶段全量同步加载内容资产
 
 优先级：
 * `P0`

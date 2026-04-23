@@ -12,7 +12,7 @@ class FINALDATA_API UFinalUltimateDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Ultimate")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|Ultimate")
 	FFinalUltimateId UltimateId;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Ultimate")

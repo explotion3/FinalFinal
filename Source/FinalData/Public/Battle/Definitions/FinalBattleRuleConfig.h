@@ -11,7 +11,7 @@ class FINALDATA_API UFinalBattleRuleConfig : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|Rules")
 	FFinalRuleConfigId RuleConfigId;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")

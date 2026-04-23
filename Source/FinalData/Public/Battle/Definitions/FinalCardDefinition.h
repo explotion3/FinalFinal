@@ -14,7 +14,7 @@ class FINALDATA_API UFinalCardDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Card")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|Card")
 	FFinalCardId CardId;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Card")

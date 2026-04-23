@@ -205,7 +205,8 @@ FinalBattle      FinalRun
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
-* 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描并注册项目中的 definition 资产，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
+* 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描项目中的 definition 资产并建立 `StableId -> SoftObjectPath` 索引，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
+* 当前 `FinalDataRegistry` 不应在启动期全量 `GetAsset()` 加载 definition；`FindXxxDefinition(...)` 仍保持同步返回定义对象的外部 API，但内部首次访问 stable id 时才 `TryLoad()` 并缓存，后续查询直接命中缓存
 * 当前 prototype content 已开始以真实资产落地在 `/Game/Prototype/Definitions/...`；`FinalGameInstance` 的测试入口不再分别硬编码查询 rule / encounter / route / character / card，而是先查询单一 `PrototypeBootstrapDefinition`，再按其字段驱动最小 `RunSession` 启动
 * 当前 prototype Run 图已改成 `RunRouteDefinition` 驱动：节点图和节点内容流优先挂在 `FinalData` 的 route / node definition 上，由 `FinalRunSession` 通过 route id 接管初始化；`FinalGameInstance::PrepareTestBattleRun()` 不再直接拼 `TArray<FFinalRunNodeDefinition>`
 * 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口

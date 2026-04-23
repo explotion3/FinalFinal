@@ -32,7 +32,7 @@ class FINALDATA_API UFinalPrototypeBootstrapDefinition : public UPrimaryDataAsse
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|PrototypeBootstrap")
 	FName BootstrapId = NAME_None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap")
