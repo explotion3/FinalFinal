@@ -5,6 +5,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
@@ -17,6 +19,7 @@
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
 
 namespace
@@ -883,8 +886,6 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 		return;
 	}
 
-	ScreenLayer = EFinalUIScreenLayer::HUD;
-
 	UOverlay* RootOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("PrototypeRunDebugRoot"));
 	WidgetTree->RootWidget = RootOverlay;
 
@@ -901,9 +902,22 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PrototypeRunDebugContent"));
 	PanelBorder->SetContent(ContentBox);
 
+	UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PrototypeRunDebugHeaderRow"));
+	ContentBox->AddChildToVerticalBox(HeaderRow);
+
 	TitleText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugTitle"), 15, FLinearColor(0.92f, 0.96f, 1.0f, 1.0f));
 	TitleText->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "Title", "Prototype Run Summary"));
-	ContentBox->AddChildToVerticalBox(TitleText);
+	if (UHorizontalBoxSlot* TitleSlot = HeaderRow->AddChildToHorizontalBox(TitleText))
+	{
+		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PrototypeRunDebugCloseButton"));
+	CloseButton->OnClicked.AddDynamic(this, &UFinalPrototypeRunDebugScreen::HandleCloseClicked);
+	CloseButtonLabel = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugCloseLabel"), 12);
+	CloseButtonLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "CloseButton", "Close"));
+	CloseButton->AddChild(CloseButtonLabel);
+	HeaderRow->AddChildToHorizontalBox(CloseButton);
 
 	SummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugSummary"), 12);
 	if (UVerticalBoxSlot* SummarySlot = ContentBox->AddChildToVerticalBox(SummaryText))
@@ -1015,6 +1029,14 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	CompleteResolvedBattleLabel->SetText(NSLOCTEXT("FinalPrototypeRunDebug", "CompleteResolvedBattleButton", "Complete Resolved Battle"));
 	CompleteResolvedBattleButton->AddChild(CompleteResolvedBattleLabel);
 	ContentBox->AddChildToVerticalBox(CompleteResolvedBattleButton);
+}
+
+void UFinalPrototypeRunDebugScreen::HandleCloseClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		UISubsystem->CloseOverlayScreen(this);
+	}
 }
 
 UFinalBattleFlowSubsystem* UFinalPrototypeRunDebugScreen::ResolveBattleFlowSubsystem() const

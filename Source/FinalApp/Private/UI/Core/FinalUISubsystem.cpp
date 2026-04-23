@@ -132,6 +132,30 @@ void UFinalUISubsystem::SetBattleHUDVisibility(bool bVisible)
 	}
 }
 
+void UFinalUISubsystem::OpenPrototypeRunDebugOverlay()
+{
+	EnsurePrototypeDebugScreen();
+	if (PrototypeRunDebugScreen == nullptr)
+	{
+		return;
+	}
+
+	PrototypeRunDebugScreen->RefreshFromSubsystems();
+	OpenOverlayScreen(PrototypeRunDebugScreen, true);
+}
+
+void UFinalUISubsystem::OpenBattleEventOverlay()
+{
+	EnsureBattleEventScreen();
+	if (BattleEventScreen == nullptr)
+	{
+		return;
+	}
+
+	BattleEventScreen->RefreshFromSubsystems();
+	OpenOverlayScreen(BattleEventScreen, true);
+}
+
 void UFinalUISubsystem::OpenOverlayScreen(UFinalScreenBase* Screen, const bool bReplaceExisting)
 {
 	if (Screen == nullptr)
@@ -386,8 +410,6 @@ void UFinalUISubsystem::EnsurePrototypeDebugScreen()
 	{
 		PrototypeRunDebugScreen = CreateWidget<UFinalPrototypeRunDebugScreen>(PrimaryPlayerController, UFinalPrototypeRunDebugScreen::StaticClass());
 	}
-
-	RebuildPersistentHUDLayer();
 }
 
 void UFinalUISubsystem::EnsureBattleEventScreen()
@@ -407,8 +429,6 @@ void UFinalUISubsystem::EnsureBattleEventScreen()
 	{
 		BattleEventScreen = CreateWidget<UFinalBattleEventScreen>(PrimaryPlayerController, UFinalBattleEventScreen::StaticClass());
 	}
-
-	RebuildPersistentHUDLayer();
 }
 
 void UFinalUISubsystem::EnsureFlowScreens()
@@ -462,20 +482,6 @@ void UFinalUISubsystem::RebuildPersistentHUDLayer()
 	{
 		RootLayout->AddScreenToLayer(BattleHUDScreen, EFinalUIScreenLayer::HUD);
 		BattleHUDScreen->SetVisibility(ESlateVisibility::Visible);
-	}
-
-	if (PrototypeRunDebugScreen)
-	{
-		RootLayout->AddScreenToLayer(PrototypeRunDebugScreen, EFinalUIScreenLayer::HUD);
-		PrototypeRunDebugScreen->SetVisibility(ESlateVisibility::Visible);
-		PrototypeRunDebugScreen->RefreshFromSubsystems();
-	}
-
-	if (BattleEventScreen)
-	{
-		RootLayout->AddScreenToLayer(BattleEventScreen, EFinalUIScreenLayer::HUD);
-		BattleEventScreen->SetVisibility(ESlateVisibility::Visible);
-		BattleEventScreen->RefreshFromSubsystems();
 	}
 }
 

@@ -3,13 +3,19 @@
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Styling/CoreStyle.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 
 namespace
 {
@@ -83,8 +89,6 @@ void UFinalBattleEventScreen::EnsureWidgetTree()
 		return;
 	}
 
-	ScreenLayer = EFinalUIScreenLayer::HUD;
-
 	UOverlay* RootOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("BattleEventLedgerRoot"));
 	WidgetTree->RootWidget = RootOverlay;
 
@@ -98,18 +102,39 @@ void UFinalBattleEventScreen::EnsureWidgetTree()
 		PanelSlot->SetPadding(FMargin(16.0f, 290.0f, 0.0f, 16.0f));
 	}
 
-	UScrollBox* ContentBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("BattleEventLedgerContent"));
+	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BattleEventLedgerContent"));
 	PanelBorder->SetContent(ContentBox);
+
+	UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BattleEventLedgerHeaderRow"));
+	ContentBox->AddChildToVerticalBox(HeaderRow);
 
 	TitleText = CreateLedgerLabel(WidgetTree, TEXT("BattleEventLedgerTitle"), 15, FLinearColor(0.92f, 0.96f, 1.0f, 1.0f));
 	TitleText->SetText(NSLOCTEXT("FinalBattleEventLedger", "Title", "Battle Event Ledger"));
-	ContentBox->AddChild(TitleText);
+	if (UHorizontalBoxSlot* TitleSlot = HeaderRow->AddChildToHorizontalBox(TitleText))
+	{
+		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BattleEventLedgerCloseButton"));
+	CloseButton->OnClicked.AddDynamic(this, &UFinalBattleEventScreen::HandleCloseClicked);
+	CloseButtonLabel = CreateLedgerLabel(WidgetTree, TEXT("BattleEventLedgerCloseLabel"), 11, FLinearColor(0.95f, 0.95f, 0.95f, 1.0f));
+	CloseButtonLabel->SetText(NSLOCTEXT("FinalBattleEventLedger", "CloseButton", "Close"));
+	CloseButton->AddChild(CloseButtonLabel);
+	HeaderRow->AddChildToHorizontalBox(CloseButton);
 
 	StatusText = CreateLedgerLabel(WidgetTree, TEXT("BattleEventLedgerStatus"), 11, FLinearColor(0.82f, 0.87f, 0.96f, 1.0f));
-	ContentBox->AddChild(StatusText);
+	ContentBox->AddChildToVerticalBox(StatusText);
 
 	EventScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("BattleEventLedgerScroll"));
-	ContentBox->AddChild(EventScrollBox);
+	ContentBox->AddChildToVerticalBox(EventScrollBox);
+}
+
+void UFinalBattleEventScreen::HandleCloseClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		UISubsystem->CloseOverlayScreen(this);
+	}
 }
 
 void UFinalBattleEventScreen::ResetLedgerFromBattleFlow()

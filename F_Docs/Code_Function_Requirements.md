@@ -392,6 +392,8 @@
 * `FinalBattleWidgetController` 已可把 `Snapshot / Event` 转成首轮 `HUD Presentation`
 * `FinalApp` 可结合 `FinalData / RunSession` 补齐遭遇名、金币、`EP` 上限、角色名、卡牌名等展示字段
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，并新增最小只读 Battle event ledger UI；`BattleHUD`、`PrototypeRunDebugScreen`、`BattleDirector` 优先共用这套事件投影，而不是各自散拼
+* `UISubsystem` 当前默认只把 `BattleHUDScreen` 挂在常驻 `HUD Layer`；`PrototypeRunDebugScreen` 与 `FinalBattleEventScreen` 作为 prototype debug/ledger overlay 按需打开，不再常驻压在 Battle HUD 上
+* `BattleHUDScreen` 当前只承接主战斗信息、命令入口、最近事件摘要与 debug overlay 打开入口；完整账本与 run 调试摘要不再常驻混排在主 HUD 内
 
 优先级：
 * `P0`

@@ -5,15 +5,17 @@
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/ScrollBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Controllers/FinalBattleWidgetController.h"
 #include "Styling/CoreStyle.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleLogEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
@@ -27,7 +29,7 @@ UBorder* CreateSection(UWidgetTree* WidgetTree, const TCHAR* Name, const FLinear
 	return Border;
 }
 
-UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, int32 FontSize = 14)
+UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 FontSize = 14)
 {
 	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
 	Text->SetAutoWrapText(true);
@@ -50,27 +52,6 @@ FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
 	}
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
-}
-
-FText BuildLogEntryText(const FFinalBattleHUDLogEntry& Entry)
-{
-	TArray<FString> Lines;
-	if (!Entry.TitleText.IsEmpty())
-	{
-		Lines.Add(Entry.TitleText.ToString());
-	}
-	if (!Entry.SummaryText.IsEmpty())
-	{
-		Lines.Add(Entry.SummaryText.ToString());
-	}
-	if (!Entry.DetailText.IsEmpty())
-	{
-		Lines.Add(Entry.DetailText.ToString());
-	}
-
-	return Lines.Num() > 0
-		? FText::FromString(FString::Join(Lines, TEXT("\n")))
-		: NSLOCTEXT("FinalBattleHUD", "EmptyLogEntry", "无公开事件详情");
 }
 }
 
@@ -110,7 +91,7 @@ void UFinalBattleHUDScreen::InitializeScreen(UFinalBattleHUDViewModel* InViewMod
 	RefreshFromViewModel();
 }
 
-void UFinalBattleHUDScreen::HandleEnemySelected(FName RuntimeUnitId)
+void UFinalBattleHUDScreen::HandleEnemySelected(const FName RuntimeUnitId)
 {
 	if (BattleController)
 	{
@@ -118,7 +99,7 @@ void UFinalBattleHUDScreen::HandleEnemySelected(FName RuntimeUnitId)
 	}
 }
 
-void UFinalBattleHUDScreen::HandlePlayCard(int32 HandIndex)
+void UFinalBattleHUDScreen::HandlePlayCard(const int32 HandIndex)
 {
 	if (BattleController)
 	{
@@ -126,7 +107,7 @@ void UFinalBattleHUDScreen::HandlePlayCard(int32 HandIndex)
 	}
 }
 
-void UFinalBattleHUDScreen::HandlePlayUltimate(int32 CharacterIndex)
+void UFinalBattleHUDScreen::HandlePlayUltimate(const int32 CharacterIndex)
 {
 	if (BattleController)
 	{
@@ -147,6 +128,22 @@ void UFinalBattleHUDScreen::HandleEndTurnClicked()
 	}
 }
 
+void UFinalBattleHUDScreen::HandleOpenDebugClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		UISubsystem->OpenPrototypeRunDebugOverlay();
+	}
+}
+
+void UFinalBattleHUDScreen::HandleOpenEventLedgerClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		UISubsystem->OpenBattleEventOverlay();
+	}
+}
+
 void UFinalBattleHUDScreen::EnsureWidgetTree()
 {
 	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
@@ -159,10 +156,10 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BattleHUDRoot"));
 	WidgetTree->RootWidget = RootBox;
 
-	UBorder* HeaderBorder = CreateSection(WidgetTree, TEXT("HeaderBorder"), FLinearColor(0.06f, 0.08f, 0.13f, 0.95f));
-	HeaderText = CreateLabel(WidgetTree, TEXT("HeaderText"), 18);
-	HeaderBorder->SetContent(HeaderText);
-	RootBox->AddChildToVerticalBox(HeaderBorder);
+	UBorder* TopBarBorder = CreateSection(WidgetTree, TEXT("TopBarBorder"), FLinearColor(0.06f, 0.08f, 0.13f, 0.95f));
+	TopBarText = CreateLabel(WidgetTree, TEXT("TopBarText"), 18);
+	TopBarBorder->SetContent(TopBarText);
+	RootBox->AddChildToVerticalBox(TopBarBorder);
 
 	UBorder* FeedbackBorder = CreateSection(WidgetTree, TEXT("FeedbackBorder"), FLinearColor(0.17f, 0.13f, 0.06f, 0.92f));
 	FeedbackText = CreateLabel(WidgetTree, TEXT("FeedbackText"), 14);
@@ -170,8 +167,8 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	RootBox->AddChildToVerticalBox(FeedbackBorder);
 
 	UBorder* ContextBorder = CreateSection(WidgetTree, TEXT("ContextBorder"), FLinearColor(0.08f, 0.11f, 0.12f, 0.92f));
-	ContextText = CreateLabel(WidgetTree, TEXT("ContextText"), 12);
-	ContextBorder->SetContent(ContextText);
+	AuxiliaryContextText = CreateLabel(WidgetTree, TEXT("AuxiliaryContextText"), 12);
+	ContextBorder->SetContent(AuxiliaryContextText);
 	RootBox->AddChildToVerticalBox(ContextBorder);
 
 	GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
@@ -186,43 +183,71 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	UBorder* CharacterBorder = CreateSection(WidgetTree, TEXT("CharacterBorder"), FLinearColor(0.08f, 0.12f, 0.18f, 0.92f));
 	CharacterListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CharacterListBox"));
 	CharacterBorder->SetContent(CharacterListBox);
-	UHorizontalBoxSlot* CharacterSlot = MiddleRow->AddChildToHorizontalBox(CharacterBorder);
-	CharacterSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	CharacterSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	if (UHorizontalBoxSlot* CharacterSlot = MiddleRow->AddChildToHorizontalBox(CharacterBorder))
+	{
+		CharacterSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		CharacterSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	}
 
 	UBorder* EnemyBorder = CreateSection(WidgetTree, TEXT("EnemyBorder"), FLinearColor(0.18f, 0.09f, 0.11f, 0.92f));
 	EnemyListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EnemyListBox"));
 	EnemyBorder->SetContent(EnemyListBox);
-	UHorizontalBoxSlot* EnemySlot = MiddleRow->AddChildToHorizontalBox(EnemyBorder);
-	EnemySlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	if (UHorizontalBoxSlot* EnemySlot = MiddleRow->AddChildToHorizontalBox(EnemyBorder))
+	{
+		EnemySlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
 
 	UHorizontalBox* BottomRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomRow"));
 	RootBox->AddChildToVerticalBox(BottomRow);
 
-	UBorder* LogBorder = CreateSection(WidgetTree, TEXT("LogBorder"), FLinearColor(0.08f, 0.08f, 0.08f, 0.92f));
-	LogScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("LogScrollBox"));
-	LogBorder->SetContent(LogScrollBox);
-	UHorizontalBoxSlot* LogSlot = BottomRow->AddChildToHorizontalBox(LogBorder);
-	LogSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	LogSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	UBorder* RecentEventBorder = CreateSection(WidgetTree, TEXT("RecentEventBorder"), FLinearColor(0.08f, 0.08f, 0.08f, 0.92f));
+	RecentEventListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RecentEventListBox"));
+	RecentEventBorder->SetContent(RecentEventListBox);
+	if (UHorizontalBoxSlot* EventSlot = BottomRow->AddChildToHorizontalBox(RecentEventBorder))
+	{
+		EventSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		EventSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	}
 
 	UBorder* HandBorder = CreateSection(WidgetTree, TEXT("HandBorder"), FLinearColor(0.08f, 0.11f, 0.16f, 0.92f));
 	HandCardBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HandCardBox"));
 	HandBorder->SetContent(HandCardBox);
-	UHorizontalBoxSlot* HandSlot = BottomRow->AddChildToHorizontalBox(HandBorder);
-	HandSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	HandSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	if (UHorizontalBoxSlot* HandSlot = BottomRow->AddChildToHorizontalBox(HandBorder))
+	{
+		HandSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		HandSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+	}
 
 	UBorder* ActionBorder = CreateSection(WidgetTree, TEXT("ActionBorder"), FLinearColor(0.09f, 0.13f, 0.08f, 0.92f));
 	UVerticalBox* ActionColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ActionColumn"));
 	ActionBorder->SetContent(ActionColumn);
 
 	EndTurnButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("EndTurnButton"));
+	EndTurnButton->OnClicked.AddDynamic(this, &UFinalBattleHUDScreen::HandleEndTurnClicked);
 	EndTurnLabel = CreateLabel(WidgetTree, TEXT("EndTurnLabel"), 14);
 	EndTurnLabel->SetText(NSLOCTEXT("FinalBattleHUD", "EndTurnLabel", "结束回合"));
 	EndTurnButton->AddChild(EndTurnLabel);
-	EndTurnButton->OnClicked.AddDynamic(this, &UFinalBattleHUDScreen::HandleEndTurnClicked);
 	ActionColumn->AddChildToVerticalBox(EndTurnButton);
+
+	OpenDebugButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OpenDebugButton"));
+	OpenDebugButton->OnClicked.AddDynamic(this, &UFinalBattleHUDScreen::HandleOpenDebugClicked);
+	OpenDebugLabel = CreateLabel(WidgetTree, TEXT("OpenDebugLabel"), 12);
+	OpenDebugLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenDebugLabel", "Open Debug"));
+	OpenDebugButton->AddChild(OpenDebugLabel);
+	if (UVerticalBoxSlot* DebugSlot = ActionColumn->AddChildToVerticalBox(OpenDebugButton))
+	{
+		DebugSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	OpenEventLedgerButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OpenEventLedgerButton"));
+	OpenEventLedgerButton->OnClicked.AddDynamic(this, &UFinalBattleHUDScreen::HandleOpenEventLedgerClicked);
+	OpenEventLedgerLabel = CreateLabel(WidgetTree, TEXT("OpenEventLedgerLabel"), 12);
+	OpenEventLedgerLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenEventLedgerLabel", "Open Event Ledger"));
+	OpenEventLedgerButton->AddChild(OpenEventLedgerLabel);
+	if (UVerticalBoxSlot* LedgerSlot = ActionColumn->AddChildToVerticalBox(OpenEventLedgerButton))
+	{
+		LedgerSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
 
 	USpacer* Spacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("ActionSpacer"));
 	Spacer->SetSize(FVector2D(8.0f, 12.0f));
@@ -231,34 +256,37 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	UltimateButtonBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("UltimateButtonBox"));
 	ActionColumn->AddChildToVerticalBox(UltimateButtonBox);
 
-	UHorizontalBoxSlot* ActionSlot = BottomRow->AddChildToHorizontalBox(ActionBorder);
-	ActionSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	if (UHorizontalBoxSlot* ActionSlot = BottomRow->AddChildToHorizontalBox(ActionBorder))
+	{
+		ActionSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
 }
 
 void UFinalBattleHUDScreen::RefreshFromViewModel()
 {
-	if (BattleViewModel == nullptr || HeaderText == nullptr)
+	if (BattleViewModel == nullptr || TopBarText == nullptr)
 	{
 		return;
 	}
 
 	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
+	RefreshTopBarSection(Presentation);
+	RefreshFeedbackSection(Presentation);
+	RefreshContextSection(Presentation);
+	RefreshCharacterPanel(Presentation);
+	RefreshEnemyPanel(Presentation);
+	RefreshHandPanel(Presentation);
+	RefreshUltimatePanel(Presentation);
+	RefreshRecentEventPanel(Presentation);
+	RefreshActionSection(Presentation);
+}
 
-	if (!Presentation.bHasActiveBattle)
+void UFinalBattleHUDScreen::RefreshTopBarSection(const FFinalBattleHUDPresentationData& Presentation)
+{
+	if (Presentation.bHasActiveBattle)
 	{
-		HeaderText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleHeader", "Battle HUD ready. No active battle session."));
-		FeedbackText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleFeedback", "通过控制台命令或地图按钮启动测试战斗后，这里会自动刷新。"));
-		ContextText->SetText(FText::GetEmpty());
-		GapText->SetText(FText::GetEmpty());
-		if (GapBorder)
-		{
-			GapBorder->SetVisibility(ESlateVisibility::Collapsed);
-		}
-	}
-	else
-	{
-		HeaderText->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "HeaderFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7} | Gold {8} | Relics {9}"),
+		TopBarText->SetText(FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "TopBarFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7}"),
 			Presentation.EncounterName,
 			FText::AsNumber(Presentation.CurrentRound),
 			FText::AsNumber(Presentation.CurrentAP),
@@ -266,104 +294,97 @@ void UFinalBattleHUDScreen::RefreshFromViewModel()
 			FText::AsNumber(Presentation.MaxEP),
 			FText::AsNumber(Presentation.TeamCurrentHP),
 			FText::AsNumber(Presentation.TeamMaxHP),
-			FText::AsNumber(Presentation.TeamShield),
-			FText::AsNumber(Presentation.Gold),
-			FText::AsNumber(Presentation.RelicCount)));
-		const FText CombinedFeedbackText = !Presentation.FeedbackTitleText.IsEmpty()
-			? (!Presentation.FeedbackText.IsEmpty()
-				? FText::Format(
-					NSLOCTEXT("FinalBattleHUD", "FeedbackWithTitleFormat", "{0}\n{1}"),
-					Presentation.FeedbackTitleText,
-					Presentation.FeedbackText)
-				: Presentation.FeedbackTitleText)
-			: Presentation.FeedbackText;
-		FeedbackText->SetText(CombinedFeedbackText);
-		ContextText->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5} | RunDeck {6}\nTeam Status: {7}\nActive Relics: {8}"),
-			Presentation.CurrentTargetText,
-			FText::AsNumber(Presentation.DrawPileCount),
-			FText::AsNumber(Presentation.HandCount),
-			FText::AsNumber(Presentation.DiscardPileCount),
-			FText::AsNumber(Presentation.OngoingZoneCount),
-			FText::AsNumber(Presentation.ConsumePileCount),
-			FText::AsNumber(Presentation.RunDeckCount),
-			JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
-			JoinTextArray(Presentation.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无已激活遗物"))));
-
-		if (Presentation.MissingFieldNotices.Num() > 0)
-		{
-			FString Joined;
-			for (int32 Index = 0; Index < Presentation.MissingFieldNotices.Num(); ++Index)
-			{
-				if (Index > 0)
-				{
-					Joined += TEXT(" | ");
-				}
-
-				Joined += Presentation.MissingFieldNotices[Index].ToString();
-			}
-
-			GapText->SetText(FText::FromString(Joined));
-			if (GapBorder)
-			{
-				GapBorder->SetVisibility(ESlateVisibility::Visible);
-			}
-		}
-		else
-		{
-			GapText->SetText(FText::GetEmpty());
-			if (GapBorder)
-			{
-				GapBorder->SetVisibility(ESlateVisibility::Collapsed);
-			}
-		}
+			FText::AsNumber(Presentation.TeamShield)));
+		return;
 	}
 
-	RebuildCharacterPanel();
-	RebuildEnemyPanel();
-	RebuildHandPanel();
-	RebuildUltimatePanel();
-	RebuildLogPanel();
+	TopBarText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleHeader", "Battle HUD ready. No active battle session."));
 }
 
-void UFinalBattleHUDScreen::RebuildCharacterPanel()
+void UFinalBattleHUDScreen::RefreshFeedbackSection(const FFinalBattleHUDPresentationData& Presentation)
 {
-	if (CharacterListBox == nullptr || BattleViewModel == nullptr)
+	if (!Presentation.bHasActiveBattle)
+	{
+		FeedbackText->SetText(NSLOCTEXT("FinalBattleHUD", "NoBattleFeedback", "通过控制台命令或地图按钮启动测试战斗后，这里会自动刷新。"));
+		return;
+	}
+
+	const FText CombinedFeedbackText = !Presentation.FeedbackTitleText.IsEmpty()
+		? (!Presentation.FeedbackText.IsEmpty()
+			? FText::Format(
+				NSLOCTEXT("FinalBattleHUD", "FeedbackWithTitleFormat", "{0}\n{1}"),
+				Presentation.FeedbackTitleText,
+				Presentation.FeedbackText)
+			: Presentation.FeedbackTitleText)
+		: Presentation.FeedbackText;
+	FeedbackText->SetText(CombinedFeedbackText);
+}
+
+void UFinalBattleHUDScreen::RefreshContextSection(const FFinalBattleHUDPresentationData& Presentation)
+{
+	if (!Presentation.bHasActiveBattle)
+	{
+		AuxiliaryContextText->SetText(FText::GetEmpty());
+		GapText->SetText(FText::GetEmpty());
+		GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	AuxiliaryContextText->SetText(FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5}\nRun: Gold {6} | Relics {7} | RunDeck {8}\nTeam Status: {9}\nActive Relics: {10}"),
+		Presentation.CurrentTargetText,
+		FText::AsNumber(Presentation.DrawPileCount),
+		FText::AsNumber(Presentation.HandCount),
+		FText::AsNumber(Presentation.DiscardPileCount),
+		FText::AsNumber(Presentation.OngoingZoneCount),
+		FText::AsNumber(Presentation.ConsumePileCount),
+		FText::AsNumber(Presentation.Gold),
+		FText::AsNumber(Presentation.RelicCount),
+		FText::AsNumber(Presentation.RunDeckCount),
+		JoinTextArray(Presentation.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
+		JoinTextArray(Presentation.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无已激活遗物"))));
+
+	if (Presentation.MissingFieldNotices.Num() > 0)
+	{
+		GapText->SetText(JoinTextArray(Presentation.MissingFieldNotices, FText::GetEmpty()));
+		GapBorder->SetVisibility(ESlateVisibility::Visible);
+	}
+	else
+	{
+		GapText->SetText(FText::GetEmpty());
+		GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UFinalBattleHUDScreen::RefreshCharacterPanel(const FFinalBattleHUDPresentationData& Presentation)
+{
+	if (CharacterListBox == nullptr)
 	{
 		return;
 	}
 
 	CharacterListBox->ClearChildren();
-	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
-
 	for (const FFinalBattleHUDCharacterEntry& Entry : Presentation.Characters)
 	{
-		UTextBlock* Label = CreateLabel(WidgetTree, *FString::Printf(TEXT("Character_%s"), *Entry.RuntimeUnitId.ToString()));
-		Label->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "CharacterEntryFormat", "{0}\nStress {1}/{2} | Vital {3}\nAwaken {4}/{5} | Collapse {6}\n{7}\nStatus: {8}"),
-			Entry.DisplayName,
-			FText::AsNumber(Entry.CurrentStress),
-			FText::AsNumber(Entry.StressCap),
-			FText::AsNumber(Entry.VitalShare),
-			FText::AsNumber(Entry.CurrentAwakenCount),
-			FText::AsNumber(Entry.CurrentAwakenThreshold),
-			FText::AsNumber(Entry.CollapseCount),
-			Entry.StateText,
-			JoinTextArray(Entry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无"))));
-		CharacterListBox->AddChildToVerticalBox(Label);
+		UFinalBattleCharacterEntryWidget* CharacterWidget = CreateWidget<UFinalBattleCharacterEntryWidget>(GetOwningPlayer(), UFinalBattleCharacterEntryWidget::StaticClass());
+		if (CharacterWidget == nullptr)
+		{
+			continue;
+		}
+
+		CharacterWidget->Configure(Entry);
+		CharacterListBox->AddChildToVerticalBox(CharacterWidget);
 	}
 }
 
-void UFinalBattleHUDScreen::RebuildEnemyPanel()
+void UFinalBattleHUDScreen::RefreshEnemyPanel(const FFinalBattleHUDPresentationData& Presentation)
 {
-	if (EnemyListBox == nullptr || BattleViewModel == nullptr)
+	if (EnemyListBox == nullptr)
 	{
 		return;
 	}
 
 	EnemyListBox->ClearChildren();
-	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
-
 	for (const FFinalBattleHUDEnemyEntry& Entry : Presentation.Enemies)
 	{
 		UFinalBattleEnemyEntryWidget* EnemyWidget = CreateWidget<UFinalBattleEnemyEntryWidget>(GetOwningPlayer(), UFinalBattleEnemyEntryWidget::StaticClass());
@@ -377,16 +398,14 @@ void UFinalBattleHUDScreen::RebuildEnemyPanel()
 	}
 }
 
-void UFinalBattleHUDScreen::RebuildHandPanel()
+void UFinalBattleHUDScreen::RefreshHandPanel(const FFinalBattleHUDPresentationData& Presentation)
 {
-	if (HandCardBox == nullptr || BattleViewModel == nullptr)
+	if (HandCardBox == nullptr)
 	{
 		return;
 	}
 
 	HandCardBox->ClearChildren();
-	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
-
 	for (int32 Index = 0; Index < Presentation.HandCards.Num(); ++Index)
 	{
 		UFinalBattleCardEntryWidget* CardWidget = CreateWidget<UFinalBattleCardEntryWidget>(GetOwningPlayer(), UFinalBattleCardEntryWidget::StaticClass());
@@ -396,21 +415,21 @@ void UFinalBattleHUDScreen::RebuildHandPanel()
 		}
 
 		CardWidget->Configure(this, Index, Presentation.HandCards[Index]);
-		UHorizontalBoxSlot* CardSlot = HandCardBox->AddChildToHorizontalBox(CardWidget);
-		CardSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		if (UHorizontalBoxSlot* CardSlot = HandCardBox->AddChildToHorizontalBox(CardWidget))
+		{
+			CardSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		}
 	}
 }
 
-void UFinalBattleHUDScreen::RebuildUltimatePanel()
+void UFinalBattleHUDScreen::RefreshUltimatePanel(const FFinalBattleHUDPresentationData& Presentation)
 {
-	if (UltimateButtonBox == nullptr || BattleViewModel == nullptr)
+	if (UltimateButtonBox == nullptr)
 	{
 		return;
 	}
 
 	UltimateButtonBox->ClearChildren();
-	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
-
 	for (int32 Index = 0; Index < Presentation.Ultimates.Num(); ++Index)
 	{
 		UFinalBattleUltimateEntryWidget* UltimateWidget = CreateWidget<UFinalBattleUltimateEntryWidget>(GetOwningPlayer(), UFinalBattleUltimateEntryWidget::StaticClass());
@@ -424,20 +443,42 @@ void UFinalBattleHUDScreen::RebuildUltimatePanel()
 	}
 }
 
-void UFinalBattleHUDScreen::RebuildLogPanel()
+void UFinalBattleHUDScreen::RefreshRecentEventPanel(const FFinalBattleHUDPresentationData& Presentation)
 {
-	if (LogScrollBox == nullptr || BattleViewModel == nullptr)
+	if (RecentEventListBox == nullptr)
 	{
 		return;
 	}
 
-	LogScrollBox->ClearChildren();
-	const FFinalBattleHUDPresentationData Presentation = BattleViewModel->GetPresentation();
-
+	RecentEventListBox->ClearChildren();
 	for (const FFinalBattleHUDLogEntry& Entry : Presentation.LogEntries)
 	{
-		UTextBlock* Label = CreateLabel(WidgetTree, *FString::Printf(TEXT("Log_%d"), Entry.EventSequence));
-		Label->SetText(BuildLogEntryText(Entry));
-		LogScrollBox->AddChild(Label);
+		UFinalBattleLogEntryWidget* EntryWidget = CreateWidget<UFinalBattleLogEntryWidget>(GetOwningPlayer(), UFinalBattleLogEntryWidget::StaticClass());
+		if (EntryWidget == nullptr)
+		{
+			continue;
+		}
+
+		EntryWidget->Configure(Entry);
+		RecentEventListBox->AddChildToVerticalBox(EntryWidget);
+	}
+}
+
+void UFinalBattleHUDScreen::RefreshActionSection(const FFinalBattleHUDPresentationData& Presentation)
+{
+	const bool bHasActiveBattle = Presentation.bHasActiveBattle;
+	if (EndTurnButton)
+	{
+		EndTurnButton->SetIsEnabled(bHasActiveBattle);
+	}
+
+	if (OpenDebugButton)
+	{
+		OpenDebugButton->SetIsEnabled(true);
+	}
+
+	if (OpenEventLedgerButton)
+	{
+		OpenEventLedgerButton->SetIsEnabled(true);
 	}
 }

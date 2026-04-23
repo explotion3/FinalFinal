@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Queries/FinalBattleSnapshot.h"
-#include "UI/Screens/FinalScreenBase.h"
+#include "UI/Screens/FinalOverlayScreenBase.h"
 #include "FinalPrototypeRunDebugScreen.generated.h"
 
 class UBorder;
@@ -11,7 +11,7 @@ class UButton;
 class UTextBlock;
 
 UCLASS()
-class FINALAPP_API UFinalPrototypeRunDebugScreen : public UFinalScreenBase
+class FINALAPP_API UFinalPrototypeRunDebugScreen : public UFinalOverlayScreenBase
 {
 	GENERATED_BODY()
 
@@ -49,6 +49,9 @@ private:
 
 	UFUNCTION()
 	void HandleLoadPrototypeRunClicked();
+
+	UFUNCTION()
+	void HandleCloseClicked();
 
 	void EnsureWidgetTree();
 	class UFinalBattleFlowSubsystem* ResolveBattleFlowSubsystem() const;
@@ -125,4 +128,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CompleteResolvedBattleLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> CloseButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CloseButtonLabel;
 };

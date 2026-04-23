@@ -38,7 +38,7 @@
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
   * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
   * 当前原型节点内容已重新覆盖 `RemoveCard / UpgradeCard`，便于验证 `RunDeck -> CurrentBuild` 的真实构筑修正
-* 当前 `HUD Layer` 已新增一个常驻 `PrototypeRunDebugScreen`：
+* 当前 `PrototypeRunDebugScreen` 已改为按需打开的 overlay：
   * 只读显示当前 `Run FlowStage`、节点摘要、`Gold / DeckCount / RelicCount`、最近流程反馈与 `ActiveBattleSession`
   * 构筑观察区直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries`，作为当前牌库与遗物真相的主展示
   * 角色持久状态摘要直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`，并保留 `CharacterId / CurrentStress / CurrentAwakenCount / CollapseCount` 作为补充验证信息
@@ -53,7 +53,7 @@
 * 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
 * 左上：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
   * 当收到 `BattleEvent.EventType == RelicTriggered` 时，顶部反馈显示触发 relic 名称与 Battle 侧原始 `Message`
-* 右上角常驻调试摘要窗：
+* 通过 Battle HUD 按钮打开的调试摘要窗：
   * 当前 `Run FlowStage`
   * 当前节点显示名、章节、楼层
   * `Gold / DeckCount / RelicCount`
@@ -103,6 +103,7 @@
 
 ## 2.1 RootLayout 分层口径
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
+* `PrototypeRunDebugScreen / FinalBattleEventScreen`：按需打开的 `Overlay Layer` 调试工具，不再和 Battle HUD 常驻同层
 * `Overlay Layer`：承接战后奖励、节点选择、奖励节点、事件节点、商店节点这类整页流程界面；当前同一时刻只显示栈顶页
 * `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
 * `Tooltip / Toast Layer`：当前保留为后续扩展挂点

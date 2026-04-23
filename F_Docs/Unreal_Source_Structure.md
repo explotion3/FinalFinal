@@ -209,11 +209,11 @@ FinalBattle      FinalRun
 * 当前 `FinalDataRegistry` 不应在启动期全量 `GetAsset()` 加载 definition；`FindXxxDefinition(...)` 仍保持同步返回定义对象的外部 API，但内部首次访问 stable id 时才 `TryLoad()` 并缓存，后续查询直接命中缓存
 * 当前 prototype content 已开始以真实资产落地在 `/Game/Prototype/Definitions/...`；`FinalGameInstance` 的测试入口不再分别硬编码查询 rule / encounter / route / character / card，而是先查询单一 `PrototypeBootstrapDefinition`，再按其字段驱动最小 `RunSession` 启动
 * 当前 prototype Run 图已改成 `RunRouteDefinition` 驱动：节点图和节点内容流优先挂在 `FinalData` 的 route / node definition 上，由 `FinalRunSession` 通过 route id 接管初始化；`FinalGameInstance::PrepareTestBattleRun()` 不再直接拼 `TArray<FFinalRunNodeDefinition>`
-* 当前代码已补上常驻 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
+* 当前代码已补上 `PrototypeRunDebugScreen`，作为原型闭环的观察入口；它直接消费 `RunSnapshot.CurrentBuild.DeckEntries / RelicEntries` 展示当前构筑真相，并优先消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText` 展示角色持久状态摘要，同时把 pending reward 条目降为附加候选调试信息，并只调用 `FinalApp` 现有测试入口和原型级 Save / Load 调试入口
 * 当前 Save / Load 调试入口只显示固定 slot 状态、最近 Save/Load 状态 / 失败原因，并提供原型按钮；不保存 UI 页面栈，不代表正式存档菜单
 * 当前代码已补上 `FinalBattleEventPresentationUtils` 与 `FinalBattleEventScreen`：
   * 前者把 `FFinalBattleEvent` 统一投影成标题、摘要、细节、世界提示与账本文本
-  * 后者挂在 `HUD Layer`，只读消费 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
+  * 后者作为按需打开的 overlay，只读消费 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
   * 这套消费面服务 HUD、Debug、世界提示与未来 replay-ready 表现，但本轮不等于完整 replay 系统
 * 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
   * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
@@ -234,12 +234,13 @@ FinalBattle      FinalRun
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
-* `PrototypeRunDebugScreen` 挂在 `HUD Layer`，作为不打断主流程的小型调试摘要窗
-* `FinalBattleEventScreen` 挂在 `HUD Layer`，作为 Battle 事件账本只读窗，优先服务调试、QA 与后续 replay-ready 消费验证
+* `BattleHUDScreen` 当前已收口为主战斗 HUD：只保留顶部资源、角色区、敌方区、手牌区、奥义区、最近事件摘要与最小 debug 入口
+* `PrototypeRunDebugScreen` 作为按需打开的 overlay 调试摘要窗，不再常驻占据 `HUD Layer`
+* `FinalBattleEventScreen` 作为按需打开的 overlay 账本窗，优先服务调试、QA 与后续 replay-ready 消费验证
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
 * `ModalScreen` 处理确认类阻断交互
 * `FinalRunStageOverlayScreenBase` 可承接 Run 外层页的共用标题区、摘要区、反馈区与按钮布局 helper
-* `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / Log / UltimateBar` 这类 HUD 区块复用
+* `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / RecentEvent / UltimateBar` 这类 HUD 区块复用
 * `Widget` 用于卡牌、状态 Chip、资源条、敌人意图等原子控件
 * `WidgetController` 负责订阅 `Snapshot / Event / Query` 并组装 `ViewModel`
 * Battle 期 `BattleHUDScreen` 顶部反馈、`PrototypeRunDebugScreen` 的 Battle 事件摘要、`FinalBattleEventScreen` 的账本文本、`AFinalBattleDirector` 的世界提示，当前都应优先共用同一套 BattleEvent projection helper

@@ -3,15 +3,16 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Queries/FinalBattleSnapshot.h"
-#include "UI/Screens/FinalScreenBase.h"
+#include "UI/Screens/FinalOverlayScreenBase.h"
 #include "FinalBattleEventScreen.generated.h"
 
 class UBorder;
+class UButton;
 class UScrollBox;
 class UTextBlock;
 
 UCLASS()
-class FINALAPP_API UFinalBattleEventScreen : public UFinalScreenBase
+class FINALAPP_API UFinalBattleEventScreen : public UFinalOverlayScreenBase
 {
 	GENERATED_BODY()
 
@@ -29,6 +30,9 @@ private:
 	UFUNCTION()
 	void HandleBattleEventBroadcast(const FFinalBattleEvent& BattleEvent);
 
+	UFUNCTION()
+	void HandleCloseClicked();
+
 	void EnsureWidgetTree();
 	void ResetLedgerFromBattleFlow();
 	void ConsumeIncrementalEvents();
@@ -45,6 +49,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatusText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> CloseButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CloseButtonLabel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UScrollBox> EventScrollBox;

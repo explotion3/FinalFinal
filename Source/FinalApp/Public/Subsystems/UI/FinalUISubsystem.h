@@ -44,6 +44,12 @@ public:
 	void SetBattleHUDVisibility(bool bVisible);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenPrototypeRunDebugOverlay();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenBattleEventOverlay();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void OpenOverlayScreen(UFinalScreenBase* Screen, bool bReplaceExisting = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")

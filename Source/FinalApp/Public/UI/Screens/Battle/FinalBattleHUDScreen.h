@@ -7,7 +7,6 @@
 class UButton;
 class UBorder;
 class UHorizontalBox;
-class UScrollBox;
 class UTextBlock;
 class UVerticalBox;
 class UFinalBattleHUDViewModel;
@@ -36,13 +35,23 @@ private:
 	UFUNCTION()
 	void HandleEndTurnClicked();
 
+	UFUNCTION()
+	void HandleOpenDebugClicked();
+
+	UFUNCTION()
+	void HandleOpenEventLedgerClicked();
+
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
-	void RebuildCharacterPanel();
-	void RebuildEnemyPanel();
-	void RebuildHandPanel();
-	void RebuildUltimatePanel();
-	void RebuildLogPanel();
+	void RefreshTopBarSection(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshFeedbackSection(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshContextSection(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshCharacterPanel(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshEnemyPanel(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshHandPanel(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshUltimatePanel(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshRecentEventPanel(const struct FFinalBattleHUDPresentationData& Presentation);
+	void RefreshActionSection(const struct FFinalBattleHUDPresentationData& Presentation);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHUDViewModel> BattleViewModel;
@@ -51,13 +60,13 @@ private:
 	TObjectPtr<UFinalBattleWidgetController> BattleController;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> HeaderText;
+	TObjectPtr<UTextBlock> TopBarText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FeedbackText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> ContextText;
+	TObjectPtr<UTextBlock> AuxiliaryContextText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GapText;
@@ -78,11 +87,23 @@ private:
 	TObjectPtr<UVerticalBox> UltimateButtonBox;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UScrollBox> LogScrollBox;
+	TObjectPtr<UVerticalBox> RecentEventListBox;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> EndTurnButton;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> EndTurnLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> OpenDebugButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> OpenDebugLabel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> OpenEventLedgerButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> OpenEventLedgerLabel;
 };

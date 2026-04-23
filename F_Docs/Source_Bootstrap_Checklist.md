@@ -420,9 +420,10 @@
 * 当前 prototype Run 图已重新接回 `RemoveCard / UpgradeCard` 奖励示例，直接使用 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，用于验证 `RunDeck -> RunSnapshot.CurrentBuild` 的真实构筑修正
 * `FinalGameInstance::StartTestBattle()` 当前会串起 `BootstrapNewRun -> ConfigureBattleStartState + ConfigureRunRouteById -> RefreshRunFlow`
 * `RunFlowSubsystem` 会在 `PreparingBattle + HasValidBattleStartState + 无 ActiveBattleSession` 时委托 `FinalGameFlowSubsystem::StartBattleFromRunSession()` 自动开战
-* `UISubsystem` 当前会常驻挂一个 `PrototypeRunDebugScreen`，用于快速查看当前 bootstrap id、默认 bootstrap id、bootstrap route id、Run 阶段、当前 node id / 节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；角色摘要优先直接消费 `RunSnapshot.Characters.DisplayName / IconId / StateSummaryText`
-* `UISubsystem` 当前还会常驻挂一个只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新
+* `UISubsystem` 当前会预创建 `PrototypeRunDebugScreen`，用于快速查看当前 bootstrap id、默认 bootstrap id、bootstrap route id、Run 阶段、当前 node id / 节点摘要、资源摘要、当前构筑、角色持久状态摘要、战斗期 `ActiveRelics`、最近一条 `RelicTriggered` 与战斗是否已激活；但它已改为按需打开的 overlay，不再常驻压在 Battle HUD 上
+* `UISubsystem` 当前还会预创建只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新，并作为按需打开的 overlay 使用
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，`BattleHUD` 顶部反馈、`BattleHUD` 日志区、`PrototypeRunDebugScreen` 的最新 Battle 事件摘要、`FinalBattleEventScreen` 账本文本、`BattleDirector` 的世界提示都优先共用这套 helper
+* `BattleHUDScreen` 当前默认只保留主战斗信息、命令入口、最近事件摘要与打开 debug / ledger overlay 的最小按钮，不再把 run 调试摘要和完整事件账本常驻混排到主 HUD
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * 本轮启动性能验证命令：`Build.bat FinalFinalEditor Win64 Development`、`UnrealEditor-Cmd.exe -run=FinalPrototypeContentBootstrap`、`UnrealEditor-Cmd.exe -run=DataValidation -ProjectOnly`、`Automation RunTests Final.Editor.PrototypeSmoke`
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
