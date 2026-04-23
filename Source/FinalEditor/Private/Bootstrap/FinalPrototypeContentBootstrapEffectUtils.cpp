@@ -1,8 +1,8 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapEffectUtils.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
 #include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
@@ -209,21 +209,30 @@ namespace FinalPrototypeContentBootstrap
 		return Condition;
 	}
 
-	UFinalBattleConditionConsumedGeneratedCard* AddConsumedGeneratedCardCondition(
+	UFinalBattleConditionMovedCards* AddMovedCardsCondition(
 		UFinalBattleEffectDefinition* Effect,
 		const FGameplayTag& RequiredKeyword,
-		const int32 MinimumCount)
+		const int32 MinimumCount,
+		const bool bGeneratedOnly,
+		const bool bRequireSourceZone,
+		const EFinalBattleCardZoneRule SourceZone,
+		const bool bRequireDestinationZone,
+		const EFinalBattleCardZoneRule DestinationZone)
 	{
 		if (Effect == nullptr)
 		{
 			return nullptr;
 		}
 
-		UFinalBattleConditionConsumedGeneratedCard* Condition = NewObject<UFinalBattleConditionConsumedGeneratedCard>(Effect);
-		Condition->ConditionId = TEXT("condition.consumed_generated_card");
-		Condition->Requirement.bRequireConsumedGeneratedCard = true;
+		UFinalBattleConditionMovedCards* Condition = NewObject<UFinalBattleConditionMovedCards>(Effect);
+		Condition->ConditionId = TEXT("condition.moved_cards");
 		Condition->Requirement.RequiredKeyword = RequiredKeyword;
 		Condition->Requirement.MinimumCount = FMath::Max(MinimumCount, 1);
+		Condition->Requirement.bGeneratedOnly = bGeneratedOnly;
+		Condition->Requirement.bRequireSourceZone = bRequireSourceZone;
+		Condition->Requirement.SourceZone = SourceZone;
+		Condition->Requirement.bRequireDestinationZone = bRequireDestinationZone;
+		Condition->Requirement.DestinationZone = DestinationZone;
 		Effect->Conditions.Add(Condition);
 		return Condition;
 	}
@@ -428,7 +437,7 @@ namespace FinalPrototypeContentBootstrap
 		const FGameplayTag& RequiredKeyword,
 		const int32 MoveCount,
 		const bool bGeneratedOnly,
-		const bool bRecordMovedGeneratedCards,
+		const bool bRecordMovedCards,
 		const FText& Notes)
 	{
 		UFinalBattleEffectMoveCards* MoveCardsEffect = NewObject<UFinalBattleEffectMoveCards>(Owner);
@@ -440,7 +449,7 @@ namespace FinalPrototypeContentBootstrap
 		MoveCardsEffect->RequiredKeyword = RequiredKeyword;
 		MoveCardsEffect->MoveCount = FMath::Max(MoveCount, 1);
 		MoveCardsEffect->bGeneratedOnly = bGeneratedOnly;
-		MoveCardsEffect->bRecordMovedGeneratedCards = bRecordMovedGeneratedCards;
+		MoveCardsEffect->bRecordMovedCards = bRecordMovedCards;
 		MoveCardsEffect->Notes = Notes;
 		Effects.Add(MoveCardsEffect);
 		return MoveCardsEffect;

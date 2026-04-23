@@ -18,7 +18,7 @@ class UFinalBattleEffectGenerateCard;
 class UFinalBattleEffectHeal;
 class UFinalBattleEffectMoveCards;
 class UFinalBattleEffectRemoveStatus;
-class UFinalBattleConditionConsumedGeneratedCard;
+class UFinalBattleConditionMovedCards;
 class UFinalBattleConditionConsumedStatus;
 class UFinalBattleConditionHandCard;
 class UFinalBattleConditionTargetState;
@@ -43,7 +43,7 @@ namespace FinalPrototypeContentBootstrap
 	UFinalBattleConditionTargetState* AddTargetStateCondition(UFinalBattleEffectDefinition* Effect, const FFinalBattleTargetStateRequirement& Requirement);
 	UFinalBattleConditionConsumedStatus* AddConsumedStatusCondition(UFinalBattleEffectDefinition* Effect, const FFinalStatusId& StatusId, int32 MinimumStacks);
 	UFinalBattleConditionHandCard* AddHandCardCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly);
-	UFinalBattleConditionConsumedGeneratedCard* AddConsumedGeneratedCardCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount);
+	UFinalBattleConditionMovedCards* AddMovedCardsCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly = true, bool bRequireSourceZone = false, EFinalBattleCardZoneRule SourceZone = EFinalBattleCardZoneRule::Hand, bool bRequireDestinationZone = false, EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile);
 
 	UFinalBattleEffectDamage* AddDamageEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat, int32 HitCount = 1, const FText& Notes = FText::GetEmpty(), const FFinalBattleTargetStateRequirement* TargetStateRequirement = nullptr);
 	UFinalBattleEffectGainShield* AddShieldEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None, const FText& Notes = FText::GetEmpty());
@@ -54,5 +54,5 @@ namespace FinalPrototypeContentBootstrap
 	UFinalBattleEffectGainAP* AddGainApEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, int32 GainValue, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectBonusBreak* AddBonusBreakEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectGenerateCard* AddGenerateCardEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, UFinalCardDefinition* GeneratedCardDefinition, const TArray<UFinalCardDefinition*>& CandidateCardDefinitions, int32 GenerateCount, bool bChooseRandomCandidate, const FText& Notes = FText::GetEmpty());
-	UFinalBattleEffectMoveCards* AddMoveCardsEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleCardZoneRule SourceZone, EFinalBattleCardZoneRule DestinationZone, const FFinalCardId& RequiredCardId, const FGameplayTag& RequiredKeyword, int32 MoveCount, bool bGeneratedOnly, bool bRecordMovedGeneratedCards, const FText& Notes = FText::GetEmpty());
+	UFinalBattleEffectMoveCards* AddMoveCardsEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleCardZoneRule SourceZone, EFinalBattleCardZoneRule DestinationZone, const FFinalCardId& RequiredCardId, const FGameplayTag& RequiredKeyword, int32 MoveCount, bool bGeneratedOnly, bool bRecordMovedCards, const FText& Notes = FText::GetEmpty());
 }

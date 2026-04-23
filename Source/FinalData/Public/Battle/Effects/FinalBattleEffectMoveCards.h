@@ -38,7 +38,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	bool bGeneratedOnly = false;
 
-	// 是否把实际移动的衍生牌记录到本条效果链上下文，供后续 ConsumedGeneratedCard 条件读取。
+	// 是否把实际移动的卡牌记录到本条效果链上下文，供后续 MovedCards 条件读取。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
-	bool bRecordMovedGeneratedCards = false;
+	bool bRecordMovedCards = false;
 };

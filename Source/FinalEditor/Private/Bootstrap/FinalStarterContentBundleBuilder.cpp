@@ -3,9 +3,9 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapAssetUtils.h"
 #include "Bootstrap/FinalPrototypeContentBootstrapEffectUtils.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
 #include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
@@ -844,13 +844,29 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		1.3f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack);
-	AddConsumedGeneratedCardCondition(StarterShenYinBaoDamage, GetSwordArrayKeyword(), 1);
+	AddMovedCardsCondition(
+		StarterShenYinBaoDamage,
+		GetSwordArrayKeyword(),
+		1,
+		true,
+		true,
+		EFinalBattleCardZoneRule::Hand,
+		true,
+		EFinalBattleCardZoneRule::ConsumePile);
 	UFinalBattleEffectDrawCards* StarterShenYinBaoDraw = AddDrawEffect(
 		StarterShenYinBaoJianZhenCard,
 		StarterShenYinBaoJianZhenCard->Effects,
 		TEXT("effect.starter.shen.yinbaojianzhen.draw"),
 		1);
-	AddConsumedGeneratedCardCondition(StarterShenYinBaoDraw, GetSwordArrayKeyword(), 1);
+	AddMovedCardsCondition(
+		StarterShenYinBaoDraw,
+		GetSwordArrayKeyword(),
+		1,
+		true,
+		true,
+		EFinalBattleCardZoneRule::Hand,
+		true,
+		EFinalBattleCardZoneRule::ConsumePile);
 	TrackPackage(StarterShenYinBaoJianZhenCard, PackagesToSave);
 
 	StarterShenUltimate->RulesText = FText::FromString(TEXT("抽 2 张牌。生成 1 张剑阵牌到手牌。每名角色获得 1 层士气。"));

@@ -3,9 +3,9 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapAssetUtils.h"
 #include "Bootstrap/FinalPrototypeContentBootstrapEffectUtils.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
 #include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"

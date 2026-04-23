@@ -275,7 +275,7 @@
 * 当前已开始录入真实 starter content：`FinalPrototypeContentBootstrap` 会同时刷新 `/Game/Prototype/Definitions/Starter/...` 下的 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些内容仍通过 `FinalDataRegistry` 与 Editor validation 进入现有数据驱动体系，不回写成 `FinalApp` 或规则层硬编码
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制收回 Runtime：当前 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，starter 资产中的 Huo / Ye 相关卡牌与奥义不再只靠文本占位
 * starter content 当前已把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`布锋` 随机生成衍生剑阵牌、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为 battle 内衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌后兑现伤害/抽牌
-* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / ConsumedStatus / ConsumedGeneratedCard` 四类内联条件对象；`FinalData` 只定义条件数据，具体判定由 `FinalBattleEffectExecutionService` 执行
+* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / ConsumedStatus / MovedCards` 四类内联条件对象；`FinalData` 只定义条件数据，具体判定由 `FinalBattleEffectExecutionService` 执行
 * `HandCard` 条件至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态

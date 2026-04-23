@@ -1,9 +1,9 @@
 #include "Systems/FinalBattleEffectExecutionService.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
 #include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
@@ -43,12 +43,15 @@ struct FFinalConsumedStatusRecord
 	int32 RemovedStacks = 0;
 };
 
-struct FFinalConsumedGeneratedCardRecord
+struct FFinalMovedCardRecord
 {
 	FName RuntimeOwnerUnitId = NAME_None;
 	FFinalCardId CardId;
-	int32 RemovedCount = 0;
+	int32 MovedCount = 0;
+	bool bGeneratedCard = false;
 	FGameplayTagContainer RuntimeKeywords;
+	EFinalBattleCardZoneRule SourceZone = EFinalBattleCardZoneRule::Hand;
+	EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile;
 };
 
 // Per-effect-list scratch context. This is not persisted to FFinalBattleState.
@@ -59,8 +62,8 @@ struct FFinalBattleEffectExecutionContext
 	// Produced by RemoveStatus effects; consumed by ConsumedStatus conditions.
 	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
 
-	// Produced by MoveCards effects when they explicitly record moved generated cards.
-	TArray<FFinalConsumedGeneratedCardRecord> ConsumedGeneratedCards;
+	// Produced by MoveCards effects when they explicitly record moved cards.
+	TArray<FFinalMovedCardRecord> MovedCardRecords;
 
 	// Set when any Damage effect actually reduces an enemy HP total. Used after
 	// the whole list resolves so "next successful attack" statuses consume once.
@@ -372,82 +375,99 @@ int32 ResolveConsumedStatusStacks(
 	return 0;
 }
 
-void RecordConsumedGeneratedCard(
+void RecordMovedCard(
 	FFinalBattleEffectExecutionContext& Context,
 	const FName RuntimeOwnerUnitId,
 	const FFinalBattleCardInstance& CardInstance,
-	const int32 RemovedCount)
+	const EFinalBattleCardZoneRule SourceZone,
+	const EFinalBattleCardZoneRule DestinationZone,
+	const int32 MovedCount)
 {
-	if (RuntimeOwnerUnitId.IsNone() || !CardInstance.CardId.IsValid() || RemovedCount <= 0)
+	if (RuntimeOwnerUnitId.IsNone() || !CardInstance.CardId.IsValid() || MovedCount <= 0)
 	{
 		return;
 	}
 
-	if (FFinalConsumedGeneratedCardRecord* ExistingRecord = Context.ConsumedGeneratedCards.FindByPredicate(
-		[&RuntimeOwnerUnitId, &CardInstance](const FFinalConsumedGeneratedCardRecord& Candidate)
+	if (FFinalMovedCardRecord* ExistingRecord = Context.MovedCardRecords.FindByPredicate(
+		[&RuntimeOwnerUnitId, &CardInstance, SourceZone, DestinationZone](const FFinalMovedCardRecord& Candidate)
 		{
-			return Candidate.RuntimeOwnerUnitId == RuntimeOwnerUnitId && Candidate.CardId == CardInstance.CardId;
+			return Candidate.RuntimeOwnerUnitId == RuntimeOwnerUnitId
+				&& Candidate.CardId == CardInstance.CardId
+				&& Candidate.bGeneratedCard == CardInstance.bGeneratedCard
+				&& Candidate.SourceZone == SourceZone
+				&& Candidate.DestinationZone == DestinationZone;
 		}))
 	{
-		ExistingRecord->RemovedCount += RemovedCount;
+		ExistingRecord->MovedCount += MovedCount;
 		ExistingRecord->RuntimeKeywords.AppendTags(CardInstance.RuntimeKeywords);
 		return;
 	}
 
-	FFinalConsumedGeneratedCardRecord& NewRecord = Context.ConsumedGeneratedCards.AddDefaulted_GetRef();
+	FFinalMovedCardRecord& NewRecord = Context.MovedCardRecords.AddDefaulted_GetRef();
 	NewRecord.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
 	NewRecord.CardId = CardInstance.CardId;
-	NewRecord.RemovedCount = RemovedCount;
+	NewRecord.MovedCount = MovedCount;
+	NewRecord.bGeneratedCard = CardInstance.bGeneratedCard;
 	NewRecord.RuntimeKeywords = CardInstance.RuntimeKeywords;
+	NewRecord.SourceZone = SourceZone;
+	NewRecord.DestinationZone = DestinationZone;
 }
 
-int32 ResolveConsumedGeneratedCardCount(
+int32 ResolveMovedCardCount(
 	const FFinalBattleEffectExecutionContext& Context,
 	const FName RuntimeOwnerUnitId,
-	const FFinalCardId& RequiredCardId,
-	const FGameplayTag& RequiredKeyword)
+	const FFinalBattleMovedCardRequirement& Requirement)
 {
-	int32 TotalConsumedCount = 0;
+	int32 TotalMovedCount = 0;
 
-	for (const FFinalConsumedGeneratedCardRecord& Record : Context.ConsumedGeneratedCards)
+	for (const FFinalMovedCardRecord& Record : Context.MovedCardRecords)
 	{
 		if (Record.RuntimeOwnerUnitId != RuntimeOwnerUnitId)
 		{
 			continue;
 		}
 
-		if (RequiredCardId.IsValid() && Record.CardId != RequiredCardId)
+		if (Requirement.RequiredCardId.IsValid() && Record.CardId != Requirement.RequiredCardId)
 		{
 			continue;
 		}
 
-		if (RequiredKeyword.IsValid() && !Record.RuntimeKeywords.HasTagExact(RequiredKeyword))
+		if (Requirement.RequiredKeyword.IsValid() && !Record.RuntimeKeywords.HasTagExact(Requirement.RequiredKeyword))
 		{
 			continue;
 		}
 
-		TotalConsumedCount += Record.RemovedCount;
+		if (Requirement.bGeneratedOnly && !Record.bGeneratedCard)
+		{
+			continue;
+		}
+
+		if (Requirement.bRequireSourceZone && Record.SourceZone != Requirement.SourceZone)
+		{
+			continue;
+		}
+
+		if (Requirement.bRequireDestinationZone && Record.DestinationZone != Requirement.DestinationZone)
+		{
+			continue;
+		}
+
+		TotalMovedCount += Record.MovedCount;
 	}
 
-	return TotalConsumedCount;
+	return TotalMovedCount;
 }
 
-bool SatisfiesGeneratedCardConsumeRequirement(
-	const FFinalBattleGeneratedCardConsumeRequirement& Requirement,
+bool SatisfiesMovedCardRequirement(
+	const FFinalBattleMovedCardRequirement& Requirement,
 	const FFinalBattleEffectExecutionContext& Context,
 	const FName SourceOwnerUnitId)
 {
-	if (!Requirement.bRequireConsumedGeneratedCard)
-	{
-		return true;
-	}
-
 	return !SourceOwnerUnitId.IsNone()
-		&& ResolveConsumedGeneratedCardCount(
+		&& ResolveMovedCardCount(
 			Context,
 			SourceOwnerUnitId,
-			Requirement.RequiredCardId,
-			Requirement.RequiredKeyword) >= FMath::Max(Requirement.MinimumCount, 1);
+			Requirement) >= FMath::Max(Requirement.MinimumCount, 1);
 }
 
 bool SatisfiesHandCardRequirement(
@@ -601,9 +621,9 @@ bool EvaluateEffectCondition(
 		return SatisfiesConsumeRequirement(ConsumedStatusCondition->Requirement, Context, SourceOwnerUnitId);
 	}
 
-	if (const UFinalBattleConditionConsumedGeneratedCard* ConsumedGeneratedCardCondition = Cast<UFinalBattleConditionConsumedGeneratedCard>(Condition))
+	if (const UFinalBattleConditionMovedCards* MovedCardsCondition = Cast<UFinalBattleConditionMovedCards>(Condition))
 	{
-		return SatisfiesGeneratedCardConsumeRequirement(ConsumedGeneratedCardCondition->Requirement, Context, SourceOwnerUnitId);
+		return SatisfiesMovedCardRequirement(MovedCardsCondition->Requirement, Context, SourceOwnerUnitId);
 	}
 
 	if (const UFinalBattleConditionHandCard* HandCardCondition = Cast<UFinalBattleConditionHandCard>(Condition))
@@ -944,16 +964,19 @@ bool ExecuteMoveCardsEffect(
 		return false;
 	}
 
-	if (MoveCardsEffect->bRecordMovedGeneratedCards)
+	if (MoveCardsEffect->bRecordMovedCards)
 	{
 		for (const FGuid& MovedCardInstanceId : MovedCardInstanceIds)
 		{
 			if (const FFinalBattleCardInstance* MovedCardInstance = GetCardService().FindCardInstance(State, MovedCardInstanceId))
 			{
-				if (MovedCardInstance->bGeneratedCard)
-				{
-					RecordConsumedGeneratedCard(ExecutionContext, SourceOwnerUnitId, *MovedCardInstance, 1);
-				}
+				RecordMovedCard(
+					ExecutionContext,
+					SourceOwnerUnitId,
+					*MovedCardInstance,
+					MoveCardsEffect->SourceZone,
+					MoveCardsEffect->DestinationZone,
+					1);
 			}
 		}
 	}

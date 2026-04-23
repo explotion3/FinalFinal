@@ -966,11 +966,11 @@ bCanCopy: true
 * `UFinalBattleConditionHandCard`：承载 `FFinalBattleHandCardRequirement`
 * `UFinalBattleConditionTargetState`：承载 `FFinalBattleTargetStateRequirement`
 * `UFinalBattleConditionConsumedStatus`：承载 `FFinalBattleStatusConsumeRequirement`
-* `UFinalBattleConditionConsumedGeneratedCard`：承载 `FFinalBattleGeneratedCardConsumeRequirement`
+* `UFinalBattleConditionMovedCards`：承载 `FFinalBattleMovedCardRequirement`
 
 **说明**
 * 当前 `Conditions[]` 固定为全部 AND，不做 OR / NOT / 嵌套组
-* `Break` 条件、手牌条件、状态消耗条件、衍生牌消耗条件都写入 `Conditions[]`
+* `Break` 条件、手牌条件、状态消耗条件、效果链内卡牌移动记录条件都写入 `Conditions[]`
 * 具体 effect 子类只保留 payload，例如伤害数值、抽牌数量、护盾数值、削韧数值
 * `FFinalBattle*Requirement` 结构只作为 condition payload，源码归属在 `Battle/Conditions/Requirements`，不再放在 `Battle/Effects`
 * `FinalData` 只定义条件数据；条件判断由 `FinalBattleEffectExecutionService` 在 Battle Runtime 中执行
@@ -993,7 +993,7 @@ bCanCopy: true
 * 状态类条件优先使用 `ConditionType + StatusId + ExpectedValue`
 * 标签类条件优先使用 `ConditionType + RequiredTag`
 * 消耗特定卡牌、手牌中存在某标签卡、目标处于 Break，都通过条目表达，不再为单个需求新增顶层字段
-* 当前 Runtime 不再把 `StatusConsumeRequirement / GeneratedCardConsumeRequirement / HandCardRequirement / TargetStateRequirement` 直接挂在 concrete effect 子类上，而是封装进 `UFinalBattleCondition_*` 对象并放入 `Effect.Conditions[]`
+* 当前 Runtime 不再把 `StatusConsumeRequirement / MovedCardRequirement / HandCardRequirement / TargetStateRequirement` 直接挂在 concrete effect 子类上，而是封装进 `UFinalBattleCondition_*` 对象并放入 `Effect.Conditions[]`
 
 ### 9.3.3 BattleScalarValue
 **用途**  
@@ -1069,7 +1069,7 @@ bCanCopy: true
   * `RequiredKeyword`
   * `MoveCount`
   * `bGeneratedOnly`
-  * `bRecordMovedGeneratedCards`
+  * `bRecordMovedCards`
 * `UBattleEffect_CopyCard`
   * `CardSelectionScope`
   * `CardSelectionRule`
@@ -1078,7 +1078,7 @@ bCanCopy: true
 **说明**
 * `BattleResolver` 的职责应收缩为效果编排，不再继续膨胀成大型字段解释器
 * `UBattleEffect_GenerateCard` 只负责描述“生成什么牌、生成几张、是否为 generated/temporary”；`保留 / 消耗` 不再在 effect 上重复保存布尔语义，而由 `CardDefinition.Keywords` 与 `BattleCardInstance.RuntimeKeywords` 统一解释
-* `UBattleEffect_MoveCards` 取代旧的 `ConsumeGeneratedCard` 专用效果；“消耗衍生牌”现在只是 `Hand -> ConsumePile` 的一组牌区迁移配置
+* `UBattleEffect_MoveCards` 取代旧的 `ConsumeGeneratedCard` 专用效果；“消耗衍生牌”现在只是 `Hand -> ConsumePile` 的一组牌区迁移配置；后续依赖应通过 `UFinalBattleConditionMovedCards` 读取本条效果链里的真实移动记录
 * 卡牌、敌人意图、遗物、奥义应尽量共用同一套效果基类族
 * 条件优先写入 `FBattleEffectConditionSet`
 * 数值优先写入 `FBattleScalarValue`
