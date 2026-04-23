@@ -195,7 +195,7 @@
   * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
   * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、`RuntimeTriggers` 运行时计数、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 触发窗口与 `ActiveRelics` 投影维护
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
-  * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar/target/consume requirement 判定，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / ConsumeGeneratedCard` 的 Battle 私有解释执行
+  * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析、`Effect.Conditions[]` 统一判定，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / ConsumeGeneratedCard` 的 Battle 私有解释执行
   * `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
   * `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
   * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
@@ -274,12 +274,13 @@
 * 当前已开始录入真实 starter content：`FinalPrototypeContentBootstrap` 会同时刷新 `/Game/Prototype/Definitions/Starter/...` 下的 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些内容仍通过 `FinalDataRegistry` 与 Editor validation 进入现有数据驱动体系，不回写成 `FinalApp` 或规则层硬编码
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制收回 Runtime：当前 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，starter 资产中的 Huo / Ye 相关卡牌与奥义不再只靠文本占位
 * starter content 当前已把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`布锋` 随机生成衍生剑阵牌、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为 battle 内衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌后兑现伤害/抽牌
-* Battle 当前已补最小 `HandCardRequirement` 协议，至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
+* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / ConsumedStatus / ConsumedGeneratedCard` 四类内联条件对象；`FinalData` 只定义条件数据，具体判定由 `FinalBattleEffectExecutionService` 执行
+* `HandCard` 条件至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
 * Battle 当前已补最小 `OwnerTookHealthDamage` 触发窗口协议：`CharacterDefinition` 可配置 battle trigger effect list，初始化时镜像到 `FinalBattleCharacterState`，当玩家共享生命实际下降时由 `FinalBattleResolver` 按角色顺序执行；当前 starter 已用它把霍断岳“受压得刀势”收回 Runtime
-* Battle 当前已补最小 `TargetStateRequirement` 协议：`Damage` effect 可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；requirement 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
+* `TargetState` 条件可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；condition 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
 * Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime。`免疫` 仍是上位状态概念，`生命免疫` 只是当前已落地的共享生命 HP damage protection 子类
 * starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
 * prototype 启动配置也应收回到 `FinalData` 的 bootstrap/profile definition，例如 `PrototypeBootstrapDefinition`，承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / 初始角色持久状态 / InitialTeamCurrentHP`；`FinalApp` 运行时只查询一个 bootstrap stable id

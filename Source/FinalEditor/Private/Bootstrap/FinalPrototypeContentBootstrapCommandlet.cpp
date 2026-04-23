@@ -1,6 +1,10 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
+#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
+#include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalBattleTriggerDefinition.h"
@@ -348,6 +352,79 @@ namespace FinalPrototypeContentBootstrap
 		return CharacterState;
 	}
 
+	UFinalBattleConditionTargetState* AddTargetStateCondition(UFinalBattleEffectDefinition* Effect, const FFinalBattleTargetStateRequirement& Requirement)
+	{
+		if (Effect == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionTargetState* Condition = NewObject<UFinalBattleConditionTargetState>(Effect);
+		Condition->ConditionId = TEXT("condition.target_state");
+		Condition->Requirement = Requirement;
+		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
+	UFinalBattleConditionConsumedStatus* AddConsumedStatusCondition(
+		UFinalBattleEffectDefinition* Effect,
+		const FFinalStatusId& StatusId,
+		const int32 MinimumStacks)
+	{
+		if (Effect == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionConsumedStatus* Condition = NewObject<UFinalBattleConditionConsumedStatus>(Effect);
+		Condition->ConditionId = TEXT("condition.consumed_status");
+		Condition->Requirement.bRequireConsumedStatus = true;
+		Condition->Requirement.RequiredStatusId = StatusId;
+		Condition->Requirement.MinimumStacks = FMath::Max(MinimumStacks, 1);
+		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
+	UFinalBattleConditionHandCard* AddHandCardCondition(
+		UFinalBattleEffectDefinition* Effect,
+		const FGameplayTag& RequiredKeyword,
+		const int32 MinimumCount,
+		const bool bGeneratedOnly)
+	{
+		if (Effect == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionHandCard* Condition = NewObject<UFinalBattleConditionHandCard>(Effect);
+		Condition->ConditionId = TEXT("condition.hand_card");
+		Condition->Requirement.bRequireInHand = true;
+		Condition->Requirement.RequiredKeyword = RequiredKeyword;
+		Condition->Requirement.MinimumCount = FMath::Max(MinimumCount, 1);
+		Condition->Requirement.bGeneratedOnly = bGeneratedOnly;
+		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
+	UFinalBattleConditionConsumedGeneratedCard* AddConsumedGeneratedCardCondition(
+		UFinalBattleEffectDefinition* Effect,
+		const FGameplayTag& RequiredKeyword,
+		const int32 MinimumCount)
+	{
+		if (Effect == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionConsumedGeneratedCard* Condition = NewObject<UFinalBattleConditionConsumedGeneratedCard>(Effect);
+		Condition->ConditionId = TEXT("condition.consumed_generated_card");
+		Condition->Requirement.bRequireConsumedGeneratedCard = true;
+		Condition->Requirement.RequiredKeyword = RequiredKeyword;
+		Condition->Requirement.MinimumCount = FMath::Max(MinimumCount, 1);
+		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
 	UFinalBattleEffectDamage* AddDamageEffect(
 		UObject* Owner,
 		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
@@ -370,7 +447,7 @@ namespace FinalPrototypeContentBootstrap
 		DamageEffect->Notes = Notes;
 		if (TargetStateRequirement != nullptr)
 		{
-			DamageEffect->TargetStateRequirement = *TargetStateRequirement;
+			AddTargetStateCondition(DamageEffect, *TargetStateRequirement);
 		}
 		Effects.Add(DamageEffect);
 		return DamageEffect;
@@ -1455,9 +1532,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		2.0f,
 		EFinalBattleScalarMode::Flat);
-	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.bRequireConsumedStatus = true;
-	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.RequiredStatusId = StarterHuoStatus->StatusId;
-	StarterHuoDuanYueZhanConsumeBreak->ConsumeRequirement.MinimumStacks = 1;
+	AddConsumedStatusCondition(StarterHuoDuanYueZhanConsumeBreak, StarterHuoStatus->StatusId, 1);
 	AddDamageEffect(
 		StarterHuoDuanYueZhanCard,
 		StarterHuoDuanYueZhanCard->Effects,
@@ -1577,18 +1652,14 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.draw"),
 		1);
-	StarterYeHuaYinDrawEffect->ConsumeRequirement.bRequireConsumedStatus = true;
-	StarterYeHuaYinDrawEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
-	StarterYeHuaYinDrawEffect->ConsumeRequirement.MinimumStacks = 1;
+	AddConsumedStatusCondition(StarterYeHuaYinDrawEffect, StarterYeStatus->StatusId, 1);
 	UFinalBattleEffectGainAP* StarterYeHuaYinGainApEffect = AddGainApEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.gain_ap"),
 		EFinalBattleUnitTargetRule::Self,
 		1);
-	StarterYeHuaYinGainApEffect->ConsumeRequirement.bRequireConsumedStatus = true;
-	StarterYeHuaYinGainApEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
-	StarterYeHuaYinGainApEffect->ConsumeRequirement.MinimumStacks = 1;
+	AddConsumedStatusCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuaYinCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeHuiChunSanCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeHuiChunSanCardPath, bCreatedAsset);
@@ -1623,9 +1694,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		EFinalBattleUnitTargetRule::Self,
 		1,
 		FText::FromString(TEXT("首波 Runtime 仅落地药引消耗后的回 AP。")));
-	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.bRequireConsumedStatus = true;
-	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.RequiredStatusId = StarterYeStatus->StatusId;
-	StarterYeHuiChunSanGainApEffect->ConsumeRequirement.MinimumStacks = 1;
+	AddConsumedStatusCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuiChunSanCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenBuFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenBuFengCardPath, bCreatedAsset);
@@ -1742,10 +1811,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		TEXT("effect.starter.shen.shouzhen.draw"),
 		1,
 		FText::FromString(TEXT("若手中有剑阵牌，则补 1 张牌。")));
-	StarterShenShouZhenDraw->HandCardRequirement.bRequireInHand = true;
-	StarterShenShouZhenDraw->HandCardRequirement.RequiredKeyword = GetSwordArrayKeyword();
-	StarterShenShouZhenDraw->HandCardRequirement.MinimumCount = 1;
-	StarterShenShouZhenDraw->HandCardRequirement.bGeneratedOnly = true;
+	AddHandCardCondition(StarterShenShouZhenDraw, GetSwordArrayKeyword(), 1, true);
 	TrackPackage(StarterShenShouZhenCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenYinZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenYinZhenCardPath, bCreatedAsset);
@@ -1801,17 +1867,13 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 		1.3f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::Attack);
-	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.bRequireConsumedGeneratedCard = true;
-	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.RequiredKeyword = GetSwordArrayKeyword();
-	StarterShenYinBaoDamage->GeneratedCardConsumeRequirement.MinimumCount = 1;
+	AddConsumedGeneratedCardCondition(StarterShenYinBaoDamage, GetSwordArrayKeyword(), 1);
 	UFinalBattleEffectDrawCards* StarterShenYinBaoDraw = AddDrawEffect(
 		StarterShenYinBaoJianZhenCard,
 		StarterShenYinBaoJianZhenCard->Effects,
 		TEXT("effect.starter.shen.yinbaojianzhen.draw"),
 		1);
-	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.bRequireConsumedGeneratedCard = true;
-	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.RequiredKeyword = GetSwordArrayKeyword();
-	StarterShenYinBaoDraw->GeneratedCardConsumeRequirement.MinimumCount = 1;
+	AddConsumedGeneratedCardCondition(StarterShenYinBaoDraw, GetSwordArrayKeyword(), 1);
 	TrackPackage(StarterShenYinBaoJianZhenCard, PackagesToSave);
 
 	StarterShenUltimate->RulesText = FText::FromString(TEXT("抽 2 张牌。生成 1 张剑阵牌到手牌。每名角色获得 1 层士气。"));

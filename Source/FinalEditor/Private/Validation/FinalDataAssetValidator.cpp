@@ -1,5 +1,10 @@
 #include "Validation/FinalDataAssetValidator.h"
 
+#include "Battle/Conditions/FinalBattleConditionConsumedGeneratedCard.h"
+#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
+#include "Battle/Conditions/FinalBattleConditionDefinition.h"
+#include "Battle/Conditions/FinalBattleConditionHandCard.h"
+#include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
@@ -186,6 +191,60 @@ namespace FinalDataAssetValidation
 		}
 	}
 
+	void ValidateBattleEffectCondition(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalBattleConditionDefinition* Condition,
+		const FString& FieldName)
+	{
+		if (Condition == nullptr)
+		{
+			AddError(Context, bIsValid, FString::Printf(TEXT("%s must not be null."), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleConditionConsumedStatus* ConsumedStatusCondition = Cast<const UFinalBattleConditionConsumedStatus>(Condition))
+		{
+			const FFinalBattleStatusConsumeRequirement& Requirement = ConsumedStatusCondition->Requirement;
+			if (Requirement.bRequireConsumedStatus)
+			{
+				if (!Requirement.RequiredStatusId.IsValid())
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.Requirement.RequiredStatusId must be set."), *FieldName));
+				}
+				ValidatePositive(Context, bIsValid, Requirement.MinimumStacks, *FString::Printf(TEXT("%s.Requirement.MinimumStacks"), *FieldName));
+			}
+			return;
+		}
+
+		if (const UFinalBattleConditionConsumedGeneratedCard* ConsumedGeneratedCardCondition = Cast<const UFinalBattleConditionConsumedGeneratedCard>(Condition))
+		{
+			const FFinalBattleGeneratedCardConsumeRequirement& Requirement = ConsumedGeneratedCardCondition->Requirement;
+			if (Requirement.bRequireConsumedGeneratedCard)
+			{
+				ValidatePositive(Context, bIsValid, Requirement.MinimumCount, *FString::Printf(TEXT("%s.Requirement.MinimumCount"), *FieldName));
+			}
+			return;
+		}
+
+		if (const UFinalBattleConditionHandCard* HandCardCondition = Cast<const UFinalBattleConditionHandCard>(Condition))
+		{
+			const FFinalBattleHandCardRequirement& Requirement = HandCardCondition->Requirement;
+			if (Requirement.bRequireInHand)
+			{
+				ValidatePositive(Context, bIsValid, Requirement.MinimumCount, *FString::Printf(TEXT("%s.Requirement.MinimumCount"), *FieldName));
+			}
+			return;
+		}
+
+		if (Cast<const UFinalBattleConditionTargetState>(Condition))
+		{
+			return;
+		}
+
+		AddError(Context, bIsValid, FString::Printf(TEXT("%s uses unsupported battle condition class %s."), *FieldName, *Condition->GetClass()->GetName()));
+	}
+
 	void ValidateBattleEffect(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -203,6 +262,15 @@ namespace FinalDataAssetValidation
 		if (Effect->FlatValue < 0.0f)
 		{
 			AddError(Context, bIsValid, FString::Printf(TEXT("%s.FlatValue must be >= 0, but is %.3f."), *FieldName, Effect->FlatValue));
+		}
+
+		for (int32 ConditionIndex = 0; ConditionIndex < Effect->Conditions.Num(); ++ConditionIndex)
+		{
+			ValidateBattleEffectCondition(
+				Context,
+				bIsValid,
+				Effect->Conditions[ConditionIndex].Get(),
+				FString::Printf(TEXT("%s.Conditions[%d]"), *FieldName, ConditionIndex));
 		}
 
 		if (const UFinalBattleEffectDamage* DamageEffect = Cast<const UFinalBattleEffectDamage>(Effect))

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
-#include "Battle/Effects/FinalBattleHandCardRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "FinalBattleEffectGainShield.generated.h"
 
@@ -17,8 +16,4 @@ public:
 	// 护盾数值来源。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	FFinalBattleScalarValue Scalar;
-
-	// 生效前要求当前手牌满足的条件。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
-	FFinalBattleHandCardRequirement HandCardRequirement;
 };

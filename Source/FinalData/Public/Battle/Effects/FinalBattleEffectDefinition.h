@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Types/FinalCoreTypes.h"
 #include "UObject/Object.h"
 #include "FinalBattleEffectDefinition.generated.h"
@@ -26,6 +27,10 @@ public:
 	// 兼容简单效果的直接数值字段。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	float FlatValue = 0.0f;
+
+	// 生效前必须全部满足的条件；规则判断由 FinalBattle 执行。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Effect")
+	TArray<TObjectPtr<UFinalBattleConditionDefinition>> Conditions;
 
 	// 面向编辑器和设计文档的备注文本。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")

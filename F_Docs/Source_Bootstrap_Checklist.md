@@ -95,6 +95,7 @@
 * `Source/FinalData/Public/Battle/Definitions/FinalEnemyIntentDefinition.h`
 * `Source/FinalData/Public/Battle/Definitions/FinalStatusDefinition.h`
 * `Source/FinalData/Public/Battle/Definitions/FinalBattleEncounterDefinition.h`
+* `Source/FinalData/Public/Battle/Conditions/FinalBattleConditionDefinition.h`
 * `Source/FinalData/Public/Battle/Effects/FinalBattleEffectDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
@@ -390,12 +391,13 @@
 * starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制录入成真实可运行数据，starter 资产不再只靠文案描述这些资源
 * starter bundle 当前已把沈清弦 `剑阵` 第一波接回 Runtime：`布锋` 随机生成 `过牌剑阵 / 破阵剑阵`、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌
 * Battle 当前已补最小 `HandCardRequirement` 协议，并把它接到现有 `GainShield / DrawCards` 等效果上；`FinalBattleCardService` 负责统计当前手牌中满足条件的卡数量，并供 Battle resolver 做 gated effect 判定
+* Battle 当前已把 effect requirements 第一阶段收口到对象化 `Effect.Conditions[]`：`HandCard / TargetState / ConsumedStatus / ConsumedGeneratedCard` 四类条件对象定义在 `FinalData/Public/Battle/Conditions`，Runtime 判定统一由 `FinalBattleEffectExecutionService` 执行；concrete effect 子类只保留 payload 字段
 * starter bundle 当前已把 `守阵` 的“若手中有剑阵牌”改成真实规则：护盾部分无条件结算，抽牌部分只有在当前手牌里存在满足 `SwordArray + GeneratedOnly` 条件的衍生剑阵牌时才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正百分比、在一次成功对敌伤害后消费带 `bConsumeOnSuccessfulOwnerDamage` 的状态 1 层，并在玩家结束回合进入敌方行动前统一递减 `bExpireAtPlayerTurnEnd` 状态
 * starter bundle 当前已把 `锋锐剑阵` 接回 Runtime：该衍生牌现在会为自身施加 1 层 `锋锐` 状态，使下一张攻击牌伤害提高 20%，若本回合内至少一次成功对敌生命伤害则消耗，否则在玩家回合结束时过期
 * starter bundle 当前已把 `万象归阵` 改成真实规则：抽 2 张牌、生成 1 张剑阵牌到手牌，并为每名角色施加 1 层 `士气`；不再用团队护盾近似团队增益
 * starter bundle 当前已补最小 `OwnerTookHealthDamage` 触发窗口：霍断岳角色定义挂接一组 battle trigger effects，玩家共享生命实际受损时按角色顺序触发，霍断岳因此获得 1 层 `刀势`
-* starter bundle 当前已补最小 `TargetStateRequirement`：`Damage` effect 可按实际敌方目标是否处于 Break 做 gated 执行；霍断岳 `断岳绝式` 已追加一段“目标 Break 时额外攻击倍率伤害”的真实效果
+* starter bundle 当前已把 `TargetState` 条件迁入 `Effect.Conditions[]`：可按实际敌方目标是否处于 Break 做 gated 执行；霍断岳 `断岳绝式` 已追加一段“目标 Break 时额外攻击倍率伤害”的真实效果
 * starter bundle 当前已补最小 incoming team HP damage protection：`生命免疫` 状态挂在 `team_player`，护盾后抵消下一次会扣共享生命的 HP damage，触发后消耗，未触发则在玩家回合结束时过期；叶半夏 `回天续脉` 已施加该状态。`免疫` 保持为上位状态概念，不被这条首版保护协议完全替代
 * starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
 * `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`

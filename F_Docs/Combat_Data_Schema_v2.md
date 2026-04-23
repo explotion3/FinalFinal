@@ -936,8 +936,8 @@ bCanCopy: true
 
 **目标结构**
 * `UBattleEffectDefinition`：所有战斗效果的共同基类
-* `FBattleEffectConditionSet`：统一条件结构
-* `FBattleEffectConditionEntry`：统一条件条目
+* `UFinalBattleConditionDefinition`：第一版对象化条件基类
+* `UFinalBattleCondition_*`：具体条件对象
 * `FBattleScalarValue`：统一数值缩放结构
 * `UBattleEffect_*`：具体效果子类
 
@@ -951,24 +951,28 @@ bCanCopy: true
 * `EffectId`：效果条目唯一 ID
 * `EffectType`：效果类型，协议见 `8.28 BattleEffectType`
 * `UnitTargetRule`：效果真实结算目标
-* `TriggerCondition`：效果触发条件
+* `Conditions`：效果执行前必须全部满足的条件对象数组
 
 **UBattleEffectDefinition 基类可选字段**
-* `Conditions`：条件集合
+* `Conditions`：条件对象集合；当前 Runtime 第一阶段固定为全部 AND
 * `Notes`：补充备注
 
-### 9.3.1 BattleEffectConditionSet
+### 9.3.1 BattleEffect Conditions
 **用途**  
-统一承载效果触发条件，避免条件字段散落到每个效果子类中。
+统一承载效果触发条件，避免条件字段散落到每个具体 effect 子类中。
 
-**建议字段**
-* `MatchRule`
-* `Entries`
+**当前 Runtime 第一阶段**
+* `UFinalBattleConditionDefinition`：抽象基类，包含 `ConditionId / Notes`
+* `UFinalBattleConditionHandCard`：承载 `FFinalBattleHandCardRequirement`
+* `UFinalBattleConditionTargetState`：承载 `FFinalBattleTargetStateRequirement`
+* `UFinalBattleConditionConsumedStatus`：承载 `FFinalBattleStatusConsumeRequirement`
+* `UFinalBattleConditionConsumedGeneratedCard`：承载 `FFinalBattleGeneratedCardConsumeRequirement`
 
 **说明**
-* `MatchRule` 建议至少支持 `All / Any`
-* `Break` 条件、受击条件、消耗条件优先写入 `Conditions`
-* 仅当某类效果存在强专用条件时，才允许在子类中补自己的专用字段
+* 当前 `Conditions[]` 固定为全部 AND，不做 OR / NOT / 嵌套组
+* `Break` 条件、手牌条件、状态消耗条件、衍生牌消耗条件都写入 `Conditions[]`
+* 具体 effect 子类只保留 payload，例如伤害数值、抽牌数量、护盾数值、削韧数值
+* `FinalData` 只定义条件数据；条件判断由 `FinalBattleEffectExecutionService` 在 Battle Runtime 中执行
 
 ### 9.3.2 BattleEffectConditionEntry
 **用途**  
@@ -988,7 +992,7 @@ bCanCopy: true
 * 状态类条件优先使用 `ConditionType + StatusId + ExpectedValue`
 * 标签类条件优先使用 `ConditionType + RequiredTag`
 * 消耗特定卡牌、手牌中存在某标签卡、目标处于 Break，都通过条目表达，不再为单个需求新增顶层字段
-* 当前 Runtime 原型为避免直接引入完整脚本式 `ConditionSet`，已经先落了若干最小专用 requirement 结构：`StatusConsumeRequirement / GeneratedCardConsumeRequirement / HandCardRequirement / TargetStateRequirement`。其中 `TargetStateRequirement` 先挂在 `Damage` effect 上，用于要求实际敌方目标存在、存活且处于 Break；后续若统一条件集合成熟，再收敛到同一 condition 表达
+* 当前 Runtime 不再把 `StatusConsumeRequirement / GeneratedCardConsumeRequirement / HandCardRequirement / TargetStateRequirement` 直接挂在 concrete effect 子类上，而是封装进 `UFinalBattleCondition_*` 对象并放入 `Effect.Conditions[]`
 
 ### 9.3.3 BattleScalarValue
 **用途**  
