@@ -446,6 +446,7 @@ Source
 │  ├─ Public
 │  │  ├─ Battle
 │  │  │  ├─ Conditions
+│  │  │  │  └─ Requirements
 │  │  │  ├─ Definitions
 │  │  │  ├─ Effects
 │  │  │  └─ Rules

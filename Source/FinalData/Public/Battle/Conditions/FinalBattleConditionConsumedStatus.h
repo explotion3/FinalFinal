@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
-#include "Battle/Effects/FinalBattleStatusConsumeRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleStatusConsumeRequirement.h"
 #include "FinalBattleConditionConsumedStatus.generated.h"
 
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)

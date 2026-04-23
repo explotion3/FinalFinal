@@ -23,7 +23,7 @@
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
-#include "Battle/Effects/FinalBattleTargetStateRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
-#include "Battle/Effects/FinalBattleHandCardRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleHandCardRequirement.h"
 #include "FinalBattleConditionHandCard.generated.h"
 
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)

@@ -972,6 +972,7 @@ bCanCopy: true
 * 当前 `Conditions[]` 固定为全部 AND，不做 OR / NOT / 嵌套组
 * `Break` 条件、手牌条件、状态消耗条件、衍生牌消耗条件都写入 `Conditions[]`
 * 具体 effect 子类只保留 payload，例如伤害数值、抽牌数量、护盾数值、削韧数值
+* `FFinalBattle*Requirement` 结构只作为 condition payload，源码归属在 `Battle/Conditions/Requirements`，不再放在 `Battle/Effects`
 * `FinalData` 只定义条件数据；条件判断由 `FinalBattleEffectExecutionService` 在 Battle Runtime 中执行
 
 ### 9.3.2 BattleEffectConditionEntry

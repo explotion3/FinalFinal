@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Battle/Effects/FinalBattleHandCardRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleHandCardRequirement.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
 #include "Systems/FinalBattleCardMatchCriteria.h"

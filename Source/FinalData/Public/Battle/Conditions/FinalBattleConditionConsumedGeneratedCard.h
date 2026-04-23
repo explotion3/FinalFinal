@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
-#include "Battle/Effects/FinalBattleGeneratedCardConsumeRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleGeneratedCardConsumeRequirement.h"
 #include "FinalBattleConditionConsumedGeneratedCard.generated.h"
 
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)

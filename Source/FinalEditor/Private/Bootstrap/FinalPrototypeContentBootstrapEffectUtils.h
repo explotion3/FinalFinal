@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
-#include "Battle/Effects/FinalBattleTargetStateRequirement.h"
+#include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Ids/FinalIds.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Rewards/FinalRunRewardTypes.h"
