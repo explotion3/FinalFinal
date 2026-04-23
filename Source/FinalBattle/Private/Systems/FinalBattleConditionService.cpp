@@ -3,6 +3,7 @@
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
@@ -172,6 +173,33 @@ bool SatisfiesHandCardRequirement(
 		&& Context.CardService->SatisfiesHandCardRequirement(*Context.BattleState, Context.SourceOwnerUnitId, Requirement);
 }
 
+bool SatisfiesResolvedCardRequirement(
+	const FFinalBattleResolvedCardRequirement& Requirement,
+	const FFinalBattleConditionEvaluationContext& Context)
+{
+	if (Context.ResolvedCardContext == nullptr)
+	{
+		return false;
+	}
+
+	if (Requirement.bRequireCardCostAP && Context.ResolvedCardContext->RuntimeCostAP != Requirement.RequiredCardCostAP)
+	{
+		return false;
+	}
+
+	if (Requirement.bRequireCardType && Context.ResolvedCardContext->CardType != Requirement.RequiredCardType)
+	{
+		return false;
+	}
+
+	if (Requirement.RequiredKeyword.IsValid() && !Context.ResolvedCardContext->RuntimeKeywords.HasTagExact(Requirement.RequiredKeyword))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool ShouldEvaluateConditionInPass(
 	const EFinalBattleConditionContext ConditionContext,
 	const EFinalBattleConditionEvaluationPass Pass)
@@ -190,6 +218,21 @@ bool ShouldEvaluateConditionInPass(
 	}
 }
 
+}
+
+bool FFinalBattleConditionService::SatisfiesConditions(
+	const TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions,
+	const FFinalBattleConditionEvaluationContext& Context) const
+{
+	for (const UFinalBattleConditionDefinition* Condition : Conditions)
+	{
+		if (Condition == nullptr || !EvaluateCondition(Condition, Context))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool FFinalBattleConditionService::SatisfiesSourceAndChainConditions(
@@ -277,28 +320,6 @@ bool FFinalBattleConditionService::SatisfiesAllEffectConditions(
 		{
 			return false;
 		}
-	}
-
-	return true;
-}
-
-bool FFinalBattleConditionService::SatisfiesResolvedCardCondition(
-	const FFinalRelicRuntimeCardConditionDefinition& CardCondition,
-	const FFinalBattleResolvedCardTriggerContext& CardContext) const
-{
-	if (CardCondition.bRequireCardCostAP && CardContext.RuntimeCostAP != CardCondition.RequiredCardCostAP)
-	{
-		return false;
-	}
-
-	if (CardCondition.bRequireCardType && CardContext.CardType != CardCondition.RequiredCardType)
-	{
-		return false;
-	}
-
-	if (CardCondition.RequiredKeyword.IsValid() && !CardContext.RuntimeKeywords.HasTagExact(CardCondition.RequiredKeyword))
-	{
-		return false;
 	}
 
 	return true;
@@ -407,6 +428,13 @@ bool FFinalBattleConditionService::EvaluateCondition(
 		if (const UFinalBattleConditionTargetState* TargetStateCondition = Cast<UFinalBattleConditionTargetState>(Condition))
 		{
 			return SatisfiesTargetStateRequirement(TargetStateCondition->Requirement, Context.TargetEnemyState);
+		}
+		break;
+
+	case EFinalBattleConditionContext::ResolvedCard:
+		if (const UFinalBattleConditionResolvedCard* ResolvedCardCondition = Cast<UFinalBattleConditionResolvedCard>(Condition))
+		{
+			return SatisfiesResolvedCardRequirement(ResolvedCardCondition->Requirement, Context);
 		}
 		break;
 

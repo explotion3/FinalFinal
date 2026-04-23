@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Conditions/Requirements/FinalBattleResolvedCardRequirement.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Ids/FinalIds.h"
@@ -21,6 +22,7 @@ class UFinalBattleEffectRemoveStatus;
 class UFinalBattleConditionMovedCards;
 class UFinalBattleConditionStatusChanged;
 class UFinalBattleConditionHandCard;
+class UFinalBattleConditionResolvedCard;
 class UFinalBattleConditionTargetState;
 class UFinalCardDefinition;
 class UFinalStatusDefinition;
@@ -43,6 +45,7 @@ namespace FinalPrototypeContentBootstrap
 	UFinalBattleConditionTargetState* AddTargetStateCondition(UFinalBattleEffectDefinition* Effect, const FFinalBattleTargetStateRequirement& Requirement);
 	UFinalBattleConditionStatusChanged* AddStatusChangedCondition(UFinalBattleEffectDefinition* Effect, const FFinalStatusId& StatusId, int32 MinimumStacks);
 	UFinalBattleConditionHandCard* AddHandCardCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly);
+	UFinalBattleConditionResolvedCard* AddResolvedCardCondition(UObject* Owner, TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions, const FFinalBattleResolvedCardRequirement& Requirement);
 	UFinalBattleConditionMovedCards* AddMovedCardsCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly = true, bool bRequireSourceZone = false, EFinalBattleCardZoneRule SourceZone = EFinalBattleCardZoneRule::Hand, bool bRequireDestinationZone = false, EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile);
 
 	UFinalBattleEffectDamage* AddDamageEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat, int32 HitCount = 1, const FText& Notes = FText::GetEmpty(), const FFinalBattleTargetStateRequirement* TargetStateRequirement = nullptr);

@@ -1,10 +1,8 @@
 #include "Systems/FinalBattleTriggerService.h"
 
-#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
-#include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
@@ -12,86 +10,185 @@
 
 namespace
 {
-const FName RelicTeamHealthDamageGainShieldTag(TEXT("battle.relic.trigger.player_team_took_health_damage.gain_shield"));
-const FName RelicPlayerCardResolvedDrawCardsTag(TEXT("battle.relic.trigger.player_card_resolved.draw_cards"));
-const FName RelicPlayerCardResolvedGainShieldTag(TEXT("battle.relic.trigger.player_card_resolved.gain_shield"));
+const FName OwnerTookHealthDamageTag(TEXT("battle.trigger.owner_took_health_damage"));
+const FName PlayerTeamTookHealthDamageTag(TEXT("battle.trigger.player_team_took_health_damage"));
+const FName PlayerCardResolvedTag(TEXT("battle.trigger.player_card_resolved"));
 
-bool CanTrigger(const FFinalBattleRelicRuntimeTriggerState& TriggerState)
+bool CanTrigger(const FFinalBattleRuntimeTriggerState& TriggerState)
 {
 	switch (TriggerState.TriggerDefinition.Limit)
 	{
-	case EFinalRelicTriggerLimit::OncePerPlayerTurn:
+	case EFinalRuntimeTriggerLimit::OncePerPlayerTurn:
 		return TriggerState.TriggeredCountThisPlayerTurn <= 0;
 
-	case EFinalRelicTriggerLimit::OncePerBattle:
+	case EFinalRuntimeTriggerLimit::OncePerBattle:
 		return TriggerState.TriggeredCountThisBattle <= 0;
 
-	case EFinalRelicTriggerLimit::None:
+	case EFinalRuntimeTriggerLimit::None:
 	default:
 		return true;
 	}
 }
 
-void MarkTriggered(FFinalBattleRelicRuntimeTriggerState& TriggerState)
+void MarkTriggered(FFinalBattleRuntimeTriggerState& TriggerState)
 {
 	++TriggerState.TriggeredCountThisPlayerTurn;
 	++TriggerState.TriggeredCountThisBattle;
 }
 
+FName ResolveTriggerWindowTag(const EFinalRuntimeTriggerWindow Window)
+{
+	switch (Window)
+	{
+	case EFinalRuntimeTriggerWindow::OwnerTookHealthDamage:
+		return OwnerTookHealthDamageTag;
+
+	case EFinalRuntimeTriggerWindow::PlayerTeamTookHealthDamage:
+		return PlayerTeamTookHealthDamageTag;
+
+	case EFinalRuntimeTriggerWindow::PlayerCardResolved:
+		return PlayerCardResolvedTag;
+
+	default:
+		return NAME_None;
+	}
+}
+
 FFinalBattleEvent BuildTriggeredEvent(
 	const FFinalRelicId& RelicId,
 	const FName RelatedTag,
-	const int32 PrimaryValue,
-	const int32 SecondaryValue,
+	const FFinalBattleEffectExecutionSummary& Summary,
 	const FText& Message)
 {
 	FFinalBattleEvent RelicEvent;
 	RelicEvent.EventType = EFinalBattleEventType::RelicTriggered;
 	RelicEvent.RelicId = RelicId;
 	RelicEvent.RelatedTag = RelatedTag;
-	RelicEvent.PrimaryValue = PrimaryValue;
-	RelicEvent.SecondaryValue = SecondaryValue;
+	RelicEvent.PrimaryValue = Summary.TotalCardsDrawn > 0
+		? Summary.TotalCardsDrawn
+		: (Summary.TotalTeamShieldGained > 0 ? Summary.TotalTeamShieldGained : Summary.ResolvedEffectCount);
+	RelicEvent.SecondaryValue = Summary.TotalTeamShieldGained > 0
+		? Summary.TotalTeamShieldGained
+		: Summary.TotalDamageToEnemies;
 	RelicEvent.Message = Message;
 	return RelicEvent;
 }
 
-bool IsValidRuntimeTriggerEffect(const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition)
+bool IsValidBattleRuntimeTrigger(const FFinalRuntimeTriggerDefinition& TriggerDefinition)
 {
-	return EffectDefinition.EffectType != EFinalRelicTriggerEffectType::None
-		&& EffectDefinition.Value > 0;
+	return TriggerDefinition.Domain == EFinalRuntimeTriggerDomain::Battle
+		&& TriggerDefinition.Window != EFinalRuntimeTriggerWindow::None
+		&& !TriggerDefinition.Effects.IsEmpty();
+}
+
+FText BuildRelicTriggerMessage(
+	const FText& DisplayName,
+	const EFinalRuntimeTriggerWindow Window)
+{
+	switch (Window)
+	{
+	case EFinalRuntimeTriggerWindow::PlayerTeamTookHealthDamage:
+		return FText::Format(
+			NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerTeamTookHealthDamage", "{0} triggered after actual health loss."),
+			DisplayName);
+
+	case EFinalRuntimeTriggerWindow::PlayerCardResolved:
+		return FText::Format(
+			NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerCardResolved", "{0} triggered after a card resolved."),
+			DisplayName);
+
+	default:
+		return FText::Format(
+			NSLOCTEXT("FinalBattleTriggerService", "RelicTriggerGeneric", "{0} triggered in the current battle window."),
+			DisplayName);
+	}
+}
+
+bool ExecuteRuntimeTriggerEffects(
+	FFinalBattleState& BattleState,
+	const FFinalRuntimeTriggerDefinition& TriggerDefinition,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	const FFinalBattleResolvedCardTriggerContext* ResolvedCardContext,
+	const FFinalBattleConditionService& ConditionService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
+	const FFinalBattleUnitService& UnitService,
+	FFinalBattleEffectExecutionSummary& OutSummary)
+{
+	FFinalBattleConditionEvaluationContext ConditionContext;
+	ConditionContext.BattleState = &BattleState;
+	ConditionContext.CardService = nullptr;
+	ConditionContext.ResolvedCardContext = ResolvedCardContext;
+	ConditionContext.SourceOwnerUnitId = SourceCharacterState != nullptr
+		? SourceCharacterState->RuntimeUnitId
+		: (ResolvedCardContext != nullptr ? ResolvedCardContext->RuntimeOwnerUnitId : NAME_None);
+
+	if (!ConditionService.SatisfiesConditions(TriggerDefinition.Conditions, ConditionContext))
+	{
+		return false;
+	}
+
+	return EffectExecutionService.ExecuteEffectList(
+		BattleState,
+		TriggerDefinition.Effects,
+		nullptr,
+		nullptr,
+		SourceCharacterState,
+		nullptr,
+		UnitService,
+		OutSummary);
 }
 }
 
 void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 	FFinalBattleState& BattleState,
 	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleConditionService& ConditionService,
 	const FFinalBattleEffectExecutionService& EffectExecutionService,
 	FFinalBattleEffectExecutionSummary& InOutSummary) const
 {
-	for (const FFinalBattleCharacterState& CharacterState : BattleState.Characters)
+	for (FFinalBattleCharacterState& CharacterState : BattleState.Characters)
 	{
 		if (CharacterState.bCollapsed)
 		{
 			continue;
 		}
 
-		for (const FFinalBattleTriggerDefinition& TriggerDefinition : CharacterState.BattleTriggers)
+		for (FFinalBattleRuntimeTriggerState& TriggerState : CharacterState.TriggerStates)
 		{
-			if (TriggerDefinition.TriggerWindow != EFinalBattleTriggerWindow::OwnerTookHealthDamage
-				|| TriggerDefinition.Effects.IsEmpty())
+			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::OwnerTookHealthDamage
+				|| !IsValidBattleRuntimeTrigger(TriggerDefinition)
+				|| !CanTrigger(TriggerState))
 			{
 				continue;
 			}
 
-			EffectExecutionService.ExecuteEffectList(
+			FFinalBattleEffectExecutionSummary TriggerSummary;
+			if (!ExecuteRuntimeTriggerEffects(
 				BattleState,
-				TriggerDefinition.Effects,
-				nullptr,
-				nullptr,
+				TriggerDefinition,
 				&CharacterState,
 				nullptr,
+				ConditionService,
+				EffectExecutionService,
 				UnitService,
-				InOutSummary);
+				TriggerSummary))
+			{
+				continue;
+			}
+
+			MarkTriggered(TriggerState);
+			InOutSummary.TotalDamageToEnemies += TriggerSummary.TotalDamageToEnemies;
+			InOutSummary.TotalDamageToTeam += TriggerSummary.TotalDamageToTeam;
+			InOutSummary.TotalBreakDamageToEnemies += TriggerSummary.TotalBreakDamageToEnemies;
+			InOutSummary.TotalHealingToTeam += TriggerSummary.TotalHealingToTeam;
+			InOutSummary.TotalTeamShieldGained += TriggerSummary.TotalTeamShieldGained;
+			InOutSummary.TotalEnemyShieldGained += TriggerSummary.TotalEnemyShieldGained;
+			InOutSummary.TotalStatusStacksApplied += TriggerSummary.TotalStatusStacksApplied;
+			InOutSummary.TotalStatusStacksRemoved += TriggerSummary.TotalStatusStacksRemoved;
+			InOutSummary.TotalCardsDrawn += TriggerSummary.TotalCardsDrawn;
+			InOutSummary.TotalAPGained += TriggerSummary.TotalAPGained;
+			InOutSummary.ResolvedEffectCount += TriggerSummary.ResolvedEffectCount;
 		}
 	}
 }
@@ -99,7 +196,9 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 void FFinalBattleTriggerService::HandlePlayerTeamTookHealthDamage(
 	FFinalBattleState& BattleState,
 	const int32 ActualHealthDamage,
-	const FFinalBattleCardService& CardService,
+	const FFinalBattleConditionService& ConditionService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
+	const FFinalBattleUnitService& UnitService,
 	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
 {
 	if (ActualHealthDamage <= 0)
@@ -114,65 +213,38 @@ void FFinalBattleTriggerService::HandlePlayerTeamTookHealthDamage(
 			continue;
 		}
 
-		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
+		for (FFinalBattleRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
 		{
-			const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
-			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerTeamTookHealthDamage
+			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::PlayerTeamTookHealthDamage
+				|| !IsValidBattleRuntimeTrigger(TriggerDefinition)
 				|| !CanTrigger(TriggerState))
 			{
 				continue;
 			}
 
-			bool bAppliedAnyEffect = false;
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
+			FFinalBattleEffectExecutionSummary TriggerSummary;
+			if (!ExecuteRuntimeTriggerEffects(
+				BattleState,
+				TriggerDefinition,
+				nullptr,
+				nullptr,
+				ConditionService,
+				EffectExecutionService,
+				UnitService,
+				TriggerSummary))
 			{
-				if (!IsValidRuntimeTriggerEffect(EffectDefinition))
-				{
-					continue;
-				}
-
-				switch (EffectDefinition.EffectType)
-				{
-				case EFinalRelicTriggerEffectType::GainShield:
-					BattleState.TeamShield += EffectDefinition.Value;
-					OutGeneratedEvents.Add(BuildTriggeredEvent(
-						RuntimeState.RelicId,
-						RelicTeamHealthDamageGainShieldTag,
-						EffectDefinition.Value,
-						BattleState.TeamShield,
-						FText::Format(
-							NSLOCTEXT("FinalBattleTriggerService", "RelicTeamHealthDamageGainShield", "{0} triggered after actual health loss and granted {1} shield."),
-							RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-							FText::AsNumber(EffectDefinition.Value))));
-					bAppliedAnyEffect = true;
-					break;
-
-				case EFinalRelicTriggerEffectType::DrawCards:
-					{
-						const int32 DrawnCount = CardService.DrawCards(BattleState, EffectDefinition.Value);
-						OutGeneratedEvents.Add(BuildTriggeredEvent(
-							RuntimeState.RelicId,
-							RelicPlayerCardResolvedDrawCardsTag,
-							DrawnCount,
-							BattleState.DeckState.HandCardInstanceIds.Num(),
-							FText::Format(
-								NSLOCTEXT("FinalBattleTriggerService", "RelicTeamHealthDamageDrawCards", "{0} triggered after actual health loss and drew {1} card(s)."),
-								RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-								FText::AsNumber(DrawnCount))));
-						bAppliedAnyEffect = true;
-						break;
-					}
-
-				default:
-					break;
-				}
+				continue;
 			}
 
-			if (bAppliedAnyEffect)
-			{
-				MarkTriggered(TriggerState);
-			}
+			MarkTriggered(TriggerState);
+			OutGeneratedEvents.Add(BuildTriggeredEvent(
+				RuntimeState.RelicId,
+				ResolveTriggerWindowTag(TriggerDefinition.Window),
+				TriggerSummary,
+				BuildRelicTriggerMessage(
+					RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
+					TriggerDefinition.Window)));
 		}
 	}
 }
@@ -180,8 +252,9 @@ void FFinalBattleTriggerService::HandlePlayerTeamTookHealthDamage(
 void FFinalBattleTriggerService::HandlePlayerCardResolved(
 	FFinalBattleState& BattleState,
 	const FFinalBattleResolvedCardTriggerContext& CardContext,
-	const FFinalBattleCardService& CardService,
 	const FFinalBattleConditionService& ConditionService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
+	const FFinalBattleUnitService& UnitService,
 	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
 {
 	if (!CardContext.CardId.IsValid() || CardContext.RuntimeOwnerUnitId.IsNone())
@@ -196,66 +269,39 @@ void FFinalBattleTriggerService::HandlePlayerCardResolved(
 			continue;
 		}
 
-		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
+		for (FFinalBattleRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
 		{
-			const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
-			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerCardResolved
-				|| !CanTrigger(TriggerState)
-				|| !ConditionService.SatisfiesResolvedCardCondition(TriggerDefinition.CardCondition, CardContext))
+			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::PlayerCardResolved
+				|| !IsValidBattleRuntimeTrigger(TriggerDefinition)
+				|| !CanTrigger(TriggerState))
 			{
 				continue;
 			}
 
-			bool bAppliedAnyEffect = false;
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
+			const FFinalBattleCharacterState* SourceCharacterState = UnitService.FindCharacterState(BattleState, CardContext.RuntimeOwnerUnitId);
+			FFinalBattleEffectExecutionSummary TriggerSummary;
+			if (!ExecuteRuntimeTriggerEffects(
+				BattleState,
+				TriggerDefinition,
+				SourceCharacterState,
+				&CardContext,
+				ConditionService,
+				EffectExecutionService,
+				UnitService,
+				TriggerSummary))
 			{
-				if (!IsValidRuntimeTriggerEffect(EffectDefinition))
-				{
-					continue;
-				}
-
-				switch (EffectDefinition.EffectType)
-				{
-				case EFinalRelicTriggerEffectType::DrawCards:
-					{
-						const int32 DrawnCount = CardService.DrawCards(BattleState, EffectDefinition.Value);
-						OutGeneratedEvents.Add(BuildTriggeredEvent(
-							RuntimeState.RelicId,
-							RelicPlayerCardResolvedDrawCardsTag,
-							DrawnCount,
-							BattleState.DeckState.HandCardInstanceIds.Num(),
-							FText::Format(
-								NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerCardResolvedDrawCards", "{0} triggered after a card resolved and drew {1} card(s)."),
-								RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-								FText::AsNumber(DrawnCount))));
-						bAppliedAnyEffect = true;
-						break;
-					}
-
-				case EFinalRelicTriggerEffectType::GainShield:
-					BattleState.TeamShield += EffectDefinition.Value;
-					OutGeneratedEvents.Add(BuildTriggeredEvent(
-						RuntimeState.RelicId,
-						RelicPlayerCardResolvedGainShieldTag,
-						EffectDefinition.Value,
-						BattleState.TeamShield,
-						FText::Format(
-							NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerCardResolvedGainShield", "{0} triggered after a card resolved and granted {1} shield."),
-							RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
-							FText::AsNumber(EffectDefinition.Value))));
-					bAppliedAnyEffect = true;
-					break;
-
-				default:
-					break;
-				}
+				continue;
 			}
 
-			if (bAppliedAnyEffect)
-			{
-				MarkTriggered(TriggerState);
-			}
+			MarkTriggered(TriggerState);
+			OutGeneratedEvents.Add(BuildTriggeredEvent(
+				RuntimeState.RelicId,
+				ResolveTriggerWindowTag(TriggerDefinition.Window),
+				TriggerSummary,
+				BuildRelicTriggerMessage(
+					RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
+					TriggerDefinition.Window)));
 		}
 	}
 }

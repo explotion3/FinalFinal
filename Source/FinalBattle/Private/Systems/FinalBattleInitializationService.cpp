@@ -143,7 +143,11 @@ void FFinalBattleInitializationService::InitializeBattle(
 		CharacterState.RuntimeDefense = PartyEntry.CharacterDefinition->BaseDefense;
 		CharacterState.RuntimeBreakRate = PartyEntry.CharacterDefinition->BaseBreakRate;
 		CharacterState.UltimateId = PartyEntry.CharacterDefinition->UltimateId;
-		CharacterState.BattleTriggers = PartyEntry.CharacterDefinition->BattleTriggers;
+		for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : PartyEntry.CharacterDefinition->BattleTriggers)
+		{
+			FFinalBattleRuntimeTriggerState& TriggerState = CharacterState.TriggerStates.AddDefaulted_GetRef();
+			TriggerState.TriggerDefinition = TriggerDefinition;
+		}
 
 		if (PartyEntry.UltimateDefinition != nullptr)
 		{

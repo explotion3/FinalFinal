@@ -812,6 +812,7 @@
 * `SkillTreeId`：角色技能树定义，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `AudioProfileId`：角色音频配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `VfxProfileId`：角色特效配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
+* `BattleTriggers`：角色战斗内触发协议，复用 `RuntimeTriggerDefinition`；当前只执行 `Domain=Battle` 子集
 
 **InitialLoadoutCardEntry 最小字段**
 * `CardId`
@@ -822,6 +823,7 @@
 * `InitialLoadoutCards` 只记录角色开局自带并投入共享牌组的牌
 * `CharacterCardPoolIds` 只记录该角色后续可获得的角色卡，不记录通用卡
 * 角色专属状态统一挂在 `SignatureStatusId`
+* `BattleTriggers` 与遗物 `RuntimeTriggers` 使用同一套触发结构，避免角色被动和遗物窗口维护两套协议
 
 **最小示例**
 ```text
@@ -962,7 +964,7 @@ bCanCopy: true
 统一承载效果触发条件，避免条件字段散落到每个具体 effect 子类中。
 
 **当前 Runtime 第一阶段**
-* `UFinalBattleConditionDefinition`：抽象基类，包含 `ConditionId / Notes`，并由 C++ 类型通过 `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired` 判定上下文
+* `UFinalBattleConditionDefinition`：抽象基类，包含 `ConditionId / Notes`，并由 C++ 类型通过 `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 判定上下文
 * `UFinalBattleConditionHandCard`：承载 `FFinalBattleHandCardRequirement`
 * `UFinalBattleConditionTargetState`：承载 `FFinalBattleTargetStateRequirement`
 * `UFinalBattleConditionStatusChanged`：承载 `FFinalBattleStatusChangeRequirement`
@@ -1321,16 +1323,16 @@ Tags: [Breaker, CharacterResource]
 * `RelicThemeTags`：遗物主题标签，协议见 `8.38 RelicThemeTag`
 * `BattleStartEffects`：兼容字段，表达当前最小 battle-start 数值触发
 * `PlayerTurnStartEffects`：兼容字段，表达当前最小玩家回合开始数值触发
-* `RuntimeTriggers`：通用遗物触发协议；当前已落地 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，以及 `Domain=Battle / Window=PlayerCardResolved / CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) / Effect=DrawCards`
+* `RuntimeTriggers`：共享运行时触发协议；与角色 `BattleTriggers` 复用同一 `RuntimeTriggerDefinition`，字段为 `Domain / Window / Limit / Conditions / Effects`
 * `bUnique`：是否唯一
 * `AudioProfileId`：音频配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
 * `VfxProfileId`：特效配置，外部引用类型见 `8.41 ExternalReferenceBoundary`
 
 **说明**
-* 遗物效果统一复用 `UBattleEffectDefinition` 基类族
-* `每回合第一次 / 每场第一次` 这类限制不写死在字段名里，由运行时 `BattleRelicRuntimeState` 记录触发次数与轮次标记
-* `RuntimeTriggers` 不命名为 `BattleTriggers`，以便后续承载 Run domain；当前 `BattleStartEffects / PlayerTurnStartEffects` 仍保留兼容，后续可逐步收敛
-* `PlayerCardResolved` 的第一版条件只承载卡牌结算上下文里的最小字段：运行时 AP 费用、可选 CardType、可选 Keyword；不在遗物结算层写具体 RelicId 特判
+* 遗物触发效果统一复用 `UFinalBattleEffectDefinition` 基类族，不再维护遗物专用 `EffectType + Value` 小协议
+* `每回合第一次 / 每场第一次` 这类限制不写死在字段名里，由运行时 trigger state 记录触发次数与轮次标记
+* `RuntimeTriggers` 保留 `Domain` 字段，以便后续承载 Run domain；当前 `BattleStartEffects / PlayerTurnStartEffects` 仍保留兼容，后续可逐步收敛
+* `PlayerCardResolved` 的第一版条件通过 `UFinalBattleConditionResolvedCard` 表达，读取卡牌结算上下文里的运行时 AP 费用、可选 CardType、可选 Keyword；不在遗物结算层写具体 RelicId 特判
 * 当前首发遗物中出现的 `额外削韧 / 获得护盾 / 抽牌 / 获得 AP / 获得 EP / 回复生命 / 降低压力 / Break 后费用修正` 都必须能直接由 `Effects` 表达
 
 ### 9.9 EventDefinition
@@ -1758,13 +1760,12 @@ DamageToBreakCap: 6
 * `RelicId`
 * `DisplayId`
 * `DisplayName`
-* `RuntimeTriggers`
 * `TriggerStates`
 * `CustomCounters`（后续复杂遗物再补）
 
 **说明**
 * `BattleRelicRuntimeState` 只负责这件遗物的总运行时容器，不直接把多条效果混成一组计数
-* `每回合第一次`、`每场第一次`、`Break 后下一张攻击牌费用 -1 AP` 这类遗物效果，都优先记录在按效果拆分的运行时子状态中
+* `每回合第一次`、`每场第一次`、`Break 后下一张攻击牌费用 -1 AP` 这类遗物效果，都优先记录在按 trigger 拆分的运行时子状态中
 
 ### 10.8.1 BattleRelicEffectRuntimeState
 **用途**  

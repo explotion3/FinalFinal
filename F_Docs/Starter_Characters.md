@@ -36,7 +36,7 @@
 默认用法：
 * 获得 `刀势` 时按层数累积
 * starter 第一波 Runtime 中，`刀势` 通过已配置的霍断岳牌明确获得与消耗
-* 当前已落地的受击触发口径为：当霍断岳所属队伍生命实际受损时，霍断岳通过 `OwnerTookHealthDamage` trigger 获得 `1` 层 `刀势`
+* 当前已落地的受击触发口径为：当霍断岳所属队伍生命实际受损时，霍断岳通过共享 `RuntimeTriggerDefinition` 的 `OwnerTookHealthDamage` trigger 获得 `1` 层 `刀势`
 * 当前已落地的最小兑现口径为：被配置为“消耗刀势”的攻击牌，在消耗 `1` 层后额外造成削韧
 * 当前已落地的 Break 条件口径为：`Damage` effect 通过 `Effect.Conditions[]` 里的 `TargetState` 条件要求目标敌人处于 Break；霍断岳奥义已用该协议兑现 Break 目标额外伤害
 

@@ -268,7 +268,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, GetUnitService(), Summary);
 
 	TArray<FFinalBattleEvent> RelicEvents;
-	GetTriggerService().HandlePlayerCardResolved(State, RelicCardContext, GetCardService(), GetConditionService(), RelicEvents);
+	GetTriggerService().HandlePlayerCardResolved(State, RelicCardContext, GetConditionService(), GetEffectExecutionService(), GetUnitService(), RelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 	{
 		GetEventService().AppendBattleEvent(State, RelicEvent);

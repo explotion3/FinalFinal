@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
-#include "Run/Definitions/FinalRelicRuntimeTriggerTypes.h"
+#include "Battle/Conditions/Requirements/FinalBattleResolvedCardRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "Battle/Conditions/Requirements/FinalBattleStatusChangeRequirement.h"
 

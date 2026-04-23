@@ -29,19 +29,23 @@ public:
 	void HandleOwnerTookHealthDamage(
 		FFinalBattleState& BattleState,
 		const FFinalBattleUnitService& UnitService,
+		const FFinalBattleConditionService& ConditionService,
 		const FFinalBattleEffectExecutionService& EffectExecutionService,
 		FFinalBattleEffectExecutionSummary& InOutSummary) const;
 
 	void HandlePlayerTeamTookHealthDamage(
 		FFinalBattleState& BattleState,
 		int32 ActualHealthDamage,
-		const FFinalBattleCardService& CardService,
+		const FFinalBattleConditionService& ConditionService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService,
+		const FFinalBattleUnitService& UnitService,
 		TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
 
 	void HandlePlayerCardResolved(
 		FFinalBattleState& BattleState,
 		const FFinalBattleResolvedCardTriggerContext& CardContext,
-		const FFinalBattleCardService& CardService,
 		const FFinalBattleConditionService& ConditionService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService,
+		const FFinalBattleUnitService& UnitService,
 		TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
 };

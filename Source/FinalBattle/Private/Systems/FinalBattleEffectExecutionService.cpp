@@ -486,13 +486,13 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 	if (HpDamage > 0)
 	{
 		TArray<FFinalBattleEvent> RelicEvents;
-		TriggerService.HandlePlayerTeamTookHealthDamage(State, HpDamage, GetCardService(), RelicEvents);
+		TriggerService.HandlePlayerTeamTookHealthDamage(State, HpDamage, GetConditionService(), EffectExecutionService, UnitService, RelicEvents);
 		for (const FFinalBattleEvent& RelicEvent : RelicEvents)
 		{
 			GetEventService().AppendBattleEvent(State, RelicEvent);
 		}
 
-		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, EffectExecutionService, Summary);
+		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
 	}
 	return HpDamage;
 }

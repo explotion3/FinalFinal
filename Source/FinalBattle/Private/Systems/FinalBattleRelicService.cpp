@@ -1,5 +1,6 @@
 #include "Systems/FinalBattleRelicService.h"
 
+#include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
 
@@ -44,30 +45,16 @@ FFinalBattleEvent BuildRelicTriggeredEvent(
 	return RelicEvent;
 }
 
-bool IsValidRuntimeTriggerEffect(const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition)
+bool IsSupportedBattleRuntimeTrigger(const FFinalRuntimeTriggerDefinition& TriggerDefinition)
 {
-	return EffectDefinition.EffectType != EFinalRelicTriggerEffectType::None
-		&& EffectDefinition.Value > 0;
-}
-
-bool IsSupportedBattleRuntimeTrigger(const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition)
-{
-	if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-		|| TriggerDefinition.Window == EFinalRelicTriggerWindow::None
+	if (TriggerDefinition.Domain != EFinalRuntimeTriggerDomain::Battle
+		|| TriggerDefinition.Window == EFinalRuntimeTriggerWindow::None
 		|| TriggerDefinition.Effects.IsEmpty())
 	{
 		return false;
 	}
 
-	for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
-	{
-		if (IsValidRuntimeTriggerEffect(EffectDefinition))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return true;
 }
 
 }
@@ -99,7 +86,7 @@ void FFinalBattleRelicService::InitializeRelics(
 
 		TArray<FFinalBattleStartRelicEffectInput> ValidBattleStartEffects;
 		TArray<FFinalBattlePlayerTurnStartRelicEffectInput> ValidTurnStartEffects;
-		TArray<FFinalRelicRuntimeTriggerDefinition> ValidRuntimeTriggers;
+		TArray<FFinalRuntimeTriggerDefinition> ValidRuntimeTriggers;
 
 		for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput.BattleStartEffects)
 		{
@@ -153,23 +140,14 @@ void FFinalBattleRelicService::InitializeRelics(
 			ValidTurnStartEffects.Add(EffectInput);
 		}
 
-		for (const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition : RelicInput.RuntimeTriggers)
+		for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : RelicInput.RuntimeTriggers)
 		{
 			if (!IsSupportedBattleRuntimeTrigger(TriggerDefinition))
 			{
 				continue;
 			}
 
-			FFinalRelicRuntimeTriggerDefinition ValidTrigger = TriggerDefinition;
-			ValidTrigger.Effects.Reset();
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
-			{
-				if (IsValidRuntimeTriggerEffect(EffectDefinition))
-				{
-					ValidTrigger.Effects.Add(EffectDefinition);
-				}
-			}
-			ValidRuntimeTriggers.Add(MoveTemp(ValidTrigger));
+			ValidRuntimeTriggers.Add(TriggerDefinition);
 		}
 
 		if (ValidBattleStartEffects.IsEmpty()
@@ -190,11 +168,9 @@ void FFinalBattleRelicService::InitializeRelics(
 			RuntimeState.RelicId = RelicInput.RelicId;
 			RuntimeState.DisplayId = RelicInput.DisplayId;
 			RuntimeState.DisplayName = RelicInput.DisplayName;
-			RuntimeState.RuntimeTriggers = MoveTemp(ValidRuntimeTriggers);
-
-			for (const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition : RuntimeState.RuntimeTriggers)
+			for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : ValidRuntimeTriggers)
 			{
-				FFinalBattleRelicRuntimeTriggerState& TriggerState = RuntimeState.TriggerStates.AddDefaulted_GetRef();
+				FFinalBattleRuntimeTriggerState& TriggerState = RuntimeState.TriggerStates.AddDefaulted_GetRef();
 				TriggerState.TriggerDefinition = TriggerDefinition;
 			}
 		}
@@ -259,9 +235,20 @@ void FFinalBattleRelicService::ResetPlayerTurnTriggerCounts(FFinalBattleState& B
 {
 	for (FFinalBattleRelicRuntimeState& RuntimeState : BattleState.RelicRuntimeStates)
 	{
-		for (FFinalBattleRelicRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
+		for (FFinalBattleRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
 		{
-			if (TriggerState.TriggerDefinition.Limit == EFinalRelicTriggerLimit::OncePerPlayerTurn)
+			if (TriggerState.TriggerDefinition.Limit == EFinalRuntimeTriggerLimit::OncePerPlayerTurn)
+			{
+				TriggerState.TriggeredCountThisPlayerTurn = 0;
+			}
+		}
+	}
+
+	for (FFinalBattleCharacterState& CharacterState : BattleState.Characters)
+	{
+		for (FFinalBattleRuntimeTriggerState& TriggerState : CharacterState.TriggerStates)
+		{
+			if (TriggerState.TriggerDefinition.Limit == EFinalRuntimeTriggerLimit::OncePerPlayerTurn)
 			{
 				TriggerState.TriggeredCountThisPlayerTurn = 0;
 			}

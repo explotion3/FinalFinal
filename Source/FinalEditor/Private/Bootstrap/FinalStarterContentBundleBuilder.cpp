@@ -6,10 +6,11 @@
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
-#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
@@ -241,14 +242,19 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBronzeMirrorGuardRelic->PlayerTurnStartEffects.Reset();
 	StarterBronzeMirrorGuardRelic->RuntimeTriggers.Reset();
 	{
-		FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = StarterBronzeMirrorGuardRelic->RuntimeTriggers.AddDefaulted_GetRef();
-		TriggerDefinition.Domain = EFinalRelicTriggerDomain::Battle;
-		TriggerDefinition.Window = EFinalRelicTriggerWindow::PlayerTeamTookHealthDamage;
-		TriggerDefinition.Limit = EFinalRelicTriggerLimit::OncePerPlayerTurn;
-
-		FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition = TriggerDefinition.Effects.AddDefaulted_GetRef();
-		EffectDefinition.EffectType = EFinalRelicTriggerEffectType::GainShield;
-		EffectDefinition.Value = 8;
+		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterBronzeMirrorGuardRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRuntimeTriggerWindow::PlayerTeamTookHealthDamage;
+		TriggerDefinition.Limit = EFinalRuntimeTriggerLimit::OncePerPlayerTurn;
+		AddShieldEffect(
+			StarterBronzeMirrorGuardRelic,
+			TriggerDefinition.Effects,
+			TEXT("effect.starter.relic.bronze_mirror_guard.shield"),
+			EFinalBattleUnitTargetRule::TeamPlayer,
+			8.0f,
+			EFinalBattleScalarMode::Flat,
+			EFinalBattleSourceStat::None,
+			FText::FromString(TEXT("每回合第一次承受实际生命损失后，获得 8 护盾。")));
 	}
 	TrackPackage(StarterBronzeMirrorGuardRelic, PackagesToSave);
 
@@ -262,16 +268,22 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterTokenZeroDrawRelic->PlayerTurnStartEffects.Reset();
 	StarterTokenZeroDrawRelic->RuntimeTriggers.Reset();
 	{
-		FFinalRelicRuntimeTriggerDefinition& TriggerDefinition = StarterTokenZeroDrawRelic->RuntimeTriggers.AddDefaulted_GetRef();
-		TriggerDefinition.Domain = EFinalRelicTriggerDomain::Battle;
-		TriggerDefinition.Window = EFinalRelicTriggerWindow::PlayerCardResolved;
-		TriggerDefinition.Limit = EFinalRelicTriggerLimit::OncePerPlayerTurn;
-		TriggerDefinition.CardCondition.bRequireCardCostAP = true;
-		TriggerDefinition.CardCondition.RequiredCardCostAP = 0;
+		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterTokenZeroDrawRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRuntimeTriggerWindow::PlayerCardResolved;
+		TriggerDefinition.Limit = EFinalRuntimeTriggerLimit::OncePerPlayerTurn;
 
-		FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition = TriggerDefinition.Effects.AddDefaulted_GetRef();
-		EffectDefinition.EffectType = EFinalRelicTriggerEffectType::DrawCards;
-		EffectDefinition.Value = 1;
+		FFinalBattleResolvedCardRequirement ResolvedCardRequirement;
+		ResolvedCardRequirement.bRequireCardCostAP = true;
+		ResolvedCardRequirement.RequiredCardCostAP = 0;
+		AddResolvedCardCondition(StarterTokenZeroDrawRelic, TriggerDefinition.Conditions, ResolvedCardRequirement);
+
+		AddDrawEffect(
+			StarterTokenZeroDrawRelic,
+			TriggerDefinition.Effects,
+			TEXT("effect.starter.relic.token_zero_draw.draw"),
+			1,
+			FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。")));
 	}
 	TrackPackage(StarterTokenZeroDrawRelic, PackagesToSave);
 
@@ -380,8 +392,10 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoCharacter->SignatureStatusId = StarterHuoStatus->StatusId;
 	StarterHuoCharacter->BattleTriggers.Reset();
 	{
-		FFinalBattleTriggerDefinition& TookDamageTrigger = StarterHuoCharacter->BattleTriggers.AddDefaulted_GetRef();
-		TookDamageTrigger.TriggerWindow = EFinalBattleTriggerWindow::OwnerTookHealthDamage;
+		FFinalRuntimeTriggerDefinition& TookDamageTrigger = StarterHuoCharacter->BattleTriggers.AddDefaulted_GetRef();
+		TookDamageTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TookDamageTrigger.Window = EFinalRuntimeTriggerWindow::OwnerTookHealthDamage;
+		TookDamageTrigger.Limit = EFinalRuntimeTriggerLimit::None;
 		AddApplyStatusEffect(
 			StarterHuoCharacter,
 			TookDamageTrigger.Effects,

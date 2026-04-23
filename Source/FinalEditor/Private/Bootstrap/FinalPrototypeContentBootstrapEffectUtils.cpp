@@ -3,10 +3,10 @@
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
-#include "Battle/Definitions/FinalBattleTriggerDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
@@ -206,6 +206,23 @@ namespace FinalPrototypeContentBootstrap
 		Condition->Requirement.MinimumCount = FMath::Max(MinimumCount, 1);
 		Condition->Requirement.bGeneratedOnly = bGeneratedOnly;
 		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
+	UFinalBattleConditionResolvedCard* AddResolvedCardCondition(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions,
+		const FFinalBattleResolvedCardRequirement& Requirement)
+	{
+		if (Owner == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionResolvedCard* Condition = NewObject<UFinalBattleConditionResolvedCard>(Owner);
+		Condition->ConditionId = TEXT("condition.resolved_card");
+		Condition->Requirement = Requirement;
+		Conditions.Add(Condition);
 		return Condition;
 	}
 

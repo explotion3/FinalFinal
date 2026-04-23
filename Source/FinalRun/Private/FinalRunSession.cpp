@@ -373,31 +373,16 @@ TArray<FFinalBattleStartRelicInput> BuildBattleStartRelicInputs(const FFinalRunS
 			RelicInput.PlayerTurnStartEffects.Add(EffectInput);
 		}
 
-		for (const FFinalRelicRuntimeTriggerDefinition& TriggerDefinition : RelicDefinition->RuntimeTriggers)
+		for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : RelicDefinition->RuntimeTriggers)
 		{
-			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
-				|| TriggerDefinition.Window == EFinalRelicTriggerWindow::None
+			if (TriggerDefinition.Domain != EFinalRuntimeTriggerDomain::Battle
+				|| TriggerDefinition.Window == EFinalRuntimeTriggerWindow::None
 				|| TriggerDefinition.Effects.IsEmpty())
 			{
 				continue;
 			}
 
-			FFinalRelicRuntimeTriggerDefinition TriggerInput = TriggerDefinition;
-			TriggerInput.Effects.Reset();
-			for (const FFinalRelicRuntimeTriggerEffectDefinition& EffectDefinition : TriggerDefinition.Effects)
-			{
-				if (EffectDefinition.EffectType == EFinalRelicTriggerEffectType::None || EffectDefinition.Value <= 0)
-				{
-					continue;
-				}
-
-				TriggerInput.Effects.Add(EffectDefinition);
-			}
-
-			if (!TriggerInput.Effects.IsEmpty())
-			{
-				RelicInput.RuntimeTriggers.Add(MoveTemp(TriggerInput));
-			}
+			RelicInput.RuntimeTriggers.Add(TriggerDefinition);
 		}
 
 		if (RelicInput.BattleStartEffects.Num() > 0

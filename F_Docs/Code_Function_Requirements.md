@@ -148,10 +148,10 @@
 * 处理遗物触发窗口
 * 记录每回合、每战斗、每效果的触发次数
 * 不允许遗物直接绕过命令与规则结算层改状态
-* 当前最小竖切至少支持两类小窗口遗物协议，并已开始补 `RuntimeTriggers` 通用协议：
+* 当前最小竖切至少支持共享 `RuntimeTriggers` 协议，并已让角色 `BattleTriggers` 与遗物 `RuntimeTriggers` 复用同一套 trigger schema：
 * `battle-start`：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
 * `player-turn-start`：由 `RelicDefinition` 提供少量玩家回合开始 effect，在 Battle 初始化后保留到权威状态，并在玩家回合开始窗口真实落地并写入 `BattleEvent`
-* `RuntimeTriggers`：通用遗物触发协议，不命名为 BattleTriggers；当前支持 `Domain=Battle / Window=PlayerTeamTookHealthDamage / Effect=GainShield`，以及 `Domain=Battle / Window=PlayerCardResolved / CardCondition(RuntimeCostAP 等于指定值，可选 CardType / Keyword) / Effect=DrawCards`；由 `FinalBattleTriggerService` 读取私有 `BattleRelicRuntimeState` 计数并写入 `RelicTriggered`
+* `RuntimeTriggers`：共享运行时触发协议，字段固定为 `Domain / Window / Limit / Conditions / Effects`；当前支持 `OwnerTookHealthDamage`、`PlayerTeamTookHealthDamage`、`PlayerCardResolved` 三个 Battle 窗口，触发效果统一使用 `UFinalBattleEffectDefinition`，卡牌结算条件使用 `UFinalBattleConditionResolvedCard`
 
 优先级：
 * `P1`
@@ -194,8 +194,8 @@
   * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
   * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
 * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、runtime trigger 计数重置与 `ActiveRelics` 投影维护
-* `FinalBattleTriggerService`：Battle 内 trigger window 分发与执行，当前统一承接 `OwnerTookHealthDamage / PlayerTeamTookHealthDamage / PlayerCardResolved`
-  * `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired` 三类上下文，并供 `Effect.Conditions[]` 与 relic card trigger 复用同一套运行时判断基础
+* `FinalBattleTriggerService`：Battle 内 trigger window 分发与执行，当前统一承接角色与遗物的 `OwnerTookHealthDamage / PlayerTeamTookHealthDamage / PlayerCardResolved`
+* `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 四类上下文，并供 `Effect.Conditions[]` 与 runtime trigger 条件复用同一套运行时判断基础
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
   * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
   * `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
@@ -277,13 +277,13 @@
 * 当前已开始录入真实 starter content：`FinalPrototypeContentBootstrap` 会同时刷新 `/Game/Prototype/Definitions/Starter/...` 下的 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些内容仍通过 `FinalDataRegistry` 与 Editor validation 进入现有数据驱动体系，不回写成 `FinalApp` 或规则层硬编码
 * starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制收回 Runtime：当前 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，starter 资产中的 Huo / Ye 相关卡牌与奥义不再只靠文本占位
 * starter content 当前已把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`布锋` 随机生成衍生剑阵牌、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为 battle 内衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌后兑现伤害/抽牌
-* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / StatusChanged / MovedCards` 四类内联条件对象；`FinalData` 只定义条件数据，运行时求值统一收口到 `FinalBattleConditionService`。每个 condition 类通过 C++ `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired`，由 service 明确分派到 source / target / chain-record 三类判断路径；其中 `StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的真实链路记录
+* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / StatusChanged / MovedCards` 四类内联条件对象，runtime trigger 还复用 `ResolvedCard` 条件；`FinalData` 只定义条件数据，运行时求值统一收口到 `FinalBattleConditionService`。每个 condition 类通过 C++ `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard`，由 service 明确分派到 source / target / chain-record / resolved-card 四类判断路径；其中 `StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的真实链路记录
 * Battle 当前还把 effect list scratch state 显式拆成 `ChainRecord` 与 `Transient` 两层：只有 `StatusChanged / MovedCards` 这类后续 condition 需要读取的真实事实进入 `ChainRecord`，像“本条链至少成功造成过一次敌方生命伤害”这类只服务执行流程的临时标记保留在 `Transient`
 * `HandCard` 条件至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
 * starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态
 * starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
-* Battle 当前已补最小 `OwnerTookHealthDamage` 触发窗口协议：`CharacterDefinition` 可配置 battle trigger effect list，初始化时镜像到 `FinalBattleCharacterState`，当玩家共享生命实际下降时由 `FinalBattleTriggerService` 按角色顺序执行；当前 starter 已用它把霍断岳“受压得刀势”收回 Runtime
+* Battle 当前已补共享 `RuntimeTriggerDefinition`：`CharacterDefinition.BattleTriggers` 与 `RelicDefinition.RuntimeTriggers` 统一使用 `Domain / Window / Limit / Conditions / Effects`，初始化时镜像到角色或遗物 runtime trigger state；当前 starter 已用它把霍断岳“受压得刀势”、护心铜镜和阵门木签收回 Runtime
 * `TargetState` 条件可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；condition 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
 * Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime。`免疫` 仍是上位状态概念，`生命免疫` 只是当前已落地的共享生命 HP damage protection 子类
 * starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
@@ -346,14 +346,14 @@
 当前已开始落地：
 * `FinalEditor` 已建立最小 Editor-only 数据资产校验器
 * 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
-* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项、最小 relic battle-start / player-turn-start effect 合法性，以及 relic `RuntimeTriggers` 的 Domain / Window / Effects / Value 合法性；卡牌触发条件启用费用匹配时要求费用非负
+* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项、最小 relic battle-start / player-turn-start effect 合法性，以及共享 `RuntimeTriggers` 的 Domain / Window / Effects 合法性；`ResolvedCard` 条件启用费用匹配时要求费用非负
 * 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig / RunRoute` 的主 ID 是否重复
 * 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
 * 当前已补 `RunRouteDefinition` 内容一致性校验：`RouteId / EntryNodeId`、同 route 内 `NodeDefinitions[*].NodeId` 唯一性、`NextNodeIds[*]` 可达性，以及 battle / reward / event / shop 节点的最小结构合法性
 * 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并对缺失 stable id、非法 growth effect、自指升级和非正数值给出明确错误
 * 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
 * 当前已补 prototype vertical slice 的 Editor 自动化冒烟测试，覆盖 `prototype.bootstrap.test / prototype.bootstrap.starter.chapter1` 等 stable id 的发现、bootstrap 核心引用经 `FinalDataRegistry` 解析、bootstrap 启动最小 run、run 进入 battle 并执行最小推进、battle result 回写 run，以及战斗外 `ExportSaveData / RestoreFromSaveData`
-* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `EffectType != None` 且 `Value > 0`，`RuntimeTriggers` 还要求 `Domain / Window` 非空、`Effects` 非空，且启用的 `CardCondition.RequiredCardCostAP >= 0`
+* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `RuntimeTriggers` 的 `Domain / Window` 非空、`Effects` 非空，且内联 condition / effect payload 合法
 * 不做自动修复、复杂编辑器 UI、内容资产迁移，也不改变 Runtime 规则语义
 
 优先级：

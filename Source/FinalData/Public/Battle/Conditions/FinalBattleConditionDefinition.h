@@ -14,7 +14,10 @@ enum class EFinalBattleConditionContext : uint8
 	ChainRecord,
 
 	// 必须等具体目标解析完成后才能判定。
-	TargetRequired
+	TargetRequired,
+
+	// 需要读取当前 resolved-card 上下文才能判定。
+	ResolvedCard
 };
 
 UCLASS(Abstract, BlueprintType, EditInlineNew, DefaultToInstanced)

@@ -3,6 +3,7 @@
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
@@ -11,6 +12,7 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
@@ -245,6 +247,16 @@ namespace FinalDataAssetValidation
 			if (Requirement.bRequireInHand)
 			{
 				ValidatePositive(Context, bIsValid, Requirement.MinimumCount, *FString::Printf(TEXT("%s.Requirement.MinimumCount"), *FieldName));
+			}
+			return;
+		}
+
+		if (const UFinalBattleConditionResolvedCard* ResolvedCardCondition = Cast<const UFinalBattleConditionResolvedCard>(Condition))
+		{
+			const FFinalBattleResolvedCardRequirement& Requirement = ResolvedCardCondition->Requirement;
+			if (Requirement.bRequireCardCostAP)
+			{
+				ValidateNonNegative(Context, bIsValid, Requirement.RequiredCardCostAP, *FString::Printf(TEXT("%s.Requirement.RequiredCardCostAP"), *FieldName));
 			}
 			return;
 		}
@@ -530,6 +542,51 @@ namespace FinalDataAssetValidation
 		ValidateEffectConditionChain(Context, Effects, FieldName);
 	}
 
+	template<typename TriggerArrayType>
+	void ValidateRuntimeTriggerDefinitions(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const TriggerArrayType& Triggers,
+		const TCHAR* FieldName)
+	{
+		for (int32 TriggerIndex = 0; TriggerIndex < Triggers.Num(); ++TriggerIndex)
+		{
+			const FFinalRuntimeTriggerDefinition& Trigger = Triggers[TriggerIndex];
+			const FString TriggerFieldName = FString::Printf(TEXT("%s[%d]"), FieldName, TriggerIndex);
+
+			if (Trigger.Domain == EFinalRuntimeTriggerDomain::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Domain must not be None."), *TriggerFieldName));
+			}
+
+			if (Trigger.Window == EFinalRuntimeTriggerWindow::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Window must not be None."), *TriggerFieldName));
+			}
+
+			if (Trigger.Effects.IsEmpty())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Effects must contain at least one effect."), *TriggerFieldName));
+			}
+
+			for (int32 ConditionIndex = 0; ConditionIndex < Trigger.Conditions.Num(); ++ConditionIndex)
+			{
+				ValidateBattleEffectCondition(
+					Context,
+					bIsValid,
+					Trigger.Conditions[ConditionIndex].Get(),
+					FString::Printf(TEXT("%s.Conditions[%d]"), *TriggerFieldName, ConditionIndex));
+			}
+
+			ValidateEffectArray(
+				Context,
+				bIsValid,
+				Trigger.Effects,
+				*FString::Printf(TEXT("%s.Effects"), *TriggerFieldName),
+				true);
+		}
+	}
+
 	void ValidateCardDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalCardDefinition* Card)
 	{
 		if (!Card->CardId.IsValid())
@@ -601,6 +658,8 @@ namespace FinalDataAssetValidation
 		{
 			AddError(Context, bIsValid, TEXT("SignatureStatusId must be set."));
 		}
+
+		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Character->BattleTriggers, TEXT("BattleTriggers"));
 	}
 
 	void ValidateEnemyDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalEnemyDefinition* Enemy)
@@ -700,36 +759,7 @@ namespace FinalDataAssetValidation
 			ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("PlayerTurnStartEffects[%d].Value"), Index));
 		}
 
-		for (int32 TriggerIndex = 0; TriggerIndex < Relic->RuntimeTriggers.Num(); ++TriggerIndex)
-		{
-			const FFinalRelicRuntimeTriggerDefinition& Trigger = Relic->RuntimeTriggers[TriggerIndex];
-			if (Trigger.Domain == EFinalRelicTriggerDomain::None)
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Domain must not be None."), TriggerIndex));
-			}
-			if (Trigger.Window == EFinalRelicTriggerWindow::None)
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Window must not be None."), TriggerIndex));
-			}
-			if (Trigger.Effects.IsEmpty())
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Effects must contain at least one effect."), TriggerIndex));
-			}
-			if (Trigger.CardCondition.bRequireCardCostAP && Trigger.CardCondition.RequiredCardCostAP < 0)
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].CardCondition.RequiredCardCostAP must be >= 0."), TriggerIndex));
-			}
-
-			for (int32 EffectIndex = 0; EffectIndex < Trigger.Effects.Num(); ++EffectIndex)
-			{
-				const FFinalRelicRuntimeTriggerEffectDefinition& Effect = Trigger.Effects[EffectIndex];
-				if (Effect.EffectType == EFinalRelicTriggerEffectType::None)
-				{
-					AddError(Context, bIsValid, FString::Printf(TEXT("RuntimeTriggers[%d].Effects[%d].EffectType must not be None."), TriggerIndex, EffectIndex));
-				}
-				ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("RuntimeTriggers[%d].Effects[%d].Value"), TriggerIndex, EffectIndex));
-			}
-		}
+		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Relic->RuntimeTriggers, TEXT("RuntimeTriggers"));
 	}
 
 	void ValidateRuleConfig(FDataValidationContext& Context, bool& bIsValid, const UFinalBattleRuleConfig* RuleConfig)

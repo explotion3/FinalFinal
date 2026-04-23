@@ -1,9 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Ids/FinalIds.h"
 #include "Run/Definitions/FinalRelicBattleTypes.h"
-#include "Run/Definitions/FinalRelicRuntimeTriggerTypes.h"
 #include "FinalBattleRelicPayload.generated.h"
 
 USTRUCT(BlueprintType)
@@ -51,5 +51,5 @@ struct FINALDATA_API FFinalBattleStartRelicInput
 	TArray<FFinalBattlePlayerTurnStartRelicEffectInput> PlayerTurnStartEffects;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Relic")
-	TArray<FFinalRelicRuntimeTriggerDefinition> RuntimeTriggers;
+	TArray<FFinalRuntimeTriggerDefinition> RuntimeTriggers;
 };

@@ -10,6 +10,10 @@ struct FFinalBattleCardInstance;
 class FFinalBattleConditionService
 {
 public:
+	bool SatisfiesConditions(
+		const TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions,
+		const FFinalBattleConditionEvaluationContext& Context) const;
+
 	bool SatisfiesSourceAndChainConditions(
 		const UFinalBattleEffectDefinition* EffectDefinition,
 		const FFinalBattleConditionEvaluationContext& Context) const;
@@ -21,10 +25,6 @@ public:
 	bool SatisfiesAllEffectConditions(
 		const UFinalBattleEffectDefinition* EffectDefinition,
 		const FFinalBattleConditionEvaluationContext& Context) const;
-
-	bool SatisfiesResolvedCardCondition(
-		const FFinalRelicRuntimeCardConditionDefinition& CardCondition,
-		const FFinalBattleResolvedCardTriggerContext& CardContext) const;
 
 	void RecordStatusChange(
 		FFinalBattleEffectChainRecordContext& ChainRecords,

@@ -5,7 +5,7 @@
 #include "Ids/FinalIds.h"
 #include "Types/FinalCoreTypes.h"
 #include "Run/Definitions/FinalRelicBattleTypes.h"
-#include "Run/Definitions/FinalRelicRuntimeTriggerTypes.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "FinalRelicDefinition.generated.h"
 
 UCLASS(BlueprintType)
@@ -36,5 +36,5 @@ public:
 	TArray<FFinalRelicPlayerTurnStartEffectDefinition> PlayerTurnStartEffects;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
-	TArray<FFinalRelicRuntimeTriggerDefinition> RuntimeTriggers;
+	TArray<FFinalRuntimeTriggerDefinition> RuntimeTriggers;
 };
