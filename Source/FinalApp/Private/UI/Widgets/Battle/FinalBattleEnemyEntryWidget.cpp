@@ -3,8 +3,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "UI/Screens/Battle/FinalBattleHUDScreen.h"
-#include "ViewModels/FinalBattleHUDViewModel.h"
+#include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
 {
@@ -44,9 +44,9 @@ void UFinalBattleEnemyEntryWidget::NativeOnInitialized()
 	}
 }
 
-void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScreen, const FFinalBattleHUDEnemyEntry& InEntry)
+void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleEnemyPanelController* InController, const FFinalBattleHUDEnemyEntry& InEntry)
 {
-	OwningBattleHUDScreen = InOwningScreen;
+	PanelController = InController;
 	RuntimeUnitId = InEntry.RuntimeUnitId;
 	const FText PhaseText = !InEntry.PhaseProgressText.IsEmpty()
 		? InEntry.PhaseProgressText
@@ -72,9 +72,9 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScre
 
 void UFinalBattleEnemyEntryWidget::HandleButtonClicked()
 {
-	if (OwningBattleHUDScreen.IsValid())
+	if (PanelController.IsValid())
 	{
-		OwningBattleHUDScreen->HandleEnemySelected(RuntimeUnitId);
+		PanelController->SelectEnemyByUnitId(RuntimeUnitId);
 	}
 }
 

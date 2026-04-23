@@ -3,8 +3,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "UI/Screens/Battle/FinalBattleHUDScreen.h"
-#include "ViewModels/FinalBattleHUDViewModel.h"
+#include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 void UFinalBattleCardEntryWidget::NativeOnInitialized()
 {
@@ -25,9 +25,9 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 	}
 }
 
-void UFinalBattleCardEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScreen, int32 InHandIndex, const FFinalBattleHUDCardEntry& InEntry)
+void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InController, int32 InHandIndex, const FFinalBattleHUDCardEntry& InEntry)
 {
-	OwningBattleHUDScreen = InOwningScreen;
+	PanelController = InController;
 	HandIndex = InHandIndex;
 	TArray<FString> MetaSegments;
 	if (InEntry.bRetained)
@@ -63,9 +63,9 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScree
 
 void UFinalBattleCardEntryWidget::HandleButtonClicked()
 {
-	if (OwningBattleHUDScreen.IsValid())
+	if (PanelController.IsValid())
 	{
-		OwningBattleHUDScreen->HandlePlayCard(HandIndex);
+		PanelController->PlayCardByHandIndex(HandIndex);
 	}
 }
 

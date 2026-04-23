@@ -3,7 +3,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
-#include "ViewModels/FinalBattleHUDViewModel.h"
+#include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
 {

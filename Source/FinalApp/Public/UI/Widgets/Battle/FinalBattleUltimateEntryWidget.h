@@ -6,8 +6,7 @@
 
 class UButton;
 class UTextBlock;
-class UFinalBattleHUDScreen;
-struct FFinalBattleHUDUltimateEntry;
+class UFinalBattleUltimatePanelController;
 
 UCLASS()
 class FINALAPP_API UFinalBattleUltimateEntryWidget : public UFinalWidgetBase
@@ -17,7 +16,7 @@ class FINALAPP_API UFinalBattleUltimateEntryWidget : public UFinalWidgetBase
 public:
 	virtual void NativeOnInitialized() override;
 
-	void Configure(UFinalBattleHUDScreen* InOwningScreen, int32 InCharacterIndex, const FFinalBattleHUDUltimateEntry& InEntry);
+	void Configure(UFinalBattleUltimatePanelController* InController, int32 InCharacterIndex, const struct FFinalBattleHUDUltimateEntry& InEntry);
 
 private:
 	UFUNCTION()
@@ -25,7 +24,7 @@ private:
 
 	void RebuildVisual();
 
-	TWeakObjectPtr<UFinalBattleHUDScreen> OwningBattleHUDScreen;
+	TWeakObjectPtr<UFinalBattleUltimatePanelController> PanelController;
 
 	int32 CharacterIndex = INDEX_NONE;
 	FText CachedLabel;

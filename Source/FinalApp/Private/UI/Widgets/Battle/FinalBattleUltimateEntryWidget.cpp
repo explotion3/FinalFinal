@@ -3,8 +3,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "UI/Screens/Battle/FinalBattleHUDScreen.h"
-#include "ViewModels/FinalBattleHUDViewModel.h"
+#include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
 {
@@ -45,9 +45,9 @@ void UFinalBattleUltimateEntryWidget::NativeOnInitialized()
 	}
 }
 
-void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleHUDScreen* InOwningScreen, int32 InCharacterIndex, const FFinalBattleHUDUltimateEntry& InEntry)
+void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleUltimatePanelController* InController, int32 InCharacterIndex, const FFinalBattleHUDUltimateEntry& InEntry)
 {
-	OwningBattleHUDScreen = InOwningScreen;
+	PanelController = InController;
 	CharacterIndex = InCharacterIndex;
 	bEnabled = InEntry.bEnabled;
 	bBlockedByCollapse = InEntry.bBlockedByCollapse;
@@ -70,9 +70,9 @@ void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleHUDScreen* InOwningS
 
 void UFinalBattleUltimateEntryWidget::HandleButtonClicked()
 {
-	if (bEnabled && OwningBattleHUDScreen.IsValid())
+	if (bEnabled && PanelController.IsValid())
 	{
-		OwningBattleHUDScreen->HandlePlayUltimate(CharacterIndex);
+		PanelController->PlayUltimateByCharacterIndex(CharacterIndex);
 	}
 }
 

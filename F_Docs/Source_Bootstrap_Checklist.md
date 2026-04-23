@@ -225,7 +225,9 @@
 
 说明：
 * 当前这批类已不再只是预留空壳，已经能承接首轮 Battle HUD
-* 现有 `FinalBattleWidgetController + FinalBattleHUDViewModel` 仍作为聚合入口
+* `FinalBattleWidgetController + FinalBattleHUDViewModel` 仍作为 Battle HUD 根聚合入口，但当前已进一步下分到 panel controller / panel view model 树
+* `BattleHUDScreen` 当前已退化为 shell，只负责根布局与 panel 装配；不再自己刷新角色/敌人/手牌/奥义/最近事件细节
+* `TopBar / Feedback / Context / Character / Enemy / Hand / Ultimate / RecentEvent / Action` 九个 panel 当前各自订阅自己的子 view model，并通过 panel controller 接收局部展示数据与命令委托
 * 旧 `Public/Controllers`、`Public/ViewModels` 与新 `Public/UI/...` 当前并存，后续再逐步迁移
 
 #### 首批目标
@@ -322,12 +324,11 @@
 * `Source/FinalApp/Public/UI/Screens/FinalOverlayScreenBase.h`
 * `Source/FinalApp/Public/UI/Screens/FinalModalScreenBase.h`
 * `Source/FinalApp/Public/UI/Root/FinalUIRootLayout.h` 的通用 Overlay / Modal 容器能力
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleTopBarPanel.h`
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattlePartyPanel.h`
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleEnemyListPanel.h`
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleHandPanel.h`
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleLogPanel.h`
-* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleUltimateBarPanel.h`
+* `Source/FinalApp/Public/UI/Panels/Battle/FinalBattleHUDPanels.h`
+  * `TopBar / Feedback / Context / Character / Enemy / Hand / Ultimate / RecentEvent / Action` 九个 panel widget
+* `Source/FinalApp/Public/UI/ViewModels/Battle/FinalBattleHUDTypes.h`
+* `Source/FinalApp/Public/UI/ViewModels/Battle/FinalBattleHUDPanelViewModels.h`
+* `Source/FinalApp/Public/Controllers/Battle/FinalBattleHUDPanelControllers.h`
 
 ---
 
@@ -424,6 +425,7 @@
 * `UISubsystem` 当前还会预创建只读 `FinalBattleEventScreen`，用于按事件序号查看最近 BattleEvent；它通过 `FinalBattleFlowSubsystem` 转发的 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence` 驱动刷新，并作为按需打开的 overlay 使用
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，`BattleHUD` 顶部反馈、`BattleHUD` 日志区、`PrototypeRunDebugScreen` 的最新 Battle 事件摘要、`FinalBattleEventScreen` 账本文本、`BattleDirector` 的世界提示都优先共用这套 helper
 * `BattleHUDScreen` 当前默认只保留主战斗信息、命令入口、最近事件摘要与打开 debug / ledger overlay 的最小按钮，不再把 run 调试摘要和完整事件账本常驻混排到主 HUD
+* `FinalBattleWidgetController` 当前仍是 BattleFlow 的唯一订阅点，并把缓存的 `Snapshot / BattleEvents / SelectedEnemy / LastInteractionFeedback` 分发给 panel controllers；panel controllers 只做局部展示组装和命令委托，不各自直接订阅 subsystem
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * 本轮启动性能验证命令：`Build.bat FinalFinalEditor Win64 Development`、`UnrealEditor-Cmd.exe -run=FinalPrototypeContentBootstrap`、`UnrealEditor-Cmd.exe -run=DataValidation -ProjectOnly`、`Automation RunTests Final.Editor.PrototypeSmoke`
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象

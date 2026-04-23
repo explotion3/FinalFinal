@@ -630,7 +630,9 @@
 * UI 页面栈、输入模式、焦点恢复必须集中由 `FinalApp` 管理
 * 战斗事件日志必须能继续服务动画、音效、调试面板和回放
 * 世界桥接层必须允许替换表现 Actor 而不影响规则层
-* 首轮代码生成的 `BattleHUDScreen` 只是承接层，后续替换成 Widget Blueprint 不应改变 `WidgetController / ViewModel` 合约
+* `BattleHUDScreen` 当前已收口为 shell：只负责 layout 和 panel 装配；后续替换成 Widget Blueprint 不应改变 `WidgetController / ViewModel` 合约
+* `FinalBattleWidgetController` 当前作为 Battle HUD coordinator 统一订阅 `BattleFlowSubsystem`，panel controller 不各自持有 Battle 真相或重复订阅流程事件
+* Battle HUD 当前已拆成 `PanelWidget + 子ViewModel + 子Controller`：panel 自己订阅自己的 view model，screen 不再直接刷新角色/敌人/手牌/奥义/最近事件细节
 
 ### 12.4 工程侧
 * 模块间不通过 include 私有实现偷引用

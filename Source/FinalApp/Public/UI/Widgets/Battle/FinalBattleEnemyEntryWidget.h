@@ -6,8 +6,7 @@
 
 class UButton;
 class UTextBlock;
-class UFinalBattleHUDScreen;
-struct FFinalBattleHUDEnemyEntry;
+class UFinalBattleEnemyPanelController;
 
 UCLASS()
 class FINALAPP_API UFinalBattleEnemyEntryWidget : public UFinalWidgetBase
@@ -17,7 +16,7 @@ class FINALAPP_API UFinalBattleEnemyEntryWidget : public UFinalWidgetBase
 public:
 	virtual void NativeOnInitialized() override;
 
-	void Configure(UFinalBattleHUDScreen* InOwningScreen, const FFinalBattleHUDEnemyEntry& InEntry);
+	void Configure(UFinalBattleEnemyPanelController* InController, const struct FFinalBattleHUDEnemyEntry& InEntry);
 
 private:
 	UFUNCTION()
@@ -25,7 +24,7 @@ private:
 
 	void RebuildVisual();
 
-	TWeakObjectPtr<UFinalBattleHUDScreen> OwningBattleHUDScreen;
+	TWeakObjectPtr<UFinalBattleEnemyPanelController> PanelController;
 
 	FName RuntimeUnitId = NAME_None;
 	FText CachedLabel;

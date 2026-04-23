@@ -625,7 +625,9 @@ Save / Load 当前边界：
 * `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示并实际消费 `PresentationKind / IconId / VisualTier / DetailText`、raw `RewardEntries` 只作回退，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 及其 metadata，并只转发对应的 `Resolve*` 命令
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
-* 当前首轮已落地 `BattleHUDScreen`，后续再把更多 HUD 区块拆成 `Panel / Widget`
+* `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目
+* `FinalBattleWidgetController` 当前是 Battle HUD 的唯一 BattleFlow 订阅点；Battle HUD 细分 panel 通过子 controller / 子 view model 消费只读展示数据
+* Battle HUD 当前已落地 `TopBar / Feedback / Context / Character / Enemy / Hand / Ultimate / RecentEvent / Action` 九个 panel；继续扩 HUD 时优先沿 panel 路径，而不是把细节重新堆回 screen
 * `AFinalBattleDirector` 当前承担最小世界表现桥接：读取 `BattleSnapshot / BattleEvent`，生成并刷新世界层占位表现对象；复杂演出、镜头与美术资源仍后置
 
 ---
@@ -678,7 +680,7 @@ Save / Load 当前边界：
 * 补 FinalRun 的事件、奖励、商店与成长链
 
 ### 10.3 第三批
-* 拆更多 Battle `Panel / Screen / WidgetController / ViewModel`
+* 在现有 Battle HUD panel 化基础上继续细拆 entry widget、tooltip、overlay 和 Blueprint 化外观层
 * 补事件、商店、角色成长
 * 补 Save / Load
 * 深化调试工具与编辑器校验；当前最小数据资产校验器已先行落地
