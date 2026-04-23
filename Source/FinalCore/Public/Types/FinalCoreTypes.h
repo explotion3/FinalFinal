@@ -44,8 +44,19 @@ enum class EFinalBattleEffectType : uint8
 	BonusBreak,
 	ApplyPassive,
 	GenerateCard,
-	ConsumeGeneratedCard,
+	MoveCards,
 	CopyCard
+};
+
+UENUM(BlueprintType)
+enum class EFinalBattleCardZoneRule : uint8
+{
+	Hand,
+	DrawPileTop,
+	DrawPileBottom,
+	DiscardPile,
+	OngoingZone,
+	ConsumePile
 };
 
 UENUM(BlueprintType)

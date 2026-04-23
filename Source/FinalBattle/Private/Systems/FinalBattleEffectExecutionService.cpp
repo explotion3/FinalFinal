@@ -10,13 +10,13 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
-#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Events/FinalBattleEvent.h"
@@ -59,7 +59,7 @@ struct FFinalBattleEffectExecutionContext
 	// Produced by RemoveStatus effects; consumed by ConsumedStatus conditions.
 	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
 
-	// Produced by ConsumeGeneratedCard effects; consumed by ConsumedGeneratedCard conditions.
+	// Produced by MoveCards effects when they explicitly record moved generated cards.
 	TArray<FFinalConsumedGeneratedCardRecord> ConsumedGeneratedCards;
 
 	// Set when any Damage effect actually reduces an enemy HP total. Used after
@@ -157,7 +157,7 @@ bool HasSupportedEffectListInternal(const TArray<TObjectPtr<UFinalBattleEffectDe
 			|| Cast<UFinalBattleEffectGainAP>(EffectDefinition)
 			|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGenerateCard>(EffectDefinition)
-			|| Cast<UFinalBattleEffectConsumeGeneratedCard>(EffectDefinition))
+			|| Cast<UFinalBattleEffectMoveCards>(EffectDefinition))
 		{
 			return true;
 		}
@@ -462,6 +462,39 @@ bool SatisfiesHandCardRequirement(
 
 	return !SourceOwnerUnitId.IsNone()
 		&& GetCardService().SatisfiesHandCardRequirement(State, SourceOwnerUnitId, Requirement);
+}
+
+bool TryConvertCardZoneRule(const EFinalBattleCardZoneRule ZoneRule, EFinalBattleCardZone& OutZone)
+{
+	switch (ZoneRule)
+	{
+	case EFinalBattleCardZoneRule::Hand:
+		OutZone = EFinalBattleCardZone::Hand;
+		return true;
+
+	case EFinalBattleCardZoneRule::DrawPileTop:
+		OutZone = EFinalBattleCardZone::DrawPileTop;
+		return true;
+
+	case EFinalBattleCardZoneRule::DrawPileBottom:
+		OutZone = EFinalBattleCardZone::DrawPileBottom;
+		return true;
+
+	case EFinalBattleCardZoneRule::DiscardPile:
+		OutZone = EFinalBattleCardZone::DiscardPile;
+		return true;
+
+	case EFinalBattleCardZoneRule::OngoingZone:
+		OutZone = EFinalBattleCardZone::OngoingZone;
+		return true;
+
+	case EFinalBattleCardZoneRule::ConsumePile:
+		OutZone = EFinalBattleCardZone::ConsumePile;
+		return true;
+
+	default:
+		return false;
+	}
 }
 
 UFinalCardDefinition* ResolveGeneratedCardDefinition(
@@ -867,47 +900,61 @@ bool ExecuteGenerateCardEffect(
 	return true;
 }
 
-bool ExecuteConsumeGeneratedCardEffect(
+bool ExecuteMoveCardsEffect(
 	FFinalBattleState& State,
-	const UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect,
+	const UFinalBattleEffectMoveCards* MoveCardsEffect,
 	const FName SourceOwnerUnitId,
 	FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(ConsumeGeneratedCardEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!SatisfiesEffectConditions(MoveCardsEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
 	{
 		return false;
 	}
 
-	const int32 TargetConsumeCount = FMath::Max(ConsumeGeneratedCardEffect->ConsumeCount, 0);
-	if (TargetConsumeCount <= 0 || SourceOwnerUnitId.IsNone())
+	const int32 TargetMoveCount = FMath::Max(MoveCardsEffect->MoveCount, 0);
+	if (TargetMoveCount <= 0 || SourceOwnerUnitId.IsNone() || MoveCardsEffect->SourceZone == MoveCardsEffect->DestinationZone)
 	{
 		return false;
 	}
 
-	TArray<FGuid> ConsumedCardInstanceIds;
+	EFinalBattleCardZone SourceZone = EFinalBattleCardZone::Hand;
+	EFinalBattleCardZone DestinationZone = EFinalBattleCardZone::ConsumePile;
+	if (!TryConvertCardZoneRule(MoveCardsEffect->SourceZone, SourceZone)
+		|| !TryConvertCardZoneRule(MoveCardsEffect->DestinationZone, DestinationZone))
+	{
+		return false;
+	}
+
+	TArray<FGuid> MovedCardInstanceIds;
 	FFinalBattleCardMatchCriteria MatchCriteria;
 	MatchCriteria.RuntimeOwnerUnitId = SourceOwnerUnitId;
-	MatchCriteria.RequiredCardId = ConsumeGeneratedCardEffect->RequiredCardId;
-	MatchCriteria.RequiredKeyword = ConsumeGeneratedCardEffect->RequiredKeyword;
-	MatchCriteria.bGeneratedOnly = ConsumeGeneratedCardEffect->bGeneratedOnly;
-	const int32 ConsumedCount = GetCardService().MoveMatchingCardsBetweenZones(
+	MatchCriteria.RequiredCardId = MoveCardsEffect->RequiredCardId;
+	MatchCriteria.RequiredKeyword = MoveCardsEffect->RequiredKeyword;
+	MatchCriteria.bGeneratedOnly = MoveCardsEffect->bGeneratedOnly;
+	const int32 MovedCount = GetCardService().MoveMatchingCardsBetweenZones(
 		State,
-		EFinalBattleCardZone::Hand,
-		EFinalBattleCardZone::ConsumePile,
+		SourceZone,
+		DestinationZone,
 		MatchCriteria,
-		TargetConsumeCount,
-		&ConsumedCardInstanceIds);
-	if (ConsumedCount <= 0)
+		TargetMoveCount,
+		&MovedCardInstanceIds);
+	if (MovedCount <= 0)
 	{
 		return false;
 	}
 
-	for (const FGuid& ConsumedCardInstanceId : ConsumedCardInstanceIds)
+	if (MoveCardsEffect->bRecordMovedGeneratedCards)
 	{
-		if (const FFinalBattleCardInstance* ConsumedCardInstance = GetCardService().FindCardInstance(State, ConsumedCardInstanceId))
+		for (const FGuid& MovedCardInstanceId : MovedCardInstanceIds)
 		{
-			RecordConsumedGeneratedCard(ExecutionContext, SourceOwnerUnitId, *ConsumedCardInstance, 1);
+			if (const FFinalBattleCardInstance* MovedCardInstance = GetCardService().FindCardInstance(State, MovedCardInstanceId))
+			{
+				if (MovedCardInstance->bGeneratedCard)
+				{
+					RecordConsumedGeneratedCard(ExecutionContext, SourceOwnerUnitId, *MovedCardInstance, 1);
+				}
+			}
 		}
 	}
 
@@ -1403,9 +1450,9 @@ bool ExecuteEffectListInternal(
 			continue;
 		}
 
-		if (const UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect = Cast<UFinalBattleEffectConsumeGeneratedCard>(EffectDefinition))
+		if (const UFinalBattleEffectMoveCards* MoveCardsEffect = Cast<UFinalBattleEffectMoveCards>(EffectDefinition))
 		{
-			ExecuteConsumeGeneratedCardEffect(State, ConsumeGeneratedCardEffect, SourceOwnerUnitId, ExecutionContext, Summary);
+			ExecuteMoveCardsEffect(State, MoveCardsEffect, SourceOwnerUnitId, ExecutionContext, Summary);
 			continue;
 		}
 

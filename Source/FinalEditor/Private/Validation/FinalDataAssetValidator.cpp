@@ -13,11 +13,11 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
-#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/DataValidation.h"
@@ -306,6 +306,33 @@ namespace FinalDataAssetValidation
 			}
 
 			ValidatePositive(Context, bIsValid, DrawCardsEffect->DrawCount, *FString::Printf(TEXT("%s.DrawCount"), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleEffectMoveCards* MoveCardsEffect = Cast<const UFinalBattleEffectMoveCards>(Effect))
+		{
+			if (MoveCardsEffect->EffectType != EFinalBattleEffectType::MoveCards)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be MoveCards for UFinalBattleEffectMoveCards."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, MoveCardsEffect->MoveCount, *FString::Printf(TEXT("%s.MoveCount"), *FieldName));
+			if (MoveCardsEffect->SourceZone == MoveCardsEffect->DestinationZone)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s SourceZone and DestinationZone must be different."), *FieldName));
+			}
+			if (MoveCardsEffect->RequiredCardId.IsValid()
+				&& !GetProjectIndexCache().Get().HasCardDefinition(MoveCardsEffect->RequiredCardId))
+			{
+				AddError(
+					Context,
+					bIsValid,
+					FString::Printf(
+						TEXT("%s.RequiredCardId references missing CardDefinition '%s'."),
+						*FieldName,
+						*MoveCardsEffect->RequiredCardId.Value.ToString()));
+			}
+			return;
 		}
 	}
 
@@ -337,30 +364,30 @@ namespace FinalDataAssetValidation
 			&& RemoveStatusEffect->Stacks >= FMath::Max(Requirement.MinimumStacks, 1);
 	}
 
-	bool CanEarlierConsumeGeneratedCardSatisfy(
-		const UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect,
+	bool CanEarlierMoveCardsRecordGeneratedCardSatisfy(
+		const UFinalBattleEffectMoveCards* MoveCardsEffect,
 		const FFinalBattleGeneratedCardConsumeRequirement& Requirement)
 	{
-		if (ConsumeGeneratedCardEffect == nullptr || !Requirement.bRequireConsumedGeneratedCard)
+		if (MoveCardsEffect == nullptr || !MoveCardsEffect->bRecordMovedGeneratedCards || !Requirement.bRequireConsumedGeneratedCard)
 		{
 			return false;
 		}
 
-		if (ConsumeGeneratedCardEffect->ConsumeCount < FMath::Max(Requirement.MinimumCount, 1))
+		if (MoveCardsEffect->MoveCount < FMath::Max(Requirement.MinimumCount, 1))
 		{
 			return false;
 		}
 
 		if (Requirement.RequiredCardId.IsValid()
-			&& ConsumeGeneratedCardEffect->RequiredCardId.IsValid()
-			&& ConsumeGeneratedCardEffect->RequiredCardId != Requirement.RequiredCardId)
+			&& MoveCardsEffect->RequiredCardId.IsValid()
+			&& MoveCardsEffect->RequiredCardId != Requirement.RequiredCardId)
 		{
 			return false;
 		}
 
 		if (Requirement.RequiredKeyword.IsValid()
-			&& ConsumeGeneratedCardEffect->RequiredKeyword.IsValid()
-			&& ConsumeGeneratedCardEffect->RequiredKeyword != Requirement.RequiredKeyword)
+			&& MoveCardsEffect->RequiredKeyword.IsValid()
+			&& MoveCardsEffect->RequiredKeyword != Requirement.RequiredKeyword)
 		{
 			return false;
 		}
@@ -386,14 +413,14 @@ namespace FinalDataAssetValidation
 	}
 
 	template<typename EffectArrayType>
-	bool HasEarlierConsumeGeneratedCardProducer(
+	bool HasEarlierMoveCardsGeneratedCardProducer(
 		const EffectArrayType& Effects,
 		const int32 ConditionEffectIndex,
 		const FFinalBattleGeneratedCardConsumeRequirement& Requirement)
 	{
 		for (int32 ProducerIndex = 0; ProducerIndex < ConditionEffectIndex; ++ProducerIndex)
 		{
-			if (CanEarlierConsumeGeneratedCardSatisfy(Cast<const UFinalBattleEffectConsumeGeneratedCard>(Effects[ProducerIndex].Get()), Requirement))
+			if (CanEarlierMoveCardsRecordGeneratedCardSatisfy(Cast<const UFinalBattleEffectMoveCards>(Effects[ProducerIndex].Get()), Requirement))
 			{
 				return true;
 			}
@@ -443,12 +470,12 @@ namespace FinalDataAssetValidation
 				{
 					const FFinalBattleGeneratedCardConsumeRequirement& Requirement = ConsumedGeneratedCardCondition->Requirement;
 					if (Requirement.bRequireConsumedGeneratedCard
-						&& !HasEarlierConsumeGeneratedCardProducer(Effects, EffectIndex, Requirement))
+						&& !HasEarlierMoveCardsGeneratedCardProducer(Effects, EffectIndex, Requirement))
 					{
 						AddWarning(
 							Context,
 							FString::Printf(
-								TEXT("%s requires consumed generated cards, but no earlier ConsumeGeneratedCard effect in %s can obviously produce that chain record."),
+								TEXT("%s requires consumed generated cards, but no earlier MoveCards effect in %s can obviously produce that chain record."),
 								*ConditionFieldName,
 								FieldName));
 					}

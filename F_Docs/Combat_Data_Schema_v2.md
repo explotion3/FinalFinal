@@ -1024,6 +1024,7 @@ bCanCopy: true
 * `UBattleEffect_BonusBreak`
 * `UBattleEffect_ApplyPassive`
 * `UBattleEffect_GenerateCard`
+* `UBattleEffect_MoveCards`
 * `UBattleEffect_CopyCard`
 
 **各子类最小字段建议**
@@ -1060,6 +1061,14 @@ bCanCopy: true
   * `bChooseRandomCandidate`
   * `bGeneratedCard`
   * `bTemporaryCard`
+* `UBattleEffect_MoveCards`
+  * `SourceZone`
+  * `DestinationZone`
+  * `RequiredCardId`
+  * `RequiredKeyword`
+  * `MoveCount`
+  * `bGeneratedOnly`
+  * `bRecordMovedGeneratedCards`
 * `UBattleEffect_CopyCard`
   * `CardSelectionScope`
   * `CardSelectionRule`
@@ -1068,6 +1077,7 @@ bCanCopy: true
 **说明**
 * `BattleResolver` 的职责应收缩为效果编排，不再继续膨胀成大型字段解释器
 * `UBattleEffect_GenerateCard` 只负责描述“生成什么牌、生成几张、是否为 generated/temporary”；`保留 / 消耗` 不再在 effect 上重复保存布尔语义，而由 `CardDefinition.Keywords` 与 `BattleCardInstance.RuntimeKeywords` 统一解释
+* `UBattleEffect_MoveCards` 取代旧的 `ConsumeGeneratedCard` 专用效果；“消耗衍生牌”现在只是 `Hand -> ConsumePile` 的一组牌区迁移配置
 * 卡牌、敌人意图、遗物、奥义应尽量共用同一套效果基类族
 * 条件优先写入 `FBattleEffectConditionSet`
 * 数值优先写入 `FBattleScalarValue`

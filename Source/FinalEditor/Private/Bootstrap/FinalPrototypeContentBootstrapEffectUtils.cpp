@@ -15,13 +15,13 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
-#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Effects/FinalBattleTargetStateRequirement.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
@@ -418,25 +418,31 @@ namespace FinalPrototypeContentBootstrap
 		return GenerateCardEffect;
 	}
 
-	UFinalBattleEffectConsumeGeneratedCard* AddConsumeGeneratedCardEffect(
+	UFinalBattleEffectMoveCards* AddMoveCardsEffect(
 		UObject* Owner,
 		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
 		const FName EffectId,
+		const EFinalBattleCardZoneRule SourceZone,
+		const EFinalBattleCardZoneRule DestinationZone,
 		const FFinalCardId& RequiredCardId,
 		const FGameplayTag& RequiredKeyword,
-		const int32 ConsumeCount,
+		const int32 MoveCount,
 		const bool bGeneratedOnly,
+		const bool bRecordMovedGeneratedCards,
 		const FText& Notes)
 	{
-		UFinalBattleEffectConsumeGeneratedCard* ConsumeGeneratedCardEffect = NewObject<UFinalBattleEffectConsumeGeneratedCard>(Owner);
-		ConsumeGeneratedCardEffect->EffectId = EffectId;
-		ConsumeGeneratedCardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
-		ConsumeGeneratedCardEffect->RequiredCardId = RequiredCardId;
-		ConsumeGeneratedCardEffect->RequiredKeyword = RequiredKeyword;
-		ConsumeGeneratedCardEffect->ConsumeCount = FMath::Max(ConsumeCount, 1);
-		ConsumeGeneratedCardEffect->bGeneratedOnly = bGeneratedOnly;
-		ConsumeGeneratedCardEffect->Notes = Notes;
-		Effects.Add(ConsumeGeneratedCardEffect);
-		return ConsumeGeneratedCardEffect;
+		UFinalBattleEffectMoveCards* MoveCardsEffect = NewObject<UFinalBattleEffectMoveCards>(Owner);
+		MoveCardsEffect->EffectId = EffectId;
+		MoveCardsEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		MoveCardsEffect->SourceZone = SourceZone;
+		MoveCardsEffect->DestinationZone = DestinationZone;
+		MoveCardsEffect->RequiredCardId = RequiredCardId;
+		MoveCardsEffect->RequiredKeyword = RequiredKeyword;
+		MoveCardsEffect->MoveCount = FMath::Max(MoveCount, 1);
+		MoveCardsEffect->bGeneratedOnly = bGeneratedOnly;
+		MoveCardsEffect->bRecordMovedGeneratedCards = bRecordMovedGeneratedCards;
+		MoveCardsEffect->Notes = Notes;
+		Effects.Add(MoveCardsEffect);
+		return MoveCardsEffect;
 	}
 }

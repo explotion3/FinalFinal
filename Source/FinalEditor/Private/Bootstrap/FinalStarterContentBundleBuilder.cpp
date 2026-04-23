@@ -18,13 +18,13 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
-#include "Battle/Effects/FinalBattleEffectConsumeGeneratedCard.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Effects/FinalBattleTargetStateRequirement.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
@@ -824,13 +824,16 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenYinBaoJianZhenCard->Keywords.AddTag(GetRetainKeyword());
 	StarterShenYinBaoJianZhenCard->RulesText = FText::FromString(TEXT("消耗 1 张手中的剑阵牌。若成功， 对目标造成相当于攻击力 130% 的伤害，并抽 1 张牌。"));
 	StarterShenYinBaoJianZhenCard->Effects.Reset();
-	AddConsumeGeneratedCardEffect(
+	AddMoveCardsEffect(
 		StarterShenYinBaoJianZhenCard,
 		StarterShenYinBaoJianZhenCard->Effects,
 		TEXT("effect.starter.shen.yinbaojianzhen.consume_jianzhen"),
+		EFinalBattleCardZoneRule::Hand,
+		EFinalBattleCardZoneRule::ConsumePile,
 		FFinalCardId(),
 		GetSwordArrayKeyword(),
 		1,
+		true,
 		true,
 		FText::FromString(TEXT("需要先消耗 1 张衍生剑阵牌。")));
 	UFinalBattleEffectDamage* StarterShenYinBaoDamage = AddDamageEffect(
