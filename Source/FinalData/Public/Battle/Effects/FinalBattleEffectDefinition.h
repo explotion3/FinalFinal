@@ -24,10 +24,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	EFinalBattleUnitTargetRule UnitTargetRule = EFinalBattleUnitTargetRule::None;
 
-	// 兼容简单效果的直接数值字段。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
-	float FlatValue = 0.0f;
-
 	// 生效前必须全部满足的条件；规则判断由 FinalBattle 执行。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Effect")
 	TArray<TObjectPtr<UFinalBattleConditionDefinition>> Conditions;

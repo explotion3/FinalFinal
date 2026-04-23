@@ -266,11 +266,6 @@ namespace FinalDataAssetValidation
 
 		RequireName(Context, bIsValid, Effect->EffectId, *FString::Printf(TEXT("%s.EffectId"), *FieldName));
 
-		if (Effect->FlatValue < 0.0f)
-		{
-			AddError(Context, bIsValid, FString::Printf(TEXT("%s.FlatValue must be >= 0, but is %.3f."), *FieldName, Effect->FlatValue));
-		}
-
 		for (int32 ConditionIndex = 0; ConditionIndex < Effect->Conditions.Num(); ++ConditionIndex)
 		{
 			ValidateBattleEffectCondition(

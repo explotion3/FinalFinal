@@ -946,6 +946,7 @@ bCanCopy: true
 * 数值缩放：统一协议
 * 触发条件：统一协议
 * 效果参数：由具体效果子类自己持有
+* Battle effect 基类不再提供通用 `FlatValue`；伤害、护盾、治疗、削韧等数值必须写入具体 effect payload，优先使用 `Scalar`
 
 **UBattleEffectDefinition 基类必填字段**
 * `EffectId`：效果条目唯一 ID
@@ -954,7 +955,6 @@ bCanCopy: true
 * `Conditions`：效果执行前必须全部满足的条件对象数组
 
 **UBattleEffectDefinition 基类可选字段**
-* `Conditions`：条件对象集合；当前 Runtime 第一阶段固定为全部 AND
 * `Notes`：补充备注
 
 ### 9.3.1 BattleEffect Conditions
