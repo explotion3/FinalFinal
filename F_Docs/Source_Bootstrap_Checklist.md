@@ -153,6 +153,8 @@
 * `Source/FinalBattle/Private/Systems/FinalBattleEnemyActionService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleUnitService.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleUnitService.cpp`
+* `Source/FinalBattle/Private/Systems/FinalBattleConditionService.h`
+* `Source/FinalBattle/Private/Systems/FinalBattleConditionService.cpp`
 * `Source/FinalBattle/Private/Systems/FinalBattleSnapshotBuilder.h`
 * `Source/FinalBattle/Private/Systems/FinalBattleSnapshotBuilder.cpp`
 * `Source/FinalBattle/Private/Systems/FinalEnemyIntentService.h`
@@ -180,7 +182,9 @@
 * `FinalBattleEnemyActionService` 当前承接单个敌人的 intent effect / fallback 普攻解析，`TurnService` 只编排回合窗口与敌人行动事件聚合
 * `FinalBattleUnitService` 当前承接 character / enemy / first alive enemy / command target resolve 查询，避免 Resolver、EffectExecution、Initialization、CardService 各自复制 lookup helper
 * `FinalBattleRelicService` 当前承接 battle-start / player-turn-start relic 数值触发、runtime trigger 计数重置、`PlayerTeamTookHealthDamage` / `PlayerCardResolved` 窗口与 `RelicTriggered` 事件生成
+* `FinalBattleConditionService` 当前承接 Battle 私有条件求值：把 `SourceOnly / ChainRecord / TargetRequired` 分成明确执行层次，并让 `Effect.Conditions[]` 与 relic `PlayerCardResolved` 卡牌条件复用同一套运行时匹配逻辑
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
+* `FinalBattleEffectExecutionService` 当前承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责做事并写入 chain-record / transient scratch state，条件统一由 `FinalBattleConditionService` 判定
 * `FinalBattleSnapshotBuilder` 当前承接 `BattleSnapshot` 只读查询投影，Resolver 只保留对外 `BuildSnapshot()` facade
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 
@@ -392,7 +396,8 @@
 * starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制录入成真实可运行数据，starter 资产不再只靠文案描述这些资源
 * starter bundle 当前已把沈清弦 `剑阵` 第一波接回 Runtime：`布锋` 随机生成 `过牌剑阵 / 破阵剑阵`、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌
 * Battle 当前已补最小 `HandCardRequirement` 协议，并把它接到现有 `GainShield / DrawCards` 等效果上；`FinalBattleCardService` 负责统计当前手牌中满足条件的卡数量，并供 Battle resolver 做 gated effect 判定
-* Battle 当前已把 effect requirements 第一阶段收口到对象化 `Effect.Conditions[]`：`HandCard / TargetState / StatusChanged / MovedCards` 四类条件对象定义在 `FinalData/Public/Battle/Conditions`，Runtime 判定统一由 `FinalBattleEffectExecutionService` 执行；condition 类通过 `GetConditionContext()` 显式声明上下文阶段，concrete effect 子类只保留 payload 字段；`StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的链路记录
+* Battle 当前已把 effect requirements 第一阶段收口到对象化 `Effect.Conditions[]`：`HandCard / TargetState / StatusChanged / MovedCards` 四类条件对象定义在 `FinalData/Public/Battle/Conditions`，Runtime 判定统一由 `FinalBattleConditionService` 执行；condition 类通过 `GetConditionContext()` 显式声明上下文阶段，concrete effect 子类只保留 payload 字段；`StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的链路记录
+* Battle 当前已把 effect list scratch state 拆成 `ChainRecord` 与 `Transient` 两层：`StatusChanged / MovedCards` 这类后续条件会读 `ChainRecord` 中的真实记录，而只服务本条执行流程的临时标记继续留在 `Transient`
 * starter bundle 当前已把 `守阵` 的“若手中有剑阵牌”改成真实规则：护盾部分无条件结算，抽牌部分只有在当前手牌里存在满足 `SwordArray + GeneratedOnly` 条件的衍生剑阵牌时才会执行
 * Battle 当前已补最小“状态驱动的伤害修正”协议：`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正百分比、在一次成功对敌伤害后消费带 `bConsumeOnSuccessfulOwnerDamage` 的状态 1 层，并在玩家结束回合进入敌方行动前统一递减 `bExpireAtPlayerTurnEnd` 状态
 * starter bundle 当前已把 `锋锐剑阵` 接回 Runtime：该衍生牌现在会为自身施加 1 层 `锋锐` 状态，使下一张攻击牌伤害提高 20%，若本回合内至少一次成功对敌生命伤害则消耗，否则在玩家回合结束时过期

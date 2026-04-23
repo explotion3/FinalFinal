@@ -1,10 +1,5 @@
 #include "Systems/FinalBattleEffectExecutionService.h"
 
-#include "Battle/Conditions/FinalBattleConditionDefinition.h"
-#include "Battle/Conditions/FinalBattleConditionHandCard.h"
-#include "Battle/Conditions/FinalBattleConditionMovedCards.h"
-#include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
-#include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
@@ -25,6 +20,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
@@ -36,42 +32,8 @@ namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
 
-struct FFinalStatusChangeRecord
-{
-	FName OwnerUnitId = NAME_None;
-	FFinalStatusId StatusId;
-	EFinalBattleStatusChangeKind ChangeKind = EFinalBattleStatusChangeKind::Removed;
-	int32 ChangedStacks = 0;
-};
-
-struct FFinalMovedCardRecord
-{
-	FName RuntimeOwnerUnitId = NAME_None;
-	FFinalCardId CardId;
-	int32 MovedCount = 0;
-	bool bGeneratedCard = false;
-	FGameplayTagContainer RuntimeKeywords;
-	EFinalBattleCardZoneRule SourceZone = EFinalBattleCardZoneRule::Hand;
-	EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile;
-};
-
-// Per-effect-list scratch context. This is not persisted to FFinalBattleState.
-// Producer effects write what they actually changed, and later Conditions read
-// those records to decide whether dependent effects in the same list may run.
-struct FFinalBattleEffectExecutionContext
-{
-	// Produced by status-changing effects; consumed by StatusChanged conditions.
-	TArray<FFinalStatusChangeRecord> StatusChangeRecords;
-
-	// Produced by MoveCards effects when they explicitly record moved cards.
-	TArray<FFinalMovedCardRecord> MovedCardRecords;
-
-	// Set when any Damage effect actually reduces an enemy HP total. Used after
-	// the whole list resolves so "next successful attack" statuses consume once.
-	bool bAppliedSuccessfulEnemyHpDamage = false;
-};
-
 const FFinalBattleCardService& GetCardService();
+const FFinalBattleConditionService& GetConditionService();
 const FFinalBattleEventService& GetEventService();
 const FFinalBattleRelicService& GetRelicService();
 const FFinalBattleResourceService& GetResourceService();
@@ -97,6 +59,12 @@ const FFinalBattleCardService& GetCardService()
 {
 	static const FFinalBattleCardService CardService;
 	return CardService;
+}
+
+const FFinalBattleConditionService& GetConditionService()
+{
+	static const FFinalBattleConditionService ConditionService;
+	return ConditionService;
 }
 
 const FFinalBattleEventService& GetEventService()
@@ -224,6 +192,21 @@ int32 ResolveScalarValue(const FFinalBattleScalarValue& Scalar, const FFinalBatt
 	return FMath::Max(FMath::RoundToInt(ResultValue), 0);
 }
 
+FFinalBattleConditionEvaluationContext BuildConditionEvaluationContext(
+	const FFinalBattleState& State,
+	const FFinalBattleEffectExecutionContext& ExecutionContext,
+	const FName SourceOwnerUnitId,
+	const FFinalBattleEnemyState* TargetEnemyState = nullptr)
+{
+	FFinalBattleConditionEvaluationContext Context;
+	Context.BattleState = &State;
+	Context.TargetEnemyState = TargetEnemyState;
+	Context.ChainRecords = &ExecutionContext.ChainRecords;
+	Context.CardService = &GetCardService();
+	Context.SourceOwnerUnitId = SourceOwnerUnitId;
+	return Context;
+}
+
 FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(
 	FFinalBattleState& State,
 	const FFinalBattleCommand* Command,
@@ -258,50 +241,6 @@ FFinalBattleEnemyState* ResolvePrimaryEnemyTarget(
 	}
 }
 
-bool HasTargetStateRequirement(const FFinalBattleTargetStateRequirement& Requirement)
-{
-	return Requirement.bRequireEnemyTarget
-		|| Requirement.bRequireTargetBroken
-		|| Requirement.bRequireTargetAlive;
-}
-
-bool IsEnemyBroken(const FFinalBattleEnemyState& EnemyState)
-{
-	return EnemyState.CurrentBreakValue <= 0;
-}
-
-bool SatisfiesTargetStateRequirement(
-	const FFinalBattleTargetStateRequirement& Requirement,
-	const FFinalBattleEnemyState* TargetEnemyState)
-{
-	if (!HasTargetStateRequirement(Requirement))
-	{
-		return true;
-	}
-
-	if (Requirement.bRequireEnemyTarget && TargetEnemyState == nullptr)
-	{
-		return false;
-	}
-
-	if (TargetEnemyState == nullptr)
-	{
-		return false;
-	}
-
-	if (Requirement.bRequireTargetAlive && TargetEnemyState->CurrentHP <= 0)
-	{
-		return false;
-	}
-
-	if (Requirement.bRequireTargetBroken && !IsEnemyBroken(*TargetEnemyState))
-	{
-		return false;
-	}
-
-	return true;
-}
-
 FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectApplyStatus* EffectDefinition)
 {
 	if (EffectDefinition == nullptr)
@@ -330,166 +269,6 @@ FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectRemoveStatus* Effec
 	}
 
 	return EffectDefinition->StatusDefinition ? EffectDefinition->StatusDefinition->StatusId : FFinalStatusId();
-}
-
-void RecordStatusChange(
-	FFinalBattleEffectExecutionContext& Context,
-	const FName OwnerUnitId,
-	const FFinalStatusId& StatusId,
-	const EFinalBattleStatusChangeKind ChangeKind,
-	const int32 ChangedStacks)
-{
-	if (OwnerUnitId.IsNone() || !StatusId.IsValid() || ChangedStacks <= 0)
-	{
-		return;
-	}
-
-	if (FFinalStatusChangeRecord* ExistingRecord = Context.StatusChangeRecords.FindByPredicate(
-		[&OwnerUnitId, &StatusId, ChangeKind](const FFinalStatusChangeRecord& Candidate)
-		{
-			return Candidate.OwnerUnitId == OwnerUnitId
-				&& Candidate.StatusId == StatusId
-				&& Candidate.ChangeKind == ChangeKind;
-		}))
-	{
-		ExistingRecord->ChangedStacks += ChangedStacks;
-		return;
-	}
-
-	FFinalStatusChangeRecord& NewRecord = Context.StatusChangeRecords.AddDefaulted_GetRef();
-	NewRecord.OwnerUnitId = OwnerUnitId;
-	NewRecord.StatusId = StatusId;
-	NewRecord.ChangeKind = ChangeKind;
-	NewRecord.ChangedStacks = ChangedStacks;
-}
-
-int32 ResolveStatusChangedStacks(
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName OwnerUnitId,
-	const FFinalStatusId& StatusId,
-	const EFinalBattleStatusChangeKind ChangeKind)
-{
-	if (const FFinalStatusChangeRecord* ExistingRecord = Context.StatusChangeRecords.FindByPredicate(
-		[&OwnerUnitId, &StatusId, ChangeKind](const FFinalStatusChangeRecord& Candidate)
-		{
-			return Candidate.OwnerUnitId == OwnerUnitId
-				&& Candidate.StatusId == StatusId
-				&& Candidate.ChangeKind == ChangeKind;
-		}))
-	{
-		return ExistingRecord->ChangedStacks;
-	}
-
-	return 0;
-}
-
-void RecordMovedCard(
-	FFinalBattleEffectExecutionContext& Context,
-	const FName RuntimeOwnerUnitId,
-	const FFinalBattleCardInstance& CardInstance,
-	const EFinalBattleCardZoneRule SourceZone,
-	const EFinalBattleCardZoneRule DestinationZone,
-	const int32 MovedCount)
-{
-	if (RuntimeOwnerUnitId.IsNone() || !CardInstance.CardId.IsValid() || MovedCount <= 0)
-	{
-		return;
-	}
-
-	if (FFinalMovedCardRecord* ExistingRecord = Context.MovedCardRecords.FindByPredicate(
-		[&RuntimeOwnerUnitId, &CardInstance, SourceZone, DestinationZone](const FFinalMovedCardRecord& Candidate)
-		{
-			return Candidate.RuntimeOwnerUnitId == RuntimeOwnerUnitId
-				&& Candidate.CardId == CardInstance.CardId
-				&& Candidate.bGeneratedCard == CardInstance.bGeneratedCard
-				&& Candidate.SourceZone == SourceZone
-				&& Candidate.DestinationZone == DestinationZone;
-		}))
-	{
-		ExistingRecord->MovedCount += MovedCount;
-		ExistingRecord->RuntimeKeywords.AppendTags(CardInstance.RuntimeKeywords);
-		return;
-	}
-
-	FFinalMovedCardRecord& NewRecord = Context.MovedCardRecords.AddDefaulted_GetRef();
-	NewRecord.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
-	NewRecord.CardId = CardInstance.CardId;
-	NewRecord.MovedCount = MovedCount;
-	NewRecord.bGeneratedCard = CardInstance.bGeneratedCard;
-	NewRecord.RuntimeKeywords = CardInstance.RuntimeKeywords;
-	NewRecord.SourceZone = SourceZone;
-	NewRecord.DestinationZone = DestinationZone;
-}
-
-int32 ResolveMovedCardCount(
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName RuntimeOwnerUnitId,
-	const FFinalBattleMovedCardRequirement& Requirement)
-{
-	int32 TotalMovedCount = 0;
-
-	for (const FFinalMovedCardRecord& Record : Context.MovedCardRecords)
-	{
-		if (Record.RuntimeOwnerUnitId != RuntimeOwnerUnitId)
-		{
-			continue;
-		}
-
-		if (Requirement.RequiredCardId.IsValid() && Record.CardId != Requirement.RequiredCardId)
-		{
-			continue;
-		}
-
-		if (Requirement.RequiredKeyword.IsValid() && !Record.RuntimeKeywords.HasTagExact(Requirement.RequiredKeyword))
-		{
-			continue;
-		}
-
-		if (Requirement.bGeneratedOnly && !Record.bGeneratedCard)
-		{
-			continue;
-		}
-
-		if (Requirement.bRequireSourceZone && Record.SourceZone != Requirement.SourceZone)
-		{
-			continue;
-		}
-
-		if (Requirement.bRequireDestinationZone && Record.DestinationZone != Requirement.DestinationZone)
-		{
-			continue;
-		}
-
-		TotalMovedCount += Record.MovedCount;
-	}
-
-	return TotalMovedCount;
-}
-
-bool SatisfiesMovedCardRequirement(
-	const FFinalBattleMovedCardRequirement& Requirement,
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName SourceOwnerUnitId)
-{
-	return !SourceOwnerUnitId.IsNone()
-		&& ResolveMovedCardCount(
-			Context,
-			SourceOwnerUnitId,
-			Requirement) >= FMath::Max(Requirement.MinimumCount, 1);
-}
-
-bool SatisfiesHandCardRequirement(
-	const FFinalBattleHandCardRequirement& Requirement,
-	const FFinalBattleState& State,
-	const FName SourceOwnerUnitId)
-{
-	if (!Requirement.bRequireInHand)
-	{
-		return true;
-	}
-
-	return !SourceOwnerUnitId.IsNone()
-		&& GetCardService().SatisfiesHandCardRequirement(State, SourceOwnerUnitId, Requirement);
 }
 
 bool TryConvertCardZoneRule(const EFinalBattleCardZoneRule ZoneRule, EFinalBattleCardZone& OutZone)
@@ -575,115 +354,6 @@ FName ResolveSourceOwnerUnitId(const FFinalBattleCharacterState* SourceCharacter
 	}
 
 	return NAME_None;
-}
-
-bool SatisfiesStatusChangeRequirement(
-	const FFinalBattleStatusChangeRequirement& Requirement,
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName SourceOwnerUnitId)
-{
-	return Requirement.RequiredStatusId.IsValid()
-		&& !SourceOwnerUnitId.IsNone()
-		&& ResolveStatusChangedStacks(Context, SourceOwnerUnitId, Requirement.RequiredStatusId, Requirement.ChangeKind) >= FMath::Max(Requirement.MinimumStacks, 1);
-}
-
-enum class EFinalBattleConditionEvaluationPhase : uint8
-{
-	// Evaluate source/chain conditions before a concrete target exists.
-	// Target-state conditions are intentionally skipped in this phase.
-	PreTarget,
-
-	// Evaluate target-state conditions after a concrete target has been resolved.
-	// Source/chain conditions were already checked in PreTarget and are skipped.
-	PostTarget,
-
-	// Evaluate every condition in one pass. Use for effects that do not need a
-	// target resolution split.
-	All
-};
-
-EFinalBattleConditionContext ResolveConditionContext(const UFinalBattleConditionDefinition* Condition)
-{
-	return Condition != nullptr
-		? Condition->GetConditionContext()
-		: EFinalBattleConditionContext::SourceOnly;
-}
-
-bool EvaluateEffectCondition(
-	const UFinalBattleConditionDefinition* Condition,
-	const FFinalBattleState& State,
-	const FFinalBattleEnemyState* TargetEnemyState,
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName SourceOwnerUnitId)
-{
-	if (Condition == nullptr)
-	{
-		return false;
-	}
-
-	if (const UFinalBattleConditionStatusChanged* StatusChangedCondition = Cast<UFinalBattleConditionStatusChanged>(Condition))
-	{
-		return SatisfiesStatusChangeRequirement(StatusChangedCondition->Requirement, Context, SourceOwnerUnitId);
-	}
-
-	if (const UFinalBattleConditionMovedCards* MovedCardsCondition = Cast<UFinalBattleConditionMovedCards>(Condition))
-	{
-		return SatisfiesMovedCardRequirement(MovedCardsCondition->Requirement, Context, SourceOwnerUnitId);
-	}
-
-	if (const UFinalBattleConditionHandCard* HandCardCondition = Cast<UFinalBattleConditionHandCard>(Condition))
-	{
-		return SatisfiesHandCardRequirement(HandCardCondition->Requirement, State, SourceOwnerUnitId);
-	}
-
-	if (const UFinalBattleConditionTargetState* TargetStateCondition = Cast<UFinalBattleConditionTargetState>(Condition))
-	{
-		return SatisfiesTargetStateRequirement(TargetStateCondition->Requirement, TargetEnemyState);
-	}
-
-	return false;
-}
-
-bool SatisfiesEffectConditions(
-	const UFinalBattleEffectDefinition* EffectDefinition,
-	const FFinalBattleState& State,
-	const FFinalBattleEnemyState* TargetEnemyState,
-	const FFinalBattleEffectExecutionContext& Context,
-	const FName SourceOwnerUnitId,
-	const EFinalBattleConditionEvaluationPhase Phase)
-{
-	if (EffectDefinition == nullptr)
-	{
-		return false;
-	}
-
-	for (const UFinalBattleConditionDefinition* Condition : EffectDefinition->Conditions)
-	{
-		const EFinalBattleConditionContext ConditionContext = ResolveConditionContext(Condition);
-		if (Phase == EFinalBattleConditionEvaluationPhase::PreTarget
-			&& ConditionContext == EFinalBattleConditionContext::TargetRequired)
-		{
-			// Target-state conditions require a resolved target. They are checked
-			// later in PostTarget for target-driven effects.
-			continue;
-		}
-
-		if (Phase == EFinalBattleConditionEvaluationPhase::PostTarget
-			&& ConditionContext != EFinalBattleConditionContext::TargetRequired)
-		{
-			// Non-target conditions are chain/source gates. Rechecking them after
-			// target resolution would make one effect observe its own target-side
-			// mutations, so they remain PreTarget-only.
-			continue;
-		}
-
-		if (!EvaluateEffectCondition(Condition, State, TargetEnemyState, Context, SourceOwnerUnitId))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 TArray<FName> ResolveStatusTargetOwnerUnitIds(
@@ -882,7 +552,9 @@ bool ExecuteGenerateCardEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(GenerateCardEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		GenerateCardEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -934,7 +606,9 @@ bool ExecuteMoveCardsEffect(
 	FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(MoveCardsEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		MoveCardsEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -977,8 +651,8 @@ bool ExecuteMoveCardsEffect(
 		{
 			if (const FFinalBattleCardInstance* MovedCardInstance = GetCardService().FindCardInstance(State, MovedCardInstanceId))
 			{
-				RecordMovedCard(
-					ExecutionContext,
+				GetConditionService().RecordMovedCard(
+					ExecutionContext.ChainRecords,
 					SourceOwnerUnitId,
 					*MovedCardInstance,
 					MoveCardsEffect->SourceZone,
@@ -1003,7 +677,9 @@ bool ExecuteHealEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(HealEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		HealEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1067,7 +743,9 @@ bool ExecuteApplyStatusEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(ApplyStatusEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		ApplyStatusEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1119,7 +797,9 @@ bool ExecuteRemoveStatusEffect(
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	const FName SourceOwnerUnitId = ResolveSourceOwnerUnitId(SourceCharacterState, SourceEnemyState);
-	if (!SatisfiesEffectConditions(RemoveStatusEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		RemoveStatusEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1146,8 +826,8 @@ bool ExecuteRemoveStatusEffect(
 			StatusId,
 			RemoveStatusEffect->Stacks);
 		RemovedStacks += RemovedStacksForTarget;
-		RecordStatusChange(
-			ExecutionContext,
+		GetConditionService().RecordStatusChange(
+			ExecutionContext.ChainRecords,
 			TargetOwnerUnitId,
 			StatusId,
 			EFinalBattleStatusChangeKind::Removed,
@@ -1173,7 +853,9 @@ bool ExecuteGainShieldEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(ShieldEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		ShieldEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1232,7 +914,9 @@ bool ExecuteDrawCardsEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(DrawCardsEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		DrawCardsEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1251,7 +935,9 @@ bool ExecuteGainAPEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(GainAPEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::All))
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		GainAPEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1280,7 +966,9 @@ bool ExecuteDamageEffect(
 	FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(DamageEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PreTarget))
+	if (!GetConditionService().SatisfiesSourceAndChainConditions(
+		DamageEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1298,7 +986,9 @@ bool ExecuteDamageEffect(
 
 	if (DamageEffect->UnitTargetRule == EFinalBattleUnitTargetRule::TeamPlayer)
 	{
-		if (!SatisfiesEffectConditions(DamageEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PostTarget))
+		if (!GetConditionService().SatisfiesTargetConditions(
+			DamageEffect,
+			BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 		{
 			return false;
 		}
@@ -1323,7 +1013,9 @@ bool ExecuteDamageEffect(
 				continue;
 			}
 
-			if (!SatisfiesEffectConditions(DamageEffect, State, &EnemyState, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PostTarget))
+			if (!GetConditionService().SatisfiesTargetConditions(
+				DamageEffect,
+				BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId, &EnemyState)))
 			{
 				continue;
 			}
@@ -1331,7 +1023,7 @@ bool ExecuteDamageEffect(
 			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 			{
 				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit, UnitService);
-				ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
+				ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 				Summary.TotalDamageToEnemies += DamagePerHit;
 				bAppliedDamageToAnyEnemy = true;
 			}
@@ -1361,7 +1053,9 @@ bool ExecuteDamageEffect(
 		return false;
 	}
 
-	if (!SatisfiesEffectConditions(DamageEffect, State, TargetEnemyState, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PostTarget))
+	if (!GetConditionService().SatisfiesTargetConditions(
+		DamageEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId, TargetEnemyState)))
 	{
 		return false;
 	}
@@ -1369,7 +1063,7 @@ bool ExecuteDamageEffect(
 	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 	{
 		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit, UnitService);
-		ExecutionContext.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
+		ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 		Summary.TotalDamageToEnemies += DamagePerHit;
 	}
 
@@ -1388,7 +1082,9 @@ bool ExecuteBonusBreakEffect(
 	const FFinalBattleEffectExecutionContext& ExecutionContext,
 	FFinalBattleEffectExecutionSummary& Summary)
 {
-	if (!SatisfiesEffectConditions(BonusBreakEffect, State, nullptr, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PreTarget))
+	if (!GetConditionService().SatisfiesSourceAndChainConditions(
+		BonusBreakEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
 	{
 		return false;
 	}
@@ -1409,7 +1105,9 @@ bool ExecuteBonusBreakEffect(
 				continue;
 			}
 
-			if (!SatisfiesEffectConditions(BonusBreakEffect, State, &EnemyState, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PostTarget))
+			if (!GetConditionService().SatisfiesTargetConditions(
+				BonusBreakEffect,
+				BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId, &EnemyState)))
 			{
 				continue;
 			}
@@ -1442,7 +1140,9 @@ bool ExecuteBonusBreakEffect(
 		return false;
 	}
 
-	if (!SatisfiesEffectConditions(BonusBreakEffect, State, TargetEnemyState, ExecutionContext, SourceOwnerUnitId, EFinalBattleConditionEvaluationPhase::PostTarget))
+	if (!GetConditionService().SatisfiesTargetConditions(
+		BonusBreakEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId, TargetEnemyState)))
 	{
 		return false;
 	}
@@ -1534,7 +1234,7 @@ bool ExecuteEffectListInternal(
 		}
 	}
 
-	if (SourceCharacterState != nullptr && ExecutionContext.bAppliedSuccessfulEnemyHpDamage)
+	if (SourceCharacterState != nullptr && ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage)
 	{
 		GetStatusService().ConsumeOutgoingDamageModifierStacks(State, SourceOwnerUnitId, bIsAttackCardDamage);
 	}

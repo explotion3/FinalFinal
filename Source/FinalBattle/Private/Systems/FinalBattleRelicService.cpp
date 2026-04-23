@@ -3,6 +3,7 @@
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleConditionService.h"
 
 namespace
 {
@@ -89,26 +90,10 @@ bool CanTriggerRuntimeRelicEffect(const FFinalBattleRelicRuntimeTriggerState& Tr
 	}
 }
 
-bool SatisfiesCardCondition(
-	const FFinalRelicRuntimeCardConditionDefinition& CardCondition,
-	const FFinalBattleResolvedCardTriggerContext& CardContext)
+const FFinalBattleConditionService& GetConditionService()
 {
-	if (CardCondition.bRequireCardCostAP && CardContext.RuntimeCostAP != CardCondition.RequiredCardCostAP)
-	{
-		return false;
-	}
-
-	if (CardCondition.bRequireCardType && CardContext.CardType != CardCondition.RequiredCardType)
-	{
-		return false;
-	}
-
-	if (CardCondition.RequiredKeyword.IsValid() && !CardContext.RuntimeKeywords.HasTagExact(CardCondition.RequiredKeyword))
-	{
-		return false;
-	}
-
-	return true;
+	static const FFinalBattleConditionService ConditionService;
+	return ConditionService;
 }
 }
 
@@ -398,7 +383,7 @@ void FFinalBattleRelicService::HandlePlayerCardResolved(
 			if (TriggerDefinition.Domain != EFinalRelicTriggerDomain::Battle
 				|| TriggerDefinition.Window != EFinalRelicTriggerWindow::PlayerCardResolved
 				|| !CanTriggerRuntimeRelicEffect(TriggerState)
-				|| !SatisfiesCardCondition(TriggerDefinition.CardCondition, CardContext))
+				|| !GetConditionService().SatisfiesResolvedCardCondition(TriggerDefinition.CardCondition, CardContext))
 			{
 				continue;
 			}
