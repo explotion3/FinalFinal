@@ -3,5 +3,4 @@
 UFinalBattleEffectGainAP::UFinalBattleEffectGainAP()
 {
 	EffectType = EFinalBattleEffectType::GainAP;
-	UnitTargetRule = EFinalBattleUnitTargetRule::Self;
 }

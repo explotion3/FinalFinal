@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Battle/Effects/FinalBattleTargetedEffectDefinition.h"
 #include "Ids/FinalIds.h"
 #include "FinalBattleEffectApplyStatus.generated.h"
 
 class UFinalStatusDefinition;
 
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
-class FINALDATA_API UFinalBattleEffectApplyStatus : public UFinalBattleEffectDefinition
+class FINALDATA_API UFinalBattleEffectApplyStatus : public UFinalBattleTargetedEffectDefinition
 {
 	GENERATED_BODY()
 

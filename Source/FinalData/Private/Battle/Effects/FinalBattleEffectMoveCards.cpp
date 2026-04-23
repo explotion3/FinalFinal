@@ -3,5 +3,4 @@
 UFinalBattleEffectMoveCards::UFinalBattleEffectMoveCards()
 {
 	EffectType = EFinalBattleEffectType::MoveCards;
-	UnitTargetRule = EFinalBattleUnitTargetRule::Self;
 }

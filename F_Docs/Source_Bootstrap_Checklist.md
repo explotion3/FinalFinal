@@ -97,6 +97,7 @@
 * `Source/FinalData/Public/Battle/Definitions/FinalBattleEncounterDefinition.h`
 * `Source/FinalData/Public/Battle/Conditions/FinalBattleConditionDefinition.h`
 * `Source/FinalData/Public/Battle/Effects/FinalBattleEffectDefinition.h`
+* `Source/FinalData/Public/Battle/Effects/FinalBattleTargetedEffectDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
@@ -188,6 +189,7 @@
 * `FinalBattleConditionService` 当前承接 Battle 私有条件求值：把 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 分成明确执行层次，并让 `Effect.Conditions[]` 与 runtime trigger 条件复用同一套运行时匹配逻辑
 * `FinalBattleStatusService` 当前承接最小状态 tick 占位、状态加层/减层/移除，以及 `TeamStatuses / CharacterStatuses / Statuses` 快照整理
 * `FinalBattleEffectExecutionService` 当前承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责做事并写入 chain-record / transient scratch state，条件统一由 `FinalBattleConditionService` 判定
+* `FinalData` effect schema 当前已把 `UnitTargetRule` 下沉到 `FinalBattleTargetedEffectDefinition`；非目标效果 `DrawCards / GainAP / GenerateCard / MoveCards` 不再承载无效目标规则
 * `FinalBattleSnapshotBuilder` 当前承接 `BattleSnapshot` 只读查询投影，Resolver 只保留对外 `BuildSnapshot()` facade
 * `FinalEnemyIntentService` 继续独立承接 phase / intent 选择与推进
 

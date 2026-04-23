@@ -18,9 +18,15 @@
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
+#include "Battle/Effects/FinalBattleTargetedEffectDefinition.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
@@ -283,6 +289,14 @@ namespace FinalDataAssetValidation
 
 		RequireName(Context, bIsValid, Effect->EffectId, *FString::Printf(TEXT("%s.EffectId"), *FieldName));
 
+		if (const UFinalBattleTargetedEffectDefinition* TargetedEffect = Cast<const UFinalBattleTargetedEffectDefinition>(Effect))
+		{
+			if (TargetedEffect->UnitTargetRule == EFinalBattleUnitTargetRule::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.UnitTargetRule must not be None for targeted effects."), *FieldName));
+			}
+		}
+
 		for (int32 ConditionIndex = 0; ConditionIndex < Effect->Conditions.Num(); ++ConditionIndex)
 		{
 			ValidateBattleEffectCondition(
@@ -315,6 +329,39 @@ namespace FinalDataAssetValidation
 			return;
 		}
 
+		if (const UFinalBattleEffectHeal* HealEffect = Cast<const UFinalBattleEffectHeal>(Effect))
+		{
+			if (HealEffect->EffectType != EFinalBattleEffectType::Heal)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be Heal for UFinalBattleEffectHeal."), *FieldName));
+			}
+
+			ValidateScalar(Context, bIsValid, HealEffect->Scalar, FString::Printf(TEXT("%s.Scalar"), *FieldName), true);
+			return;
+		}
+
+		if (const UFinalBattleEffectApplyStatus* ApplyStatusEffect = Cast<const UFinalBattleEffectApplyStatus>(Effect))
+		{
+			if (ApplyStatusEffect->EffectType != EFinalBattleEffectType::ApplyStatus)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be ApplyStatus for UFinalBattleEffectApplyStatus."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, ApplyStatusEffect->Stacks, *FString::Printf(TEXT("%s.Stacks"), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleEffectRemoveStatus* RemoveStatusEffect = Cast<const UFinalBattleEffectRemoveStatus>(Effect))
+		{
+			if (RemoveStatusEffect->EffectType != EFinalBattleEffectType::RemoveStatus)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be RemoveStatus for UFinalBattleEffectRemoveStatus."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, RemoveStatusEffect->Stacks, *FString::Printf(TEXT("%s.Stacks"), *FieldName));
+			return;
+		}
+
 		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<const UFinalBattleEffectDrawCards>(Effect))
 		{
 			if (DrawCardsEffect->EffectType != EFinalBattleEffectType::DrawCards)
@@ -323,6 +370,39 @@ namespace FinalDataAssetValidation
 			}
 
 			ValidatePositive(Context, bIsValid, DrawCardsEffect->DrawCount, *FString::Printf(TEXT("%s.DrawCount"), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleEffectGainAP* GainApEffect = Cast<const UFinalBattleEffectGainAP>(Effect))
+		{
+			if (GainApEffect->EffectType != EFinalBattleEffectType::GainAP)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be GainAP for UFinalBattleEffectGainAP."), *FieldName));
+			}
+
+			ValidateNonNegative(Context, bIsValid, GainApEffect->GainValue, *FString::Printf(TEXT("%s.GainValue"), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleEffectBonusBreak* BonusBreakEffect = Cast<const UFinalBattleEffectBonusBreak>(Effect))
+		{
+			if (BonusBreakEffect->EffectType != EFinalBattleEffectType::BonusBreak)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be BonusBreak for UFinalBattleEffectBonusBreak."), *FieldName));
+			}
+
+			ValidateScalar(Context, bIsValid, BonusBreakEffect->Scalar, FString::Printf(TEXT("%s.Scalar"), *FieldName), true);
+			return;
+		}
+
+		if (const UFinalBattleEffectGenerateCard* GenerateCardEffect = Cast<const UFinalBattleEffectGenerateCard>(Effect))
+		{
+			if (GenerateCardEffect->EffectType != EFinalBattleEffectType::GenerateCard)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be GenerateCard for UFinalBattleEffectGenerateCard."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, GenerateCardEffect->GenerateCount, *FString::Printf(TEXT("%s.GenerateCount"), *FieldName));
 			return;
 		}
 

@@ -20,10 +20,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
 	EFinalBattleEffectType EffectType = EFinalBattleEffectType::Damage;
 
-	// 该效果使用的目标规则。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Effect")
-	EFinalBattleUnitTargetRule UnitTargetRule = EFinalBattleUnitTargetRule::None;
-
 	// 生效前必须全部满足的条件；规则判断由 FinalBattle 执行。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Effect")
 	TArray<TObjectPtr<UFinalBattleConditionDefinition>> Conditions;

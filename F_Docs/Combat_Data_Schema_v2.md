@@ -938,26 +938,32 @@ bCanCopy: true
 
 **目标结构**
 * `UBattleEffectDefinition`：所有战斗效果的共同基类
+* `UFinalBattleTargetedEffectDefinition`：需要单位目标的效果基类，承载 `UnitTargetRule`
 * `UFinalBattleConditionDefinition`：第一版对象化条件基类
 * `UFinalBattleCondition_*`：具体条件对象
 * `FBattleScalarValue`：统一数值缩放结构
 * `UBattleEffect_*`：具体效果子类
 
 **推荐字段分层**
-* 目标规则：统一协议
+* 目标规则：只放在 `TargetedEffectDefinition` 及其子类上
 * 数值缩放：统一协议
 * 触发条件：统一协议
 * 效果参数：由具体效果子类自己持有
-* Battle effect 基类不再提供通用 `FlatValue`；伤害、护盾、治疗、削韧等数值必须写入具体 effect payload，优先使用 `Scalar`
+* Battle effect 基类不再提供通用 `FlatValue` 或 `UnitTargetRule`；伤害、护盾、治疗、削韧等数值必须写入具体 effect payload，优先使用 `Scalar`
 
 **UBattleEffectDefinition 基类必填字段**
 * `EffectId`：效果条目唯一 ID
 * `EffectType`：效果类型，协议见 `8.28 BattleEffectType`
-* `UnitTargetRule`：效果真实结算目标
 * `Conditions`：效果执行前必须全部满足的条件对象数组
 
 **UBattleEffectDefinition 基类可选字段**
 * `Notes`：补充备注
+
+**UFinalBattleTargetedEffectDefinition 必填字段**
+* `UnitTargetRule`：效果真实结算目标，仅 `Damage / Heal / GainShield / ApplyStatus / RemoveStatus / BonusBreak` 等需要单位目标的效果持有
+
+**非目标效果说明**
+* `DrawCards / GainAP / GenerateCard / MoveCards` 不读取单位目标规则；它们分别按 source owner、资源或牌区规则执行
 
 ### 9.3.1 BattleEffect Conditions
 **用途**  

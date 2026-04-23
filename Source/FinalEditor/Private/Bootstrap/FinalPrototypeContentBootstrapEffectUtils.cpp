@@ -383,13 +383,11 @@ namespace FinalPrototypeContentBootstrap
 		UObject* Owner,
 		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
 		const FName EffectId,
-		const EFinalBattleUnitTargetRule TargetRule,
 		const int32 GainValue,
 		const FText& Notes)
 	{
 		UFinalBattleEffectGainAP* GainApEffect = NewObject<UFinalBattleEffectGainAP>(Owner);
 		GainApEffect->EffectId = EffectId;
-		GainApEffect->UnitTargetRule = TargetRule;
 		GainApEffect->GainValue = FMath::Max(GainValue, 0);
 		GainApEffect->Notes = Notes;
 		Effects.Add(GainApEffect);
@@ -429,7 +427,6 @@ namespace FinalPrototypeContentBootstrap
 	{
 		UFinalBattleEffectGenerateCard* GenerateCardEffect = NewObject<UFinalBattleEffectGenerateCard>(Owner);
 		GenerateCardEffect->EffectId = EffectId;
-		GenerateCardEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
 		GenerateCardEffect->GeneratedCardDefinition = GeneratedCardDefinition;
 		GenerateCardEffect->GeneratedCardId = GeneratedCardDefinition != nullptr
 			? GeneratedCardDefinition->CardId
@@ -459,7 +456,6 @@ namespace FinalPrototypeContentBootstrap
 	{
 		UFinalBattleEffectMoveCards* MoveCardsEffect = NewObject<UFinalBattleEffectMoveCards>(Owner);
 		MoveCardsEffect->EffectId = EffectId;
-		MoveCardsEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
 		MoveCardsEffect->SourceZone = SourceZone;
 		MoveCardsEffect->DestinationZone = DestinationZone;
 		MoveCardsEffect->RequiredCardId = RequiredCardId;

@@ -363,7 +363,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterYeUltimate,
 		StarterYeUltimate->Effects,
 		TEXT("effect.starter.ye.ultimate.huitianxumai.gain_ap"),
-		EFinalBattleUnitTargetRule::Self,
 		1,
 		FText::FromString(TEXT("回天续脉的少量 AP 修正。")));
 	TrackPackage(StarterYeUltimate, PackagesToSave);
@@ -645,7 +644,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.gain_ap"),
-		EFinalBattleUnitTargetRule::Self,
 		1);
 	AddStatusChangedCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuaYinCard, PackagesToSave);
@@ -679,7 +677,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterYeHuiChunSanCard,
 		StarterYeHuiChunSanCard->Effects,
 		TEXT("effect.starter.ye.huichunsan.gain_ap"),
-		EFinalBattleUnitTargetRule::Self,
 		1,
 		FText::FromString(TEXT("首波 Runtime 仅落地药引消耗后的回 AP。")));
 	AddStatusChangedCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);

@@ -3,5 +3,4 @@
 UFinalBattleEffectDrawCards::UFinalBattleEffectDrawCards()
 {
 	EffectType = EFinalBattleEffectType::DrawCards;
-	UnitTargetRule = EFinalBattleUnitTargetRule::Self;
 }

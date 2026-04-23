@@ -198,6 +198,7 @@
 * `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 四类上下文，并供 `Effect.Conditions[]` 与 runtime trigger 条件复用同一套运行时判断基础
   * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
   * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
+  * `FinalData` effect schema 当前区分通用 `UFinalBattleEffectDefinition` 与目标型 `UFinalBattleTargetedEffectDefinition`：基类只保留身份、类型、条件和备注，`UnitTargetRule` 只属于 `Damage / Heal / GainShield / ApplyStatus / RemoveStatus / BonusBreak` 等目标型 effect；`DrawCards / GainAP / GenerateCard / MoveCards` 不承载目标规则
   * `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
   * `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
   * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
