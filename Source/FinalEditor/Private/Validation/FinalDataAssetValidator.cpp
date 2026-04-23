@@ -1,9 +1,9 @@
 #include "Validation/FinalDataAssetValidator.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
@@ -210,17 +210,14 @@ namespace FinalDataAssetValidation
 			return;
 		}
 
-		if (const UFinalBattleConditionConsumedStatus* ConsumedStatusCondition = Cast<const UFinalBattleConditionConsumedStatus>(Condition))
+		if (const UFinalBattleConditionStatusChanged* StatusChangedCondition = Cast<const UFinalBattleConditionStatusChanged>(Condition))
 		{
-			const FFinalBattleStatusConsumeRequirement& Requirement = ConsumedStatusCondition->Requirement;
-			if (Requirement.bRequireConsumedStatus)
+			const FFinalBattleStatusChangeRequirement& Requirement = StatusChangedCondition->Requirement;
+			if (!Requirement.RequiredStatusId.IsValid())
 			{
-				if (!Requirement.RequiredStatusId.IsValid())
-				{
-					AddError(Context, bIsValid, FString::Printf(TEXT("%s.Requirement.RequiredStatusId must be set."), *FieldName));
-				}
-				ValidatePositive(Context, bIsValid, Requirement.MinimumStacks, *FString::Printf(TEXT("%s.Requirement.MinimumStacks"), *FieldName));
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Requirement.RequiredStatusId must be set."), *FieldName));
 			}
+			ValidatePositive(Context, bIsValid, Requirement.MinimumStacks, *FString::Printf(TEXT("%s.Requirement.MinimumStacks"), *FieldName));
 			return;
 		}
 
@@ -361,9 +358,11 @@ namespace FinalDataAssetValidation
 
 	bool CanEarlierRemoveStatusSatisfy(
 		const UFinalBattleEffectRemoveStatus* RemoveStatusEffect,
-		const FFinalBattleStatusConsumeRequirement& Requirement)
+		const FFinalBattleStatusChangeRequirement& Requirement)
 	{
-		if (RemoveStatusEffect == nullptr || !Requirement.bRequireConsumedStatus || !Requirement.RequiredStatusId.IsValid())
+		if (RemoveStatusEffect == nullptr
+			|| Requirement.ChangeKind != EFinalBattleStatusChangeKind::Removed
+			|| !Requirement.RequiredStatusId.IsValid())
 		{
 			return false;
 		}
@@ -422,7 +421,7 @@ namespace FinalDataAssetValidation
 	bool HasEarlierRemoveStatusProducer(
 		const EffectArrayType& Effects,
 		const int32 ConditionEffectIndex,
-		const FFinalBattleStatusConsumeRequirement& Requirement)
+		const FFinalBattleStatusChangeRequirement& Requirement)
 	{
 		for (int32 ProducerIndex = 0; ProducerIndex < ConditionEffectIndex; ++ProducerIndex)
 		{
@@ -471,17 +470,17 @@ namespace FinalDataAssetValidation
 				const UFinalBattleConditionDefinition* Condition = Effect->Conditions[ConditionIndex].Get();
 				const FString ConditionFieldName = FString::Printf(TEXT("%s[%d].Conditions[%d]"), FieldName, EffectIndex, ConditionIndex);
 
-				if (const UFinalBattleConditionConsumedStatus* ConsumedStatusCondition = Cast<const UFinalBattleConditionConsumedStatus>(Condition))
+				if (const UFinalBattleConditionStatusChanged* StatusChangedCondition = Cast<const UFinalBattleConditionStatusChanged>(Condition))
 				{
-					const FFinalBattleStatusConsumeRequirement& Requirement = ConsumedStatusCondition->Requirement;
-					if (Requirement.bRequireConsumedStatus
+					const FFinalBattleStatusChangeRequirement& Requirement = StatusChangedCondition->Requirement;
+					if (Requirement.ChangeKind == EFinalBattleStatusChangeKind::Removed
 						&& Requirement.RequiredStatusId.IsValid()
 						&& !HasEarlierRemoveStatusProducer(Effects, EffectIndex, Requirement))
 					{
 						AddWarning(
 							Context,
 							FString::Printf(
-								TEXT("%s requires consumed status '%s', but no earlier RemoveStatus effect in %s can obviously produce that chain record."),
+								TEXT("%s requires removed status '%s', but no earlier RemoveStatus effect in %s can obviously produce that chain record."),
 								*ConditionFieldName,
 								*Requirement.RequiredStatusId.Value.ToString(),
 								FieldName));

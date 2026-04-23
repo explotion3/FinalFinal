@@ -19,7 +19,7 @@ class UFinalBattleEffectHeal;
 class UFinalBattleEffectMoveCards;
 class UFinalBattleEffectRemoveStatus;
 class UFinalBattleConditionMovedCards;
-class UFinalBattleConditionConsumedStatus;
+class UFinalBattleConditionStatusChanged;
 class UFinalBattleConditionHandCard;
 class UFinalBattleConditionTargetState;
 class UFinalCardDefinition;
@@ -41,7 +41,7 @@ namespace FinalPrototypeContentBootstrap
 	FFinalPrototypeBootstrapCharacterState MakeBootstrapCharacterState(const FFinalCharacterId& CharacterId, int32 CurrentStress);
 
 	UFinalBattleConditionTargetState* AddTargetStateCondition(UFinalBattleEffectDefinition* Effect, const FFinalBattleTargetStateRequirement& Requirement);
-	UFinalBattleConditionConsumedStatus* AddConsumedStatusCondition(UFinalBattleEffectDefinition* Effect, const FFinalStatusId& StatusId, int32 MinimumStacks);
+	UFinalBattleConditionStatusChanged* AddStatusChangedCondition(UFinalBattleEffectDefinition* Effect, const FFinalStatusId& StatusId, int32 MinimumStacks);
 	UFinalBattleConditionHandCard* AddHandCardCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly);
 	UFinalBattleConditionMovedCards* AddMovedCardsCondition(UFinalBattleEffectDefinition* Effect, const FGameplayTag& RequiredKeyword, int32 MinimumCount, bool bGeneratedOnly = true, bool bRequireSourceZone = false, EFinalBattleCardZoneRule SourceZone = EFinalBattleCardZoneRule::Hand, bool bRequireDestinationZone = false, EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile);
 

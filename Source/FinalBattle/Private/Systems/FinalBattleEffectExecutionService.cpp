@@ -1,9 +1,9 @@
 #include "Systems/FinalBattleEffectExecutionService.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
@@ -36,11 +36,12 @@ namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
 
-struct FFinalConsumedStatusRecord
+struct FFinalStatusChangeRecord
 {
 	FName OwnerUnitId = NAME_None;
 	FFinalStatusId StatusId;
-	int32 RemovedStacks = 0;
+	EFinalBattleStatusChangeKind ChangeKind = EFinalBattleStatusChangeKind::Removed;
+	int32 ChangedStacks = 0;
 };
 
 struct FFinalMovedCardRecord
@@ -59,8 +60,8 @@ struct FFinalMovedCardRecord
 // those records to decide whether dependent effects in the same list may run.
 struct FFinalBattleEffectExecutionContext
 {
-	// Produced by RemoveStatus effects; consumed by ConsumedStatus conditions.
-	TArray<FFinalConsumedStatusRecord> ConsumedStatuses;
+	// Produced by status-changing effects; consumed by StatusChanged conditions.
+	TArray<FFinalStatusChangeRecord> StatusChangeRecords;
 
 	// Produced by MoveCards effects when they explicitly record moved cards.
 	TArray<FFinalMovedCardRecord> MovedCardRecords;
@@ -331,45 +332,52 @@ FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectRemoveStatus* Effec
 	return EffectDefinition->StatusDefinition ? EffectDefinition->StatusDefinition->StatusId : FFinalStatusId();
 }
 
-void RecordConsumedStatus(
+void RecordStatusChange(
 	FFinalBattleEffectExecutionContext& Context,
 	const FName OwnerUnitId,
 	const FFinalStatusId& StatusId,
-	const int32 RemovedStacks)
+	const EFinalBattleStatusChangeKind ChangeKind,
+	const int32 ChangedStacks)
 {
-	if (OwnerUnitId.IsNone() || !StatusId.IsValid() || RemovedStacks <= 0)
+	if (OwnerUnitId.IsNone() || !StatusId.IsValid() || ChangedStacks <= 0)
 	{
 		return;
 	}
 
-	if (FFinalConsumedStatusRecord* ExistingRecord = Context.ConsumedStatuses.FindByPredicate(
-		[&OwnerUnitId, &StatusId](const FFinalConsumedStatusRecord& Candidate)
+	if (FFinalStatusChangeRecord* ExistingRecord = Context.StatusChangeRecords.FindByPredicate(
+		[&OwnerUnitId, &StatusId, ChangeKind](const FFinalStatusChangeRecord& Candidate)
 		{
-			return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
+			return Candidate.OwnerUnitId == OwnerUnitId
+				&& Candidate.StatusId == StatusId
+				&& Candidate.ChangeKind == ChangeKind;
 		}))
 	{
-		ExistingRecord->RemovedStacks += RemovedStacks;
+		ExistingRecord->ChangedStacks += ChangedStacks;
 		return;
 	}
 
-	FFinalConsumedStatusRecord& NewRecord = Context.ConsumedStatuses.AddDefaulted_GetRef();
+	FFinalStatusChangeRecord& NewRecord = Context.StatusChangeRecords.AddDefaulted_GetRef();
 	NewRecord.OwnerUnitId = OwnerUnitId;
 	NewRecord.StatusId = StatusId;
-	NewRecord.RemovedStacks = RemovedStacks;
+	NewRecord.ChangeKind = ChangeKind;
+	NewRecord.ChangedStacks = ChangedStacks;
 }
 
-int32 ResolveConsumedStatusStacks(
+int32 ResolveStatusChangedStacks(
 	const FFinalBattleEffectExecutionContext& Context,
 	const FName OwnerUnitId,
-	const FFinalStatusId& StatusId)
+	const FFinalStatusId& StatusId,
+	const EFinalBattleStatusChangeKind ChangeKind)
 {
-	if (const FFinalConsumedStatusRecord* ExistingRecord = Context.ConsumedStatuses.FindByPredicate(
-		[&OwnerUnitId, &StatusId](const FFinalConsumedStatusRecord& Candidate)
+	if (const FFinalStatusChangeRecord* ExistingRecord = Context.StatusChangeRecords.FindByPredicate(
+		[&OwnerUnitId, &StatusId, ChangeKind](const FFinalStatusChangeRecord& Candidate)
 		{
-			return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
+			return Candidate.OwnerUnitId == OwnerUnitId
+				&& Candidate.StatusId == StatusId
+				&& Candidate.ChangeKind == ChangeKind;
 		}))
 	{
-		return ExistingRecord->RemovedStacks;
+		return ExistingRecord->ChangedStacks;
 	}
 
 	return 0;
@@ -569,19 +577,14 @@ FName ResolveSourceOwnerUnitId(const FFinalBattleCharacterState* SourceCharacter
 	return NAME_None;
 }
 
-bool SatisfiesConsumeRequirement(
-	const FFinalBattleStatusConsumeRequirement& Requirement,
+bool SatisfiesStatusChangeRequirement(
+	const FFinalBattleStatusChangeRequirement& Requirement,
 	const FFinalBattleEffectExecutionContext& Context,
 	const FName SourceOwnerUnitId)
 {
-	if (!Requirement.bRequireConsumedStatus)
-	{
-		return true;
-	}
-
 	return Requirement.RequiredStatusId.IsValid()
 		&& !SourceOwnerUnitId.IsNone()
-		&& ResolveConsumedStatusStacks(Context, SourceOwnerUnitId, Requirement.RequiredStatusId) >= FMath::Max(Requirement.MinimumStacks, 1);
+		&& ResolveStatusChangedStacks(Context, SourceOwnerUnitId, Requirement.RequiredStatusId, Requirement.ChangeKind) >= FMath::Max(Requirement.MinimumStacks, 1);
 }
 
 enum class EFinalBattleConditionEvaluationPhase : uint8
@@ -618,9 +621,9 @@ bool EvaluateEffectCondition(
 		return false;
 	}
 
-	if (const UFinalBattleConditionConsumedStatus* ConsumedStatusCondition = Cast<UFinalBattleConditionConsumedStatus>(Condition))
+	if (const UFinalBattleConditionStatusChanged* StatusChangedCondition = Cast<UFinalBattleConditionStatusChanged>(Condition))
 	{
-		return SatisfiesConsumeRequirement(ConsumedStatusCondition->Requirement, Context, SourceOwnerUnitId);
+		return SatisfiesStatusChangeRequirement(StatusChangedCondition->Requirement, Context, SourceOwnerUnitId);
 	}
 
 	if (const UFinalBattleConditionMovedCards* MovedCardsCondition = Cast<UFinalBattleConditionMovedCards>(Condition))
@@ -1143,7 +1146,12 @@ bool ExecuteRemoveStatusEffect(
 			StatusId,
 			RemoveStatusEffect->Stacks);
 		RemovedStacks += RemovedStacksForTarget;
-		RecordConsumedStatus(ExecutionContext, TargetOwnerUnitId, StatusId, RemovedStacksForTarget);
+		RecordStatusChange(
+			ExecutionContext,
+			TargetOwnerUnitId,
+			StatusId,
+			EFinalBattleStatusChangeKind::Removed,
+			RemovedStacksForTarget);
 	}
 
 	if (RemovedStacks <= 0)

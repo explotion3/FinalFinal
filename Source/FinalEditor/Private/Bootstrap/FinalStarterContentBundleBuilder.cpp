@@ -3,7 +3,7 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapAssetUtils.h"
 #include "Bootstrap/FinalPrototypeContentBootstrapEffectUtils.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
+#include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
@@ -506,7 +506,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		2.0f,
 		EFinalBattleScalarMode::Flat);
-	AddConsumedStatusCondition(StarterHuoDuanYueZhanConsumeBreak, StarterHuoStatus->StatusId, 1);
+	AddStatusChangedCondition(StarterHuoDuanYueZhanConsumeBreak, StarterHuoStatus->StatusId, 1);
 	AddDamageEffect(
 		StarterHuoDuanYueZhanCard,
 		StarterHuoDuanYueZhanCard->Effects,
@@ -626,14 +626,14 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.draw"),
 		1);
-	AddConsumedStatusCondition(StarterYeHuaYinDrawEffect, StarterYeStatus->StatusId, 1);
+	AddStatusChangedCondition(StarterYeHuaYinDrawEffect, StarterYeStatus->StatusId, 1);
 	UFinalBattleEffectGainAP* StarterYeHuaYinGainApEffect = AddGainApEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.gain_ap"),
 		EFinalBattleUnitTargetRule::Self,
 		1);
-	AddConsumedStatusCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
+	AddStatusChangedCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuaYinCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeHuiChunSanCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeHuiChunSanCardPath, bCreatedAsset);
@@ -668,7 +668,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::Self,
 		1,
 		FText::FromString(TEXT("首波 Runtime 仅落地药引消耗后的回 AP。")));
-	AddConsumedStatusCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);
+	AddStatusChangedCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuiChunSanCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenBuFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenBuFengCardPath, bCreatedAsset);

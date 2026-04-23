@@ -1,6 +1,6 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapEffectUtils.h"
 
-#include "Battle/Conditions/FinalBattleConditionConsumedStatus.h"
+#include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
@@ -169,7 +169,7 @@ namespace FinalPrototypeContentBootstrap
 		return Condition;
 	}
 
-	UFinalBattleConditionConsumedStatus* AddConsumedStatusCondition(
+	UFinalBattleConditionStatusChanged* AddStatusChangedCondition(
 		UFinalBattleEffectDefinition* Effect,
 		const FFinalStatusId& StatusId,
 		const int32 MinimumStacks)
@@ -179,9 +179,9 @@ namespace FinalPrototypeContentBootstrap
 			return nullptr;
 		}
 
-		UFinalBattleConditionConsumedStatus* Condition = NewObject<UFinalBattleConditionConsumedStatus>(Effect);
-		Condition->ConditionId = TEXT("condition.consumed_status");
-		Condition->Requirement.bRequireConsumedStatus = true;
+		UFinalBattleConditionStatusChanged* Condition = NewObject<UFinalBattleConditionStatusChanged>(Effect);
+		Condition->ConditionId = TEXT("condition.status_changed");
+		Condition->Requirement.ChangeKind = EFinalBattleStatusChangeKind::Removed;
 		Condition->Requirement.RequiredStatusId = StatusId;
 		Condition->Requirement.MinimumStacks = FMath::Max(MinimumStacks, 1);
 		Effect->Conditions.Add(Condition);
