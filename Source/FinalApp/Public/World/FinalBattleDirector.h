@@ -81,7 +81,7 @@ private:
 	UPROPERTY(EditInstanceOnly, Category = "Final|Battle|Presentation")
 	TSubclassOf<AFinalBattlePresentationActor> DefaultPlayerPresentationClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditInstanceOnly, Category = "Final|Battle|Presentation")
 	TSubclassOf<AFinalBattlePresentationActor> DefaultEnemyPresentationClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
