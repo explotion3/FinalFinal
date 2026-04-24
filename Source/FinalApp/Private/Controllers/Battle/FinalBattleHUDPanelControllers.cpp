@@ -12,12 +12,12 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
-const FName RejectBattleNotInitializedTag(TEXT("battle.not_initialized"));
+const FName PanelRejectBattleNotInitializedTag(TEXT("battle.not_initialized"));
 const FName RejectNotEnoughEPTag(TEXT("battle.not_enough_ep"));
-const FName RejectInvalidTargetTag(TEXT("battle.invalid_target"));
+const FName PanelRejectInvalidTargetTag(TEXT("battle.invalid_target"));
 const FName RejectUltimateAlreadyUsedTag(TEXT("battle.ultimate_already_used"));
 const FName RejectUltimateBlockedByCollapseTag(TEXT("battle.ultimate_blocked_by_collapse"));
-const FName RejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
+const FName PanelRejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 const FName RejectNotEnoughAPTag(TEXT("battle.not_enough_ap"));
 
 FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
@@ -276,12 +276,12 @@ FText ResolveRejectReasonLabel(const FFinalBattleEvent& Event)
 		break;
 	}
 
-	if (Event.ReasonTag == RejectBattleNotInitializedTag)
+	if (Event.ReasonTag == PanelRejectBattleNotInitializedTag)
 	{
 		return NSLOCTEXT("FinalBattleHUD", "RejectBattleNotInitializedByTag", "战斗未初始化");
 	}
 
-	if (Event.ReasonTag == RejectInvalidTargetTag)
+	if (Event.ReasonTag == PanelRejectInvalidTargetTag)
 	{
 		return NSLOCTEXT("FinalBattleHUD", "RejectInvalidTargetByTag", "目标无效");
 	}
@@ -306,7 +306,7 @@ FText ResolveRejectReasonLabel(const FFinalBattleEvent& Event)
 		return NSLOCTEXT("FinalBattleHUD", "RejectNotEnoughAPByTag", "AP不足");
 	}
 
-	if (Event.ReasonTag == RejectUnsupportedCommandTag)
+	if (Event.ReasonTag == PanelRejectUnsupportedCommandTag)
 	{
 		return NSLOCTEXT("FinalBattleHUD", "RejectUnsupportedCommandByTag", "命令不支持");
 	}

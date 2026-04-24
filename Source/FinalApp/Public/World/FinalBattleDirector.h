@@ -6,10 +6,23 @@
 #include "GameFramework/Actor.h"
 #include "FinalBattleDirector.generated.h"
 
-class ATextRenderActor;
+class AFinalBattlePresentationActor;
+class AFinalBattleStageAnchorActor;
 class UFinalBattleFlowSubsystem;
 class USceneComponent;
 class UTextRenderComponent;
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattlePresentationClassMapping
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle|Presentation")
+	FName UnitDefinitionId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle|Presentation")
+	TSubclassOf<AFinalBattlePresentationActor> PresentationClass;
+};
 
 UCLASS()
 class FINALAPP_API AFinalBattleDirector : public AActor
@@ -27,6 +40,7 @@ private:
 	{
 		bool bIsEnemy = false;
 		int32 SlotIndex = INDEX_NONE;
+		FName UnitDefinitionId = NAME_None;
 		FText DisplayName;
 		FText DetailText;
 		bool bIsAlive = true;
@@ -42,12 +56,15 @@ private:
 	UFinalBattleFlowSubsystem* ResolveBattleFlowSubsystem() const;
 	void RefreshPresentationFromSnapshot(const FFinalBattleSnapshot& Snapshot);
 	void SyncPresentationActors();
+	void RefreshStageAnchors();
 	void UpdatePresentationActor(FName RuntimeUnitId, const FPresentationUnitState& UnitState);
+	void ApplyEventPresentation(const FFinalBattleEvent& BattleEvent);
 	void ClearPresentationActors();
 	void UpdateSummaryText();
-	ATextRenderActor* GetOrSpawnPresentationActor(FName RuntimeUnitId);
-	FVector ResolvePresentationLocation(const FPresentationUnitState& UnitState) const;
-	FLinearColor ResolvePresentationColor(FName RuntimeUnitId, const FPresentationUnitState& UnitState) const;
+	AFinalBattlePresentationActor* GetOrSpawnPresentationActor(FName RuntimeUnitId, const FPresentationUnitState& UnitState);
+	FTransform ResolvePresentationTransform(const FPresentationUnitState& UnitState) const;
+	AFinalBattleStageAnchorActor* ResolveStageAnchor(const FPresentationUnitState& UnitState) const;
+	TSubclassOf<AFinalBattlePresentationActor> ResolvePresentationActorClass(const FPresentationUnitState& UnitState) const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Presentation")
 	TObjectPtr<USceneComponent> RootSceneComponent;
@@ -57,6 +74,21 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	FVector SummaryTextOffset = FVector(0.0f, 0.0f, 320.0f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	TSubclassOf<AFinalBattlePresentationActor> PresentationActorClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	TSubclassOf<AFinalBattlePresentationActor> DefaultPlayerPresentationClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	TSubclassOf<AFinalBattlePresentationActor> DefaultEnemyPresentationClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	TArray<FFinalBattlePresentationClassMapping> PlayerPresentationClassMappings;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	TArray<FFinalBattlePresentationClassMapping> EnemyPresentationClassMappings;
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	FVector PlayerPresentationOrigin = FVector(-420.0f, -180.0f, 120.0f);
@@ -80,7 +112,13 @@ private:
 	TObjectPtr<UFinalBattleFlowSubsystem> CachedBattleFlowSubsystem;
 
 	UPROPERTY(Transient)
-	TMap<FName, TObjectPtr<ATextRenderActor>> PresentationActorsByRuntimeId;
+	TMap<FName, TObjectPtr<AFinalBattlePresentationActor>> PresentationActorsByRuntimeId;
+
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<AFinalBattleStageAnchorActor>> PlayerStageAnchorsByIndex;
+
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<AFinalBattleStageAnchorActor>> EnemyStageAnchorsByIndex;
 
 	TMap<FName, FPresentationUnitState> PresentationUnitsByRuntimeId;
 	FFinalBattleSnapshot CachedSnapshot;

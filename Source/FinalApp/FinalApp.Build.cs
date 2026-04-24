@@ -13,6 +13,7 @@ public class FinalApp : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"PaperZD",
 			"UMG",
 			"Slate",
 			"SlateCore",

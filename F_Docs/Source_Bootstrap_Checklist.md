@@ -208,6 +208,8 @@
 * `Source/FinalApp/Public/World/FinalBattleGameMode.h`
 * `Source/FinalApp/Public/World/FinalBattlePlayerController.h`
 * `Source/FinalApp/Public/World/FinalBattleDirector.h`
+* `Source/FinalApp/Public/World/FinalBattlePresentationActor.h`
+* `Source/FinalApp/Public/World/FinalBattleStageAnchorActor.h`
 * `Source/FinalApp/Public/ViewModels/FinalBattleHUDViewModel.h`
 * `Source/FinalApp/Public/Controllers/FinalBattleWidgetController.h`
 * `Source/FinalApp/Public/Save/FinalRunSaveGame.h`
@@ -428,8 +430,10 @@
 * `FinalBattleWidgetController` 当前仍是 BattleFlow 的唯一订阅点，并把缓存的 `Snapshot / BattleEvents / SelectedEnemy / LastInteractionFeedback` 分发给 panel controllers；panel controllers 只做局部展示组装和命令委托，不各自直接订阅 subsystem
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * 本轮启动性能验证命令：`Build.bat FinalFinalEditor Win64 Development`、`UnrealEditor-Cmd.exe -run=FinalPrototypeContentBootstrap`、`UnrealEditor-Cmd.exe -run=DataValidation -ProjectOnly`、`Automation RunTests Final.Editor.PrototypeSmoke`
-* `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层占位表现对象
-* `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，并在事件到来时刷新最近反馈；世界提示直接复用 BattleEvent 统一投影 helper，不替代 HUD / Debug 明细
+* `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层展示傀儡
+* `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，生成/复用 `FinalBattlePresentationActor` 并在事件到来时下发攻击 / 受击 / 选中 / 死亡表现
+* `FinalBattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用，不持有 Battle 真相
+* `FinalBattleStageAnchorActor` 当前作为 `testMap` 的玩家 / 敌方站位真相；Director 优先按关卡锚点摆位，旧原点 / 间距参数只保留为 fallback
 * `FinalBattlePlayerController::StartTestBattle()` 可供地图按钮直接调用，并会按 `FinalGameInstance` 当前选中的 bootstrap profile 重启 prototype run
 * 控制台命令 `FinalStartTestBattle` 可在测试地图内直接按当前 bootstrap profile 起一场战斗；`FinalSetPrototypeBootstrap <BootstrapId>` 可在非 active battle 时切换到指定 bootstrap 并重新初始化 prototype run
 * 控制台命令 `FinalDumpBattleSnapshot / FinalPlayFirstHandCard / FinalEndTurnCommand / FinalCompleteResolvedBattle` 可直接用日志验证战斗推进与回写

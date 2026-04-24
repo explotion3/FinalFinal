@@ -3,9 +3,11 @@
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Components/SceneComponent.h"
 #include "Components/TextRenderComponent.h"
-#include "Engine/TextRenderActor.h"
+#include "EngineUtils.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
+#include "World/FinalBattlePresentationActor.h"
+#include "World/FinalBattleStageAnchorActor.h"
 
 namespace
 {
@@ -51,75 +53,6 @@ FText BuildEnemyDetailText(const FFinalBattleEnemyViewData& EnemyView)
 		IntentText);
 }
 
-FText GetBattleDirectorRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
-{
-	switch (EffectType)
-	{
-	case EFinalRelicBattleStartEffectType::GainAP:
-		return NSLOCTEXT("FinalBattleDirector", "RelicEffectGainAP", "GainAP");
-
-	case EFinalRelicBattleStartEffectType::GainShield:
-		return NSLOCTEXT("FinalBattleDirector", "RelicEffectGainShield", "GainShield");
-
-	case EFinalRelicBattleStartEffectType::None:
-	default:
-		return NSLOCTEXT("FinalBattleDirector", "RelicEffectNone", "None");
-	}
-}
-
-FText ResolveRelicDisplayName(const FFinalBattleSnapshot& Snapshot, const FFinalRelicId& RelicId)
-{
-	const FFinalBattleStartRelicInput* RelicInput = Snapshot.ActiveRelics.FindByPredicate(
-		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
-		{
-			return Candidate.RelicId == RelicId;
-		});
-
-	if (RelicInput != nullptr)
-	{
-		if (!RelicInput->DisplayName.IsEmpty())
-		{
-			return RelicInput->DisplayName;
-		}
-
-		if (!RelicInput->DisplayId.IsNone())
-		{
-			return FText::FromName(RelicInput->DisplayId);
-		}
-	}
-
-	return RelicId.IsValid()
-		? FText::FromName(RelicId.Value)
-		: FText::GetEmpty();
-}
-
-FText BuildRelicEffectSummaryText(const FFinalBattleSnapshot& Snapshot, const FFinalRelicId& RelicId)
-{
-	const FFinalBattleStartRelicInput* RelicInput = Snapshot.ActiveRelics.FindByPredicate(
-		[&RelicId](const FFinalBattleStartRelicInput& Candidate)
-		{
-			return Candidate.RelicId == RelicId;
-		});
-
-	if (RelicInput == nullptr || RelicInput->BattleStartEffects.IsEmpty())
-	{
-		return FText::GetEmpty();
-	}
-
-	TArray<FString> Segments;
-	Segments.Reserve(RelicInput->BattleStartEffects.Num());
-	for (const FFinalBattleStartRelicEffectInput& EffectInput : RelicInput->BattleStartEffects)
-	{
-		const FString EffectTypeString = GetBattleDirectorRelicEffectTypeText(EffectInput.EffectType).ToString();
-		Segments.Add(FString::Printf(
-			TEXT("%s +%d"),
-			*EffectTypeString,
-			EffectInput.Value));
-	}
-
-	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
-}
-
 FText ResolveUnitDisplayName(const FFinalBattleSnapshot& Snapshot, const FName RuntimeUnitId)
 {
 	if (const FFinalBattleCharacterViewData* CharacterView = Snapshot.Characters.FindByPredicate(
@@ -140,9 +73,7 @@ FText ResolveUnitDisplayName(const FFinalBattleSnapshot& Snapshot, const FName R
 		return EnemyView->DisplayName;
 	}
 
-	return RuntimeUnitId.IsNone()
-		? FText::GetEmpty()
-		: FText::FromName(RuntimeUnitId);
+	return RuntimeUnitId.IsNone() ? FText::GetEmpty() : FText::FromName(RuntimeUnitId);
 }
 }
 
@@ -162,6 +93,10 @@ AFinalBattleDirector::AFinalBattleDirector()
 	SummaryTextComponent->SetRelativeLocation(SummaryTextOffset);
 	SummaryTextComponent->SetRelativeRotation(PresentationRotation);
 	SummaryTextComponent->SetText(NSLOCTEXT("FinalBattleDirector", "WaitingForBattle", "BattleDirector\n等待战斗数据"));
+
+	PresentationActorClass = AFinalBattlePresentationActor::StaticClass();
+	DefaultPlayerPresentationClass = PresentationActorClass;
+	DefaultEnemyPresentationClass = PresentationActorClass;
 }
 
 void AFinalBattleDirector::BeginPlay()
@@ -170,6 +105,7 @@ void AFinalBattleDirector::BeginPlay()
 
 	SummaryTextComponent->SetRelativeLocation(SummaryTextOffset);
 	SummaryTextComponent->SetRelativeRotation(PresentationRotation);
+	RefreshStageAnchors();
 
 	CachedBattleFlowSubsystem = ResolveBattleFlowSubsystem();
 	if (CachedBattleFlowSubsystem)
@@ -193,6 +129,8 @@ void AFinalBattleDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 
 	ClearPresentationActors();
+	PlayerStageAnchorsByIndex.Reset();
+	EnemyStageAnchorsByIndex.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -206,7 +144,7 @@ void AFinalBattleDirector::HandleBattleEventBroadcast(const FFinalBattleEvent& B
 {
 	LastBattleEvent = BattleEvent;
 	UpdateSummaryText();
-	SyncPresentationActors();
+	ApplyEventPresentation(BattleEvent);
 }
 
 UFinalBattleFlowSubsystem* AFinalBattleDirector::ResolveBattleFlowSubsystem() const
@@ -229,6 +167,7 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		FPresentationUnitState& UnitState = PresentationUnitsByRuntimeId.FindOrAdd(CharacterView.RuntimeUnitId);
 		UnitState.bIsEnemy = false;
 		UnitState.SlotIndex = CharacterIndex;
+		UnitState.UnitDefinitionId = CharacterView.CharacterId.Value;
 		UnitState.DisplayName = !CharacterView.DisplayName.IsEmpty()
 			? CharacterView.DisplayName
 			: FText::FromName(CharacterView.RuntimeUnitId);
@@ -247,6 +186,7 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		FPresentationUnitState& UnitState = PresentationUnitsByRuntimeId.FindOrAdd(EnemyView.RuntimeUnitId);
 		UnitState.bIsEnemy = true;
 		UnitState.SlotIndex = EnemyView.PositionIndex;
+		UnitState.UnitDefinitionId = EnemyView.EnemyId.Value;
 		UnitState.DisplayName = !EnemyView.DisplayName.IsEmpty()
 			? EnemyView.DisplayName
 			: FText::FromName(EnemyView.RuntimeUnitId);
@@ -278,7 +218,7 @@ void AFinalBattleDirector::SyncPresentationActors()
 			continue;
 		}
 
-		if (ATextRenderActor* Actor = PresentationActorsByRuntimeId.FindRef(RuntimeUnitId))
+		if (AFinalBattlePresentationActor* Actor = PresentationActorsByRuntimeId.FindRef(RuntimeUnitId))
 		{
 			Actor->Destroy();
 		}
@@ -287,57 +227,82 @@ void AFinalBattleDirector::SyncPresentationActors()
 	}
 }
 
+void AFinalBattleDirector::RefreshStageAnchors()
+{
+	PlayerStageAnchorsByIndex.Reset();
+	EnemyStageAnchorsByIndex.Reset();
+
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	for (TActorIterator<AFinalBattleStageAnchorActor> It(World); It; ++It)
+	{
+		AFinalBattleStageAnchorActor* AnchorActor = *It;
+		if (AnchorActor == nullptr)
+		{
+			continue;
+		}
+
+		TMap<int32, TObjectPtr<AFinalBattleStageAnchorActor>>& TargetMap =
+			AnchorActor->GetAnchorSide() == EFinalBattleStageAnchorSide::Enemy
+				? EnemyStageAnchorsByIndex
+				: PlayerStageAnchorsByIndex;
+
+		TargetMap.Add(AnchorActor->GetSlotIndex(), AnchorActor);
+	}
+}
+
 void AFinalBattleDirector::UpdatePresentationActor(const FName RuntimeUnitId, const FPresentationUnitState& UnitState)
 {
-	ATextRenderActor* PresentationActor = GetOrSpawnPresentationActor(RuntimeUnitId);
+	AFinalBattlePresentationActor* PresentationActor = GetOrSpawnPresentationActor(RuntimeUnitId, UnitState);
 	if (PresentationActor == nullptr)
 	{
 		return;
 	}
 
-	const bool bWasEventSource = LastBattleEvent.SourceUnitId == RuntimeUnitId;
-	const bool bWasEventTarget = LastBattleEvent.TargetUnitId == RuntimeUnitId;
+	PresentationActor->ApplySnapshotView(
+		UnitState.DisplayName,
+		UnitState.DetailText,
+		UnitState.bIsAlive,
+		UnitState.bIsTargeted);
 
-	FString HeaderLine;
-	if (bWasEventSource)
+	PresentationActor->SetActorTransform(ResolvePresentationTransform(UnitState));
+}
+
+void AFinalBattleDirector::ApplyEventPresentation(const FFinalBattleEvent& BattleEvent)
+{
+	AFinalBattlePresentationActor* SourceActor = PresentationActorsByRuntimeId.FindRef(BattleEvent.SourceUnitId);
+	AFinalBattlePresentationActor* TargetActor = PresentationActorsByRuntimeId.FindRef(BattleEvent.TargetUnitId);
+
+	switch (BattleEvent.EventType)
 	{
-		HeaderLine += TEXT("[Act] ");
-	}
-	if (UnitState.bIsTargeted)
-	{
-		HeaderLine += TEXT("[Target] ");
-	}
-	if (bWasEventTarget)
-	{
-		HeaderLine += TEXT("[Impact] ");
-	}
+	case EFinalBattleEventType::CardResolved:
+	case EFinalBattleEventType::UltimateResolved:
+	case EFinalBattleEventType::EnemyActed:
+		if (SourceActor)
+		{
+			SourceActor->PlayAttackPresentation();
+		}
 
-	HeaderLine += UnitState.DisplayName.IsEmpty()
-		? RuntimeUnitId.ToString()
-		: UnitState.DisplayName.ToString();
+		if (TargetActor && BattleEvent.TargetUnitId != BattleEvent.SourceUnitId)
+		{
+			TargetActor->PlayHitPresentation();
+		}
+		break;
 
-	const FString DetailText = UnitState.DetailText.IsEmpty()
-		? FString(TEXT("无公开表现字段"))
-		: UnitState.DetailText.ToString();
-
-	if (UTextRenderComponent* TextRender = PresentationActor->GetTextRender())
-	{
-		TextRender->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *HeaderLine, *DetailText)));
-		TextRender->SetHorizontalAlignment(EHTA_Center);
-		TextRender->SetVerticalAlignment(EVRTA_TextCenter);
-		TextRender->SetWorldSize(UnitTextWorldSize);
-		TextRender->SetTextRenderColor(ResolvePresentationColor(RuntimeUnitId, UnitState).ToFColor(true));
+	default:
+		break;
 	}
-
-	PresentationActor->SetActorLocation(ResolvePresentationLocation(UnitState));
-	PresentationActor->SetActorRotation(GetActorRotation() + PresentationRotation);
 }
 
 void AFinalBattleDirector::ClearPresentationActors()
 {
-	TArray<TObjectPtr<ATextRenderActor>> PresentationActors;
+	TArray<TObjectPtr<AFinalBattlePresentationActor>> PresentationActors;
 	PresentationActorsByRuntimeId.GenerateValueArray(PresentationActors);
-	for (ATextRenderActor* Actor : PresentationActors)
+	for (AFinalBattlePresentationActor* Actor : PresentationActors)
 	{
 		if (Actor)
 		{
@@ -384,15 +349,25 @@ void AFinalBattleDirector::UpdateSummaryText()
 		EventMessage));
 }
 
-ATextRenderActor* AFinalBattleDirector::GetOrSpawnPresentationActor(const FName RuntimeUnitId)
+AFinalBattlePresentationActor* AFinalBattleDirector::GetOrSpawnPresentationActor(
+	const FName RuntimeUnitId,
+	const FPresentationUnitState& UnitState)
 {
-	if (ATextRenderActor* ExistingActor = PresentationActorsByRuntimeId.FindRef(RuntimeUnitId))
+	const TSubclassOf<AFinalBattlePresentationActor> DesiredPresentationClass = ResolvePresentationActorClass(UnitState);
+
+	if (AFinalBattlePresentationActor* ExistingActor = PresentationActorsByRuntimeId.FindRef(RuntimeUnitId))
 	{
-		return ExistingActor;
+		if (DesiredPresentationClass == nullptr || ExistingActor->IsA(DesiredPresentationClass))
+		{
+			return ExistingActor;
+		}
+
+		ExistingActor->Destroy();
+		PresentationActorsByRuntimeId.Remove(RuntimeUnitId);
 	}
 
 	UWorld* World = GetWorld();
-	if (World == nullptr)
+	if (World == nullptr || DesiredPresentationClass == nullptr)
 	{
 		return nullptr;
 	}
@@ -401,52 +376,76 @@ ATextRenderActor* AFinalBattleDirector::GetOrSpawnPresentationActor(const FName 
 	SpawnParameters.Owner = this;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ATextRenderActor* SpawnedActor = World->SpawnActor<ATextRenderActor>(
-		ATextRenderActor::StaticClass(),
-		GetActorLocation(),
-		GetActorRotation() + PresentationRotation,
+	AFinalBattlePresentationActor* SpawnedActor = World->SpawnActor<AFinalBattlePresentationActor>(
+		DesiredPresentationClass,
+		ResolvePresentationTransform(UnitState),
 		SpawnParameters);
 	if (SpawnedActor)
 	{
+		SpawnedActor->InitializePresentationActor(
+			RuntimeUnitId,
+			UnitState.bIsEnemy ? EFinalBattlePresentationTeam::Enemy : EFinalBattlePresentationTeam::Player);
 		PresentationActorsByRuntimeId.Add(RuntimeUnitId, SpawnedActor);
 	}
 
 	return SpawnedActor;
 }
 
-FVector AFinalBattleDirector::ResolvePresentationLocation(const FPresentationUnitState& UnitState) const
+FTransform AFinalBattleDirector::ResolvePresentationTransform(const FPresentationUnitState& UnitState) const
 {
+	if (const AFinalBattleStageAnchorActor* StageAnchor = ResolveStageAnchor(UnitState))
+	{
+		return StageAnchor->GetActorTransform();
+	}
+
 	const FVector BaseOffset = UnitState.bIsEnemy
 		? EnemyPresentationOrigin
 		: PlayerPresentationOrigin;
 	const float SlotSpacing = UnitState.bIsEnemy ? EnemySlotSpacing : PlayerSlotSpacing;
 	const FVector LocalOffset = BaseOffset + FVector(0.0f, SlotSpacing * UnitState.SlotIndex, 0.0f);
-	return GetActorTransform().TransformPosition(LocalOffset);
+	return FTransform(GetActorRotation() + PresentationRotation, GetActorTransform().TransformPosition(LocalOffset));
 }
 
-FLinearColor AFinalBattleDirector::ResolvePresentationColor(const FName RuntimeUnitId, const FPresentationUnitState& UnitState) const
+AFinalBattleStageAnchorActor* AFinalBattleDirector::ResolveStageAnchor(const FPresentationUnitState& UnitState) const
 {
-	if (!UnitState.bIsAlive)
+	const TMap<int32, TObjectPtr<AFinalBattleStageAnchorActor>>& SourceMap =
+		UnitState.bIsEnemy ? EnemyStageAnchorsByIndex : PlayerStageAnchorsByIndex;
+
+	if (const TObjectPtr<AFinalBattleStageAnchorActor>* AnchorPtr = SourceMap.Find(UnitState.SlotIndex))
 	{
-		return FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
+		return AnchorPtr->Get();
 	}
 
-	if (UnitState.bIsTargeted)
+	return nullptr;
+}
+
+TSubclassOf<AFinalBattlePresentationActor> AFinalBattleDirector::ResolvePresentationActorClass(
+	const FPresentationUnitState& UnitState) const
+{
+	const TArray<FFinalBattlePresentationClassMapping>& SourceMappings =
+		UnitState.bIsEnemy ? EnemyPresentationClassMappings : PlayerPresentationClassMappings;
+
+	if (!UnitState.UnitDefinitionId.IsNone())
 	{
-		return FLinearColor(1.0f, 0.82f, 0.2f, 1.0f);
+		if (const FFinalBattlePresentationClassMapping* Mapping = SourceMappings.FindByPredicate(
+				[&UnitState](const FFinalBattlePresentationClassMapping& Candidate)
+				{
+					return Candidate.UnitDefinitionId == UnitState.UnitDefinitionId && Candidate.PresentationClass != nullptr;
+				}))
+		{
+			return Mapping->PresentationClass;
+		}
 	}
 
-	if (LastBattleEvent.SourceUnitId == RuntimeUnitId)
+	if (UnitState.bIsEnemy && DefaultEnemyPresentationClass != nullptr)
 	{
-		return FLinearColor(0.22f, 0.86f, 0.95f, 1.0f);
+		return DefaultEnemyPresentationClass;
 	}
 
-	if (LastBattleEvent.TargetUnitId == RuntimeUnitId)
+	if (!UnitState.bIsEnemy && DefaultPlayerPresentationClass != nullptr)
 	{
-		return FLinearColor(1.0f, 0.52f, 0.24f, 1.0f);
+		return DefaultPlayerPresentationClass;
 	}
 
-	return UnitState.bIsEnemy
-		? FLinearColor(1.0f, 0.40f, 0.40f, 1.0f)
-		: FLinearColor(0.38f, 0.78f, 1.0f, 1.0f);
+	return PresentationActorClass;
 }

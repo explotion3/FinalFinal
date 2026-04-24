@@ -37,7 +37,7 @@
 * 运行时状态层：战斗内与单局外的权威状态
 * 规则执行层：命令校验、效果解析、结算顺序、窗口处理
 * 外层编排层：地图、节点、奖励、事件、进入战斗、战后结算
-* 表现接入层：UI、Actor、动画、特效、音频、调试界面
+* 表现接入层：UI、Actor、PaperZD 动画、特效、音频、调试界面
 
 硬性边界：
 * 表现层不能直接改写权威状态
@@ -392,6 +392,8 @@
 * `FinalBattleWidgetController` 已可把 `Snapshot / Event` 转成首轮 `HUD Presentation`
 * `FinalApp` 可结合 `FinalData / RunSession` 补齐遭遇名、金币、`EP` 上限、角色名、卡牌名等展示字段
 * `FinalApp` 当前已补 BattleEvent 统一投影 helper，并新增最小只读 Battle event ledger UI；`BattleHUD`、`PrototypeRunDebugScreen`、`BattleDirector` 优先共用这套事件投影，而不是各自散拼
+* `BattleDirector` 当前已从文本占位生成器收口成世界展示编排器：世界层 roster 由它按 `BattleSnapshot / BattleEvent` 驱动生成/复用 `BattlePresentationActor`
+* `BattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用；场景站位真相来自 `BattleStageAnchorActor`，旧原点 / 间距参数只保留为 fallback
 * `UISubsystem` 当前默认只把 `BattleHUDScreen` 挂在常驻 `HUD Layer`；`PrototypeRunDebugScreen` 与 `FinalBattleEventScreen` 作为 prototype debug/ledger overlay 按需打开，不再常驻压在 Battle HUD 上
 * `BattleHUDScreen` 当前只承接主战斗信息、命令入口、最近事件摘要与 debug overlay 打开入口；完整账本与 run 调试摘要不再常驻混排在主 HUD 内
 

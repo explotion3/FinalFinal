@@ -215,11 +215,12 @@ FinalBattle      FinalRun
   * 前者把 `FFinalBattleEvent` 统一投影成标题、摘要、细节、世界提示与账本文本
   * 后者作为按需打开的 overlay，只读消费 `GetBattleLogEntries / GetBattleEventsSince / GetLatestBattleEventSequence`
   * 这套消费面服务 HUD、Debug、世界提示与未来 replay-ready 表现，但本轮不等于完整 replay 系统
-* 当前代码已补上 `BattleDirector` 的最小世界桥接骨架：
+* 当前代码已把 `BattleDirector` 升级成最小世界展示编排器：
   * 只读订阅 `FinalBattleFlowSubsystem` 的 `BattleSnapshot / BattleEvent`
-  * 在世界层维护一份玩家侧 / 敌方侧的 presentation roster 映射
-  * 用代码生成的文本占位 actor 承接单位名、目标高亮、敌人意图、存活/崩溃状态与最近事件反馈；世界提示当前直接复用 BattleEvent 统一投影 helper
-  * 不替代 Battle HUD，也不访问 `FinalBattle` 私有运行时结构
+  * 在世界层维护玩家 / 敌方 presentation roster，并生成/复用 `BattlePresentationActor`
+  * `BattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用；Battle 真相仍留在 `FinalBattle`
+  * 战斗场景站位真相当前来自 `BattleStageAnchorActor`；`BattleDirector` 只按 slot 与阵营选择锚点，旧原点/间距参数仅作 fallback
+  * 世界提示与攻击/受击/选中/死亡表现继续由 BattleEvent 驱动，不替代 Battle HUD，也不访问 `FinalBattle` 私有运行时结构
 * 当前 Battle 期 relic 反馈分层口径：
   * `BattleHUDScreen` 显示精简 `ActiveRelics` 摘要，并把 `RelicTriggered` 作为顶部交互反馈的一部分
   * `PrototypeRunDebugScreen` 显示详细只读调试信息，包括 `CurrentBuild.RelicEntries`、区分 `BattleStartEffects / PlayerTurnStartEffects` 的 `BattleSnapshot.ActiveRelics` 和最近一条 `RelicTriggered`
@@ -595,6 +596,8 @@ Source
 * `UFinalSaveGameCoordinator`
 * `UFinalRunSaveGame`
 * `AFinalBattleDirector`
+* `AFinalBattlePresentationActor`
+* `AFinalBattleStageAnchorActor`
 * `AFinalBattlePlayerController`
 * `UFinalBattleWidgetController`
 * `UFinalBattleHUDScreen`
@@ -628,7 +631,7 @@ Save / Load 当前边界：
 * `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目
 * `FinalBattleWidgetController` 当前是 Battle HUD 的唯一 BattleFlow 订阅点；Battle HUD 细分 panel 通过子 controller / 子 view model 消费只读展示数据
 * Battle HUD 当前已落地 `TopBar / Feedback / Context / Character / Enemy / Hand / Ultimate / RecentEvent / Action` 九个 panel；继续扩 HUD 时优先沿 panel 路径，而不是把细节重新堆回 screen
-* `AFinalBattleDirector` 当前承担最小世界表现桥接：读取 `BattleSnapshot / BattleEvent`，生成并刷新世界层占位表现对象；复杂演出、镜头与美术资源仍后置
+* `AFinalBattleDirector` 当前承担最小世界表现桥接：读取 `BattleSnapshot / BattleEvent`，生成并刷新世界层 `PaperZD` 展示傀儡；复杂演出、镜头与正式美术资源仍后置
 
 ---
 
