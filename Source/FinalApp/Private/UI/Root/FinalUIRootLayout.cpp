@@ -4,6 +4,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "UI/Screens/FinalScreenBase.h"
 
 void UFinalUIRootLayout::NativeOnInitialized()
@@ -35,7 +36,11 @@ void UFinalUIRootLayout::AddScreenToLayer(UFinalScreenBase* Screen, EFinalUIScre
 
 	if (UOverlay* Overlay = ResolveLayer(Layer))
 	{
-		Overlay->AddChild(Screen);
+		if (UOverlaySlot* ScreenSlot = Overlay->AddChildToOverlay(Screen))
+		{
+			ScreenSlot->SetHorizontalAlignment(HAlign_Fill);
+			ScreenSlot->SetVerticalAlignment(VAlign_Fill);
+		}
 	}
 }
 

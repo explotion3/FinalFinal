@@ -2,6 +2,8 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
@@ -35,19 +37,31 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 
 	ScreenLayer = EFinalUIScreenLayer::HUD;
 
-	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BattleHUDRoot"));
-	WidgetTree->RootWidget = RootBox;
+	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("BattleHUDRoot"));
+	WidgetTree->RootWidget = RootCanvas;
+
+	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BattleHUDShell"));
+	if (UCanvasPanelSlot* RootSlot = RootCanvas->AddChildToCanvas(RootBox))
+	{
+		RootSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+		RootSlot->SetOffsets(FMargin(12.0f));
+	}
 
 	UHorizontalBox* TopOverlayBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TopOverlayBar"));
-	if (UVerticalBoxSlot* TopOverlaySlot = RootBox->AddChildToVerticalBox(TopOverlayBar))
+	USizeBox* TopOverlaySizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TopOverlaySizeBox"));
+	TopOverlaySizeBox->SetHeightOverride(144.0f);
+	TopOverlaySizeBox->SetContent(TopOverlayBar);
+	if (UVerticalBoxSlot* TopOverlaySlot = RootBox->AddChildToVerticalBox(TopOverlaySizeBox))
 	{
-		TopOverlaySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		TopOverlaySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 	}
 
 	UVerticalBox* TopOverlayLeft = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TopOverlayLeft"));
 	if (UHorizontalBoxSlot* LeftSlot = TopOverlayBar->AddChildToHorizontalBox(TopOverlayLeft))
 	{
-		LeftSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		FSlateChildSize LeftFill(ESlateSizeRule::Fill);
+		LeftFill.Value = 0.52f;
+		LeftSlot->SetSize(LeftFill);
 		LeftSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
 	}
 
@@ -63,7 +77,9 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	UVerticalBox* TopOverlayRight = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TopOverlayRight"));
 	if (UHorizontalBoxSlot* RightSlot = TopOverlayBar->AddChildToHorizontalBox(TopOverlayRight))
 	{
-		RightSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		FSlateChildSize RightFill(ESlateSizeRule::Fill);
+		RightFill.Value = 0.48f;
+		RightSlot->SetSize(RightFill);
 	}
 
 	ContextPanel = WidgetTree->ConstructWidget<UFinalBattleContextPanel>(UFinalBattleContextPanel::StaticClass(), TEXT("ContextPanel"));
@@ -82,15 +98,20 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* BattlefieldSlot = RootBox->AddChildToVerticalBox(BattlefieldRow))
 	{
 		BattlefieldSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		BattlefieldSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		BattlefieldSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 	}
 
 	CharacterPanel = WidgetTree->ConstructWidget<UFinalBattleCharacterPanel>(UFinalBattleCharacterPanel::StaticClass(), TEXT("CharacterPanel"));
 	USizeBox* CharacterRail = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CharacterRail"));
-	CharacterRail->SetWidthOverride(320.0f);
+	CharacterRail->SetMinDesiredWidth(220.0f);
+	CharacterRail->SetMaxDesiredWidth(300.0f);
+	CharacterRail->SetHeightOverride(0.0f);
 	CharacterRail->SetContent(CharacterPanel);
 	if (UHorizontalBoxSlot* CharacterSlot = BattlefieldRow->AddChildToHorizontalBox(CharacterRail))
 	{
+		FSlateChildSize CharacterFill(ESlateSizeRule::Fill);
+		CharacterFill.Value = 0.24f;
+		CharacterSlot->SetSize(CharacterFill);
 		CharacterSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 	}
 
@@ -98,29 +119,47 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	BattlefieldPlaceholder->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.08f, 0.25f));
 	BattlefieldPlaceholder->SetPadding(FMargin(24.0f));
 	USpacer* BattlefieldSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("BattlefieldSpacer"));
-	BattlefieldSpacer->SetSize(FVector2D(360.0f, 320.0f));
+	BattlefieldSpacer->SetSize(FVector2D(640.0f, 360.0f));
 	BattlefieldPlaceholder->SetContent(BattlefieldSpacer);
 	if (UHorizontalBoxSlot* CenterSlot = BattlefieldRow->AddChildToHorizontalBox(BattlefieldPlaceholder))
 	{
-		CenterSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		FSlateChildSize CenterFill(ESlateSizeRule::Fill);
+		CenterFill.Value = 0.52f;
+		CenterSlot->SetSize(CenterFill);
 		CenterSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 	}
 
 	EnemyPanel = WidgetTree->ConstructWidget<UFinalBattleEnemyPanel>(UFinalBattleEnemyPanel::StaticClass(), TEXT("EnemyPanel"));
 	USizeBox* EnemyRail = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("EnemyRail"));
-	EnemyRail->SetWidthOverride(380.0f);
+	EnemyRail->SetMinDesiredWidth(260.0f);
+	EnemyRail->SetMaxDesiredWidth(340.0f);
 	EnemyRail->SetContent(EnemyPanel);
-	BattlefieldRow->AddChildToHorizontalBox(EnemyRail);
+	if (UHorizontalBoxSlot* EnemySlot = BattlefieldRow->AddChildToHorizontalBox(EnemyRail))
+	{
+		FSlateChildSize EnemyFill(ESlateSizeRule::Fill);
+		EnemyFill.Value = 0.24f;
+		EnemySlot->SetSize(EnemyFill);
+	}
 
 	UHorizontalBox* BottomCommandBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomCommandBar"));
-	RootBox->AddChildToVerticalBox(BottomCommandBar);
+	USizeBox* BottomCommandSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("BottomCommandSizeBox"));
+	BottomCommandSizeBox->SetHeightOverride(184.0f);
+	BottomCommandSizeBox->SetContent(BottomCommandBar);
+	if (UVerticalBoxSlot* BottomCommandSlot = RootBox->AddChildToVerticalBox(BottomCommandSizeBox))
+	{
+		BottomCommandSlot->SetPadding(FMargin(0.0f));
+	}
 
 	UVerticalBox* BottomLeftColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BottomLeftColumn"));
 	USizeBox* BottomLeftSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("BottomLeftSizeBox"));
-	BottomLeftSizeBox->SetWidthOverride(240.0f);
+	BottomLeftSizeBox->SetMinDesiredWidth(180.0f);
+	BottomLeftSizeBox->SetMaxDesiredWidth(240.0f);
 	BottomLeftSizeBox->SetContent(BottomLeftColumn);
 	if (UHorizontalBoxSlot* BottomLeftSlot = BottomCommandBar->AddChildToHorizontalBox(BottomLeftSizeBox))
 	{
+		FSlateChildSize BottomLeftFill(ESlateSizeRule::Fill);
+		BottomLeftFill.Value = 0.18f;
+		BottomLeftSlot->SetSize(BottomLeftFill);
 		BottomLeftSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 	}
 
@@ -133,15 +172,23 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	HandZone->SetContent(HandPanel);
 	if (UHorizontalBoxSlot* HandSlot = BottomCommandBar->AddChildToHorizontalBox(HandZone))
 	{
-		HandSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		FSlateChildSize HandFill(ESlateSizeRule::Fill);
+		HandFill.Value = 0.62f;
+		HandSlot->SetSize(HandFill);
 		HandSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 	}
 
 	ActionPanel = WidgetTree->ConstructWidget<UFinalBattleActionPanel>(UFinalBattleActionPanel::StaticClass(), TEXT("ActionPanel"));
 	USizeBox* ActionZone = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ActionZone"));
-	ActionZone->SetWidthOverride(220.0f);
+	ActionZone->SetMinDesiredWidth(180.0f);
+	ActionZone->SetMaxDesiredWidth(220.0f);
 	ActionZone->SetContent(ActionPanel);
-	BottomCommandBar->AddChildToHorizontalBox(ActionZone);
+	if (UHorizontalBoxSlot* ActionSlot = BottomCommandBar->AddChildToHorizontalBox(ActionZone))
+	{
+		FSlateChildSize ActionFill(ESlateSizeRule::Fill);
+		ActionFill.Value = 0.20f;
+		ActionSlot->SetSize(ActionFill);
+	}
 }
 
 void UFinalBattleHUDScreen::InitializePanels()
