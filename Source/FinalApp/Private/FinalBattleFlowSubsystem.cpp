@@ -193,6 +193,9 @@ bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest&
 
 		FFinalBattleCharacterInitData InitData;
 		InitData.CharacterDefinition = CharacterDefinition;
+		InitData.UltimateDefinition = CharacterDefinition->UltimateId.IsValid()
+			? DataRegistry->FindUltimateDefinition(CharacterDefinition->UltimateId)
+			: nullptr;
 		InitData.CurrentStress = PartyState.CurrentStress;
 		InitData.bCollapsed = PartyState.bCollapsed;
 		InitData.CurrentAwakenCount = PartyState.CurrentAwakenCount;

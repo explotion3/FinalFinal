@@ -242,6 +242,17 @@ bool UFinalGameFlowSubsystem::BuildResolvedBattleResult(FFinalBattleResult& OutR
 	OutResult.Outcome = Snapshot.bPlayerVictory ? EFinalBattleOutcome::Victory : EFinalBattleOutcome::Defeat;
 	OutResult.TeamCurrentHP = Snapshot.TeamCurrentHP;
 	OutResult.RewardGold = Snapshot.bPlayerVictory ? 15 : 0;
-	OutResult.UpdatedCharacterStates = RunState.Characters;
+	OutResult.UpdatedCharacterStates.Reset();
+	OutResult.UpdatedCharacterStates.Reserve(Snapshot.Characters.Num());
+	for (const FFinalBattleCharacterViewData& CharacterView : Snapshot.Characters)
+	{
+		FFinalRunPersistentCharacterState UpdatedCharacterState;
+		UpdatedCharacterState.CharacterId = CharacterView.CharacterId;
+		UpdatedCharacterState.CurrentStress = CharacterView.CurrentStress;
+		UpdatedCharacterState.bCollapsed = CharacterView.bCollapsed;
+		UpdatedCharacterState.CurrentAwakenCount = CharacterView.CurrentAwakenCount;
+		UpdatedCharacterState.CollapseCount = CharacterView.CollapseCount;
+		OutResult.UpdatedCharacterStates.Add(UpdatedCharacterState);
+	}
 	return true;
 }
