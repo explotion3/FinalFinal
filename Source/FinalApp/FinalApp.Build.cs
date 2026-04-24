@@ -14,6 +14,7 @@ public class FinalApp : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"PaperZD",
+			"Paper2D",
 			"UMG",
 			"Slate",
 			"SlateCore",

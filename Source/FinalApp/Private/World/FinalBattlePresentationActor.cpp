@@ -2,6 +2,7 @@
 
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
+#include "PaperFlipbookComponent.h"
 #include "TimerManager.h"
 
 AFinalBattlePresentationActor::AFinalBattlePresentationActor()
@@ -16,6 +17,13 @@ AFinalBattlePresentationActor::AFinalBattlePresentationActor()
 	DebugLabelComponent->SetWorldSize(34.0f);
 	DebugLabelComponent->SetRelativeLocation(DebugLabelOffset);
 	DebugLabelComponent->SetText(FText::FromString(TEXT("BattlePresentation")));
+}
+
+void AFinalBattlePresentationActor::BeginPlay()
+{
+	Super::BeginPlay();
+	EnsureVisualDefaultsInitialized();
+	ApplyPresentationVisualState(CurrentPresentationState);
 }
 
 void AFinalBattlePresentationActor::InitializePresentationActor(
@@ -60,7 +68,10 @@ void AFinalBattlePresentationActor::PlayAttackPresentation()
 		return;
 	}
 
-	SetTransientPresentationState(EFinalBattlePresentationAnimState::Attack, AttackPresentationDuration);
+	SetTransientPresentationState(
+		EFinalBattlePresentationAnimState::Attack,
+		AttackPresentationDuration,
+		!bUseAnimationCompletionForAttack);
 }
 
 void AFinalBattlePresentationActor::PlayHitPresentation()
@@ -70,7 +81,10 @@ void AFinalBattlePresentationActor::PlayHitPresentation()
 		return;
 	}
 
-	SetTransientPresentationState(EFinalBattlePresentationAnimState::Hit, HitPresentationDuration);
+	SetTransientPresentationState(
+		EFinalBattlePresentationAnimState::Hit,
+		HitPresentationDuration,
+		!bUseAnimationCompletionForHit);
 }
 
 void AFinalBattlePresentationActor::PlayDefeatPresentation()
@@ -85,6 +99,88 @@ void AFinalBattlePresentationActor::PlayDefeatPresentation()
 	RefreshPresentationState();
 }
 
+void AFinalBattlePresentationActor::CompletePresentationTransientState()
+{
+	ClearTransientPresentationState();
+}
+
+void AFinalBattlePresentationActor::CompletePresentationTransientStateIfMatches(
+	const EFinalBattlePresentationAnimState ExpectedPresentationState)
+{
+	if (!bHasTransientPresentationState || TransientPresentationState != ExpectedPresentationState)
+	{
+		return;
+	}
+
+	ClearTransientPresentationState();
+}
+
+void AFinalBattlePresentationActor::EnsureVisualDefaultsInitialized()
+{
+	if (bVisualDefaultsInitialized)
+	{
+		return;
+	}
+
+	if (UPaperFlipbookComponent* SpriteComponent = GetSprite())
+	{
+		BaseSpriteRelativeScale = SpriteComponent->GetRelativeScale3D();
+		BaseSpriteColor = SpriteComponent->GetSpriteColor();
+	}
+
+	bVisualDefaultsInitialized = true;
+}
+
+void AFinalBattlePresentationActor::ApplyPresentationVisualState(const EFinalBattlePresentationAnimState NewPresentationState)
+{
+	EnsureVisualDefaultsInitialized();
+
+	UPaperFlipbookComponent* SpriteComponent = GetSprite();
+	if (SpriteComponent == nullptr)
+	{
+		return;
+	}
+
+	SetActorHiddenInGame(false);
+	SpriteComponent->SetRelativeScale3D(BaseSpriteRelativeScale);
+
+	const auto ApplyTint = [SpriteComponent, this](const FLinearColor& TintColor)
+	{
+		const FLinearColor FinalColor(
+			BaseSpriteColor.R * TintColor.R,
+			BaseSpriteColor.G * TintColor.G,
+			BaseSpriteColor.B * TintColor.B,
+			BaseSpriteColor.A * TintColor.A);
+		SpriteComponent->SetSpriteColor(FinalColor.ToFColor(true));
+	};
+
+	switch (NewPresentationState)
+	{
+	case EFinalBattlePresentationAnimState::Selected:
+		SpriteComponent->SetRelativeScale3D(BaseSpriteRelativeScale * SelectedScaleMultiplier);
+		ApplyTint(SelectedVisualTint);
+		break;
+
+	case EFinalBattlePresentationAnimState::Hit:
+		ApplyTint(HitVisualTint);
+		break;
+
+	case EFinalBattlePresentationAnimState::Defeat:
+		ApplyTint(DefeatVisualTint);
+		if (bHideActorOnDefeat)
+		{
+			SetActorHiddenInGame(true);
+		}
+		break;
+
+	case EFinalBattlePresentationAnimState::Attack:
+	case EFinalBattlePresentationAnimState::Idle:
+	default:
+		ApplyTint(NormalVisualTint);
+		break;
+	}
+}
+
 void AFinalBattlePresentationActor::RefreshPresentationState()
 {
 	const EFinalBattlePresentationAnimState NewState = bHasTransientPresentationState
@@ -92,6 +188,7 @@ void AFinalBattlePresentationActor::RefreshPresentationState()
 		: ResolveBasePresentationState();
 
 	PersistentPresentationState = ResolveBasePresentationState();
+	ApplyPresentationVisualState(NewState);
 	if (CurrentPresentationState != NewState)
 	{
 		CurrentPresentationState = NewState;
@@ -101,25 +198,39 @@ void AFinalBattlePresentationActor::RefreshPresentationState()
 
 void AFinalBattlePresentationActor::SetTransientPresentationState(
 	const EFinalBattlePresentationAnimState NewPresentationState,
-	const float DurationSeconds)
+	const float DurationSeconds,
+	const bool bUseTimerFallback)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TransientPresentationTimerHandle);
+	}
+
 	bHasTransientPresentationState = true;
 	TransientPresentationState = NewPresentationState;
 	RefreshPresentationState();
 
-	if (UWorld* World = GetWorld())
+	if (bUseTimerFallback)
 	{
-		World->GetTimerManager().SetTimer(
-			TransientPresentationTimerHandle,
-			this,
-			&AFinalBattlePresentationActor::ClearTransientPresentationState,
-			FMath::Max(DurationSeconds, 0.01f),
-			false);
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				TransientPresentationTimerHandle,
+				this,
+				&AFinalBattlePresentationActor::ClearTransientPresentationState,
+				FMath::Max(DurationSeconds, 0.01f),
+				false);
+		}
 	}
 }
 
 void AFinalBattlePresentationActor::ClearTransientPresentationState()
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TransientPresentationTimerHandle);
+	}
+
 	bHasTransientPresentationState = false;
 	RefreshPresentationState();
 }
