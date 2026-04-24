@@ -169,11 +169,7 @@ FText BuildRelicTurnStartEffectSummaryText(const TArray<FFinalBattlePlayerTurnSt
 
 FText BuildActiveRelicSummaryText(const FFinalBattleStartRelicInput& RelicInput)
 {
-	return FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "ActiveRelicSummaryFormat", "{0} [Start: {1}] [Turn: {2}]"),
-		ResolveRelicDisplayName(RelicInput),
-		BuildRelicEffectSummaryText(RelicInput.BattleStartEffects),
-		BuildRelicTurnStartEffectSummaryText(RelicInput.PlayerTurnStartEffects));
+	return ResolveRelicDisplayName(RelicInput);
 }
 
 FText ResolveRelicDisplayNameById(const TArray<FFinalBattleStartRelicInput>& ActiveRelics, const FFinalRelicId& RelicId)
@@ -768,7 +764,7 @@ void UFinalBattleRecentEventPanelController::RefreshFromCoordinatorData(const FF
 		return;
 	}
 
-	constexpr int32 MaxLogEntries = 6;
+	constexpr int32 MaxLogEntries = 2;
 	const int32 StartIndex = FMath::Max(CoordinatorData.BattleEvents->Num() - MaxLogEntries, 0);
 
 	TArray<FFinalBattleHUDLogEntry> Entries;

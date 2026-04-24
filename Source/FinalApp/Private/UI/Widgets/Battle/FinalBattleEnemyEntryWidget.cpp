@@ -8,7 +8,7 @@
 
 namespace
 {
-FText JoinEnemyStatusTextArray(const TArray<FText>& Texts, const FText& EmptyText)
+FText BuildEnemyStatusSummary(const TArray<FText>& Texts, const FText& EmptyText)
 {
 	if (Texts.Num() == 0)
 	{
@@ -16,12 +16,28 @@ FText JoinEnemyStatusTextArray(const TArray<FText>& Texts, const FText& EmptyTex
 	}
 
 	TArray<FString> Segments;
-	for (const FText& Entry : Texts)
+	for (int32 Index = 0; Index < FMath::Min(Texts.Num(), 2); ++Index)
 	{
-		Segments.Add(Entry.ToString());
+		Segments.Add(Texts[Index].ToString());
+	}
+
+	if (Texts.Num() > 2)
+	{
+		Segments.Add(FString::Printf(TEXT("+%d"), Texts.Num() - 2));
 	}
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
+FText TruncateEnemyLine(const FText& Text, const int32 MaxChars = 40)
+{
+	const FString Source = Text.ToString();
+	if (Source.Len() <= MaxChars)
+	{
+		return Text;
+	}
+
+	return FText::FromString(Source.Left(MaxChars - 1) + TEXT("…"));
 }
 }
 
@@ -50,9 +66,12 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleEnemyPanelController* I
 	RuntimeUnitId = InEntry.RuntimeUnitId;
 	const FText PhaseText = !InEntry.PhaseProgressText.IsEmpty()
 		? InEntry.PhaseProgressText
-		: NSLOCTEXT("FinalBattleHUD", "EnemyPhaseProgressUnavailable", "阶段信息未就绪");
+		: FText::GetEmpty();
+	const FText IntentText = InEntry.bActedThisRound
+		? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyIntentActed", "{0} | 已行动"), TruncateEnemyLine(InEntry.IntentText))
+		: TruncateEnemyLine(InEntry.IntentText);
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "#{0} {1}\nHP {2}/{3}  Shield {4}  Break {5}/{6}  Init {7}\n{8}\n{9}\nStatus: {10}"),
+		NSLOCTEXT("FinalBattleHUD", "EnemyEntryFormat", "#{0} {1}\nHP {2}/{3} | Shield {4}\nBreak {5}/{6} | Init {7}\n{8}{9}\n状态: {10}"),
 		FText::AsNumber(InEntry.PositionIndex),
 		InEntry.DisplayName,
 		FText::AsNumber(InEntry.CurrentHP),
@@ -61,11 +80,9 @@ void UFinalBattleEnemyEntryWidget::Configure(UFinalBattleEnemyPanelController* I
 		FText::AsNumber(InEntry.CurrentBreakValue),
 		FText::AsNumber(InEntry.MaxBreakValue),
 		FText::AsNumber(InEntry.CurrentInitiative),
-		InEntry.bActedThisRound
-			? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyIntentActed", "{0} | 本回合已行动"), InEntry.IntentText)
-			: InEntry.IntentText,
-		PhaseText,
-		JoinEnemyStatusTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
+		IntentText,
+		!PhaseText.IsEmpty() ? FText::Format(NSLOCTEXT("FinalBattleHUD", "EnemyPhaseSuffix", "\n{0}"), PhaseText) : FText::GetEmpty(),
+		BuildEnemyStatusSummary(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoEnemyStatus", "无")));
 	bSelected = InEntry.bSelected;
 	RebuildVisual();
 }

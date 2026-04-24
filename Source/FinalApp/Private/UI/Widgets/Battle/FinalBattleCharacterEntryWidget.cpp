@@ -7,7 +7,7 @@
 
 namespace
 {
-FText JoinCharacterStatusTextArray(const TArray<FText>& Texts, const FText& EmptyText)
+FText BuildCharacterStatusSummary(const TArray<FText>& Texts, const FText& EmptyText)
 {
 	if (Texts.Num() == 0)
 	{
@@ -15,9 +15,14 @@ FText JoinCharacterStatusTextArray(const TArray<FText>& Texts, const FText& Empt
 	}
 
 	TArray<FString> Segments;
-	for (const FText& Entry : Texts)
+	for (int32 Index = 0; Index < FMath::Min(Texts.Num(), 2); ++Index)
 	{
-		Segments.Add(Entry.ToString());
+		Segments.Add(Texts[Index].ToString());
+	}
+
+	if (Texts.Num() > 2)
+	{
+		Segments.Add(FString::Printf(TEXT("+%d"), Texts.Num() - 2));
 	}
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
@@ -32,7 +37,7 @@ void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 	{
 		RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CharacterEntryBorder"));
 		RootBorder->SetBrushColor(FLinearColor(0.12f, 0.16f, 0.24f, 0.95f));
-		RootBorder->SetPadding(FMargin(8.0f));
+		RootBorder->SetPadding(FMargin(6.0f));
 		LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CharacterEntryLabel"));
 		LabelText->SetAutoWrapText(true);
 		RootBorder->SetContent(LabelText);
@@ -43,7 +48,7 @@ void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 void UFinalBattleCharacterEntryWidget::Configure(const FFinalBattleHUDCharacterEntry& InEntry)
 {
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "CharacterEntryWidgetFormat", "{0}\nStress {1}/{2} | Vital {3}\nAwaken {4}/{5} | Collapse {6}\n{7}\nStatus: {8}"),
+		NSLOCTEXT("FinalBattleHUD", "CharacterEntryWidgetFormat", "{0}\nStress {1}/{2} | Vital {3}\nAwk {4}/{5} | Col {6}\n{7} | {8}"),
 		InEntry.DisplayName,
 		FText::AsNumber(InEntry.CurrentStress),
 		FText::AsNumber(InEntry.StressCap),
@@ -52,7 +57,7 @@ void UFinalBattleCharacterEntryWidget::Configure(const FFinalBattleHUDCharacterE
 		FText::AsNumber(InEntry.CurrentAwakenThreshold),
 		FText::AsNumber(InEntry.CollapseCount),
 		InEntry.StateText,
-		JoinCharacterStatusTextArray(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无")));
+		BuildCharacterStatusSummary(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无状态")));
 	RebuildVisual();
 }
 

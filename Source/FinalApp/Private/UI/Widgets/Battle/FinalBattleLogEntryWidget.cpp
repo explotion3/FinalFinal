@@ -18,10 +18,6 @@ FText BuildLogEntryText(const FFinalBattleHUDLogEntry& Entry)
 	{
 		Lines.Add(Entry.SummaryText.ToString());
 	}
-	if (!Entry.DetailText.IsEmpty())
-	{
-		Lines.Add(Entry.DetailText.ToString());
-	}
 
 	return Lines.Num() > 0
 		? FText::FromString(FString::Join(Lines, TEXT("\n")))
@@ -37,7 +33,7 @@ void UFinalBattleLogEntryWidget::NativeOnInitialized()
 	{
 		RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BattleLogEntryBorder"));
 		RootBorder->SetBrushColor(FLinearColor(0.13f, 0.13f, 0.14f, 0.95f));
-		RootBorder->SetPadding(FMargin(8.0f));
+		RootBorder->SetPadding(FMargin(6.0f));
 		LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BattleLogEntryLabel"));
 		LabelText->SetAutoWrapText(true);
 		RootBorder->SetContent(LabelText);

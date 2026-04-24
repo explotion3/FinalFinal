@@ -6,26 +6,6 @@
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
-namespace
-{
-FText JoinTextArray(const TArray<FText>& Texts)
-{
-	TArray<FString> Segments;
-	Segments.Reserve(Texts.Num());
-	for (const FText& Entry : Texts)
-	{
-		if (!Entry.IsEmpty())
-		{
-			Segments.Add(Entry.ToString());
-		}
-	}
-
-	return Segments.Num() > 0
-		? FText::FromString(FString::Join(Segments, TEXT(" | ")))
-		: FText::GetEmpty();
-}
-}
-
 void UFinalBattleUltimateEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -54,17 +34,11 @@ void UFinalBattleUltimateEntryWidget::Configure(UFinalBattleUltimatePanelControl
 	bDefinitionReady = InEntry.bDefinitionReady;
 	bUsedThisBattle = InEntry.bUsedThisBattle;
 
-	TArray<FText> DetailTexts;
-	DetailTexts.Reserve(2);
-	DetailTexts.Add(FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "UltimateCostText", "EP 消耗 {0}"),
-		FText::AsNumber(InEntry.CostEP)));
-	DetailTexts.Add(InEntry.StatusText);
-
 	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "UltimateEntryFormat", "{0}\n{1}"),
+		NSLOCTEXT("FinalBattleHUD", "UltimateEntryFormat", "{0}\nEP {1} | {2}"),
 		InEntry.DisplayName,
-		JoinTextArray(DetailTexts));
+		FText::AsNumber(InEntry.CostEP),
+		InEntry.StatusText);
 	RebuildVisual();
 }
 

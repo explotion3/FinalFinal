@@ -6,6 +6,23 @@
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
+namespace
+{
+FText JoinCardLines(const TArray<FText>& Lines)
+{
+	TArray<FString> Segments;
+	for (const FText& Line : Lines)
+	{
+		if (!Line.IsEmpty())
+		{
+			Segments.Add(Line.ToString());
+		}
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT("\n")));
+}
+}
+
 void UFinalBattleCardEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -14,7 +31,7 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 	{
 		CardButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CardButton"));
 		LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CardLabel"));
-		LabelText->SetAutoWrapText(true);
+		LabelText->SetAutoWrapText(false);
 		CardButton->AddChild(LabelText);
 		WidgetTree->RootWidget = CardButton;
 	}
@@ -29,35 +46,41 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InC
 {
 	PanelController = InController;
 	HandIndex = InHandIndex;
-	TArray<FString> MetaSegments;
+	TArray<FText> MetaSegments;
 	if (InEntry.bRetained)
 	{
-		MetaSegments.Add(TEXT("保留"));
+		MetaSegments.Add(NSLOCTEXT("FinalBattleHUD", "CardRetainedTag", "保留"));
 	}
 
 	if (InEntry.bCollapsedCard)
 	{
-		MetaSegments.Add(TEXT("崩溃牌"));
+		MetaSegments.Add(NSLOCTEXT("FinalBattleHUD", "CardCollapsedTag", "崩溃"));
 	}
 
-	if (!InEntry.RulesText.IsEmpty())
-	{
-		MetaSegments.Add(InEntry.RulesText.ToString());
-	}
-
+	const FText KeywordText = !InEntry.KeywordText.IsEmpty()
+		? InEntry.KeywordText
+		: NSLOCTEXT("FinalBattleHUD", "NoCardKeywords", "无关键词");
+	const FText OwnerText = !InEntry.OwnerDisplayName.IsEmpty()
+		? FText::Format(NSLOCTEXT("FinalBattleHUD", "CardOwnerShort", "Owner {0}"), InEntry.OwnerDisplayName)
+		: FText::GetEmpty();
 	const FText MetaText = MetaSegments.Num() > 0
-		? FText::FromString(FString::Join(MetaSegments, TEXT(" | ")))
-		: NSLOCTEXT("FinalBattleHUD", "NoCardRules", "无额外说明");
-	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "CardEntryFormat", "{0}\n{1} | AP {2} | Owner {3}\n{4}\n{5}"),
-		InEntry.DisplayName,
-		InEntry.TypeText,
+		? FText::FromString(FString::JoinBy(MetaSegments, TEXT(" · "), [](const FText& Entry) { return Entry.ToString(); }))
+		: FText::GetEmpty();
+
+	TArray<FText> Lines;
+	Lines.Add(InEntry.DisplayName);
+	Lines.Add(FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CardCostTypeLine", "AP {0} | {1}"),
 		FText::AsNumber(InEntry.RuntimeCostAP),
-		!InEntry.OwnerDisplayName.IsEmpty() ? InEntry.OwnerDisplayName : NSLOCTEXT("FinalBattleHUD", "UnknownCardOwner", "未知"),
-		!InEntry.KeywordText.IsEmpty()
-			? InEntry.KeywordText
-			: NSLOCTEXT("FinalBattleHUD", "NoCardKeywords", "无关键词"),
-		MetaText);
+		InEntry.TypeText));
+	if (!OwnerText.IsEmpty())
+	{
+		Lines.Add(OwnerText);
+	}
+	Lines.Add(!MetaText.IsEmpty()
+		? FText::Format(NSLOCTEXT("FinalBattleHUD", "CardKeywordMetaLine", "{0} | {1}"), KeywordText, MetaText)
+		: KeywordText);
+	CachedLabel = JoinCardLines(Lines);
 	RebuildVisual();
 }
 

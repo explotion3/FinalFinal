@@ -5,6 +5,8 @@
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -24,7 +26,7 @@ UBorder* CreateSection(UWidgetTree* WidgetTree, const TCHAR* Name, const FLinear
 {
 	UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), Name);
 	Border->SetBrushColor(Color);
-	Border->SetPadding(FMargin(10.0f));
+	Border->SetPadding(FMargin(8.0f));
 	return Border;
 }
 
@@ -47,6 +49,28 @@ FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
 	for (const FText& Entry : Texts)
 	{
 		Segments.Add(Entry.ToString());
+	}
+
+	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
+FText BuildCompactTextArraySummary(const TArray<FText>& Texts, const FText& EmptyText, const int32 MaxEntries = 2)
+{
+	if (Texts.Num() == 0)
+	{
+		return EmptyText;
+	}
+
+	TArray<FString> Segments;
+	const int32 EntryCount = FMath::Min(Texts.Num(), MaxEntries);
+	for (int32 Index = 0; Index < EntryCount; ++Index)
+	{
+		Segments.Add(Texts[Index].ToString());
+	}
+
+	if (Texts.Num() > MaxEntries)
+	{
+		Segments.Add(FString::Printf(TEXT("+%d"), Texts.Num() - MaxEntries));
 	}
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
@@ -98,7 +122,7 @@ void UFinalBattleTopBarPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("TopBarBorder"), FLinearColor(0.06f, 0.08f, 0.13f, 0.95f));
-	TopBarText = CreateLabel(WidgetTree, TEXT("TopBarText"), 18);
+	TopBarText = CreateLabel(WidgetTree, TEXT("TopBarText"), 15);
 	Border->SetContent(TopBarText);
 	WidgetTree->RootWidget = Border;
 }
@@ -174,7 +198,7 @@ void UFinalBattleFeedbackPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("FeedbackBorder"), FLinearColor(0.17f, 0.13f, 0.06f, 0.92f));
-	FeedbackText = CreateLabel(WidgetTree, TEXT("FeedbackText"), 14);
+	FeedbackText = CreateLabel(WidgetTree, TEXT("FeedbackText"), 12);
 	Border->SetContent(FeedbackText);
 	WidgetTree->RootWidget = Border;
 }
@@ -242,12 +266,12 @@ void UFinalBattleContextPanel::EnsureWidgetTree()
 	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ContextRootBox"));
 
 	UBorder* ContextBorder = CreateSection(WidgetTree, TEXT("ContextBorder"), FLinearColor(0.08f, 0.11f, 0.12f, 0.92f));
-	ContextText = CreateLabel(WidgetTree, TEXT("ContextText"), 12);
+	ContextText = CreateLabel(WidgetTree, TEXT("ContextText"), 11);
 	ContextBorder->SetContent(ContextText);
 	RootBox->AddChildToVerticalBox(ContextBorder);
 
 	GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
-	GapText = CreateLabel(WidgetTree, TEXT("GapText"), 12);
+	GapText = CreateLabel(WidgetTree, TEXT("GapText"), 11);
 	GapBorder->SetContent(GapText);
 	GapBorder->SetVisibility(ESlateVisibility::Collapsed);
 	RootBox->AddChildToVerticalBox(GapBorder);
@@ -272,7 +296,7 @@ void UFinalBattleContextPanel::RefreshFromViewModel()
 	}
 
 	ContextText->SetText(FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\nDeck: Draw {1} | Hand {2} | Discard {3} | Ongoing {4} | Consume {5}\nRun: Gold {6} | Relics {7} | RunDeck {8}\nTeam Status: {9}\nActive Relics: {10}"),
+		NSLOCTEXT("FinalBattleHUD", "ContextFormat", "{0}\n牌堆 D{1} H{2} X{3} O{4} C{5}\nRun G{6} R{7} Deck {8}\n队伍状态: {9}\n激活遗物: {10}"),
 		Data.CurrentTargetText,
 		FText::AsNumber(Data.DrawPileCount),
 		FText::AsNumber(Data.HandCount),
@@ -282,12 +306,12 @@ void UFinalBattleContextPanel::RefreshFromViewModel()
 		FText::AsNumber(Data.Gold),
 		FText::AsNumber(Data.RelicCount),
 		FText::AsNumber(Data.RunDeckCount),
-		JoinTextArray(Data.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
-		JoinTextArray(Data.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无已激活遗物"))));
+		BuildCompactTextArraySummary(Data.TeamStatusTexts, NSLOCTEXT("FinalBattleHUD", "NoTeamStatus", "无")),
+		BuildCompactTextArraySummary(Data.ActiveRelicTexts, NSLOCTEXT("FinalBattleHUD", "NoActiveRelics", "无"))));
 
 	if (Data.MissingFieldNotices.Num() > 0)
 	{
-		GapText->SetText(JoinTextArray(Data.MissingFieldNotices, FText::GetEmpty()));
+		GapText->SetText(BuildCompactTextArraySummary(Data.MissingFieldNotices, FText::GetEmpty()));
 		GapBorder->SetVisibility(ESlateVisibility::Visible);
 	}
 	else
@@ -342,8 +366,10 @@ void UFinalBattleCharacterPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("CharacterBorder"), FLinearColor(0.08f, 0.12f, 0.18f, 0.92f));
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("CharacterScrollBox"));
 	CharacterListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CharacterListBox"));
-	Border->SetContent(CharacterListBox);
+	ScrollBox->AddChild(CharacterListBox);
+	Border->SetContent(ScrollBox);
 	WidgetTree->RootWidget = Border;
 }
 
@@ -364,7 +390,10 @@ void UFinalBattleCharacterPanel::RefreshFromViewModel()
 		}
 
 		CharacterWidget->Configure(Entry);
-		CharacterListBox->AddChildToVerticalBox(CharacterWidget);
+		if (UVerticalBoxSlot* CharacterSlot = CharacterListBox->AddChildToVerticalBox(CharacterWidget))
+		{
+			CharacterSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		}
 	}
 }
 
@@ -414,8 +443,10 @@ void UFinalBattleEnemyPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("EnemyBorder"), FLinearColor(0.18f, 0.09f, 0.11f, 0.92f));
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("EnemyScrollBox"));
 	EnemyListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EnemyListBox"));
-	Border->SetContent(EnemyListBox);
+	ScrollBox->AddChild(EnemyListBox);
+	Border->SetContent(ScrollBox);
 	WidgetTree->RootWidget = Border;
 }
 
@@ -436,7 +467,10 @@ void UFinalBattleEnemyPanel::RefreshFromViewModel()
 		}
 
 		EnemyWidget->Configure(PanelController, Entry);
-		EnemyListBox->AddChildToVerticalBox(EnemyWidget);
+		if (UVerticalBoxSlot* EnemySlot = EnemyListBox->AddChildToVerticalBox(EnemyWidget))
+		{
+			EnemySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		}
 	}
 }
 
@@ -486,8 +520,14 @@ void UFinalBattleHandPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("HandBorder"), FLinearColor(0.08f, 0.11f, 0.16f, 0.92f));
+	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HandSizeBox"));
+	SizeBox->SetHeightOverride(156.0f);
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("HandScrollBox"));
+	ScrollBox->SetOrientation(EOrientation::Orient_Horizontal);
 	HandCardBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HandCardBox"));
-	Border->SetContent(HandCardBox);
+	ScrollBox->AddChild(HandCardBox);
+	SizeBox->SetContent(ScrollBox);
+	Border->SetContent(SizeBox);
 	WidgetTree->RootWidget = Border;
 }
 
@@ -509,7 +549,11 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		}
 
 		CardWidget->Configure(PanelController, Index, Entries[Index]);
-		if (UHorizontalBoxSlot* CardSlot = HandCardBox->AddChildToHorizontalBox(CardWidget))
+		USizeBox* CardSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), *FString::Printf(TEXT("HandCardSizeBox_%d"), Index));
+		CardSizeBox->SetWidthOverride(220.0f);
+		CardSizeBox->SetHeightOverride(140.0f);
+		CardSizeBox->SetContent(CardWidget);
+		if (UHorizontalBoxSlot* CardSlot = HandCardBox->AddChildToHorizontalBox(CardSizeBox))
 		{
 			CardSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
 		}
@@ -562,8 +606,13 @@ void UFinalBattleUltimatePanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("UltimateBorder"), FLinearColor(0.09f, 0.13f, 0.08f, 0.92f));
+	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("UltimateSizeBox"));
+	SizeBox->SetHeightOverride(160.0f);
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("UltimateScrollBox"));
 	UltimateListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("UltimateListBox"));
-	Border->SetContent(UltimateListBox);
+	ScrollBox->AddChild(UltimateListBox);
+	SizeBox->SetContent(ScrollBox);
+	Border->SetContent(SizeBox);
 	WidgetTree->RootWidget = Border;
 }
 
@@ -585,7 +634,10 @@ void UFinalBattleUltimatePanel::RefreshFromViewModel()
 		}
 
 		UltimateWidget->Configure(PanelController, Index, Entries[Index]);
-		UltimateListBox->AddChildToVerticalBox(UltimateWidget);
+		if (UVerticalBoxSlot* UltimateSlot = UltimateListBox->AddChildToVerticalBox(UltimateWidget))
+		{
+			UltimateSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		}
 	}
 }
 
@@ -634,8 +686,13 @@ void UFinalBattleRecentEventPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("RecentEventBorder"), FLinearColor(0.08f, 0.08f, 0.08f, 0.92f));
+	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RecentEventSizeBox"));
+	SizeBox->SetHeightOverride(84.0f);
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("RecentEventScrollBox"));
 	RecentEventListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RecentEventListBox"));
-	Border->SetContent(RecentEventListBox);
+	ScrollBox->AddChild(RecentEventListBox);
+	SizeBox->SetContent(ScrollBox);
+	Border->SetContent(SizeBox);
 	WidgetTree->RootWidget = Border;
 }
 
@@ -656,7 +713,10 @@ void UFinalBattleRecentEventPanel::RefreshFromViewModel()
 		}
 
 		EntryWidget->Configure(Entry);
-		RecentEventListBox->AddChildToVerticalBox(EntryWidget);
+		if (UVerticalBoxSlot* EventSlot = RecentEventListBox->AddChildToVerticalBox(EntryWidget))
+		{
+			EventSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		}
 	}
 }
 
@@ -743,7 +803,7 @@ void UFinalBattleActionPanel::EnsureWidgetTree()
 	OpenDebugButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OpenDebugButton"));
 	OpenDebugButton->OnClicked.AddDynamic(this, &UFinalBattleActionPanel::HandleOpenDebugClicked);
 	OpenDebugLabel = CreateLabel(WidgetTree, TEXT("OpenDebugLabel"), 12);
-	OpenDebugLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenDebugLabel", "Open Debug"));
+	OpenDebugLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenDebugLabel", "调试"));
 	OpenDebugButton->AddChild(OpenDebugLabel);
 	if (UVerticalBoxSlot* DebugSlot = ActionColumn->AddChildToVerticalBox(OpenDebugButton))
 	{
@@ -753,7 +813,7 @@ void UFinalBattleActionPanel::EnsureWidgetTree()
 	OpenEventLedgerButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OpenEventLedgerButton"));
 	OpenEventLedgerButton->OnClicked.AddDynamic(this, &UFinalBattleActionPanel::HandleOpenEventLedgerClicked);
 	OpenEventLedgerLabel = CreateLabel(WidgetTree, TEXT("OpenEventLedgerLabel"), 12);
-	OpenEventLedgerLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenEventLedgerLabel", "Open Event Ledger"));
+	OpenEventLedgerLabel->SetText(NSLOCTEXT("FinalBattleHUD", "OpenEventLedgerLabel", "账本"));
 	OpenEventLedgerButton->AddChild(OpenEventLedgerLabel);
 	if (UVerticalBoxSlot* LedgerSlot = ActionColumn->AddChildToVerticalBox(OpenEventLedgerButton))
 	{
