@@ -1,6 +1,7 @@
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
@@ -13,6 +14,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDPanelViewModels.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
@@ -74,6 +76,12 @@ FText BuildCompactTextArraySummary(const TArray<FText>& Texts, const FText& Empt
 	}
 
 	return FText::FromString(FString::Join(Segments, TEXT(" | ")));
+}
+
+template <typename TWidget>
+TWidget* CreateConfiguredEntryWidget(UUserWidget* OwnerWidget, TSubclassOf<TWidget> WidgetClass)
+{
+	return OwnerWidget ? CreateWidget<TWidget>(OwnerWidget->GetOwningPlayer(), WidgetClass) : nullptr;
 }
 }
 
@@ -138,7 +146,7 @@ void UFinalBattleTopBarPanel::RefreshFromViewModel()
 	if (Data.bHasActiveBattle)
 	{
 		TopBarText->SetText(FText::Format(
-			NSLOCTEXT("FinalBattleHUD", "TopBarFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7}"),
+			NSLOCTEXT("FinalBattleHUD", "TopBarFormat", "{0} | Round {1} | AP {2} | EP {3}/{4} | Team HP {5}/{6} | Shield {7}\nDraw {8} | Hand {9} | Discard {10} | Consume {11}"),
 			Data.EncounterName,
 			FText::AsNumber(Data.CurrentRound),
 			FText::AsNumber(Data.CurrentAP),
@@ -146,7 +154,11 @@ void UFinalBattleTopBarPanel::RefreshFromViewModel()
 			FText::AsNumber(Data.MaxEP),
 			FText::AsNumber(Data.TeamCurrentHP),
 			FText::AsNumber(Data.TeamMaxHP),
-			FText::AsNumber(Data.TeamShield)));
+			FText::AsNumber(Data.TeamShield),
+			FText::AsNumber(Data.DrawPileCount),
+			FText::AsNumber(Data.HandCount),
+			FText::AsNumber(Data.DiscardPileCount),
+			FText::AsNumber(Data.ConsumePileCount)));
 		return;
 	}
 
@@ -383,7 +395,7 @@ void UFinalBattleCharacterPanel::RefreshFromViewModel()
 	CharacterListBox->ClearChildren();
 	for (const FFinalBattleHUDCharacterEntry& Entry : PanelViewModel->GetEntries())
 	{
-		UFinalBattleCharacterEntryWidget* CharacterWidget = CreateWidget<UFinalBattleCharacterEntryWidget>(GetOwningPlayer(), UFinalBattleCharacterEntryWidget::StaticClass());
+		UFinalBattleCharacterEntryWidget* CharacterWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleCharacterEntryWidgetClass());
 		if (CharacterWidget == nullptr)
 		{
 			continue;
@@ -460,7 +472,7 @@ void UFinalBattleEnemyPanel::RefreshFromViewModel()
 	EnemyListBox->ClearChildren();
 	for (const FFinalBattleHUDEnemyEntry& Entry : PanelViewModel->GetEntries())
 	{
-		UFinalBattleEnemyEntryWidget* EnemyWidget = CreateWidget<UFinalBattleEnemyEntryWidget>(GetOwningPlayer(), UFinalBattleEnemyEntryWidget::StaticClass());
+		UFinalBattleEnemyEntryWidget* EnemyWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleEnemyEntryWidgetClass());
 		if (EnemyWidget == nullptr)
 		{
 			continue;
@@ -542,7 +554,7 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 	const TArray<FFinalBattleHUDCardEntry>& Entries = PanelViewModel->GetEntries();
 	for (int32 Index = 0; Index < Entries.Num(); ++Index)
 	{
-		UFinalBattleCardEntryWidget* CardWidget = CreateWidget<UFinalBattleCardEntryWidget>(GetOwningPlayer(), UFinalBattleCardEntryWidget::StaticClass());
+		UFinalBattleCardEntryWidget* CardWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleCardEntryWidgetClass());
 		if (CardWidget == nullptr)
 		{
 			continue;
@@ -627,7 +639,7 @@ void UFinalBattleUltimatePanel::RefreshFromViewModel()
 	const TArray<FFinalBattleHUDUltimateEntry>& Entries = PanelViewModel->GetEntries();
 	for (int32 Index = 0; Index < Entries.Num(); ++Index)
 	{
-		UFinalBattleUltimateEntryWidget* UltimateWidget = CreateWidget<UFinalBattleUltimateEntryWidget>(GetOwningPlayer(), UFinalBattleUltimateEntryWidget::StaticClass());
+		UFinalBattleUltimateEntryWidget* UltimateWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleUltimateEntryWidgetClass());
 		if (UltimateWidget == nullptr)
 		{
 			continue;
@@ -706,7 +718,7 @@ void UFinalBattleRecentEventPanel::RefreshFromViewModel()
 	RecentEventListBox->ClearChildren();
 	for (const FFinalBattleHUDLogEntry& Entry : PanelViewModel->GetEntries())
 	{
-		UFinalBattleLogEntryWidget* EntryWidget = CreateWidget<UFinalBattleLogEntryWidget>(GetOwningPlayer(), UFinalBattleLogEntryWidget::StaticClass());
+		UFinalBattleLogEntryWidget* EntryWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleLogEntryWidgetClass());
 		if (EntryWidget == nullptr)
 		{
 			continue;
@@ -848,5 +860,13 @@ void UFinalBattleActionPanel::RefreshFromViewModel()
 	if (OpenEventLedgerButton)
 	{
 		OpenEventLedgerButton->SetIsEnabled(true);
+	}
+
+	if (EndTurnLabel)
+	{
+		EndTurnLabel->SetText(FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "EndTurnWithPileCounts", "结束回合\n弃牌 {0} / 消耗 {1}"),
+			FText::AsNumber(Data.DiscardPileCount),
+			FText::AsNumber(Data.ConsumePileCount)));
 	}
 }

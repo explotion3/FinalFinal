@@ -1,0 +1,93 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DeveloperSettings.h"
+#include "UObject/SoftObjectPtr.h"
+#include "FinalUIWidgetClassSettings.generated.h"
+
+class UFinalBattleActionPanel;
+class UFinalBattleCardEntryWidget;
+class UFinalBattleCharacterEntryWidget;
+class UFinalBattleCharacterPanel;
+class UFinalBattleContextPanel;
+class UFinalBattleEnemyEntryWidget;
+class UFinalBattleEnemyPanel;
+class UFinalBattleFeedbackPanel;
+class UFinalBattleHUDScreen;
+class UFinalBattleHandPanel;
+class UFinalBattleLogEntryWidget;
+class UFinalBattleRecentEventPanel;
+class UFinalBattleTopBarPanel;
+class UFinalBattleUltimateEntryWidget;
+class UFinalBattleUltimatePanel;
+
+UCLASS(Config=Game, DefaultConfig, DisplayName="Final UI Widget Classes")
+class FINALAPP_API UFinalUIWidgetClassSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	virtual FName GetCategoryName() const override;
+	virtual FName GetSectionName() const override;
+
+	static TSubclassOf<UFinalBattleHUDScreen> GetBattleHUDScreenClass();
+	static TSubclassOf<UFinalBattleTopBarPanel> GetBattleTopBarPanelClass();
+	static TSubclassOf<UFinalBattleFeedbackPanel> GetBattleFeedbackPanelClass();
+	static TSubclassOf<UFinalBattleContextPanel> GetBattleContextPanelClass();
+	static TSubclassOf<UFinalBattleCharacterPanel> GetBattleCharacterPanelClass();
+	static TSubclassOf<UFinalBattleEnemyPanel> GetBattleEnemyPanelClass();
+	static TSubclassOf<UFinalBattleHandPanel> GetBattleHandPanelClass();
+	static TSubclassOf<UFinalBattleUltimatePanel> GetBattleUltimatePanelClass();
+	static TSubclassOf<UFinalBattleRecentEventPanel> GetBattleRecentEventPanelClass();
+	static TSubclassOf<UFinalBattleActionPanel> GetBattleActionPanelClass();
+	static TSubclassOf<UFinalBattleCardEntryWidget> GetBattleCardEntryWidgetClass();
+	static TSubclassOf<UFinalBattleCharacterEntryWidget> GetBattleCharacterEntryWidgetClass();
+	static TSubclassOf<UFinalBattleEnemyEntryWidget> GetBattleEnemyEntryWidgetClass();
+	static TSubclassOf<UFinalBattleUltimateEntryWidget> GetBattleUltimateEntryWidgetClass();
+	static TSubclassOf<UFinalBattleLogEntryWidget> GetBattleLogEntryWidgetClass();
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
+	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleTopBarPanel> BattleTopBarPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleFeedbackPanel> BattleFeedbackPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleContextPanel> BattleContextPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleCharacterPanel> BattleCharacterPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleEnemyPanel> BattleEnemyPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleHandPanel> BattleHandPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleUltimatePanel> BattleUltimatePanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleRecentEventPanel> BattleRecentEventPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleActionPanel> BattleActionPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCardEntryWidget> BattleCardEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCharacterEntryWidget> BattleCharacterEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleEnemyEntryWidget> BattleEnemyEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleUltimateEntryWidget> BattleUltimateEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleLogEntryWidget> BattleLogEntryWidgetClass;
+};

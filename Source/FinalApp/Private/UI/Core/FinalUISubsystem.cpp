@@ -19,6 +19,7 @@
 #include "UI/Screens/Flow/FinalRunRewardNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunShopNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
 
 void UFinalUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -96,7 +97,7 @@ void UFinalUISubsystem::EnsureBattleHUD()
 
 	if (BattleHUDScreen == nullptr)
 	{
-		BattleHUDScreen = CreateWidget<UFinalBattleHUDScreen>(PrimaryPlayerController, UFinalBattleHUDScreen::StaticClass());
+		BattleHUDScreen = CreateWidget<UFinalBattleHUDScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetBattleHUDScreenClass());
 		if (BattleHUDScreen)
 		{
 			BattleHUDScreen->InitializeScreen(BattleHUDViewModel, BattleWidgetController);

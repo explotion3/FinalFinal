@@ -28,7 +28,7 @@ class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleTopBarPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -50,11 +50,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleTopBarPanelViewModel> PanelViewModel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> TopBarText;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleFeedbackPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -76,11 +76,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleFeedbackPanelViewModel> PanelViewModel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> FeedbackText;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleContextPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -102,17 +102,17 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelViewModel> PanelViewModel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> ContextText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UBorder> GapBorder;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> GapText;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleCharacterPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -134,11 +134,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleCharacterPanelViewModel> PanelViewModel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> CharacterListBox;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleEnemyPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -163,11 +163,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleEnemyPanelController> PanelController;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> EnemyListBox;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleHandPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -192,11 +192,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelController> PanelController;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UHorizontalBox> HandCardBox;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleUltimatePanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -221,11 +221,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleUltimatePanelController> PanelController;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> UltimateListBox;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleRecentEventPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -247,11 +247,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleRecentEventPanelViewModel> PanelViewModel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RecentEventListBox;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleActionPanel : public UFinalPanelWidgetBase
 {
 	GENERATED_BODY()
@@ -285,21 +285,21 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleActionPanelController> PanelController;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> EndTurnButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> EndTurnLabel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> OpenDebugButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> OpenDebugLabel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> OpenEventLedgerButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> OpenEventLedgerLabel;
 };

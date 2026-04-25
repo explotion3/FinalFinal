@@ -204,6 +204,8 @@ FinalBattle      FinalRun
 * 默认不把 `CommonUI` 作为首版基础框架
 * 首批允许先保留 `BattleHUDViewModel + BattleWidgetController` 作为聚合入口，后续再拆成 Panel 级 `WidgetController / ViewModel`
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
+* 当前 Battle HUD 已接入 `UFinalUIWidgetClassSettings`：`FinalApp` 可在 `Project Settings > Final > UI` 配置 HUD screen、panel、entry widget 的 Blueprint class；未配置时统一回退 C++ `StaticClass()`，保证原型 HUD 不因外观资源缺失而失效
+* 当前 Battle HUD 的水墨参考图第一版只改 `FinalApp` 外观层和 ViewModel 展示字段：C++ 继续负责 `Snapshot / Event -> ViewModel -> BattleCommand`，Widget Blueprint 只负责 16:9 Canvas 槽位、刷子、字体、按钮和容器排布
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描项目中的 definition 资产并建立 `StableId -> SoftObjectPath` 索引，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
 * 当前 `FinalDataRegistry` 不应在启动期全量 `GetAsset()` 加载 definition；`FindXxxDefinition(...)` 仍保持同步返回定义对象的外部 API，但内部首次访问 stable id 时才 `TryLoad()` 并缓存，后续查询直接命中缓存
@@ -235,7 +237,8 @@ FinalBattle      FinalRun
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
 * `BattleHUDScreen` 是当前首轮已落地的战斗 HUD 容器
-* `BattleHUDScreen` 当前已收口为主战斗 HUD：只保留顶部资源、角色区、敌方区、手牌区、奥义区、最近事件摘要与最小 debug 入口
+* `BattleHUDScreen` 当前已收口为主战斗 HUD shell：只保留 panel 装配、fallback 16:9 Canvas 布局和 ViewModel 订阅入口；正式构图、边框、图标和水墨风格由 Widget Blueprint 子类承接
+* Battle HUD panel / entry widget 默认支持 `BindWidgetOptional`，Blueprint 缺少绑定控件时继续显示 C++ fallback 文本，不把外观 Blueprint 变成规则或数据真相
 * `PrototypeRunDebugScreen` 作为按需打开的 overlay 调试摘要窗，不再常驻占据 `HUD Layer`
 * `FinalBattleEventScreen` 作为按需打开的 overlay 账本窗，优先服务调试、QA 与后续 replay-ready 消费验证
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
@@ -413,6 +416,7 @@ FinalBattle      FinalRun
 * `Slate`
 * `SlateCore`
 * `GameplayTags`
+* `DeveloperSettings`
 * `FinalCore`
 * `FinalData`
 * `FinalBattle`
@@ -500,7 +504,8 @@ Source
 │  │  │  ├─ Panels
 │  │  │  ├─ Widgets
 │  │  │  ├─ Controllers
-│  │  │  └─ ViewModels
+│  │  │  ├─ ViewModels
+│  │  │  └─ Settings
 │  │  ├─ World
 │  │  └─ Save
 │  └─ Private
@@ -512,7 +517,8 @@ Source
 │     │  ├─ Panels
 │     │  ├─ Widgets
 │     │  ├─ Controllers
-│     │  └─ ViewModels
+│     │  ├─ ViewModels
+│     │  └─ Settings
 │     ├─ BattleBridge
 │     └─ RunBridge
 └─ FinalEditor
@@ -631,6 +637,7 @@ Save / Load 当前边界：
 * `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目
 * `FinalBattleWidgetController` 当前是 Battle HUD 的唯一 BattleFlow 订阅点；Battle HUD 细分 panel 通过子 controller / 子 view model 消费只读展示数据
 * Battle HUD 当前已落地 `TopBar / Feedback / Context / Character / Enemy / Hand / Ultimate / RecentEvent / Action` 九个 panel；继续扩 HUD 时优先沿 panel 路径，而不是把细节重新堆回 screen
+* Battle HUD 外观 Blueprint 可替换 screen、panel、card entry、character entry、enemy entry、ultimate entry、log entry；这些类只能消费 `ViewModel` 和转发 UI intent，不能直接读取或修改 Battle / Run 私有状态
 * `AFinalBattleDirector` 当前承担最小世界表现桥接：读取 `BattleSnapshot / BattleEvent`，生成并刷新世界层 `PaperZD` 展示傀儡；复杂演出、镜头与正式美术资源仍后置
 
 ---

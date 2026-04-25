@@ -18,6 +18,7 @@ public class FinalApp : ModuleRules
 			"UMG",
 			"Slate",
 			"SlateCore",
+			"DeveloperSettings",
 			"GameplayTags",
 			"FinalCore",
 			"FinalData",

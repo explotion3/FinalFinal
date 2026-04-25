@@ -4,7 +4,6 @@
 #include "UI/Screens/FinalScreenBase.h"
 #include "FinalBattleHUDScreen.generated.h"
 
-class UHorizontalBox;
 class UVerticalBox;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
@@ -18,7 +17,7 @@ class UFinalBattleUltimatePanel;
 class UFinalBattleRecentEventPanel;
 class UFinalBattleActionPanel;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleHUDScreen : public UFinalScreenBase
 {
 	GENERATED_BODY()
@@ -32,36 +31,39 @@ private:
 	void EnsureWidgetTree();
 	void InitializePanels();
 
+	template <typename TPanel>
+	TPanel* CreateConfiguredPanel(const TCHAR* WidgetName);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHUDViewModel> BattleViewModel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleWidgetController> BattleController;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleTopBarPanel> TopBarPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleFeedbackPanel> FeedbackPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleContextPanel> ContextPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleCharacterPanel> CharacterPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleEnemyPanel> EnemyPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleHandPanel> HandPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleUltimatePanel> UltimatePanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleRecentEventPanel> RecentEventPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleActionPanel> ActionPanel;
 };

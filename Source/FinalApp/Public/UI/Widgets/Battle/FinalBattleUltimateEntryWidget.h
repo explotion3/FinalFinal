@@ -8,7 +8,7 @@ class UButton;
 class UTextBlock;
 class UFinalBattleUltimatePanelController;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleUltimateEntryWidget : public UFinalWidgetBase
 {
 	GENERATED_BODY()
@@ -33,9 +33,9 @@ private:
 	bool bDefinitionReady = false;
 	bool bUsedThisBattle = false;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> UltimateButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> LabelText;
 };

@@ -8,7 +8,7 @@ class UButton;
 class UTextBlock;
 class UFinalBattleHandPanelController;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleCardEntryWidget : public UFinalWidgetBase
 {
 	GENERATED_BODY()
@@ -29,9 +29,9 @@ private:
 	int32 HandIndex = INDEX_NONE;
 	FText CachedLabel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> CardButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> LabelText;
 };

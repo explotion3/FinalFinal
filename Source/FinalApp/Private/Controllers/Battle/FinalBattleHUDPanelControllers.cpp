@@ -407,6 +407,10 @@ void UFinalBattleTopBarPanelController::RefreshFromCoordinatorData(const FFinalB
 	Data.TeamCurrentHP = CoordinatorData.Snapshot->TeamCurrentHP;
 	Data.TeamMaxHP = CoordinatorData.Snapshot->TeamMaxHP;
 	Data.TeamShield = CoordinatorData.Snapshot->TeamShield;
+	Data.DrawPileCount = CoordinatorData.Snapshot->DeckState.DrawPileCount;
+	Data.HandCount = CoordinatorData.Snapshot->DeckState.HandCount;
+	Data.DiscardPileCount = CoordinatorData.Snapshot->DeckState.DiscardPileCount;
+	Data.ConsumePileCount = CoordinatorData.Snapshot->DeckState.ConsumePileCount;
 	ViewModel->ApplyData(Data);
 }
 
@@ -526,6 +530,19 @@ void UFinalBattleCharacterPanelController::RefreshFromCoordinatorData(const FFin
 		FFinalBattleHUDCharacterEntry Entry;
 		Entry.RuntimeUnitId = CharacterView.RuntimeUnitId;
 		Entry.DisplayName = !CharacterView.DisplayName.IsEmpty() ? CharacterView.DisplayName : FText::FromName(CharacterView.CharacterId.Value);
+		if (CoordinatorData.RunSnapshot)
+		{
+			const FFinalRunCharacterViewData* RunCharacterView = CoordinatorData.RunSnapshot->Characters.FindByPredicate(
+				[&CharacterView](const FFinalRunCharacterViewData& Candidate)
+				{
+					return Candidate.CharacterId == CharacterView.CharacterId;
+				});
+			if (RunCharacterView)
+			{
+				Entry.IconId = RunCharacterView->IconId;
+			}
+		}
+		Entry.ArtId = CharacterView.CharacterId.Value;
 		Entry.CurrentStress = CharacterView.CurrentStress;
 		Entry.StressCap = CharacterView.StressCap;
 		Entry.bCollapsed = CharacterView.bCollapsed;
@@ -578,6 +595,7 @@ void UFinalBattleEnemyPanelController::RefreshFromCoordinatorData(const FFinalBa
 		FFinalBattleHUDEnemyEntry Entry;
 		Entry.RuntimeUnitId = EnemyView.RuntimeUnitId;
 		Entry.DisplayName = EnemyView.DisplayName;
+		Entry.ArtId = EnemyView.EnemyId.Value;
 		Entry.PositionIndex = EnemyView.PositionIndex;
 		Entry.CurrentHP = EnemyView.CurrentHP;
 		Entry.MaxHP = EnemyView.MaxHP;
@@ -630,6 +648,7 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 		FFinalBattleHUDCardEntry Entry;
 		Entry.CardInstanceId = CardView.CardInstanceId;
 		Entry.DisplayName = CardView.DisplayName;
+		Entry.ArtId = CardView.CardId.Value;
 		Entry.RulesText = FText::GetEmpty();
 		if (CoordinatorData.DataRegistry && CardView.CardId.IsValid())
 		{
@@ -802,6 +821,8 @@ void UFinalBattleActionPanelController::RefreshFromCoordinatorData(const FFinalB
 
 	FFinalBattleActionPanelData Data;
 	Data.bHasActiveBattle = CoordinatorData.Snapshot->BattleId.IsValid();
+	Data.DiscardPileCount = CoordinatorData.Snapshot->DeckState.DiscardPileCount;
+	Data.ConsumePileCount = CoordinatorData.Snapshot->DeckState.ConsumePileCount;
 	ViewModel->ApplyData(Data);
 }
 

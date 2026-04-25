@@ -8,7 +8,7 @@ class UBorder;
 class UTextBlock;
 struct FFinalBattleHUDCharacterEntry;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleCharacterEntryWidget : public UFinalWidgetBase
 {
 	GENERATED_BODY()
@@ -23,9 +23,9 @@ private:
 
 	FText CachedLabel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UBorder> RootBorder;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> LabelText;
 };

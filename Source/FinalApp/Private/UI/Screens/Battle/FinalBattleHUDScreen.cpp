@@ -4,15 +4,65 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
-#include "Components/SizeBox.h"
-#include "Components/Spacer.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
+#include "Components/Overlay.h"
 #include "Controllers/FinalBattleWidgetController.h"
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
 #include "ViewModels/FinalBattleHUDViewModel.h"
+
+template <>
+UFinalBattleTopBarPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleTopBarPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleTopBarPanel>(UFinalUIWidgetClassSettings::GetBattleTopBarPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleFeedbackPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleFeedbackPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleFeedbackPanel>(UFinalUIWidgetClassSettings::GetBattleFeedbackPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleContextPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleContextPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleContextPanel>(UFinalUIWidgetClassSettings::GetBattleContextPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleCharacterPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleCharacterPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleCharacterPanel>(UFinalUIWidgetClassSettings::GetBattleCharacterPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleEnemyPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleEnemyPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleEnemyPanel>(UFinalUIWidgetClassSettings::GetBattleEnemyPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleHandPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleHandPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleHandPanel>(UFinalUIWidgetClassSettings::GetBattleHandPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleUltimatePanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleUltimatePanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleUltimatePanel>(UFinalUIWidgetClassSettings::GetBattleUltimatePanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleRecentEventPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleRecentEventPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleRecentEventPanel>(UFinalUIWidgetClassSettings::GetBattleRecentEventPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleActionPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleActionPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleActionPanel>(UFinalUIWidgetClassSettings::GetBattleActionPanelClass(), WidgetName);
+}
 
 void UFinalBattleHUDScreen::NativeOnInitialized()
 {
@@ -30,165 +80,112 @@ void UFinalBattleHUDScreen::InitializeScreen(UFinalBattleHUDViewModel* InViewMod
 
 void UFinalBattleHUDScreen::EnsureWidgetTree()
 {
-	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	if (WidgetTree == nullptr)
 	{
 		return;
 	}
 
 	ScreenLayer = EFinalUIScreenLayer::HUD;
 
+	const bool bHasBlueprintPanelSlots =
+		TopBarPanel != nullptr ||
+		FeedbackPanel != nullptr ||
+		ContextPanel != nullptr ||
+		CharacterPanel != nullptr ||
+		EnemyPanel != nullptr ||
+		HandPanel != nullptr ||
+		UltimatePanel != nullptr ||
+		RecentEventPanel != nullptr ||
+		ActionPanel != nullptr;
+
+	if (WidgetTree->RootWidget != nullptr && bHasBlueprintPanelSlots)
+	{
+		return;
+	}
+
+	if (WidgetTree->RootWidget != nullptr)
+	{
+		WidgetTree->RootWidget = nullptr;
+	}
+
 	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("BattleHUDRoot"));
 	WidgetTree->RootWidget = RootCanvas;
 
-	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BattleHUDShell"));
-	if (UCanvasPanelSlot* RootSlot = RootCanvas->AddChildToCanvas(RootBox))
+	UOverlay* BattlefieldGlass = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("BattlefieldGlass"));
+	if (UCanvasPanelSlot* BattlefieldSlot = RootCanvas->AddChildToCanvas(BattlefieldGlass))
 	{
-		RootSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-		RootSlot->SetOffsets(FMargin(12.0f));
+		BattlefieldSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+		BattlefieldSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UHorizontalBox* TopOverlayBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TopOverlayBar"));
-	USizeBox* TopOverlaySizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TopOverlaySizeBox"));
-	TopOverlaySizeBox->SetHeightOverride(144.0f);
-	TopOverlaySizeBox->SetContent(TopOverlayBar);
-	if (UVerticalBoxSlot* TopOverlaySlot = RootBox->AddChildToVerticalBox(TopOverlaySizeBox))
+	UBorder* VignetteBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InkVignette"));
+	VignetteBorder->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.08f));
+	VignetteBorder->SetPadding(FMargin(0.0f));
+	BattlefieldGlass->AddChildToOverlay(VignetteBorder);
+
+	TopBarPanel = CreateConfiguredPanel<UFinalBattleTopBarPanel>(TEXT("TopBarPanel"));
+	if (UCanvasPanelSlot* TopBarSlot = RootCanvas->AddChildToCanvas(TopBarPanel))
 	{
-		TopOverlaySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+		TopBarSlot->SetAnchors(FAnchors(0.02f, 0.88f, 0.16f, 0.98f));
+		TopBarSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UVerticalBox* TopOverlayLeft = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TopOverlayLeft"));
-	if (UHorizontalBoxSlot* LeftSlot = TopOverlayBar->AddChildToHorizontalBox(TopOverlayLeft))
+	FeedbackPanel = CreateConfiguredPanel<UFinalBattleFeedbackPanel>(TEXT("FeedbackPanel"));
+	if (UCanvasPanelSlot* FeedbackSlot = RootCanvas->AddChildToCanvas(FeedbackPanel))
 	{
-		FSlateChildSize LeftFill(ESlateSizeRule::Fill);
-		LeftFill.Value = 0.52f;
-		LeftSlot->SetSize(LeftFill);
-		LeftSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		FeedbackSlot->SetAnchors(FAnchors(0.32f, 0.90f, 0.68f, 0.98f));
+		FeedbackSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	TopBarPanel = WidgetTree->ConstructWidget<UFinalBattleTopBarPanel>(UFinalBattleTopBarPanel::StaticClass(), TEXT("TopBarPanel"));
-	TopOverlayLeft->AddChildToVerticalBox(TopBarPanel);
-
-	FeedbackPanel = WidgetTree->ConstructWidget<UFinalBattleFeedbackPanel>(UFinalBattleFeedbackPanel::StaticClass(), TEXT("FeedbackPanel"));
-	if (UVerticalBoxSlot* FeedbackSlot = TopOverlayLeft->AddChildToVerticalBox(FeedbackPanel))
+	CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
+	if (UCanvasPanelSlot* CharacterSlot = RootCanvas->AddChildToCanvas(CharacterPanel))
 	{
-		FeedbackSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		CharacterSlot->SetAnchors(FAnchors(0.015f, 0.02f, 0.23f, 0.48f));
+		CharacterSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UVerticalBox* TopOverlayRight = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TopOverlayRight"));
-	if (UHorizontalBoxSlot* RightSlot = TopOverlayBar->AddChildToHorizontalBox(TopOverlayRight))
+	EnemyPanel = CreateConfiguredPanel<UFinalBattleEnemyPanel>(TEXT("EnemyPanel"));
+	if (UCanvasPanelSlot* EnemySlot = RootCanvas->AddChildToCanvas(EnemyPanel))
 	{
-		FSlateChildSize RightFill(ESlateSizeRule::Fill);
-		RightFill.Value = 0.48f;
-		RightSlot->SetSize(RightFill);
+		EnemySlot->SetAnchors(FAnchors(0.30f, 0.02f, 0.82f, 0.20f));
+		EnemySlot->SetOffsets(FMargin(0.0f));
 	}
 
-	ContextPanel = WidgetTree->ConstructWidget<UFinalBattleContextPanel>(UFinalBattleContextPanel::StaticClass(), TEXT("ContextPanel"));
-	TopOverlayRight->AddChildToVerticalBox(ContextPanel);
-
-	RecentEventPanel = WidgetTree->ConstructWidget<UFinalBattleRecentEventPanel>(UFinalBattleRecentEventPanel::StaticClass(), TEXT("RecentEventPanel"));
-	USizeBox* RecentEventSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RecentEventSizeBox"));
-	RecentEventSizeBox->SetHeightOverride(92.0f);
-	RecentEventSizeBox->SetContent(RecentEventPanel);
-	if (UVerticalBoxSlot* EventSlot = TopOverlayRight->AddChildToVerticalBox(RecentEventSizeBox))
+	ContextPanel = CreateConfiguredPanel<UFinalBattleContextPanel>(TEXT("ContextPanel"));
+	if (UCanvasPanelSlot* ContextSlot = RootCanvas->AddChildToCanvas(ContextPanel))
 	{
-		EventSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ContextSlot->SetAnchors(FAnchors(0.83f, 0.02f, 0.985f, 0.28f));
+		ContextSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UHorizontalBox* BattlefieldRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BattlefieldRow"));
-	if (UVerticalBoxSlot* BattlefieldSlot = RootBox->AddChildToVerticalBox(BattlefieldRow))
+	RecentEventPanel = CreateConfiguredPanel<UFinalBattleRecentEventPanel>(TEXT("RecentEventPanel"));
+	if (UCanvasPanelSlot* RecentEventSlot = RootCanvas->AddChildToCanvas(RecentEventPanel))
 	{
-		BattlefieldSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		BattlefieldSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+		RecentEventSlot->SetAnchors(FAnchors(0.38f, 0.205f, 0.70f, 0.29f));
+		RecentEventSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	CharacterPanel = WidgetTree->ConstructWidget<UFinalBattleCharacterPanel>(UFinalBattleCharacterPanel::StaticClass(), TEXT("CharacterPanel"));
-	USizeBox* CharacterRail = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CharacterRail"));
-	CharacterRail->SetMinDesiredWidth(220.0f);
-	CharacterRail->SetMaxDesiredWidth(300.0f);
-	CharacterRail->SetHeightOverride(0.0f);
-	CharacterRail->SetContent(CharacterPanel);
-	if (UHorizontalBoxSlot* CharacterSlot = BattlefieldRow->AddChildToHorizontalBox(CharacterRail))
+	UltimatePanel = CreateConfiguredPanel<UFinalBattleUltimatePanel>(TEXT("UltimatePanel"));
+	if (UCanvasPanelSlot* UltimateSlot = RootCanvas->AddChildToCanvas(UltimatePanel))
 	{
-		FSlateChildSize CharacterFill(ESlateSizeRule::Fill);
-		CharacterFill.Value = 0.24f;
-		CharacterSlot->SetSize(CharacterFill);
-		CharacterSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
+		UltimateSlot->SetAnchors(FAnchors(0.015f, 0.49f, 0.18f, 0.65f));
+		UltimateSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UBorder* BattlefieldPlaceholder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BattlefieldPlaceholder"));
-	BattlefieldPlaceholder->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.08f, 0.25f));
-	BattlefieldPlaceholder->SetPadding(FMargin(24.0f));
-	USpacer* BattlefieldSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("BattlefieldSpacer"));
-	BattlefieldSpacer->SetSize(FVector2D(640.0f, 360.0f));
-	BattlefieldPlaceholder->SetContent(BattlefieldSpacer);
-	if (UHorizontalBoxSlot* CenterSlot = BattlefieldRow->AddChildToHorizontalBox(BattlefieldPlaceholder))
+	HandPanel = CreateConfiguredPanel<UFinalBattleHandPanel>(TEXT("HandPanel"));
+	if (UCanvasPanelSlot* HandSlot = RootCanvas->AddChildToCanvas(HandPanel))
 	{
-		FSlateChildSize CenterFill(ESlateSizeRule::Fill);
-		CenterFill.Value = 0.52f;
-		CenterSlot->SetSize(CenterFill);
-		CenterSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
+		HandSlot->SetAnchors(FAnchors(0.18f, 0.66f, 0.82f, 0.975f));
+		HandSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	EnemyPanel = WidgetTree->ConstructWidget<UFinalBattleEnemyPanel>(UFinalBattleEnemyPanel::StaticClass(), TEXT("EnemyPanel"));
-	USizeBox* EnemyRail = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("EnemyRail"));
-	EnemyRail->SetMinDesiredWidth(260.0f);
-	EnemyRail->SetMaxDesiredWidth(340.0f);
-	EnemyRail->SetContent(EnemyPanel);
-	if (UHorizontalBoxSlot* EnemySlot = BattlefieldRow->AddChildToHorizontalBox(EnemyRail))
+	ActionPanel = CreateConfiguredPanel<UFinalBattleActionPanel>(TEXT("ActionPanel"));
+	if (UCanvasPanelSlot* ActionSlot = RootCanvas->AddChildToCanvas(ActionPanel))
 	{
-		FSlateChildSize EnemyFill(ESlateSizeRule::Fill);
-		EnemyFill.Value = 0.24f;
-		EnemySlot->SetSize(EnemyFill);
+		ActionSlot->SetAnchors(FAnchors(0.825f, 0.63f, 0.985f, 0.975f));
+		ActionSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UHorizontalBox* BottomCommandBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomCommandBar"));
-	USizeBox* BottomCommandSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("BottomCommandSizeBox"));
-	BottomCommandSizeBox->SetHeightOverride(184.0f);
-	BottomCommandSizeBox->SetContent(BottomCommandBar);
-	if (UVerticalBoxSlot* BottomCommandSlot = RootBox->AddChildToVerticalBox(BottomCommandSizeBox))
-	{
-		BottomCommandSlot->SetPadding(FMargin(0.0f));
-	}
-
-	UVerticalBox* BottomLeftColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BottomLeftColumn"));
-	USizeBox* BottomLeftSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("BottomLeftSizeBox"));
-	BottomLeftSizeBox->SetMinDesiredWidth(180.0f);
-	BottomLeftSizeBox->SetMaxDesiredWidth(240.0f);
-	BottomLeftSizeBox->SetContent(BottomLeftColumn);
-	if (UHorizontalBoxSlot* BottomLeftSlot = BottomCommandBar->AddChildToHorizontalBox(BottomLeftSizeBox))
-	{
-		FSlateChildSize BottomLeftFill(ESlateSizeRule::Fill);
-		BottomLeftFill.Value = 0.18f;
-		BottomLeftSlot->SetSize(BottomLeftFill);
-		BottomLeftSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
-	}
-
-	UltimatePanel = WidgetTree->ConstructWidget<UFinalBattleUltimatePanel>(UFinalBattleUltimatePanel::StaticClass(), TEXT("UltimatePanel"));
-	BottomLeftColumn->AddChildToVerticalBox(UltimatePanel);
-
-	HandPanel = WidgetTree->ConstructWidget<UFinalBattleHandPanel>(UFinalBattleHandPanel::StaticClass(), TEXT("HandPanel"));
-	USizeBox* HandZone = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HandZone"));
-	HandZone->SetHeightOverride(172.0f);
-	HandZone->SetContent(HandPanel);
-	if (UHorizontalBoxSlot* HandSlot = BottomCommandBar->AddChildToHorizontalBox(HandZone))
-	{
-		FSlateChildSize HandFill(ESlateSizeRule::Fill);
-		HandFill.Value = 0.62f;
-		HandSlot->SetSize(HandFill);
-		HandSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
-	}
-
-	ActionPanel = WidgetTree->ConstructWidget<UFinalBattleActionPanel>(UFinalBattleActionPanel::StaticClass(), TEXT("ActionPanel"));
-	USizeBox* ActionZone = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ActionZone"));
-	ActionZone->SetMinDesiredWidth(180.0f);
-	ActionZone->SetMaxDesiredWidth(220.0f);
-	ActionZone->SetContent(ActionPanel);
-	if (UHorizontalBoxSlot* ActionSlot = BottomCommandBar->AddChildToHorizontalBox(ActionZone))
-	{
-		FSlateChildSize ActionFill(ESlateSizeRule::Fill);
-		ActionFill.Value = 0.20f;
-		ActionSlot->SetSize(ActionFill);
-	}
 }
 
 void UFinalBattleHUDScreen::InitializePanels()

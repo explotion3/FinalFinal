@@ -8,7 +8,7 @@ class UButton;
 class UTextBlock;
 class UFinalBattleEnemyPanelController;
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleEnemyEntryWidget : public UFinalWidgetBase
 {
 	GENERATED_BODY()
@@ -30,9 +30,9 @@ private:
 	FText CachedLabel;
 	bool bSelected = false;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> SelectButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> LabelText;
 };

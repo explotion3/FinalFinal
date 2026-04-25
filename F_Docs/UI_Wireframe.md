@@ -1,11 +1,11 @@
 # 战斗 UI 线框
 
-## 0. 当前实现状态（2026-04-11）
+## 0. 当前实现状态（2026-04-25）
 * 当前 `FinalApp` 已补上首轮 `UI` 基座：
   * `UISubsystem`
   * `UIRootLayout`
   * `Screen / Panel / Widget / WidgetController / ViewModel` 基类
-  * 代码生成的 `BattleHUDScreen`
+  * 可由 Blueprint 子类换肤的 `BattleHUDScreen`
   * 常驻 `HUD / Overlay / Modal / Tooltip / Toast` 分层
 * 当前 Battle HUD 通过 `FinalBattleWidgetController` 订阅 `FinalBattleFlowSubsystem`
 * 当前 Battle HUD 已打通：
@@ -16,6 +16,12 @@
   * `1~6` 快捷出牌
   * 点击 / `Enter / Space` 结束回合
 * 当前 Battle HUD 已开始消费 Battle / Run 公开查询字段，但仍只做只读展示与命令转发，不承载规则结算
+* 当前 Battle HUD 已进入第一版水墨 16:9 桌面重构：
+  * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 HUD screen、panel、entry widget 的 `TSoftClassPtr`
+  * `UFinalUISubsystem` 创建 Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
+  * `BattleHUDScreen` 保留 C++ panel 装配和 fallback Canvas 布局，Blueprint 子类只负责外观、槽位和容器排布
+  * Battle HUD panel / entry widget 通过 `BindWidgetOptional` 绑定 Blueprint 内控件；缺少绑定控件时继续走 C++ fallback 文本展示
+  * 第一版占位视觉资源放在 `/Game/UI/BattleHUD/InkPrototype/`，只作为表现资源，不新增规则字段
 * 当前 `UISubsystem` 已补齐外层流程承接能力：
   * `OpenOverlayScreen / CloseOverlayScreen`
   * `OpenModalScreen / CloseModalScreen`
@@ -50,8 +56,22 @@
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
 ## 1. 当前最小布局
-* 当前战斗界面已进入 `UMG` 过渡阶段，由根界面统一承载主 HUD 与覆盖面板；旧 `Canvas HUD` 仅保留兜底
-* 左上：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
+* 当前战斗界面已进入 `UMG` + Blueprint 外观层阶段，由根界面统一承载主 HUD 与覆盖面板；C++ fallback HUD 继续作为未配置 Blueprint 时的兜底
+* 当前主验收布局固定为 16:9 桌面：
+  * 左侧：我方队伍三名角色状态、压力、生命份额、状态摘要与奥义入口
+  * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
+  * 右上：目标、当前目标、团队状态、遗物摘要与战斗进度信息
+  * 底部：手牌区，保留点击出牌与快捷键出牌
+  * 左下：抽牌堆、手牌 / 弃牌 / 消耗计数、AP 资源摘要
+  * 右下：弃牌堆 / 消耗计数、结束回合、Debug 与账本入口
+* Fallback 16:9 Canvas 参考锚点：
+  * 左队伍 `0.015,0.02 -> 0.23,0.48`
+  * 上敌人 `0.30,0.02 -> 0.82,0.20`
+  * 右目标 `0.83,0.02 -> 0.985,0.28`
+  * 底手牌 `0.18,0.66 -> 0.82,0.975`
+  * 左下资源 / 奥义 `0.015,0.49 -> 0.18,0.98`
+  * 右下行动 `0.825,0.63 -> 0.985,0.975`
+* 原顶部资源区现在作为 fallback 文本摘要保留：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
   * 当收到 `BattleEvent.EventType == RelicTriggered` 时，顶部反馈显示触发 relic 名称与 Battle 侧原始 `Message`
 * 通过 Battle HUD 按钮打开的调试摘要窗：
   * 当前 `Run FlowStage`
@@ -181,6 +201,7 @@
 * 状态显示名
 * 奥义显示名
 * 手牌所属单位显示名
+* 角色 / 敌人 / 卡牌展示用 `IconId / ArtId`，仅作为 UI 资源映射键，不参与规则判定
 
 ## 4. 当前缺口字段 / 需要 Battle 或 Run 提供的接口
 ### 4.1 Battle HUD
@@ -193,6 +214,7 @@
 * 阶段进度来自 `FFinalBattleEnemyViewData.PhaseProgress`
 * 奥义“本战已释放”来自 `FFinalBattleUltimateViewData.bUsedThisBattle`
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
+* AP、HP、Stress、Break、Initiative、Deck counts 仍来自现有 Snapshot；水墨 HUD 不新增 Battle 规则字段
 
 ### 4.2 Run 外层流程页
 当前 `FinalApp` 已经具备承接战后奖励页 / 节点选择页 / 奖励节点页 / 事件节点页 / 商店节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。
