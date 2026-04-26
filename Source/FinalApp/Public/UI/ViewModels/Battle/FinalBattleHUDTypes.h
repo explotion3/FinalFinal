@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Queries/FinalBattleSnapshot.h"
+#include "Types/FinalCoreTypes.h"
 #include "FinalBattleHUDTypes.generated.h"
 
 USTRUCT(BlueprintType)
@@ -138,6 +139,9 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	int32 RuntimeCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalCardType CardType = EFinalCardType::Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FText TypeText;

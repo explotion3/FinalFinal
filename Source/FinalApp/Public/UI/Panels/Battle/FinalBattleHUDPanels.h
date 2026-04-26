@@ -6,6 +6,7 @@
 
 class UBorder;
 class UButton;
+class UCanvasPanel;
 class UHorizontalBox;
 class UTextBlock;
 class UVerticalBox;
@@ -176,8 +177,36 @@ public:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void InitializePanel(UFinalBattleHandPanelViewModel* InViewModel, UFinalBattleHandPanelController* InController);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	FVector2D CardSize = FVector2D(260.0f, 380.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float PanelHeightOverride = 430.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float BottomPadding = 24.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float MinSpacing = 96.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float MaxSpacing = 242.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float CenterLift = 28.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float MaxFanAngle = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float CardScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	bool bAllowOverlap = true;
 
 private:
 	UFUNCTION()
@@ -185,6 +214,7 @@ private:
 
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
+	void ArrangeHandCards();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> PanelViewModel;
@@ -193,7 +223,9 @@ private:
 	TObjectPtr<UFinalBattleHandPanelController> PanelController;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
-	TObjectPtr<UHorizontalBox> HandCardBox;
+	TObjectPtr<UCanvasPanel> HandCardCanvas;
+
+	bool bHandLayoutDirty = false;
 };
 
 UCLASS(BlueprintType, Blueprintable)

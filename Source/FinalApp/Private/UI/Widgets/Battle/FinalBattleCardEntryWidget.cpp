@@ -2,24 +2,26 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/RichTextBlock.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
 {
-FText JoinCardLines(const TArray<FText>& Lines)
+UTextBlock* CreateFallbackTextBlock(UWidgetTree& WidgetTree, const FName WidgetName, const int32 FontSize)
 {
-	TArray<FString> Segments;
-	for (const FText& Line : Lines)
+	UTextBlock* TextBlock = WidgetTree.ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), WidgetName);
+	if (TextBlock)
 	{
-		if (!Line.IsEmpty())
-		{
-			Segments.Add(Line.ToString());
-		}
+		TextBlock->SetAutoWrapText(true);
+		FSlateFontInfo FontInfo = TextBlock->GetFont();
+		FontInfo.Size = FontSize;
+		TextBlock->SetFont(FontInfo);
 	}
 
-	return FText::FromString(FString::Join(Segments, TEXT("\n")));
+	return TextBlock;
 }
 }
 
@@ -29,10 +31,38 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 
 	if (WidgetTree && WidgetTree->RootWidget == nullptr)
 	{
+		bUsesFallbackLayout = true;
 		CardButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CardButton"));
-		LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CardLabel"));
-		LabelText->SetAutoWrapText(false);
-		CardButton->AddChild(LabelText);
+		UVerticalBox* FallbackBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CardFallbackBox"));
+		CostText = CreateFallbackTextBlock(*WidgetTree, TEXT("CostText"), 18);
+		NameText = CreateFallbackTextBlock(*WidgetTree, TEXT("NameText"), 16);
+		TypeText = CreateFallbackTextBlock(*WidgetTree, TEXT("TypeText"), 14);
+		DescriptionText = WidgetTree->ConstructWidget<URichTextBlock>(URichTextBlock::StaticClass(), TEXT("DescriptionText"));
+
+		if (FallbackBox)
+		{
+			if (CostText)
+			{
+				FallbackBox->AddChild(CostText);
+			}
+			if (NameText)
+			{
+				FallbackBox->AddChild(NameText);
+			}
+			if (TypeText)
+			{
+				FallbackBox->AddChild(TypeText);
+			}
+			if (DescriptionText)
+			{
+				FallbackBox->AddChild(DescriptionText);
+			}
+		}
+
+		if (CardButton && FallbackBox)
+		{
+			CardButton->AddChild(FallbackBox);
+		}
 		WidgetTree->RootWidget = CardButton;
 	}
 
@@ -46,41 +76,11 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InC
 {
 	PanelController = InController;
 	HandIndex = InHandIndex;
-	TArray<FText> MetaSegments;
-	if (InEntry.bRetained)
-	{
-		MetaSegments.Add(NSLOCTEXT("FinalBattleHUD", "CardRetainedTag", "保留"));
-	}
 
-	if (InEntry.bCollapsedCard)
-	{
-		MetaSegments.Add(NSLOCTEXT("FinalBattleHUD", "CardCollapsedTag", "崩溃"));
-	}
-
-	const FText KeywordText = !InEntry.KeywordText.IsEmpty()
-		? InEntry.KeywordText
-		: NSLOCTEXT("FinalBattleHUD", "NoCardKeywords", "无关键词");
-	const FText OwnerText = !InEntry.OwnerDisplayName.IsEmpty()
-		? FText::Format(NSLOCTEXT("FinalBattleHUD", "CardOwnerShort", "Owner {0}"), InEntry.OwnerDisplayName)
-		: FText::GetEmpty();
-	const FText MetaText = MetaSegments.Num() > 0
-		? FText::FromString(FString::JoinBy(MetaSegments, TEXT(" · "), [](const FText& Entry) { return Entry.ToString(); }))
-		: FText::GetEmpty();
-
-	TArray<FText> Lines;
-	Lines.Add(InEntry.DisplayName);
-	Lines.Add(FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "CardCostTypeLine", "AP {0} | {1}"),
-		FText::AsNumber(InEntry.RuntimeCostAP),
-		InEntry.TypeText));
-	if (!OwnerText.IsEmpty())
-	{
-		Lines.Add(OwnerText);
-	}
-	Lines.Add(!MetaText.IsEmpty()
-		? FText::Format(NSLOCTEXT("FinalBattleHUD", "CardKeywordMetaLine", "{0} | {1}"), KeywordText, MetaText)
-		: KeywordText);
-	CachedLabel = JoinCardLines(Lines);
+	CachedCostText = FText::AsNumber(InEntry.RuntimeCostAP);
+	CachedNameText = InEntry.DisplayName;
+	CachedTypeText = InEntry.TypeText;
+	CachedDescriptionText = !InEntry.RulesText.IsEmpty() ? InEntry.RulesText : InEntry.KeywordText;
 	RebuildVisual();
 }
 
@@ -94,12 +94,27 @@ void UFinalBattleCardEntryWidget::HandleButtonClicked()
 
 void UFinalBattleCardEntryWidget::RebuildVisual()
 {
-	if (LabelText)
+	if (CostText)
 	{
-		LabelText->SetText(CachedLabel);
+		CostText->SetText(CachedCostText);
 	}
 
-	if (CardButton)
+	if (NameText)
+	{
+		NameText->SetText(CachedNameText);
+	}
+
+	if (TypeText)
+	{
+		TypeText->SetText(CachedTypeText);
+	}
+
+	if (DescriptionText)
+	{
+		DescriptionText->SetText(CachedDescriptionText);
+	}
+
+	if (CardButton && bUsesFallbackLayout)
 	{
 		CardButton->SetBackgroundColor(FLinearColor(0.17f, 0.23f, 0.34f, 1.0f));
 	}

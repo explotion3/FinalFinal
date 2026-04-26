@@ -175,7 +175,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	HandPanel = CreateConfiguredPanel<UFinalBattleHandPanel>(TEXT("HandPanel"));
 	if (UCanvasPanelSlot* HandSlot = RootCanvas->AddChildToCanvas(HandPanel))
 	{
-		HandSlot->SetAnchors(FAnchors(0.18f, 0.66f, 0.82f, 0.975f));
+		HandSlot->SetAnchors(FAnchors(0.16f, 0.56f, 0.82f, 0.985f));
 		HandSlot->SetOffsets(FMargin(0.0f));
 	}
 

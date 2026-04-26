@@ -63,7 +63,7 @@ FText FormatCardTypeText(const EFinalCardType CardType)
 	case EFinalCardType::Skill:
 		return NSLOCTEXT("FinalBattleHUD", "CardTypeSkill", "技能");
 	case EFinalCardType::Ability:
-		return NSLOCTEXT("FinalBattleHUD", "CardTypeAbility", "战术");
+		return NSLOCTEXT("FinalBattleHUD", "CardTypeAbility", "能力");
 	default:
 		return NSLOCTEXT("FinalBattleHUD", "CardTypeUnknown", "未知");
 	}
@@ -676,6 +676,7 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 		}
 
 		Entry.RuntimeCostAP = CardView.RuntimeCostAP;
+		Entry.CardType = CardView.CardType;
 		Entry.TypeText = FormatCardTypeText(CardView.CardType);
 		Entry.KeywordText = FormatKeywordText(CardView.RuntimeKeywords);
 		Entry.bRetained = CardView.bRetained;

@@ -5,6 +5,7 @@
 #include "FinalBattleCardEntryWidget.generated.h"
 
 class UButton;
+class URichTextBlock;
 class UTextBlock;
 class UFinalBattleHandPanelController;
 
@@ -27,11 +28,24 @@ private:
 	TWeakObjectPtr<UFinalBattleHandPanelController> PanelController;
 
 	int32 HandIndex = INDEX_NONE;
-	FText CachedLabel;
+	FText CachedCostText;
+	FText CachedNameText;
+	FText CachedTypeText;
+	FText CachedDescriptionText;
+	bool bUsesFallbackLayout = false;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> CardButton;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
-	TObjectPtr<UTextBlock> LabelText;
+	TObjectPtr<UTextBlock> CostText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> NameText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> TypeText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<URichTextBlock> DescriptionText;
 };

@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ScrollBox.h"
@@ -511,6 +513,20 @@ void UFinalBattleHandPanel::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void UFinalBattleHandPanel::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bHandLayoutDirty)
+	{
+		const FVector2D LocalSize = MyGeometry.GetLocalSize();
+		if (LocalSize.X > 0.0f && LocalSize.Y > 0.0f)
+		{
+			ArrangeHandCards();
+		}
+	}
+}
+
 void UFinalBattleHandPanel::InitializePanel(UFinalBattleHandPanelViewModel* InViewModel, UFinalBattleHandPanelController* InController)
 {
 	PanelViewModel = InViewModel;
@@ -533,24 +549,21 @@ void UFinalBattleHandPanel::EnsureWidgetTree()
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("HandBorder"), FLinearColor(0.08f, 0.11f, 0.16f, 0.92f));
 	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HandSizeBox"));
-	SizeBox->SetHeightOverride(156.0f);
-	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("HandScrollBox"));
-	ScrollBox->SetOrientation(EOrientation::Orient_Horizontal);
-	HandCardBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HandCardBox"));
-	ScrollBox->AddChild(HandCardBox);
-	SizeBox->SetContent(ScrollBox);
+	SizeBox->SetHeightOverride(PanelHeightOverride);
+	HandCardCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("HandCardCanvas"));
+	SizeBox->SetContent(HandCardCanvas);
 	Border->SetContent(SizeBox);
 	WidgetTree->RootWidget = Border;
 }
 
 void UFinalBattleHandPanel::RefreshFromViewModel()
 {
-	if (PanelViewModel == nullptr || HandCardBox == nullptr)
+	if (PanelViewModel == nullptr || HandCardCanvas == nullptr)
 	{
 		return;
 	}
 
-	HandCardBox->ClearChildren();
+	HandCardCanvas->ClearChildren();
 	const TArray<FFinalBattleHUDCardEntry>& Entries = PanelViewModel->GetEntries();
 	for (int32 Index = 0; Index < Entries.Num(); ++Index)
 	{
@@ -561,15 +574,93 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		}
 
 		CardWidget->Configure(PanelController, Index, Entries[Index]);
-		USizeBox* CardSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), *FString::Printf(TEXT("HandCardSizeBox_%d"), Index));
-		CardSizeBox->SetWidthOverride(220.0f);
-		CardSizeBox->SetHeightOverride(140.0f);
-		CardSizeBox->SetContent(CardWidget);
-		if (UHorizontalBoxSlot* CardSlot = HandCardBox->AddChildToHorizontalBox(CardSizeBox))
+		if (UCanvasPanelSlot* CardSlot = HandCardCanvas->AddChildToCanvas(CardWidget))
 		{
-			CardSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+			CardSlot->SetAutoSize(false);
+			CardSlot->SetSize(CardSize);
+			CardSlot->SetAlignment(FVector2D(0.5f, 1.0f));
+			CardSlot->SetZOrder(Index);
 		}
 	}
+
+	bHandLayoutDirty = true;
+	ArrangeHandCards();
+}
+
+void UFinalBattleHandPanel::ArrangeHandCards()
+{
+	if (HandCardCanvas == nullptr)
+	{
+		bHandLayoutDirty = false;
+		return;
+	}
+
+	const int32 NumCards = HandCardCanvas->GetChildrenCount();
+	if (NumCards == 0)
+	{
+		bHandLayoutDirty = false;
+		return;
+	}
+
+	const FVector2D PanelSize = GetCachedGeometry().GetLocalSize();
+	const float PanelWidth = PanelSize.X;
+	const float PanelHeight = PanelSize.Y > 0.0f ? PanelSize.Y : PanelHeightOverride;
+	if (PanelWidth <= 0.0f || PanelHeight <= 0.0f)
+	{
+		bHandLayoutDirty = true;
+		return;
+	}
+
+	const FVector2D SafeCardSize(
+		FMath::Max(1.0f, CardSize.X),
+		FMath::Max(1.0f, CardSize.Y));
+	const float BaseY = PanelHeight - BottomPadding;
+	const float CenterX = PanelWidth * 0.5f;
+	const float MidIndex = static_cast<float>(NumCards - 1) * 0.5f;
+	const float RawSpacing = NumCards > 1 ? (PanelWidth - SafeCardSize.X) / static_cast<float>(NumCards - 1) : 0.0f;
+	const float LowerSpacing = FMath::Min(MinSpacing, MaxSpacing);
+	const float UpperSpacing = FMath::Max(MinSpacing, MaxSpacing);
+	const float Spacing = bAllowOverlap
+		? FMath::Clamp(RawSpacing, LowerSpacing, UpperSpacing)
+		: FMath::Max(RawSpacing, SafeCardSize.X);
+	const float Normalizer = FMath::Max(1.0f, MidIndex);
+	const float SafeCardScale = FMath::Max(0.01f, CardScale);
+
+	for (int32 Index = 0; Index < NumCards; ++Index)
+	{
+		UWidget* CardWidget = HandCardCanvas->GetChildAt(Index);
+		if (CardWidget == nullptr)
+		{
+			continue;
+		}
+
+		UCanvasPanelSlot* CardSlot = Cast<UCanvasPanelSlot>(CardWidget->Slot);
+		if (CardSlot == nullptr)
+		{
+			continue;
+		}
+
+		const float OffsetFromCenter = static_cast<float>(Index) - MidIndex;
+		const float Norm = OffsetFromCenter / Normalizer;
+		const float LiftAlpha = 1.0f - FMath::Abs(Norm);
+		const FVector2D CardPosition(
+			CenterX + OffsetFromCenter * Spacing,
+			BaseY - LiftAlpha * CenterLift);
+
+		CardSlot->SetAutoSize(false);
+		CardSlot->SetSize(SafeCardSize);
+		CardSlot->SetPosition(CardPosition);
+		CardSlot->SetAlignment(FVector2D(0.5f, 1.0f));
+		CardSlot->SetZOrder(Index);
+
+		FWidgetTransform Transform = CardWidget->GetRenderTransform();
+		Transform.Angle = Norm * MaxFanAngle;
+		Transform.Scale = FVector2D(SafeCardScale, SafeCardScale);
+		CardWidget->SetRenderTransform(Transform);
+		CardWidget->SetRenderTransformPivot(FVector2D(0.5f, 1.0f));
+	}
+
+	bHandLayoutDirty = false;
 }
 
 void UFinalBattleUltimatePanel::NativeOnInitialized()
