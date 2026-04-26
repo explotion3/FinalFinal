@@ -517,7 +517,8 @@ void UFinalBattleHandPanel::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (bHandLayoutDirty)
+	const bool bHoverLayoutDirty = UpdateHoverAlphas(InDeltaTime);
+	if (bHandLayoutDirty || bHoverLayoutDirty)
 	{
 		const FVector2D LocalSize = MyGeometry.GetLocalSize();
 		if (LocalSize.X > 0.0f && LocalSize.Y > 0.0f)
@@ -538,6 +539,19 @@ void UFinalBattleHandPanel::InitializePanel(UFinalBattleHandPanelViewModel* InVi
 void UFinalBattleHandPanel::HandleViewModelChanged()
 {
 	RefreshFromViewModel();
+}
+
+void UFinalBattleHandPanel::HandleCardHoverChanged(const int32 HandIndex, const bool bHovered)
+{
+	if (bHovered)
+	{
+		HoveredHandIndex = HandIndex;
+	}
+	else if (HoveredHandIndex == HandIndex)
+	{
+		HoveredHandIndex = INDEX_NONE;
+	}
+	bHandLayoutDirty = true;
 }
 
 void UFinalBattleHandPanel::EnsureWidgetTree()
@@ -564,7 +578,9 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 	}
 
 	HandCardCanvas->ClearChildren();
+	HoveredHandIndex = INDEX_NONE;
 	const TArray<FFinalBattleHUDCardEntry>& Entries = PanelViewModel->GetEntries();
+	CardHoverAlphas.SetNumZeroed(Entries.Num());
 	for (int32 Index = 0; Index < Entries.Num(); ++Index)
 	{
 		UFinalBattleCardEntryWidget* CardWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleCardEntryWidgetClass());
@@ -574,6 +590,7 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		}
 
 		CardWidget->Configure(PanelController, Index, Entries[Index]);
+		CardWidget->OnCardHoverChanged.AddDynamic(this, &UFinalBattleHandPanel::HandleCardHoverChanged);
 		if (UCanvasPanelSlot* CardSlot = HandCardCanvas->AddChildToCanvas(CardWidget))
 		{
 			CardSlot->SetAutoSize(false);
@@ -625,6 +642,7 @@ void UFinalBattleHandPanel::ArrangeHandCards()
 		: FMath::Max(RawSpacing, SafeCardSize.X);
 	const float Normalizer = FMath::Max(1.0f, MidIndex);
 	const float SafeCardScale = FMath::Max(0.01f, CardScale);
+	const float SafeHoverScale = FMath::Max(0.01f, HoverScale);
 
 	for (int32 Index = 0; Index < NumCards; ++Index)
 	{
@@ -646,21 +664,63 @@ void UFinalBattleHandPanel::ArrangeHandCards()
 		const FVector2D CardPosition(
 			CenterX + OffsetFromCenter * Spacing,
 			BaseY - LiftAlpha * CenterLift);
+		const FVector2D NormalPosition(
+			FMath::RoundToFloat(CardPosition.X),
+			FMath::RoundToFloat(CardPosition.Y));
+		const FVector2D HoverPosition(
+			NormalPosition.X,
+			FMath::RoundToFloat(BaseY - HoverLift));
+		const float HoverAlpha = CardHoverAlphas.IsValidIndex(Index) ? CardHoverAlphas[Index] : 0.0f;
+		const FVector2D BlendedPosition = FMath::Lerp(NormalPosition, HoverPosition, HoverAlpha);
+		const float NormalAngle = Norm * MaxFanAngle;
+		const float BlendedAngle = FMath::Lerp(NormalAngle, HoverAngle, HoverAlpha);
+		const float BlendedScale = FMath::Lerp(SafeCardScale, SafeCardScale * SafeHoverScale, HoverAlpha);
 
 		CardSlot->SetAutoSize(false);
 		CardSlot->SetSize(SafeCardSize);
-		CardSlot->SetPosition(CardPosition);
+		CardSlot->SetPosition(FVector2D(
+			FMath::RoundToFloat(BlendedPosition.X),
+			FMath::RoundToFloat(BlendedPosition.Y)));
 		CardSlot->SetAlignment(FVector2D(0.5f, 1.0f));
-		CardSlot->SetZOrder(Index);
+		const bool bShouldRaiseCard = Index == HoveredHandIndex;
+		CardSlot->SetZOrder(bShouldRaiseCard ? HoverZOrder + Index : Index);
 
 		FWidgetTransform Transform = CardWidget->GetRenderTransform();
-		Transform.Angle = Norm * MaxFanAngle;
-		Transform.Scale = FVector2D(SafeCardScale, SafeCardScale);
+		Transform.Angle = BlendedAngle;
+		Transform.Scale = FVector2D(BlendedScale, BlendedScale);
+		Transform.Translation = FVector2D::ZeroVector;
 		CardWidget->SetRenderTransform(Transform);
 		CardWidget->SetRenderTransformPivot(FVector2D(0.5f, 1.0f));
 	}
 
 	bHandLayoutDirty = false;
+}
+
+bool UFinalBattleHandPanel::UpdateHoverAlphas(const float InDeltaTime)
+{
+	bool bAnyAlphaChanged = false;
+	const float SafeInterpSpeed = FMath::Max(0.0f, HoverInterpSpeed);
+	for (int32 Index = 0; Index < CardHoverAlphas.Num(); ++Index)
+	{
+		const float TargetAlpha = Index == HoveredHandIndex ? 1.0f : 0.0f;
+		const float CurrentAlpha = CardHoverAlphas[Index];
+		float NewAlpha = SafeInterpSpeed > 0.0f
+			? FMath::FInterpTo(CurrentAlpha, TargetAlpha, InDeltaTime, SafeInterpSpeed)
+			: TargetAlpha;
+
+		if (FMath::IsNearlyEqual(NewAlpha, TargetAlpha, 0.001f))
+		{
+			NewAlpha = TargetAlpha;
+		}
+
+		if (!FMath::IsNearlyEqual(CurrentAlpha, NewAlpha, KINDA_SMALL_NUMBER))
+		{
+			CardHoverAlphas[Index] = NewAlpha;
+			bAnyAlphaChanged = true;
+		}
+	}
+
+	return bAnyAlphaChanged;
 }
 
 void UFinalBattleUltimatePanel::NativeOnInitialized()

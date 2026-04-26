@@ -206,15 +206,34 @@ public:
 	float CardScale = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float HoverScale = 1.32f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float HoverLift = 110.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float HoverAngle = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	int32 HoverZOrder = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float HoverInterpSpeed = 14.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
 	bool bAllowOverlap = true;
 
 private:
 	UFUNCTION()
 	void HandleViewModelChanged();
 
+	UFUNCTION()
+	void HandleCardHoverChanged(int32 HandIndex, bool bHovered);
+
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
 	void ArrangeHandCards();
+	bool UpdateHoverAlphas(float InDeltaTime);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> PanelViewModel;
@@ -224,6 +243,11 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> HandCardCanvas;
+
+	UPROPERTY(Transient)
+	TArray<float> CardHoverAlphas;
+
+	int32 HoveredHandIndex = INDEX_NONE;
 
 	bool bHandLayoutDirty = false;
 };

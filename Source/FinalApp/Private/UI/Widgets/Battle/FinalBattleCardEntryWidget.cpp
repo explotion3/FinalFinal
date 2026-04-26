@@ -69,6 +69,8 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 	if (CardButton)
 	{
 		CardButton->OnClicked.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonClicked);
+		CardButton->OnHovered.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonHovered);
+		CardButton->OnUnhovered.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonUnhovered);
 	}
 }
 
@@ -90,6 +92,16 @@ void UFinalBattleCardEntryWidget::HandleButtonClicked()
 	{
 		PanelController->PlayCardByHandIndex(HandIndex);
 	}
+}
+
+void UFinalBattleCardEntryWidget::HandleButtonHovered()
+{
+	OnCardHoverChanged.Broadcast(HandIndex, true);
+}
+
+void UFinalBattleCardEntryWidget::HandleButtonUnhovered()
+{
+	OnCardHoverChanged.Broadcast(HandIndex, false);
 }
 
 void UFinalBattleCardEntryWidget::RebuildVisual()

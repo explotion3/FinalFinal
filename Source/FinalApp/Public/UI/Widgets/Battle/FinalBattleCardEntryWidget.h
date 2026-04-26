@@ -9,6 +9,8 @@ class URichTextBlock;
 class UTextBlock;
 class UFinalBattleHandPanelController;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FFinalBattleCardHoverChangedSignature, int32, HandIndex, bool, bHovered);
+
 UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleCardEntryWidget : public UFinalWidgetBase
 {
@@ -19,9 +21,18 @@ public:
 
 	void Configure(UFinalBattleHandPanelController* InController, int32 InHandIndex, const struct FFinalBattleHUDCardEntry& InEntry);
 
+	UPROPERTY(BlueprintAssignable, Category = "Final|Battle HUD|Card")
+	FFinalBattleCardHoverChangedSignature OnCardHoverChanged;
+
 private:
 	UFUNCTION()
 	void HandleButtonClicked();
+
+	UFUNCTION()
+	void HandleButtonHovered();
+
+	UFUNCTION()
+	void HandleButtonUnhovered();
 
 	void RebuildVisual();
 
