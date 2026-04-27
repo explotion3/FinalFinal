@@ -7,6 +7,11 @@ void UFinalBattleHUDViewModel::EnsurePanelViewModels()
 		TopBarViewModel = NewObject<UFinalBattleTopBarPanelViewModel>(this);
 	}
 
+	if (ResourceViewModel == nullptr)
+	{
+		ResourceViewModel = NewObject<UFinalBattleResourcePanelViewModel>(this);
+	}
+
 	if (FeedbackViewModel == nullptr)
 	{
 		FeedbackViewModel = NewObject<UFinalBattleFeedbackPanelViewModel>(this);
@@ -77,6 +82,11 @@ FFinalBattleEvent UFinalBattleHUDViewModel::GetLatestPhaseChangedEvent() const
 UFinalBattleTopBarPanelViewModel* UFinalBattleHUDViewModel::GetTopBarViewModel() const
 {
 	return TopBarViewModel;
+}
+
+UFinalBattleResourcePanelViewModel* UFinalBattleHUDViewModel::GetResourceViewModel() const
+{
+	return ResourceViewModel;
 }
 
 UFinalBattleFeedbackPanelViewModel* UFinalBattleHUDViewModel::GetFeedbackViewModel() const

@@ -11,6 +11,17 @@ const FFinalBattleTopBarPanelData& UFinalBattleTopBarPanelViewModel::GetData() c
 	return Data;
 }
 
+void UFinalBattleResourcePanelViewModel::ApplyData(const FFinalBattleResourcePanelData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleResourcePanelData& UFinalBattleResourcePanelViewModel::GetData() const
+{
+	return Data;
+}
+
 void UFinalBattleFeedbackPanelViewModel::ApplyData(const FFinalBattleFeedbackPanelData& InData)
 {
 	Data = InData;

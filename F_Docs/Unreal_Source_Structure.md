@@ -206,6 +206,7 @@ FinalBattle      FinalRun
 * 当前代码已落地 `UISubsystem + UIRootLayout + BattleHUDScreen + Overlay / Modal` 通用容器
 * 当前 Battle HUD 已接入 `UFinalUIWidgetClassSettings`：`FinalApp` 可在 `Project Settings > Final > UI` 配置 HUD screen、panel、entry widget 的 Blueprint class；未配置时统一回退 C++ `StaticClass()`，保证原型 HUD 不因外观资源缺失而失效
 * 当前 Battle HUD 的水墨参考图第一版只改 `FinalApp` 外观层和 ViewModel 展示字段：C++ 继续负责 `Snapshot / Event -> ViewModel -> BattleCommand`，Widget Blueprint 只负责 16:9 Canvas 槽位、刷子、字体、按钮和容器排布
+* 当前 Battle HUD 已把底部资源显示拆成独立 `BattleResourcePanel`：面板只读消费 `BattleSnapshot.CurrentEP / MaxEP`，用于左下 EP 气圈、7 个 QIPip 点亮状态与 EP 满值颜色提示，不进入 `HandPanel` 的手牌动画职责
 * 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
 * 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描项目中的 definition 资产并建立 `StableId -> SoftObjectPath` 索引，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
 * 当前 `FinalDataRegistry` 不应在启动期全量 `GetAsset()` 加载 definition；`FindXxxDefinition(...)` 仍保持同步返回定义对象的外部 API，但内部首次访问 stable id 时才 `TryLoad()` 并缓存，后续查询直接命中缓存
@@ -244,7 +245,7 @@ FinalBattle      FinalRun
 * `OverlayScreen` 用于奖励、事件、商店、节点选择等覆盖层，不替换顶部关键 HUD
 * `ModalScreen` 处理确认类阻断交互
 * `FinalRunStageOverlayScreenBase` 可承接 Run 外层页的共用标题区、摘要区、反馈区与按钮布局 helper
-* `PanelWidget` 用于 `TopBar / Party / Enemy / Hand / RecentEvent / UltimateBar` 这类 HUD 区块复用
+* `PanelWidget` 用于 `TopBar / Resource / Party / Enemy / Hand / RecentEvent / UltimateBar` 这类 HUD 区块复用
 * `Widget` 用于卡牌、状态 Chip、资源条、敌人意图等原子控件
 * `WidgetController` 负责订阅 `Snapshot / Event / Query` 并组装 `ViewModel`
 * Battle 期 `BattleHUDScreen` 顶部反馈、`PrototypeRunDebugScreen` 的 Battle 事件摘要、`FinalBattleEventScreen` 的账本文本、`AFinalBattleDirector` 的世界提示，当前都应优先共用同一套 BattleEvent projection helper

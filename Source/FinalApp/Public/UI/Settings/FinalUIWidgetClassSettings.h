@@ -17,6 +17,7 @@ class UFinalBattleHUDScreen;
 class UFinalBattleHandPanel;
 class UFinalBattleLogEntryWidget;
 class UFinalBattleRecentEventPanel;
+class UFinalBattleResourcePanel;
 class UFinalBattleTopBarPanel;
 class UFinalBattleUltimateEntryWidget;
 class UFinalBattleUltimatePanel;
@@ -32,6 +33,7 @@ public:
 
 	static TSubclassOf<UFinalBattleHUDScreen> GetBattleHUDScreenClass();
 	static TSubclassOf<UFinalBattleTopBarPanel> GetBattleTopBarPanelClass();
+	static TSubclassOf<UFinalBattleResourcePanel> GetBattleResourcePanelClass();
 	static TSubclassOf<UFinalBattleFeedbackPanel> GetBattleFeedbackPanelClass();
 	static TSubclassOf<UFinalBattleContextPanel> GetBattleContextPanelClass();
 	static TSubclassOf<UFinalBattleCharacterPanel> GetBattleCharacterPanelClass();
@@ -51,6 +53,9 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
 	TSoftClassPtr<UFinalBattleTopBarPanel> BattleTopBarPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleResourcePanel> BattleResourcePanelClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
 	TSoftClassPtr<UFinalBattleFeedbackPanel> BattleFeedbackPanelClass;

@@ -17,6 +17,12 @@ UFinalBattleTopBarPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBatt
 }
 
 template <>
+UFinalBattleResourcePanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleResourcePanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleResourcePanel>(UFinalUIWidgetClassSettings::GetBattleResourcePanelClass(), WidgetName);
+}
+
+template <>
 UFinalBattleFeedbackPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleFeedbackPanel>(const TCHAR* WidgetName)
 {
 	return WidgetTree->ConstructWidget<UFinalBattleFeedbackPanel>(UFinalUIWidgetClassSettings::GetBattleFeedbackPanelClass(), WidgetName);
@@ -89,6 +95,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 
 	const bool bHasBlueprintPanelSlots =
 		TopBarPanel != nullptr ||
+		ResourcePanel != nullptr ||
 		FeedbackPanel != nullptr ||
 		ContextPanel != nullptr ||
 		CharacterPanel != nullptr ||
@@ -130,11 +137,20 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		TopBarSlot->SetOffsets(FMargin(0.0f));
 	}
 
+	ResourcePanel = CreateConfiguredPanel<UFinalBattleResourcePanel>(TEXT("ResourcePanel"));
+	if (UCanvasPanelSlot* ResourceSlot = RootCanvas->AddChildToCanvas(ResourcePanel))
+	{
+		ResourceSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+		ResourceSlot->SetOffsets(FMargin(0.0f));
+		ResourceSlot->SetZOrder(80);
+	}
+
 	FeedbackPanel = CreateConfiguredPanel<UFinalBattleFeedbackPanel>(TEXT("FeedbackPanel"));
 	if (UCanvasPanelSlot* FeedbackSlot = RootCanvas->AddChildToCanvas(FeedbackPanel))
 	{
 		FeedbackSlot->SetAnchors(FAnchors(0.32f, 0.90f, 0.68f, 0.98f));
 		FeedbackSlot->SetOffsets(FMargin(0.0f));
+		FeedbackSlot->SetZOrder(20);
 	}
 
 	CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
@@ -177,6 +193,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	{
 		HandSlot->SetAnchors(FAnchors(0.16f, 0.56f, 0.82f, 0.985f));
 		HandSlot->SetOffsets(FMargin(0.0f));
+		HandSlot->SetZOrder(40);
 	}
 
 	ActionPanel = CreateConfiguredPanel<UFinalBattleActionPanel>(TEXT("ActionPanel"));
@@ -184,6 +201,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	{
 		ActionSlot->SetAnchors(FAnchors(0.825f, 0.63f, 0.985f, 0.975f));
 		ActionSlot->SetOffsets(FMargin(0.0f));
+		ActionSlot->SetZOrder(60);
 	}
 
 }
@@ -200,6 +218,11 @@ void UFinalBattleHUDScreen::InitializePanels()
 	if (TopBarPanel)
 	{
 		TopBarPanel->InitializePanel(BattleViewModel->GetTopBarViewModel(), BattleController->GetTopBarPanelController());
+	}
+
+	if (ResourcePanel)
+	{
+		ResourcePanel->InitializePanel(BattleViewModel->GetResourceViewModel(), BattleController->GetResourcePanelController());
 	}
 
 	if (FeedbackPanel)

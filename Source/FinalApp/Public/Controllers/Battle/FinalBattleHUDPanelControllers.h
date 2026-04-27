@@ -9,6 +9,7 @@
 class UFinalBattleWidgetController;
 class UFinalDataRegistry;
 class UFinalBattleTopBarPanelViewModel;
+class UFinalBattleResourcePanelViewModel;
 class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
@@ -56,6 +57,20 @@ public:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleTopBarPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleResourcePanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeResourcePanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleResourcePanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleResourcePanelViewModel> ViewModel;
 };
 
 UCLASS(BlueprintType)

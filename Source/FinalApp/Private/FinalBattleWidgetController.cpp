@@ -276,6 +276,11 @@ UFinalBattleTopBarPanelController* UFinalBattleWidgetController::GetTopBarPanelC
 	return TopBarPanelController;
 }
 
+UFinalBattleResourcePanelController* UFinalBattleWidgetController::GetResourcePanelController() const
+{
+	return ResourcePanelController;
+}
+
 UFinalBattleFeedbackPanelController* UFinalBattleWidgetController::GetFeedbackPanelController() const
 {
 	return FeedbackPanelController;
@@ -388,6 +393,7 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	};
 
 	if (TopBarPanelController) { TopBarPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (ResourcePanelController) { ResourcePanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (FeedbackPanelController) { FeedbackPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (ContextPanelController) { ContextPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (CharacterPanelController) { CharacterPanelController->RefreshFromCoordinatorData(CoordinatorData); }
@@ -411,6 +417,12 @@ void UFinalBattleWidgetController::EnsurePanelControllers()
 	{
 		TopBarPanelController = NewObject<UFinalBattleTopBarPanelController>(this);
 		TopBarPanelController->InitializeTopBar(this, ViewModel->GetTopBarViewModel());
+	}
+
+	if (ResourcePanelController == nullptr)
+	{
+		ResourcePanelController = NewObject<UFinalBattleResourcePanelController>(this);
+		ResourcePanelController->InitializeResourcePanel(this, ViewModel->GetResourceViewModel());
 	}
 
 	if (FeedbackPanelController == nullptr)

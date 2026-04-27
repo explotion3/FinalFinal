@@ -259,6 +259,33 @@ struct FINALAPP_API FFinalBattleTopBarPanelData
 };
 
 USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleResourcePanelData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bHasActiveBattle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 MaxEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bEPFull = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 ActiveQiPipCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 MaxQiPipCount = 7;
+};
+
+USTRUCT(BlueprintType)
 struct FINALAPP_API FFinalBattleFeedbackPanelData
 {
 	GENERATED_BODY()

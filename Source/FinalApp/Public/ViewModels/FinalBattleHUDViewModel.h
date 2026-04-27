@@ -33,6 +33,9 @@ public:
 	UFinalBattleTopBarPanelViewModel* GetTopBarViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleResourcePanelViewModel* GetResourceViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleFeedbackPanelViewModel* GetFeedbackViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -68,6 +71,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleTopBarPanelViewModel> TopBarViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleResourcePanelViewModel> ResourceViewModel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleFeedbackPanelViewModel> FeedbackViewModel;

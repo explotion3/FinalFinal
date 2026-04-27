@@ -21,6 +21,7 @@
   * `UFinalUISubsystem` 创建 Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
   * `BattleHUDScreen` 保留 C++ panel 装配和 fallback Canvas 布局，Blueprint 子类只负责外观、槽位和容器排布
   * Battle HUD panel / entry widget 通过 `BindWidgetOptional` 绑定 Blueprint 内控件；缺少绑定控件时继续走 C++ fallback 文本展示
+  * `BattleResourcePanel` 已从手牌区独立出来，作为底部资源展示容器；它只消费 `BattleSnapshot.CurrentEP / MaxEP` 生成左下 EP 气圈与 7 个 QIPip 点亮状态，EP 满值时允许 Blueprint 换色提示
   * 第一版占位视觉资源放在 `/Game/UI/BattleHUD/InkPrototype/`，只作为表现资源，不新增规则字段
 * 当前 `UISubsystem` 已补齐外层流程承接能力：
   * `OpenOverlayScreen / CloseOverlayScreen`
@@ -62,13 +63,15 @@
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
   * 右上：目标、当前目标、团队状态、遗物摘要与战斗进度信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
+  * 底部：独立 `BattleResourcePanel` 占满底部 HUD 区域，当前主要承载左下 EP 气圈
   * 左下：抽牌堆、手牌 / 弃牌 / 消耗计数、AP 资源摘要
   * 右下：弃牌堆 / 消耗计数、结束回合、Debug 与账本入口
 * Fallback 16:9 Canvas 参考锚点：
   * 左队伍 `0.015,0.02 -> 0.23,0.48`
   * 上敌人 `0.30,0.02 -> 0.82,0.20`
   * 右目标 `0.83,0.02 -> 0.985,0.28`
-  * 底手牌 `0.18,0.66 -> 0.82,0.975`
+  * 底手牌 `0.16,0.56 -> 0.82,0.985`
+  * 底部资源容器 `0.0,0.56 -> 1.0,1.0`
   * 左下资源 / 奥义 `0.015,0.49 -> 0.18,0.98`
   * 右下行动 `0.825,0.63 -> 0.985,0.975`
 * 原顶部资源区现在作为 fallback 文本摘要保留：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈

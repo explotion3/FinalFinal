@@ -60,6 +60,9 @@ public:
 	UFinalBattleTopBarPanelController* GetTopBarPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleResourcePanelController* GetResourcePanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleFeedbackPanelController* GetFeedbackPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -121,6 +124,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleTopBarPanelController> TopBarPanelController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleResourcePanelController> ResourcePanelController;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleFeedbackPanelController> FeedbackPanelController;

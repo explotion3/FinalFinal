@@ -77,6 +77,7 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InController, int32 InHandIndex, const FFinalBattleHUDCardEntry& InEntry)
 {
 	PanelController = InController;
+	CardInstanceId = InEntry.CardInstanceId;
 	HandIndex = InHandIndex;
 
 	CachedCostText = FText::AsNumber(InEntry.RuntimeCostAP);
@@ -96,12 +97,12 @@ void UFinalBattleCardEntryWidget::HandleButtonClicked()
 
 void UFinalBattleCardEntryWidget::HandleButtonHovered()
 {
-	OnCardHoverChanged.Broadcast(HandIndex, true);
+	OnCardHoverChanged.Broadcast(CardInstanceId, HandIndex, true);
 }
 
 void UFinalBattleCardEntryWidget::HandleButtonUnhovered()
 {
-	OnCardHoverChanged.Broadcast(HandIndex, false);
+	OnCardHoverChanged.Broadcast(CardInstanceId, HandIndex, false);
 }
 
 void UFinalBattleCardEntryWidget::RebuildVisual()

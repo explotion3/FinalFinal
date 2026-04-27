@@ -8,9 +8,11 @@ class UBorder;
 class UButton;
 class UCanvasPanel;
 class UHorizontalBox;
+class UImage;
 class UTextBlock;
 class UVerticalBox;
 class UFinalBattleTopBarPanelController;
+class UFinalBattleResourcePanelController;
 class UFinalBattleFeedbackPanelController;
 class UFinalBattleContextPanelController;
 class UFinalBattleCharacterPanelController;
@@ -20,6 +22,7 @@ class UFinalBattleUltimatePanelController;
 class UFinalBattleRecentEventPanelController;
 class UFinalBattleActionPanelController;
 class UFinalBattleTopBarPanelViewModel;
+class UFinalBattleResourcePanelViewModel;
 class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
@@ -28,6 +31,25 @@ class UFinalBattleHandPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
+class UFinalBattleCardEntryWidget;
+
+struct FFinalBattleHandCardVisualState
+{
+	FGuid CardInstanceId;
+	TWeakObjectPtr<UFinalBattleCardEntryWidget> Widget;
+	int32 HandIndex = INDEX_NONE;
+	FVector2D CurrentPosition = FVector2D::ZeroVector;
+	FVector2D TargetPosition = FVector2D::ZeroVector;
+	float CurrentAngle = 0.0f;
+	float TargetAngle = 0.0f;
+	float CurrentScale = 1.0f;
+	float TargetScale = 1.0f;
+	float HoverAlpha = 0.0f;
+	int32 BaseZOrder = 0;
+	bool bEntering = false;
+	bool bLeaving = false;
+	bool bSnapToTargetOnNextArrange = false;
+};
 
 UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleTopBarPanel : public UFinalPanelWidgetBase
@@ -53,6 +75,80 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> TopBarText;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleResourcePanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleResourcePanelViewModel* InViewModel, UFinalBattleResourcePanelController* InController);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Resource")
+	FSlateColor NormalEPColor = FSlateColor(FLinearColor::White);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Resource")
+	FSlateColor FullEPColor = FSlateColor(FLinearColor(0.92f, 0.12f, 0.08f, 1.0f));
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Resource")
+	FLinearColor ActiveQiPipBaseColor = FLinearColor(0.75f, 0.04f, 0.04f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Resource")
+	FLinearColor InactiveQiPipBaseColor = FLinearColor(0.35f, 0.35f, 0.35f, 0.5f);
+
+private:
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleResourcePanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> APLabelText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> APText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> EPLabelText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> EPText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> QiLabelText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> ResourceText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase0;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase1;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase2;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase3;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase4;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase5;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UImage> QIPipBase6;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -221,6 +317,27 @@ public:
 	float HoverInterpSpeed = 14.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	FVector2D EnterStartOffset = FVector2D(-120.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	FVector2D ExitTargetOffset = FVector2D(120.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float EnterInterpSpeed = 12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float MoveInterpSpeed = 14.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float ExitInterpSpeed = 16.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	float RemoveDistanceTolerance = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	bool bAnimateInitialHand = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
 	bool bAllowOverlap = true;
 
 private:
@@ -228,12 +345,14 @@ private:
 	void HandleViewModelChanged();
 
 	UFUNCTION()
-	void HandleCardHoverChanged(int32 HandIndex, bool bHovered);
+	void HandleCardHoverChanged(FGuid CardInstanceId, int32 HandIndex, bool bHovered);
 
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
 	void ArrangeHandCards();
 	bool UpdateHoverAlphas(float InDeltaTime);
+	bool UpdateCardVisuals(float InDeltaTime);
+	void ApplyCardVisualState(const FFinalBattleHandCardVisualState& VisualState);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> PanelViewModel;
@@ -244,12 +363,12 @@ private:
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> HandCardCanvas;
 
-	UPROPERTY(Transient)
-	TArray<float> CardHoverAlphas;
-
-	int32 HoveredHandIndex = INDEX_NONE;
+	TMap<FGuid, FFinalBattleHandCardVisualState> CardVisuals;
+	TArray<FGuid> OrderedCardInstanceIds;
+	FGuid HoveredCardInstanceId;
 
 	bool bHandLayoutDirty = false;
+	bool bHasReceivedHandSnapshot = false;
 };
 
 UCLASS(BlueprintType, Blueprintable)

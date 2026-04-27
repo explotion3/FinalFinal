@@ -414,6 +414,30 @@ void UFinalBattleTopBarPanelController::RefreshFromCoordinatorData(const FFinalB
 	ViewModel->ApplyData(Data);
 }
 
+void UFinalBattleResourcePanelController::InitializeResourcePanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleResourcePanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleResourcePanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr)
+	{
+		return;
+	}
+
+	FFinalBattleResourcePanelData Data;
+	Data.bHasActiveBattle = CoordinatorData.Snapshot->BattleId.IsValid();
+	Data.CurrentAP = CoordinatorData.Snapshot->CurrentAP;
+	Data.CurrentEP = CoordinatorData.Snapshot->CurrentEP;
+	Data.MaxEP = CoordinatorData.Snapshot->MaxEP;
+	Data.bEPFull = Data.MaxEP > 0 && Data.CurrentEP >= Data.MaxEP;
+	Data.MaxQiPipCount = 7;
+	Data.ActiveQiPipCount = FMath::Clamp(Data.CurrentEP / 10, 0, Data.MaxQiPipCount);
+	ViewModel->ApplyData(Data);
+}
+
 void UFinalBattleFeedbackPanelController::InitializeFeedback(UFinalBattleWidgetController* InCoordinator, UFinalBattleFeedbackPanelViewModel* InViewModel)
 {
 	InitializePanelController(InCoordinator);

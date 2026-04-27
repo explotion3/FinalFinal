@@ -48,6 +48,11 @@ TSubclassOf<UFinalBattleTopBarPanel> UFinalUIWidgetClassSettings::GetBattleTopBa
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTopBarPanelClass);
 }
 
+TSubclassOf<UFinalBattleResourcePanel> UFinalUIWidgetClassSettings::GetBattleResourcePanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleResourcePanelClass);
+}
+
 TSubclassOf<UFinalBattleFeedbackPanel> UFinalUIWidgetClassSettings::GetBattleFeedbackPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleFeedbackPanelClass);
