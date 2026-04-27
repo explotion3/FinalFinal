@@ -23,6 +23,12 @@ UFinalBattleResourcePanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBa
 }
 
 template <>
+UFinalRunFlowPromptPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalRunFlowPromptPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalRunFlowPromptPanel>(UFinalUIWidgetClassSettings::GetBattleRunFlowPromptPanelClass(), WidgetName);
+}
+
+template <>
 UFinalBattleFeedbackPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleFeedbackPanel>(const TCHAR* WidgetName)
 {
 	return WidgetTree->ConstructWidget<UFinalBattleFeedbackPanel>(UFinalUIWidgetClassSettings::GetBattleFeedbackPanelClass(), WidgetName);
@@ -96,6 +102,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	const bool bHasBlueprintPanelSlots =
 		TopBarPanel != nullptr ||
 		ResourcePanel != nullptr ||
+		RunFlowPromptPanel != nullptr ||
 		FeedbackPanel != nullptr ||
 		ContextPanel != nullptr ||
 		CharacterPanel != nullptr ||
@@ -143,6 +150,14 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		ResourceSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
 		ResourceSlot->SetOffsets(FMargin(0.0f));
 		ResourceSlot->SetZOrder(80);
+	}
+
+	RunFlowPromptPanel = CreateConfiguredPanel<UFinalRunFlowPromptPanel>(TEXT("RunFlowPromptPanel"));
+	if (UCanvasPanelSlot* PromptSlot = RootCanvas->AddChildToCanvas(RunFlowPromptPanel))
+	{
+		PromptSlot->SetAnchors(FAnchors(0.72f, 0.48f, 0.92f, 0.56f));
+		PromptSlot->SetOffsets(FMargin(0.0f));
+		PromptSlot->SetZOrder(65);
 	}
 
 	FeedbackPanel = CreateConfiguredPanel<UFinalBattleFeedbackPanel>(TEXT("FeedbackPanel"));

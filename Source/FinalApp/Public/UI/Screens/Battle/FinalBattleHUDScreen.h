@@ -9,6 +9,7 @@ class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
 class UFinalBattleTopBarPanel;
 class UFinalBattleResourcePanel;
+class UFinalRunFlowPromptPanel;
 class UFinalBattleFeedbackPanel;
 class UFinalBattleContextPanel;
 class UFinalBattleCharacterPanel;
@@ -46,6 +47,9 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleResourcePanel> ResourcePanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalRunFlowPromptPanel> RunFlowPromptPanel;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleFeedbackPanel> FeedbackPanel;

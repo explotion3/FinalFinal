@@ -17,6 +17,9 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "Queries/FinalRunSnapshot.h"
+#include "Subsystems/FinalRunFlowSubsystem.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Settings/FinalUIWidgetClassSettings.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDPanelViewModels.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
@@ -305,6 +308,158 @@ void UFinalBattleResourcePanel::RefreshFromViewModel()
 			? FText::Format(NSLOCTEXT("FinalBattleHUD", "ResourceTextFormat", "AP {0} | EP {1}"), APValueText, EPValueText)
 			: NSLOCTEXT("FinalBattleHUD", "ResourceTextNoBattle", "AP 0 | EP 0"));
 		ResourceText->SetColorAndOpacity(EPColor);
+	}
+}
+
+void UFinalRunFlowPromptPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+}
+
+void UFinalRunFlowPromptPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem())
+	{
+		RunFlowSubsystem->OnRunFlowStateChanged.AddUniqueDynamic(this, &UFinalRunFlowPromptPanel::HandleRunFlowStateChanged);
+	}
+
+	RefreshPrompt();
+}
+
+void UFinalRunFlowPromptPanel::NativeDestruct()
+{
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem())
+	{
+		RunFlowSubsystem->OnRunFlowStateChanged.RemoveDynamic(this, &UFinalRunFlowPromptPanel::HandleRunFlowStateChanged);
+	}
+
+	Super::NativeDestruct();
+}
+
+void UFinalRunFlowPromptPanel::RefreshPrompt()
+{
+	const bool bShouldShow = ShouldShowPrompt();
+	SetVisibility(bShouldShow ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+
+	if (OpenFlowButton)
+	{
+		OpenFlowButton->SetIsEnabled(bShouldShow);
+	}
+
+	if (OpenFlowLabel)
+	{
+		OpenFlowLabel->SetText(BuildPromptText());
+	}
+}
+
+void UFinalRunFlowPromptPanel::HandleOpenFlowClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	{
+		UISubsystem->ShowRunFlowOverlay();
+	}
+
+	RefreshPrompt();
+}
+
+void UFinalRunFlowPromptPanel::HandleRunFlowStateChanged()
+{
+	RefreshPrompt();
+}
+
+void UFinalRunFlowPromptPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("RunFlowPromptBorder"), FLinearColor(0.04f, 0.04f, 0.035f, 0.88f));
+	OpenFlowButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OpenFlowButton"));
+	OpenFlowButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowPromptPanel::HandleOpenFlowClicked);
+	OpenFlowLabel = CreateLabel(WidgetTree, TEXT("OpenFlowLabel"), 13);
+	OpenFlowLabel->SetText(NSLOCTEXT("FinalBattleHUD", "RunFlowPromptDefault", "打开流程"));
+	OpenFlowButton->AddChild(OpenFlowLabel);
+	Border->SetContent(OpenFlowButton);
+
+	WidgetTree->RootWidget = Border;
+}
+
+UFinalRunFlowSubsystem* UFinalRunFlowPromptPanel::ResolveRunFlowSubsystem() const
+{
+	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr;
+}
+
+bool UFinalRunFlowPromptPanel::ShouldShowPrompt() const
+{
+	const UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		return false;
+	}
+
+	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
+	if (Snapshot.PendingBattleReward.bHasPendingReward
+		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
+	{
+		return true;
+	}
+
+	switch (Snapshot.Progression.FlowStage)
+	{
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+	case EFinalRunFlowStage::PendingRewardNode:
+	case EFinalRunFlowStage::PendingEventNode:
+	case EFinalRunFlowStage::PendingShopNode:
+	case EFinalRunFlowStage::RunEnded:
+		return true;
+
+	case EFinalRunFlowStage::PreparingBattle:
+	case EFinalRunFlowStage::None:
+	default:
+		return false;
+	}
+}
+
+FText UFinalRunFlowPromptPanel::BuildPromptText() const
+{
+	const UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptUnavailable", "流程不可用");
+	}
+
+	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
+	if (Snapshot.PendingBattleReward.bHasPendingReward
+		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptBattleReward", "选择战后卡牌");
+	}
+
+	switch (Snapshot.Progression.FlowStage)
+	{
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptAdvanceNode", "继续前往下一节点");
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRewardNode", "确认奖励节点");
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptEventNode", "处理事件");
+
+	case EFinalRunFlowStage::PendingShopNode:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptShopNode", "进入商店选择");
+
+	case EFinalRunFlowStage::RunEnded:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRunEnded", "查看本局结束");
+
+	case EFinalRunFlowStage::PreparingBattle:
+	case EFinalRunFlowStage::None:
+	default:
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptNoAction", "暂无流程操作");
 	}
 }
 

@@ -32,6 +32,7 @@ class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
 class UFinalBattleCardEntryWidget;
+class UFinalRunFlowSubsystem;
 
 struct FFinalBattleHandCardVisualState
 {
@@ -149,6 +150,38 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UImage> QIPipBase6;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalRunFlowPromptPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	void RefreshPrompt();
+
+private:
+	UFUNCTION()
+	void HandleOpenFlowClicked();
+
+	UFUNCTION()
+	void HandleRunFlowStateChanged();
+
+	void EnsureWidgetTree();
+	UFinalRunFlowSubsystem* ResolveRunFlowSubsystem() const;
+	bool ShouldShowPrompt() const;
+	FText BuildPromptText() const;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> OpenFlowButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> OpenFlowLabel;
 };
 
 UCLASS(BlueprintType, Blueprintable)

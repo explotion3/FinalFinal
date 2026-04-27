@@ -65,6 +65,7 @@
   * 右上：目标、当前目标、团队状态、遗物摘要与战斗进度信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
   * 底部：独立 `BattleResourcePanel` 占满底部 HUD 区域，当前主要承载左下 EP 气圈
+  * 右侧中下：`RunFlowPromptPanel`，当 Run 外层存在待处理流程时显示短提示，点击后重新打开统一 `RunFlowOverlay`
   * 左下：抽牌堆、手牌 / 弃牌 / 消耗计数、AP 资源摘要
   * 右下：弃牌堆 / 消耗计数、结束回合、Debug 与账本入口
 * Fallback 16:9 Canvas 参考锚点：
@@ -73,6 +74,7 @@
   * 右目标 `0.83,0.02 -> 0.985,0.28`
   * 底手牌 `0.16,0.56 -> 0.82,0.985`
   * 底部资源容器 `0.0,0.56 -> 1.0,1.0`
+  * Run 流程恢复入口 `0.72,0.48 -> 0.92,0.56`
   * 左下资源 / 奥义 `0.015,0.49 -> 0.18,0.98`
   * 右下行动 `0.825,0.63 -> 0.985,0.975`
 * 原顶部资源区现在作为 fallback 文本摘要保留：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
@@ -152,6 +154,7 @@
 * 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
 * `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
 * `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
+* `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只调用 `UISubsystem.ShowRunFlowOverlay()`，不直接执行任何 RunCommand
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
 

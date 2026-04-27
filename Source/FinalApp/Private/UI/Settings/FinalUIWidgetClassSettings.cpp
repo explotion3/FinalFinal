@@ -53,6 +53,11 @@ TSubclassOf<UFinalBattleResourcePanel> UFinalUIWidgetClassSettings::GetBattleRes
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleResourcePanelClass);
 }
 
+TSubclassOf<UFinalRunFlowPromptPanel> UFinalUIWidgetClassSettings::GetBattleRunFlowPromptPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleRunFlowPromptPanelClass);
+}
+
 TSubclassOf<UFinalBattleFeedbackPanel> UFinalUIWidgetClassSettings::GetBattleFeedbackPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleFeedbackPanelClass);
