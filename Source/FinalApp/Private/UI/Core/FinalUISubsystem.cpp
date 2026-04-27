@@ -14,6 +14,7 @@
 #include "UI/Screens/Debug/FinalPrototypeRunDebugScreen.h"
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
 #include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardNodeOverlayScreen.h"
@@ -46,6 +47,7 @@ void UFinalUISubsystem::Deinitialize()
 	BattleHUDViewModel = nullptr;
 	OverlayScreenStack.Reset();
 	ModalScreenStack.Reset();
+	RunFlowOverlayScreen = nullptr;
 	RewardOverlayScreen = nullptr;
 	NodeOverlayScreen = nullptr;
 	RewardNodeOverlayScreen = nullptr;
@@ -271,6 +273,12 @@ void UFinalUISubsystem::CloseModalScreen(UFinalScreenBase* Screen)
 	}
 }
 
+void UFinalUISubsystem::ShowRunFlowOverlay()
+{
+	EnsureFlowScreens();
+	ConfigureAndOpenRunOverlay(RunFlowOverlayScreen);
+}
+
 void UFinalUISubsystem::ShowBattleRewardOverlayPlaceholder()
 {
 	EnsureFlowScreens();
@@ -437,6 +445,11 @@ void UFinalUISubsystem::EnsureFlowScreens()
 	if (PrimaryPlayerController == nullptr)
 	{
 		return;
+	}
+
+	if (RunFlowOverlayScreen == nullptr)
+	{
+		RunFlowOverlayScreen = CreateWidget<UFinalRunFlowOverlayScreen>(PrimaryPlayerController, UFinalRunFlowOverlayScreen::StaticClass());
 	}
 
 	if (RewardOverlayScreen == nullptr)

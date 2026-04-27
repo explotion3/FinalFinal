@@ -207,7 +207,7 @@ FinalBattle      FinalRun
 * 当前 Battle HUD 已接入 `UFinalUIWidgetClassSettings`：`FinalApp` 可在 `Project Settings > Final > UI` 配置 HUD screen、panel、entry widget 的 Blueprint class；未配置时统一回退 C++ `StaticClass()`，保证原型 HUD 不因外观资源缺失而失效
 * 当前 Battle HUD 的水墨参考图第一版只改 `FinalApp` 外观层和 ViewModel 展示字段：C++ 继续负责 `Snapshot / Event -> ViewModel -> BattleCommand`，Widget Blueprint 只负责 16:9 Canvas 槽位、刷子、字体、按钮和容器排布
 * 当前 Battle HUD 已把底部资源显示拆成独立 `BattleResourcePanel`：面板只读消费 `BattleSnapshot.CurrentEP / MaxEP`，用于左下 EP 气圈、7 个 QIPip 点亮状态与 EP 满值颜色提示，不进入 `HandPanel` 的手牌动画职责
-* 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD 的切换
+* 当前代码已补上 `RunFlowSubsystem`，用于根据 `RunSnapshot / RunEvent` 协调统一 `RunFlowOverlay` 与常驻 HUD 的切换；战后奖励、节点推进、奖励节点、事件节点、商店节点和 `RunEnded` 都由统一页作为自动流程主入口
 * 当前 runtime content bootstrap 已开始从 `FinalApp` 回收到 `FinalDataRegistry`：运行时优先扫描项目中的 definition 资产并建立 `StableId -> SoftObjectPath` 索引，再由 `FinalGameInstance` 按 stable prototype id 查询所需内容
 * 当前 `FinalDataRegistry` 不应在启动期全量 `GetAsset()` 加载 definition；`FindXxxDefinition(...)` 仍保持同步返回定义对象的外部 API，但内部首次访问 stable id 时才 `TryLoad()` 并缓存，后续查询直接命中缓存
 * 当前 prototype content 已开始以真实资产落地在 `/Game/Prototype/Definitions/...`；`FinalGameInstance` 的测试入口不再分别硬编码查询 rule / encounter / route / character / card，而是先查询单一 `PrototypeBootstrapDefinition`，再按其字段驱动最小 `RunSession` 启动
@@ -233,7 +233,7 @@ FinalBattle      FinalRun
 
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
-* `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页还是关闭外层页
+* `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示统一 `RunFlowOverlay` 还是关闭外层页；旧的战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页保留为显式调试 / 后续详情页入口
 * 战后奖励第一版由 `FinalRunSession` 生成卡牌候选并应用选择结果：胜利金币自动写入 `RunState.Gold`，`PendingBattleReward` 只承载最多 3 个 `CardGrant` 候选；`FinalApp` 只转发 `RewardId` 或跳过命令
 * `RunFlowSubsystem` 当前还负责把奖励结果类 `RunEvent` 的最近反馈收口成 UI 可读文本，并优先直接消费 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`；raw `RewardEntries` 只保留为回退
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
@@ -634,7 +634,7 @@ Save / Load 当前边界：
 * `Panel` 不直接控制输入模式和页面栈
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
-* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示并实际消费 `PresentationKind / IconId / VisualTier / DetailText`、raw `RewardEntries` 只作回退，并只转发 `ClaimPendingBattleRewardById / SkipPendingBattleReward`，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 及其 metadata，并只转发对应的 `Resolve*` 命令
+* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；当前自动流程主入口为 `FinalRunFlowOverlayScreen`，它按 `FlowStage` 统一消费 `PendingBattleReward / Progression.AvailableNextNodes / PendingRewardNode / PendingEventNode / PendingShopNode`，并只转发 `ClaimPendingBattleRewardById / SkipPendingBattleReward / AdvanceToNode / ResolveReward / ResolveEvent / ResolveShop` 命令
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目

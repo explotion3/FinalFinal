@@ -12,6 +12,7 @@ class UFinalBattleHUDScreen;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
 class UFinalPrototypeRunDebugScreen;
+class UFinalRunFlowOverlayScreen;
 class UFinalRunStageOverlayScreenBase;
 class UFinalPlaceholderModalScreen;
 class UFinalRunEventNodeOverlayScreen;
@@ -60,6 +61,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void CloseModalScreen(UFinalScreenBase* Screen = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowRunFlowOverlay();
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void ShowBattleRewardOverlayPlaceholder();
@@ -146,6 +150,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UFinalScreenBase>> ModalScreenStack;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunFlowOverlayScreen> RunFlowOverlayScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunRewardOverlayScreen> RewardOverlayScreen;

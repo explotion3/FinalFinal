@@ -11,6 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinalRunFlowStateChangedSignature);
 enum class EFinalRunPresentedOverlay : uint8
 {
 	None,
+	RunFlow,
 	BattleReward,
 	NodeSelect,
 	RewardNode,

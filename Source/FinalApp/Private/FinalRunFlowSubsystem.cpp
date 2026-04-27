@@ -306,6 +306,10 @@ void UFinalRunFlowSubsystem::ApplyPresentationForSnapshot(const FFinalRunSnapsho
 
 	switch (DesiredOverlay)
 	{
+	case EFinalRunPresentedOverlay::RunFlow:
+		UISubsystem->ShowRunFlowOverlay();
+		break;
+
 	case EFinalRunPresentedOverlay::BattleReward:
 		UISubsystem->ShowBattleRewardOverlayPlaceholder();
 		break;
@@ -371,25 +375,26 @@ void UFinalRunFlowSubsystem::CloseActiveFlowOverlay() const
 
 EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const FFinalRunSnapshot& Snapshot) const
 {
+	if (Snapshot.Progression.FlowStage == EFinalRunFlowStage::PreparingBattle
+		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::None)
+	{
+		return EFinalRunPresentedOverlay::None;
+	}
+
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
-		return EFinalRunPresentedOverlay::BattleReward;
+		return EFinalRunPresentedOverlay::RunFlow;
 	}
 
 	switch (Snapshot.Progression.FlowStage)
 	{
 	case EFinalRunFlowStage::AwaitingNodeAdvance:
-		return EFinalRunPresentedOverlay::NodeSelect;
-
 	case EFinalRunFlowStage::PendingRewardNode:
-		return EFinalRunPresentedOverlay::RewardNode;
-
 	case EFinalRunFlowStage::PendingEventNode:
-		return EFinalRunPresentedOverlay::EventNode;
-
 	case EFinalRunFlowStage::PendingShopNode:
-		return EFinalRunPresentedOverlay::ShopNode;
+	case EFinalRunFlowStage::RunEnded:
+		return EFinalRunPresentedOverlay::RunFlow;
 
 	default:
 		break;
@@ -397,25 +402,12 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 
 	if (Snapshot.Progression.bCurrentNodeNeedsResolution)
 	{
-		switch (Snapshot.Progression.CurrentNodeType)
-		{
-		case EFinalRunNodeType::Reward:
-			return EFinalRunPresentedOverlay::RewardNode;
-
-		case EFinalRunNodeType::Event:
-			return EFinalRunPresentedOverlay::EventNode;
-
-		case EFinalRunNodeType::Shop:
-			return EFinalRunPresentedOverlay::ShopNode;
-
-		default:
-			return EFinalRunPresentedOverlay::NodeSelect;
-		}
+		return EFinalRunPresentedOverlay::RunFlow;
 	}
 
 	if (Snapshot.Progression.bCanAdvanceToNextNode)
 	{
-		return EFinalRunPresentedOverlay::NodeSelect;
+		return EFinalRunPresentedOverlay::RunFlow;
 	}
 
 	return EFinalRunPresentedOverlay::None;

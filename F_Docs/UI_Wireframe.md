@@ -29,6 +29,7 @@
   * `FinalOverlayScreenBase`
   * `FinalModalScreenBase`
   * `FinalRunStageOverlayScreenBase`
+  * `FinalRunFlowOverlayScreen`（Run 外层统一主流程页）
   * `FinalRunRewardOverlayScreen`（战后奖励页）
   * `FinalRunNodeOverlayScreen`（节点选择页）
   * `FinalRunRewardNodeOverlayScreen`（奖励节点页）
@@ -38,7 +39,7 @@
 * 当前 `FinalApp` 已新增 `RunFlowSubsystem`：
   * 读取 `RunSession`
   * 增量消费 `RunEvent`
-  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD
+  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动打开统一 `FinalRunFlowOverlayScreen`，并由该页在同一入口内承接战后奖励、节点推进、奖励节点、事件节点、商店节点与本局结束
   * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / PendingBattleRewardSkipped / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
   * 当 `RunEvent` 带有 `AffectedCharacterResults` 时，当前反馈主路径与 prototype debug 会直接消费这些角色结果 view data，而不再根据 Growth reward 自行推断角色变化
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
@@ -127,7 +128,7 @@
 ## 2.1 RootLayout 分层口径
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
 * `PrototypeRunDebugScreen / FinalBattleEventScreen`：按需打开的 `Overlay Layer` 调试工具，不再和 Battle HUD 常驻同层
-* `Overlay Layer`：承接战后奖励、节点选择、奖励节点、事件节点、商店节点这类整页流程界面；当前同一时刻只显示栈顶页
+* `Overlay Layer`：默认由 `FinalRunFlowOverlayScreen` 承接 Run 外层主流程；旧的战后奖励、节点选择、奖励节点、事件节点、商店节点专用页保留为显式调试 / 后续详情页入口
 * `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
 * `Tooltip / Toast Layer`：当前保留为后续扩展挂点
 * 输入优先级：
@@ -137,17 +138,19 @@
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
 * Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
-  * 进入 `PendingBattleReward` 时打开战后奖励页
-  * 进入 `AwaitingNodeAdvance` 时切到节点选择页
-  * 进入 `PendingRewardNode` 时切到奖励节点页
-  * 进入 `PendingEventNode` 时切到事件节点页
-  * 进入 `PendingShopNode` 时切到商店节点页
-  * 进入 `PreparingBattle / None / RunEnded` 时关闭不该停留的外层页
+  * 进入 `PendingBattleReward` 时打开统一 RunFlow 页，并显示战后卡牌候选与跳过按钮
+  * 进入 `AwaitingNodeAdvance` 时在统一 RunFlow 页显示可前往下一节点
+  * 进入 `PendingRewardNode` 时在统一 RunFlow 页显示奖励节点确认
+  * 进入 `PendingEventNode` 时在统一 RunFlow 页显示事件选项选择
+  * 进入 `PendingShopNode` 时在统一 RunFlow 页显示商店商品选择
+  * 进入 `RunEnded` 时在统一 RunFlow 页显示本局结束摘要
+  * 进入 `PreparingBattle / None` 时关闭不该停留的外层页
 * 当 `RunSession` 进入 `PreparingBattle`，且：
   * `HasValidBattleStartState == true`
   * 当前没有 `ActiveBattleSession`
   * `RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`
 * 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
+* `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
 
@@ -220,7 +223,7 @@
 * AP、HP、Stress、Break、Initiative、Deck counts 仍来自现有 Snapshot；水墨 HUD 不新增 Battle 规则字段
 
 ### 4.2 Run 外层流程页
-当前 `FinalApp` 已经具备承接战后奖励页 / 节点选择页 / 奖励节点页 / 事件节点页 / 商店节点页的 `Overlay / Modal` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。
+当前 `FinalApp` 已经具备承接战后奖励 / 节点推进 / 奖励节点 / 事件节点 / 商店节点 / RunEnded 的统一 `RunFlowOverlay` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。
 
 当前已接入字段：
 * `PendingBattleReward.bHasPendingReward`
@@ -307,6 +310,11 @@
 * 最多 3 个卡牌候选按钮，点击后通过 `RunFlowSubsystem.ClaimPendingBattleRewardById(RewardId)` 转发给 `FinalRun`
 * 跳过按钮通过 `RunFlowSubsystem.SkipPendingBattleReward()` 转发给 `FinalRun`
 
+统一 RunFlow 页当前第一版已落地：
+* 同一页面根据 `FlowStage` 切换当前可执行操作，不再自动跳转到多个专用页
+* 战后卡牌候选、下一节点选择、事件选项、商店商品都在同一页内用按钮轮选 / 提交
+* `RunEnded` 会保留在统一页内显示结束摘要，而不是关闭外层页
+
 战后奖励页仍缺：
 * 真实图标资源、来源说明、卡片化布局与更细的视觉层次
 * 奖励条目分组、卡片化布局、二次确认交互
@@ -321,13 +329,14 @@
 * 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
+* 自动流程主入口是 `FinalRunFlowOverlayScreen`；旧专用页继续编译并保留为显式调试 / 后续详情页能力
 * 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，并实际消费 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退；`RewardGold / LastBattleRewardGold` 只保留为金币自动入账摘要，并把“选择/跳过卡牌奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
 * 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
 * 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*].RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`
 * 商店节点页当前真实消费 `PendingShopNode.Title / Summary / bCanResolve / bResolved / Offers[*].RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把当前选中的 `OfferId` 经 `RunFlowSubsystem` 转发为 `ResolveShop`
 * `RunFlowSubsystem` 再统一调用 `RunSession` 并决定是否切页、关页、恢复常驻 HUD 输入
-* `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 会分别路由到对应的专用页，而不是继续挤在节点选择页
+* `PendingRewardNode / PendingEventNode / PendingShopNode` 已经是 Run 的真实流程阶段；当前 `FinalApp` 自动路由到统一 RunFlow 页，专用页不再作为自动流程主入口
 * `FinalApp` 不自行推导奖励结算，也不自行伪造节点合法性
 
 ## 5. 必须显示的信息
