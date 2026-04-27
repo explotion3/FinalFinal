@@ -37,6 +37,12 @@ public:
 	bool ClaimPendingBattleReward();
 
 	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool ClaimPendingBattleRewardById(FName RewardId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool SkipPendingBattleReward();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
 	bool AdvanceToNode(FName NodeId);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")

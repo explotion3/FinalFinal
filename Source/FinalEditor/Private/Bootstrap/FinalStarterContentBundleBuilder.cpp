@@ -63,6 +63,9 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenJianZhen");
 	const FString StarterShenShiQiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenShiQi");
 	const FString StarterShenFengRuiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenFengRui");
+	const FString StarterVulnerableStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Vulnerable");
+	const FString StarterCorrosionStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Corrosion");
+	const FString StarterWeakStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Weak");
 	const FString StarterHuoUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_HuoDuanyue");
 	const FString StarterYeUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_YeBanxia");
 	const FString StarterShenUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_ShenQingxian");
@@ -75,11 +78,36 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterInstructorCommandSlashIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_InstructorCommandSlash");
 	const FString StarterInstructorHoldLineIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_InstructorHoldLine");
 	const FString StarterInstructorHeavyCleaveIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_InstructorHeavyCleave");
+	const FString StarterShieldGuardShieldBashIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardShieldBash");
+	const FString StarterShieldGuardProtectIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardProtect");
+	const FString StarterShieldGuardHeavySlamIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardHeavySlam");
+	const FString StarterSmokeCorrosionBombIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeCorrosionBomb");
+	const FString StarterSmokeDullingSmokeIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeDullingSmoke");
+	const FString StarterSmokeFireJarIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeFireJar");
+	const FString StarterToxicMistSpreadIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ToxicMistSpread");
+	const FString StarterToxicIgniteIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ToxicIgnite");
+	const FString StarterToxicCallBanditIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ToxicCallBandit");
+	const FString StarterBossMountainSlashIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_BossMountainSlash");
+	const FString StarterBossTripleStrikeIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_BossTripleStrike");
+	const FString StarterBossRallyIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_BossRally");
+	const FString StarterBossChargeIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_BossCharge");
 	const FString StarterBladeEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_BanditBlade");
 	const FString StarterCrossbowEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_BanditCrossbow");
 	const FString StarterInstructorEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_BlackwindInstructor");
+	const FString StarterShieldGuardEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_BanditShieldGuard");
+	const FString StarterSmokeEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_MedicineSmokeBandit");
+	const FString StarterToxicEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_ToxicSmokeAdept");
+	const FString StarterBossEnemyPath = StarterRootPath / TEXT("Enemies/DA_Enemy_Starter_BlackwindChiefLikui");
 	const FString StarterNormalEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_Roadblock");
 	const FString StarterEliteEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_Instructor");
+	const FString StarterNormalDoubleBladeEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_DoubleBlade");
+	const FString StarterNormalSmokeBladeEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_SmokeBlade");
+	const FString StarterNormalShieldBladeEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_ShieldBlade");
+	const FString StarterNormalSmokeShieldEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_SmokeShield");
+	const FString StarterNormalToxicArrowsEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_ToxicArrows");
+	const FString StarterEliteIronWallEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_IronWallInstructor");
+	const FString StarterEliteToxicRitualEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_ToxicRitual");
+	const FString StarterBossEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_BlackwindChief");
 	const FString StarterBootstrapPath = StarterRootPath / TEXT("Bootstrap/DA_PrototypeBootstrap_StarterChapter1");
 	const FString StarterRunRoutePath = StarterRootPath / TEXT("Run/DA_RunRoute_StarterChapter1");
 	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
@@ -97,6 +125,9 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenStatusId(TEXT("status.starter.shen.jianzhen"));
 	const FName StarterShenShiQiStatusId(TEXT("status.starter.shen.shiqi"));
 	const FName StarterShenFengRuiStatusId(TEXT("status.starter.shen.fengrui"));
+	const FName StarterVulnerableStatusId(TEXT("status.starter.enemy.vulnerable"));
+	const FName StarterCorrosionStatusId(TEXT("status.starter.enemy.corrosion"));
+	const FName StarterWeakStatusId(TEXT("status.starter.enemy.weak"));
 	const FName StarterHuoUltimateId(TEXT("ultimate.starter.huo.duanyuejueshi"));
 	const FName StarterYeUltimateId(TEXT("ultimate.starter.ye.huitianxumai"));
 	const FName StarterShenUltimateId(TEXT("ultimate.starter.shen.wanxiangguizhen"));
@@ -118,6 +149,18 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterBladeEnemyId(TEXT("enemy.starter.bandit.blade"));
 	const FName StarterCrossbowEnemyId(TEXT("enemy.starter.bandit.crossbow"));
 	const FName StarterInstructorEnemyId(TEXT("enemy.starter.blackwind.instructor"));
+	const FName StarterShieldGuardEnemyId(TEXT("enemy.starter.bandit.shield_guard"));
+	const FName StarterSmokeEnemyId(TEXT("enemy.starter.bandit.medicine_smoke"));
+	const FName StarterToxicEnemyId(TEXT("enemy.starter.toxic_smoke_adept"));
+	const FName StarterBossEnemyId(TEXT("enemy.starter.blackwind.chief.likui"));
+	const FName StarterNormalDoubleBladeEncounterId(TEXT("encounter.starter.chapter1.double_blade"));
+	const FName StarterNormalSmokeBladeEncounterId(TEXT("encounter.starter.chapter1.smoke_blade"));
+	const FName StarterNormalShieldBladeEncounterId(TEXT("encounter.starter.chapter1.shield_blade"));
+	const FName StarterNormalSmokeShieldEncounterId(TEXT("encounter.starter.chapter1.smoke_shield"));
+	const FName StarterNormalToxicArrowsEncounterId(TEXT("encounter.starter.chapter1.toxic_arrows"));
+	const FName StarterEliteIronWallEncounterId(TEXT("encounter.starter.chapter1.iron_wall_instructor"));
+	const FName StarterEliteToxicRitualEncounterId(TEXT("encounter.starter.chapter1.toxic_ritual"));
+	const FName StarterBossEncounterId(TEXT("encounter.starter.chapter1.blackwind_chief"));
 	const FName StarterRouteId(TEXT("run.route.starter.chapter1"));
 	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
 	const FName StarterTokenZeroDrawRelicId(TEXT("relic_token_zero_draw"));
@@ -126,6 +169,54 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterEventNodeId(TEXT("run.starter.node.event.cliff_notice"));
 	const FName StarterShopNodeId(TEXT("run.starter.node.shop.camp_trader"));
 	const FName StarterEliteBattleNodeId(TEXT("run.starter.node.battle.instructor"));
+	const FName StarterBossBattleNodeId(TEXT("run.starter.node.battle.blackwind_chief"));
+
+	FFinalEnemyRosterEntry MakeEnemyRosterEntry(UFinalEnemyDefinition* EnemyDefinition, const int32 PositionIndex)
+	{
+		FFinalEnemyRosterEntry Entry;
+		Entry.EnemyDefinition = EnemyDefinition;
+		Entry.PositionIndex = PositionIndex;
+		Entry.SpawnWave = 1;
+		return Entry;
+	}
+
+	void ResetIntentSelectionDefaults(UFinalEnemyIntentDefinition* IntentDefinition)
+	{
+		if (IntentDefinition == nullptr)
+		{
+			return;
+		}
+
+		IntentDefinition->Weight = 1;
+		IntentDefinition->MinPreviewRound = 1;
+		IntentDefinition->MaxPreviewRound = 0;
+		IntentDefinition->MinEnemyHpPercent = 0.0f;
+		IntentDefinition->MaxEnemyHpPercent = 1.0f;
+		IntentDefinition->bDisallowRepeatLastIntent = false;
+		IntentDefinition->PhaseTags.Reset();
+	}
+
+	void ConfigureStarterEncounter(
+		UFinalBattleEncounterDefinition* Encounter,
+		const FName EncounterId,
+		const FText& DisplayName,
+		UFinalBattleRuleConfig* RuleConfig,
+		const TArray<UFinalEnemyDefinition*>& Enemies)
+	{
+		if (Encounter == nullptr)
+		{
+			return;
+		}
+
+		Encounter->EncounterId = FFinalEncounterId(EncounterId);
+		Encounter->DisplayName = DisplayName;
+		Encounter->RuleConfig = RuleConfig;
+		Encounter->EnemyRoster.Reset();
+		for (int32 Index = 0; Index < Enemies.Num(); ++Index)
+		{
+			Encounter->EnemyRoster.Add(MakeEnemyRosterEntry(Enemies[Index], Index));
+		}
+	}
 }
 
 void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
@@ -231,6 +322,54 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
 	StarterShenFengRuiStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
+
+	UFinalStatusDefinition* StarterVulnerableStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterVulnerableStatusPath, bCreatedAsset);
+	StarterVulnerableStatus->StatusId = FFinalStatusId(StarterVulnerableStatusId);
+	StarterVulnerableStatus->DisplayName = FText::FromString(TEXT("易伤"));
+	StarterVulnerableStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterVulnerableStatus->SummaryText = FText::FromString(TEXT("首版敌人意图可施加的团队减益；当前主要用于预告和状态验证，后续补充受击增伤规则。"));
+	StarterVulnerableStatus->MaxStacks = 3;
+	StarterVulnerableStatus->DefaultDuration = 1;
+	StarterVulnerableStatus->OutgoingDamagePercentPerStack = 0;
+	StarterVulnerableStatus->bExpireAtPlayerTurnEnd = true;
+	StarterVulnerableStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterVulnerableStatus->bOnlyAffectAttackCards = false;
+	StarterVulnerableStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+	StarterVulnerableStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterVulnerableStatus->OnTickEffects.Reset();
+	TrackPackage(StarterVulnerableStatus, PackagesToSave);
+
+	UFinalStatusDefinition* StarterCorrosionStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterCorrosionStatusPath, bCreatedAsset);
+	StarterCorrosionStatus->StatusId = FFinalStatusId(StarterCorrosionStatusId);
+	StarterCorrosionStatus->DisplayName = FText::FromString(TEXT("腐蚀"));
+	StarterCorrosionStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterCorrosionStatus->SummaryText = FText::FromString(TEXT("首版持续伤害减益；当前可被敌人意图施加，OnTick 伤害规则后续补全。"));
+	StarterCorrosionStatus->MaxStacks = 9;
+	StarterCorrosionStatus->DefaultDuration = 3;
+	StarterCorrosionStatus->OutgoingDamagePercentPerStack = 0;
+	StarterCorrosionStatus->bExpireAtPlayerTurnEnd = false;
+	StarterCorrosionStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterCorrosionStatus->bOnlyAffectAttackCards = false;
+	StarterCorrosionStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+	StarterCorrosionStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterCorrosionStatus->OnTickEffects.Reset();
+	TrackPackage(StarterCorrosionStatus, PackagesToSave);
+
+	UFinalStatusDefinition* StarterWeakStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterWeakStatusPath, bCreatedAsset);
+	StarterWeakStatus->StatusId = FFinalStatusId(StarterWeakStatusId);
+	StarterWeakStatus->DisplayName = FText::FromString(TEXT("虚弱"));
+	StarterWeakStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterWeakStatus->SummaryText = FText::FromString(TEXT("首版敌人软控制减益；当前可被施加和展示，实际输出削减规则后续补全。"));
+	StarterWeakStatus->MaxStacks = 3;
+	StarterWeakStatus->DefaultDuration = 1;
+	StarterWeakStatus->OutgoingDamagePercentPerStack = 0;
+	StarterWeakStatus->bExpireAtPlayerTurnEnd = true;
+	StarterWeakStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterWeakStatus->bOnlyAffectAttackCards = false;
+	StarterWeakStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+	StarterWeakStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterWeakStatus->OnTickEffects.Reset();
+	TrackPackage(StarterWeakStatus, PackagesToSave);
 
 	UFinalRelicDefinition* StarterBronzeMirrorGuardRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterBronzeMirrorGuardRelicPath, bCreatedAsset);
 	StarterBronzeMirrorGuardRelic->RelicId = FFinalRelicId(StarterBronzeMirrorGuardRelicId);
@@ -953,6 +1092,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBladeQuickSlashIntent->DisplayName = FText::FromString(TEXT("快斩"));
 	StarterBladeQuickSlashIntent->IntentType = EFinalIntentType::Attack;
 	StarterBladeQuickSlashIntent->PreviewText = FText::FromString(TEXT("快斩 0.9 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterBladeQuickSlashIntent);
+	StarterBladeQuickSlashIntent->bDisallowRepeatLastIntent = true;
 	StarterBladeQuickSlashIntent->CooldownTurns = 0;
 	StarterBladeQuickSlashIntent->UseLimitPerBattle = 0;
 	StarterBladeQuickSlashIntent->Effects.Reset();
@@ -971,6 +1112,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBladeDoubleSlashIntent->DisplayName = FText::FromString(TEXT("二连斩"));
 	StarterBladeDoubleSlashIntent->IntentType = EFinalIntentType::Attack;
 	StarterBladeDoubleSlashIntent->PreviewText = FText::FromString(TEXT("二连斩 2 段，每段 0.45 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterBladeDoubleSlashIntent);
 	StarterBladeDoubleSlashIntent->CooldownTurns = 0;
 	StarterBladeDoubleSlashIntent->UseLimitPerBattle = 0;
 	StarterBladeDoubleSlashIntent->Effects.Reset();
@@ -990,6 +1132,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBladeBraceIntent->DisplayName = FText::FromString(TEXT("整备"));
 	StarterBladeBraceIntent->IntentType = EFinalIntentType::Defense;
 	StarterBladeBraceIntent->PreviewText = FText::FromString(TEXT("获得 10 护盾"));
+	ResetIntentSelectionDefaults(StarterBladeBraceIntent);
 	StarterBladeBraceIntent->CooldownTurns = 1;
 	StarterBladeBraceIntent->UseLimitPerBattle = 0;
 	StarterBladeBraceIntent->Effects.Reset();
@@ -1006,7 +1149,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterCrossbowPiercingBoltIntent->IntentId = TEXT("intent.starter.bandit.crossbow.piercing_bolt");
 	StarterCrossbowPiercingBoltIntent->DisplayName = FText::FromString(TEXT("透甲箭"));
 	StarterCrossbowPiercingBoltIntent->IntentType = EFinalIntentType::Attack;
-	StarterCrossbowPiercingBoltIntent->PreviewText = FText::FromString(TEXT("透甲箭 1.0 × BaseDamagePower。易伤仍为首版文本占位。"));
+	StarterCrossbowPiercingBoltIntent->PreviewText = FText::FromString(TEXT("透甲箭 1.0 × BaseDamagePower，并施加 1 层易伤"));
+	ResetIntentSelectionDefaults(StarterCrossbowPiercingBoltIntent);
+	StarterCrossbowPiercingBoltIntent->Weight = 5;
 	StarterCrossbowPiercingBoltIntent->CooldownTurns = 0;
 	StarterCrossbowPiercingBoltIntent->UseLimitPerBattle = 0;
 	StarterCrossbowPiercingBoltIntent->Effects.Reset();
@@ -1018,8 +1163,14 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		1.0f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::BaseDamagePower,
-		1,
-		FText::FromString(TEXT("首版占位：未实际施加易伤。")));
+		1);
+	AddApplyStatusEffect(
+		StarterCrossbowPiercingBoltIntent,
+		StarterCrossbowPiercingBoltIntent->Effects,
+		TEXT("effect.starter.enemy.crossbow.piercing_bolt.vulnerable"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		StarterVulnerableStatus,
+		1);
 	TrackPackage(StarterCrossbowPiercingBoltIntent, PackagesToSave);
 
 	UFinalEnemyIntentDefinition* StarterCrossbowVolleyIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterCrossbowVolleyIntentPath, bCreatedAsset);
@@ -1027,6 +1178,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterCrossbowVolleyIntent->DisplayName = FText::FromString(TEXT("连珠箭"));
 	StarterCrossbowVolleyIntent->IntentType = EFinalIntentType::Attack;
 	StarterCrossbowVolleyIntent->PreviewText = FText::FromString(TEXT("连珠箭 2 段，每段 0.4 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterCrossbowVolleyIntent);
+	StarterCrossbowVolleyIntent->Weight = 3;
 	StarterCrossbowVolleyIntent->CooldownTurns = 0;
 	StarterCrossbowVolleyIntent->UseLimitPerBattle = 0;
 	StarterCrossbowVolleyIntent->Effects.Reset();
@@ -1046,6 +1199,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterCrossbowRepositionIntent->DisplayName = FText::FromString(TEXT("后撤整弦"));
 	StarterCrossbowRepositionIntent->IntentType = EFinalIntentType::Buff;
 	StarterCrossbowRepositionIntent->PreviewText = FText::FromString(TEXT("后撤整弦：下次攻击伤害提高 30%。当前首版以自护盾占位。"));
+	ResetIntentSelectionDefaults(StarterCrossbowRepositionIntent);
+	StarterCrossbowRepositionIntent->Weight = 1;
 	StarterCrossbowRepositionIntent->CooldownTurns = 1;
 	StarterCrossbowRepositionIntent->UseLimitPerBattle = 0;
 	StarterCrossbowRepositionIntent->Effects.Reset();
@@ -1065,6 +1220,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterInstructorCommandSlashIntent->DisplayName = FText::FromString(TEXT("号令斩"));
 	StarterInstructorCommandSlashIntent->IntentType = EFinalIntentType::Attack;
 	StarterInstructorCommandSlashIntent->PreviewText = FText::FromString(TEXT("号令斩 1.2 × BaseDamagePower。同伙增伤仍为首版文本占位。"));
+	ResetIntentSelectionDefaults(StarterInstructorCommandSlashIntent);
+	StarterInstructorCommandSlashIntent->PhaseTags = { TEXT("phase.high") };
 	StarterInstructorCommandSlashIntent->CooldownTurns = 0;
 	StarterInstructorCommandSlashIntent->UseLimitPerBattle = 0;
 	StarterInstructorCommandSlashIntent->Effects.Reset();
@@ -1085,6 +1242,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterInstructorHoldLineIntent->DisplayName = FText::FromString(TEXT("压阵"));
 	StarterInstructorHoldLineIntent->IntentType = EFinalIntentType::Defense;
 	StarterInstructorHoldLineIntent->PreviewText = FText::FromString(TEXT("压阵：自己获得 14 护盾。护援同伙仍为首版文本占位。"));
+	ResetIntentSelectionDefaults(StarterInstructorHoldLineIntent);
+	StarterInstructorHoldLineIntent->PhaseTags = { TEXT("phase.high") };
 	StarterInstructorHoldLineIntent->CooldownTurns = 1;
 	StarterInstructorHoldLineIntent->UseLimitPerBattle = 0;
 	StarterInstructorHoldLineIntent->Effects.Reset();
@@ -1104,6 +1263,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterInstructorHeavyCleaveIntent->DisplayName = FText::FromString(TEXT("破阵重劈"));
 	StarterInstructorHeavyCleaveIntent->IntentType = EFinalIntentType::Attack;
 	StarterInstructorHeavyCleaveIntent->PreviewText = FText::FromString(TEXT("破阵重劈 1.6 × BaseDamagePower。易伤追加伤害仍为首版文本占位。"));
+	ResetIntentSelectionDefaults(StarterInstructorHeavyCleaveIntent);
+	StarterInstructorHeavyCleaveIntent->PhaseTags = { TEXT("phase.low") };
 	StarterInstructorHeavyCleaveIntent->CooldownTurns = 1;
 	StarterInstructorHeavyCleaveIntent->UseLimitPerBattle = 0;
 	StarterInstructorHeavyCleaveIntent->Effects.Reset();
@@ -1119,6 +1280,288 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		FText::FromString(TEXT("首版占位：未实际实现对易伤目标的额外增伤。")));
 	TrackPackage(StarterInstructorHeavyCleaveIntent, PackagesToSave);
 
+	UFinalEnemyIntentDefinition* StarterShieldGuardShieldBashIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterShieldGuardShieldBashIntentPath, bCreatedAsset);
+	StarterShieldGuardShieldBashIntent->IntentId = TEXT("intent.starter.bandit.shield_guard.shield_bash");
+	StarterShieldGuardShieldBashIntent->DisplayName = FText::FromString(TEXT("盾击"));
+	StarterShieldGuardShieldBashIntent->IntentType = EFinalIntentType::Attack;
+	StarterShieldGuardShieldBashIntent->PreviewText = FText::FromString(TEXT("盾击 1.1 × BaseDamagePower，并获得 8 护盾"));
+	ResetIntentSelectionDefaults(StarterShieldGuardShieldBashIntent);
+	StarterShieldGuardShieldBashIntent->CooldownTurns = 0;
+	StarterShieldGuardShieldBashIntent->UseLimitPerBattle = 0;
+	StarterShieldGuardShieldBashIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterShieldGuardShieldBashIntent,
+		StarterShieldGuardShieldBashIntent->Effects,
+		TEXT("effect.starter.enemy.shield_guard.shield_bash.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		1.1f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	AddShieldEffect(
+		StarterShieldGuardShieldBashIntent,
+		StarterShieldGuardShieldBashIntent->Effects,
+		TEXT("effect.starter.enemy.shield_guard.shield_bash.shield"),
+		EFinalBattleUnitTargetRule::Self,
+		8.0f,
+		EFinalBattleScalarMode::Flat);
+	TrackPackage(StarterShieldGuardShieldBashIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterShieldGuardProtectIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterShieldGuardProtectIntentPath, bCreatedAsset);
+	StarterShieldGuardProtectIntent->IntentId = TEXT("intent.starter.bandit.shield_guard.protect");
+	StarterShieldGuardProtectIntent->DisplayName = FText::FromString(TEXT("护寨"));
+	StarterShieldGuardProtectIntent->IntentType = EFinalIntentType::Defense;
+	StarterShieldGuardProtectIntent->PreviewText = FText::FromString(TEXT("获得 12 护盾；护援同伙为首版占位"));
+	ResetIntentSelectionDefaults(StarterShieldGuardProtectIntent);
+	StarterShieldGuardProtectIntent->CooldownTurns = 1;
+	StarterShieldGuardProtectIntent->UseLimitPerBattle = 0;
+	StarterShieldGuardProtectIntent->Effects.Reset();
+	AddShieldEffect(
+		StarterShieldGuardProtectIntent,
+		StarterShieldGuardProtectIntent->Effects,
+		TEXT("effect.starter.enemy.shield_guard.protect.self_shield"),
+		EFinalBattleUnitTargetRule::Self,
+		12.0f,
+		EFinalBattleScalarMode::Flat,
+		EFinalBattleSourceStat::None,
+		FText::FromString(TEXT("首版占位：未额外给同伙护盾。")));
+	TrackPackage(StarterShieldGuardProtectIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterShieldGuardHeavySlamIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterShieldGuardHeavySlamIntentPath, bCreatedAsset);
+	StarterShieldGuardHeavySlamIntent->IntentId = TEXT("intent.starter.bandit.shield_guard.heavy_slam");
+	StarterShieldGuardHeavySlamIntent->DisplayName = FText::FromString(TEXT("压步重撞"));
+	StarterShieldGuardHeavySlamIntent->IntentType = EFinalIntentType::Attack;
+	StarterShieldGuardHeavySlamIntent->PreviewText = FText::FromString(TEXT("压步重撞 1.45 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterShieldGuardHeavySlamIntent);
+	StarterShieldGuardHeavySlamIntent->CooldownTurns = 1;
+	StarterShieldGuardHeavySlamIntent->UseLimitPerBattle = 0;
+	StarterShieldGuardHeavySlamIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterShieldGuardHeavySlamIntent,
+		StarterShieldGuardHeavySlamIntent->Effects,
+		TEXT("effect.starter.enemy.shield_guard.heavy_slam.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		1.45f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	TrackPackage(StarterShieldGuardHeavySlamIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterSmokeCorrosionBombIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokeCorrosionBombIntentPath, bCreatedAsset);
+	StarterSmokeCorrosionBombIntent->IntentId = TEXT("intent.starter.bandit.smoke.corrosion_bomb");
+	StarterSmokeCorrosionBombIntent->DisplayName = FText::FromString(TEXT("腐烟包"));
+	StarterSmokeCorrosionBombIntent->IntentType = EFinalIntentType::Debuff;
+	StarterSmokeCorrosionBombIntent->PreviewText = FText::FromString(TEXT("0.7 × BaseDamagePower，并施加 2 层腐蚀"));
+	ResetIntentSelectionDefaults(StarterSmokeCorrosionBombIntent);
+	StarterSmokeCorrosionBombIntent->CooldownTurns = 0;
+	StarterSmokeCorrosionBombIntent->UseLimitPerBattle = 0;
+	StarterSmokeCorrosionBombIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterSmokeCorrosionBombIntent,
+		StarterSmokeCorrosionBombIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.corrosion_bomb.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		0.7f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	AddApplyStatusEffect(
+		StarterSmokeCorrosionBombIntent,
+		StarterSmokeCorrosionBombIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.corrosion_bomb.corrosion"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		StarterCorrosionStatus,
+		2);
+	TrackPackage(StarterSmokeCorrosionBombIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterSmokeDullingSmokeIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokeDullingSmokeIntentPath, bCreatedAsset);
+	StarterSmokeDullingSmokeIntent->IntentId = TEXT("intent.starter.bandit.smoke.dulling_smoke");
+	StarterSmokeDullingSmokeIntent->DisplayName = FText::FromString(TEXT("闷烟散"));
+	StarterSmokeDullingSmokeIntent->IntentType = EFinalIntentType::Debuff;
+	StarterSmokeDullingSmokeIntent->PreviewText = FText::FromString(TEXT("0.6 × BaseDamagePower，并施加 1 层虚弱"));
+	ResetIntentSelectionDefaults(StarterSmokeDullingSmokeIntent);
+	StarterSmokeDullingSmokeIntent->CooldownTurns = 1;
+	StarterSmokeDullingSmokeIntent->UseLimitPerBattle = 0;
+	StarterSmokeDullingSmokeIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterSmokeDullingSmokeIntent,
+		StarterSmokeDullingSmokeIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.dulling_smoke.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		0.6f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	AddApplyStatusEffect(
+		StarterSmokeDullingSmokeIntent,
+		StarterSmokeDullingSmokeIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.dulling_smoke.weak"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		StarterWeakStatus,
+		1);
+	TrackPackage(StarterSmokeDullingSmokeIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterSmokeFireJarIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokeFireJarIntentPath, bCreatedAsset);
+	StarterSmokeFireJarIntent->IntentId = TEXT("intent.starter.bandit.smoke.fire_jar");
+	StarterSmokeFireJarIntent->DisplayName = FText::FromString(TEXT("藏火罐"));
+	StarterSmokeFireJarIntent->IntentType = EFinalIntentType::Attack;
+	StarterSmokeFireJarIntent->PreviewText = FText::FromString(TEXT("藏火罐 1.1 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterSmokeFireJarIntent);
+	StarterSmokeFireJarIntent->CooldownTurns = 0;
+	StarterSmokeFireJarIntent->UseLimitPerBattle = 0;
+	StarterSmokeFireJarIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterSmokeFireJarIntent,
+		StarterSmokeFireJarIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.fire_jar.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		1.1f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	TrackPackage(StarterSmokeFireJarIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterToxicMistSpreadIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterToxicMistSpreadIntentPath, bCreatedAsset);
+	StarterToxicMistSpreadIntent->IntentId = TEXT("intent.starter.toxic.mist_spread");
+	StarterToxicMistSpreadIntent->DisplayName = FText::FromString(TEXT("腐烟弥散"));
+	StarterToxicMistSpreadIntent->IntentType = EFinalIntentType::Debuff;
+	StarterToxicMistSpreadIntent->PreviewText = FText::FromString(TEXT("0.8 × BaseDamagePower，并施加 2 层腐蚀"));
+	ResetIntentSelectionDefaults(StarterToxicMistSpreadIntent);
+	StarterToxicMistSpreadIntent->CooldownTurns = 0;
+	StarterToxicMistSpreadIntent->UseLimitPerBattle = 0;
+	StarterToxicMistSpreadIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterToxicMistSpreadIntent,
+		StarterToxicMistSpreadIntent->Effects,
+		TEXT("effect.starter.enemy.toxic.mist_spread.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		0.8f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	AddApplyStatusEffect(
+		StarterToxicMistSpreadIntent,
+		StarterToxicMistSpreadIntent->Effects,
+		TEXT("effect.starter.enemy.toxic.mist_spread.corrosion"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		StarterCorrosionStatus,
+		2);
+	TrackPackage(StarterToxicMistSpreadIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterToxicIgniteIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterToxicIgniteIntentPath, bCreatedAsset);
+	StarterToxicIgniteIntent->IntentId = TEXT("intent.starter.toxic.ignite");
+	StarterToxicIgniteIntent->DisplayName = FText::FromString(TEXT("焚香引爆"));
+	StarterToxicIgniteIntent->IntentType = EFinalIntentType::Attack;
+	StarterToxicIgniteIntent->PreviewText = FText::FromString(TEXT("1.45 × BaseDamagePower；腐蚀追加伤害为首版占位"));
+	ResetIntentSelectionDefaults(StarterToxicIgniteIntent);
+	StarterToxicIgniteIntent->CooldownTurns = 1;
+	StarterToxicIgniteIntent->UseLimitPerBattle = 0;
+	StarterToxicIgniteIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterToxicIgniteIntent,
+		StarterToxicIgniteIntent->Effects,
+		TEXT("effect.starter.enemy.toxic.ignite.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		1.45f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower,
+		1,
+		FText::FromString(TEXT("首版占位：未实际检查目标腐蚀层数。")));
+	TrackPackage(StarterToxicIgniteIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterToxicCallBanditIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterToxicCallBanditIntentPath, bCreatedAsset);
+	StarterToxicCallBanditIntent->IntentId = TEXT("intent.starter.toxic.call_bandit");
+	StarterToxicCallBanditIntent->DisplayName = FText::FromString(TEXT("唤匪"));
+	StarterToxicCallBanditIntent->IntentType = EFinalIntentType::Summon;
+	StarterToxicCallBanditIntent->PreviewText = FText::FromString(TEXT("召唤 1 名山匪刀手（首版占位），并获得 8 护盾"));
+	ResetIntentSelectionDefaults(StarterToxicCallBanditIntent);
+	StarterToxicCallBanditIntent->CooldownTurns = 0;
+	StarterToxicCallBanditIntent->UseLimitPerBattle = 1;
+	StarterToxicCallBanditIntent->Effects.Reset();
+	AddShieldEffect(
+		StarterToxicCallBanditIntent,
+		StarterToxicCallBanditIntent->Effects,
+		TEXT("effect.starter.enemy.toxic.call_bandit.shield"),
+		EFinalBattleUnitTargetRule::Self,
+		8.0f,
+		EFinalBattleScalarMode::Flat,
+		EFinalBattleSourceStat::None,
+		FText::FromString(TEXT("首版占位：未实际召援。")));
+	TrackPackage(StarterToxicCallBanditIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterBossMountainSlashIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterBossMountainSlashIntentPath, bCreatedAsset);
+	StarterBossMountainSlashIntent->IntentId = TEXT("intent.starter.boss.mountain_slash");
+	StarterBossMountainSlashIntent->DisplayName = FText::FromString(TEXT("裂山斩"));
+	StarterBossMountainSlashIntent->IntentType = EFinalIntentType::Attack;
+	StarterBossMountainSlashIntent->PreviewText = FText::FromString(TEXT("裂山斩 1.6 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterBossMountainSlashIntent);
+	StarterBossMountainSlashIntent->CooldownTurns = 0;
+	StarterBossMountainSlashIntent->UseLimitPerBattle = 0;
+	StarterBossMountainSlashIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterBossMountainSlashIntent,
+		StarterBossMountainSlashIntent->Effects,
+		TEXT("effect.starter.enemy.boss.mountain_slash.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		1.6f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower);
+	TrackPackage(StarterBossMountainSlashIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterBossTripleStrikeIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterBossTripleStrikeIntentPath, bCreatedAsset);
+	StarterBossTripleStrikeIntent->IntentId = TEXT("intent.starter.boss.triple_strike");
+	StarterBossTripleStrikeIntent->DisplayName = FText::FromString(TEXT("震寨三连"));
+	StarterBossTripleStrikeIntent->IntentType = EFinalIntentType::Attack;
+	StarterBossTripleStrikeIntent->PreviewText = FText::FromString(TEXT("震寨三连 3 段，每段 0.55 × BaseDamagePower"));
+	ResetIntentSelectionDefaults(StarterBossTripleStrikeIntent);
+	StarterBossTripleStrikeIntent->CooldownTurns = 0;
+	StarterBossTripleStrikeIntent->UseLimitPerBattle = 0;
+	StarterBossTripleStrikeIntent->Effects.Reset();
+	AddDamageEffect(
+		StarterBossTripleStrikeIntent,
+		StarterBossTripleStrikeIntent->Effects,
+		TEXT("effect.starter.enemy.boss.triple_strike.damage"),
+		EFinalBattleUnitTargetRule::TeamPlayer,
+		0.55f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::BaseDamagePower,
+		3);
+	TrackPackage(StarterBossTripleStrikeIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterBossRallyIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterBossRallyIntentPath, bCreatedAsset);
+	StarterBossRallyIntent->IntentId = TEXT("intent.starter.boss.rally");
+	StarterBossRallyIntent->DisplayName = FText::FromString(TEXT("号山令"));
+	StarterBossRallyIntent->IntentType = EFinalIntentType::Summon;
+	StarterBossRallyIntent->PreviewText = FText::FromString(TEXT("召援占位，并获得 10 护盾"));
+	ResetIntentSelectionDefaults(StarterBossRallyIntent);
+	StarterBossRallyIntent->CooldownTurns = 0;
+	StarterBossRallyIntent->UseLimitPerBattle = 1;
+	StarterBossRallyIntent->Effects.Reset();
+	AddShieldEffect(
+		StarterBossRallyIntent,
+		StarterBossRallyIntent->Effects,
+		TEXT("effect.starter.enemy.boss.rally.shield"),
+		EFinalBattleUnitTargetRule::Self,
+		10.0f,
+		EFinalBattleScalarMode::Flat,
+		EFinalBattleSourceStat::None,
+		FText::FromString(TEXT("首版占位：未实际召援。")));
+	TrackPackage(StarterBossRallyIntent, PackagesToSave);
+
+	UFinalEnemyIntentDefinition* StarterBossChargeIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterBossChargeIntentPath, bCreatedAsset);
+	StarterBossChargeIntent->IntentId = TEXT("intent.starter.boss.charge");
+	StarterBossChargeIntent->DisplayName = FText::FromString(TEXT("聚力破门"));
+	StarterBossChargeIntent->IntentType = EFinalIntentType::Charge;
+	StarterBossChargeIntent->PreviewText = FText::FromString(TEXT("蓄势终结占位；本轮获得 16 护盾"));
+	ResetIntentSelectionDefaults(StarterBossChargeIntent);
+	StarterBossChargeIntent->CooldownTurns = 1;
+	StarterBossChargeIntent->UseLimitPerBattle = 0;
+	StarterBossChargeIntent->Effects.Reset();
+	AddShieldEffect(
+		StarterBossChargeIntent,
+		StarterBossChargeIntent->Effects,
+		TEXT("effect.starter.enemy.boss.charge.shield"),
+		EFinalBattleUnitTargetRule::Self,
+		16.0f,
+		EFinalBattleScalarMode::Flat,
+		EFinalBattleSourceStat::None,
+		FText::FromString(TEXT("首版占位：未实际提高下一次裂山斩伤害。")));
+	TrackPackage(StarterBossChargeIntent, PackagesToSave);
+
 	UFinalEnemyDefinition* StarterBladeEnemy = LoadOrCreateAsset<UFinalEnemyDefinition>(StarterBladeEnemyPath, bCreatedAsset);
 	StarterBladeEnemy->EnemyId = FFinalEnemyId(StarterBladeEnemyId);
 	StarterBladeEnemy->DisplayName = FText::FromString(TEXT("山匪刀手"));
@@ -1129,6 +1572,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBladeEnemy->InitiativeResponse = 1;
 	StarterBladeEnemy->IntentSelectRule = EFinalIntentSelectRule::Cycle;
 	StarterBladeEnemy->PhaseSequence.Reset();
+	StarterBladeEnemy->ScriptedIntentSequence.Reset();
 	StarterBladeEnemy->IntentPool = {
 		StarterBladeQuickSlashIntent,
 		StarterBladeDoubleSlashIntent,
@@ -1144,8 +1588,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterCrossbowEnemy->BaseDamagePower = 9;
 	StarterCrossbowEnemy->InitialInitiativeValue = 5;
 	StarterCrossbowEnemy->InitiativeResponse = 1;
-	StarterCrossbowEnemy->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+	StarterCrossbowEnemy->IntentSelectRule = EFinalIntentSelectRule::WeightedRandom;
 	StarterCrossbowEnemy->PhaseSequence.Reset();
+	StarterCrossbowEnemy->ScriptedIntentSequence.Reset();
 	StarterCrossbowEnemy->IntentPool = {
 		StarterCrossbowPiercingBoltIntent,
 		StarterCrossbowVolleyIntent,
@@ -1161,8 +1606,18 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterInstructorEnemy->BaseDamagePower = 12;
 	StarterInstructorEnemy->InitialInitiativeValue = 7;
 	StarterInstructorEnemy->InitiativeResponse = 1;
-	StarterInstructorEnemy->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+	StarterInstructorEnemy->IntentSelectRule = EFinalIntentSelectRule::PhaseSequence;
 	StarterInstructorEnemy->PhaseSequence.Reset();
+	{
+		FFinalEnemyPhaseDefinition& HighPhase = StarterInstructorEnemy->PhaseSequence.AddDefaulted_GetRef();
+		HighPhase.PhaseTag = TEXT("phase.high");
+		HighPhase.MaxHpPercent = 1.0f;
+
+		FFinalEnemyPhaseDefinition& LowPhase = StarterInstructorEnemy->PhaseSequence.AddDefaulted_GetRef();
+		LowPhase.PhaseTag = TEXT("phase.low");
+		LowPhase.MaxHpPercent = 0.5f;
+	}
+	StarterInstructorEnemy->ScriptedIntentSequence.Reset();
 	StarterInstructorEnemy->IntentPool = {
 		StarterInstructorCommandSlashIntent,
 		StarterInstructorHoldLineIntent,
@@ -1170,51 +1625,172 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	};
 	TrackPackage(StarterInstructorEnemy, PackagesToSave);
 
-	UFinalBattleEncounterDefinition* StarterNormalEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalEncounterPath, bCreatedAsset);
-	StarterNormalEncounter->EncounterId = FFinalEncounterId(StarterNormalEncounterId);
-	StarterNormalEncounter->DisplayName = FText::FromString(TEXT("山道拦截"));
-	StarterNormalEncounter->RuleConfig = StarterRuleConfig;
-	StarterNormalEncounter->EnemyRoster.Reset();
-	{
-		FFinalEnemyRosterEntry BladeEntry;
-		BladeEntry.EnemyDefinition = StarterBladeEnemy;
-		BladeEntry.PositionIndex = 0;
-		BladeEntry.SpawnWave = 1;
-		StarterNormalEncounter->EnemyRoster.Add(BladeEntry);
+	UFinalEnemyDefinition* StarterShieldGuardEnemy = LoadOrCreateAsset<UFinalEnemyDefinition>(StarterShieldGuardEnemyPath, bCreatedAsset);
+	StarterShieldGuardEnemy->EnemyId = FFinalEnemyId(StarterShieldGuardEnemyId);
+	StarterShieldGuardEnemy->DisplayName = FText::FromString(TEXT("山匪盾卫"));
+	StarterShieldGuardEnemy->MaxHP = 36;
+	StarterShieldGuardEnemy->MaxBreakValue = 12;
+	StarterShieldGuardEnemy->BaseDamagePower = 9;
+	StarterShieldGuardEnemy->InitialInitiativeValue = 6;
+	StarterShieldGuardEnemy->InitiativeResponse = 1;
+	StarterShieldGuardEnemy->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+	StarterShieldGuardEnemy->PhaseSequence.Reset();
+	StarterShieldGuardEnemy->ScriptedIntentSequence.Reset();
+	StarterShieldGuardEnemy->IntentPool = {
+		StarterShieldGuardShieldBashIntent,
+		StarterShieldGuardProtectIntent,
+		StarterShieldGuardHeavySlamIntent
+	};
+	TrackPackage(StarterShieldGuardEnemy, PackagesToSave);
 
-		FFinalEnemyRosterEntry CrossbowEntry;
-		CrossbowEntry.EnemyDefinition = StarterCrossbowEnemy;
-		CrossbowEntry.PositionIndex = 1;
-		CrossbowEntry.SpawnWave = 1;
-		StarterNormalEncounter->EnemyRoster.Add(CrossbowEntry);
-	}
+	UFinalEnemyDefinition* StarterSmokeEnemy = LoadOrCreateAsset<UFinalEnemyDefinition>(StarterSmokeEnemyPath, bCreatedAsset);
+	StarterSmokeEnemy->EnemyId = FFinalEnemyId(StarterSmokeEnemyId);
+	StarterSmokeEnemy->DisplayName = FText::FromString(TEXT("药烟匪徒"));
+	StarterSmokeEnemy->MaxHP = 32;
+	StarterSmokeEnemy->MaxBreakValue = 11;
+	StarterSmokeEnemy->BaseDamagePower = 8;
+	StarterSmokeEnemy->InitialInitiativeValue = 5;
+	StarterSmokeEnemy->InitiativeResponse = 1;
+	StarterSmokeEnemy->IntentSelectRule = EFinalIntentSelectRule::WeightedRandom;
+	StarterSmokeEnemy->PhaseSequence.Reset();
+	StarterSmokeEnemy->ScriptedIntentSequence.Reset();
+	StarterSmokeEnemy->IntentPool = {
+		StarterSmokeCorrosionBombIntent,
+		StarterSmokeDullingSmokeIntent,
+		StarterSmokeFireJarIntent
+	};
+	TrackPackage(StarterSmokeEnemy, PackagesToSave);
+
+	UFinalEnemyDefinition* StarterToxicEnemy = LoadOrCreateAsset<UFinalEnemyDefinition>(StarterToxicEnemyPath, bCreatedAsset);
+	StarterToxicEnemy->EnemyId = FFinalEnemyId(StarterToxicEnemyId);
+	StarterToxicEnemy->DisplayName = FText::FromString(TEXT("毒烟术师"));
+	StarterToxicEnemy->MaxHP = 102;
+	StarterToxicEnemy->MaxBreakValue = 24;
+	StarterToxicEnemy->BaseDamagePower = 11;
+	StarterToxicEnemy->InitialInitiativeValue = 7;
+	StarterToxicEnemy->InitiativeResponse = 2;
+	StarterToxicEnemy->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+	StarterToxicEnemy->PhaseSequence.Reset();
+	StarterToxicEnemy->ScriptedIntentSequence.Reset();
+	StarterToxicEnemy->IntentPool = {
+		StarterToxicMistSpreadIntent,
+		StarterToxicIgniteIntent,
+		StarterToxicCallBanditIntent
+	};
+	TrackPackage(StarterToxicEnemy, PackagesToSave);
+
+	UFinalEnemyDefinition* StarterBossEnemy = LoadOrCreateAsset<UFinalEnemyDefinition>(StarterBossEnemyPath, bCreatedAsset);
+	StarterBossEnemy->EnemyId = FFinalEnemyId(StarterBossEnemyId);
+	StarterBossEnemy->DisplayName = FText::FromString(TEXT("黑风寨主·厉魁"));
+	StarterBossEnemy->MaxHP = 222;
+	StarterBossEnemy->MaxBreakValue = 38;
+	StarterBossEnemy->BaseDamagePower = 16;
+	StarterBossEnemy->InitialInitiativeValue = 9;
+	StarterBossEnemy->InitiativeResponse = 2;
+	StarterBossEnemy->IntentSelectRule = EFinalIntentSelectRule::Scripted;
+	StarterBossEnemy->PhaseSequence.Reset();
+	StarterBossEnemy->ScriptedIntentSequence.Reset();
+	StarterBossEnemy->ScriptedIntentSequence.Add({ StarterBossMountainSlashIntent->IntentId, NAME_None, false });
+	StarterBossEnemy->ScriptedIntentSequence.Add({ StarterBossTripleStrikeIntent->IntentId, NAME_None, false });
+	StarterBossEnemy->ScriptedIntentSequence.Add({ StarterBossRallyIntent->IntentId, NAME_None, false });
+	StarterBossEnemy->ScriptedIntentSequence.Add({ StarterBossChargeIntent->IntentId, NAME_None, true });
+	StarterBossEnemy->IntentPool = {
+		StarterBossMountainSlashIntent,
+		StarterBossTripleStrikeIntent,
+		StarterBossRallyIntent,
+		StarterBossChargeIntent
+	};
+	TrackPackage(StarterBossEnemy, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalEncounter,
+		StarterNormalEncounterId,
+		FText::FromString(TEXT("山道拦截")),
+		StarterRuleConfig,
+		{ StarterBladeEnemy, StarterCrossbowEnemy });
 	TrackPackage(StarterNormalEncounter, PackagesToSave);
 
 	UFinalBattleEncounterDefinition* StarterEliteEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterEliteEncounterPath, bCreatedAsset);
-	StarterEliteEncounter->EncounterId = FFinalEncounterId(StarterEliteEncounterId);
-	StarterEliteEncounter->DisplayName = FText::FromString(TEXT("教头压阵"));
-	StarterEliteEncounter->RuleConfig = StarterRuleConfig;
-	StarterEliteEncounter->EnemyRoster.Reset();
-	{
-		FFinalEnemyRosterEntry InstructorEntry;
-		InstructorEntry.EnemyDefinition = StarterInstructorEnemy;
-		InstructorEntry.PositionIndex = 0;
-		InstructorEntry.SpawnWave = 1;
-		StarterEliteEncounter->EnemyRoster.Add(InstructorEntry);
-
-		FFinalEnemyRosterEntry BladeEntry;
-		BladeEntry.EnemyDefinition = StarterBladeEnemy;
-		BladeEntry.PositionIndex = 1;
-		BladeEntry.SpawnWave = 1;
-		StarterEliteEncounter->EnemyRoster.Add(BladeEntry);
-
-		FFinalEnemyRosterEntry CrossbowEntry;
-		CrossbowEntry.EnemyDefinition = StarterCrossbowEnemy;
-		CrossbowEntry.PositionIndex = 2;
-		CrossbowEntry.SpawnWave = 1;
-		StarterEliteEncounter->EnemyRoster.Add(CrossbowEntry);
-	}
+	ConfigureStarterEncounter(
+		StarterEliteEncounter,
+		StarterEliteEncounterId,
+		FText::FromString(TEXT("教头压阵")),
+		StarterRuleConfig,
+		{ StarterInstructorEnemy, StarterBladeEnemy, StarterCrossbowEnemy });
 	TrackPackage(StarterEliteEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalDoubleBladeEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalDoubleBladeEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalDoubleBladeEncounter,
+		StarterNormalDoubleBladeEncounterId,
+		FText::FromString(TEXT("刀弩夹击")),
+		StarterRuleConfig,
+		{ StarterBladeEnemy, StarterBladeEnemy });
+	TrackPackage(StarterNormalDoubleBladeEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalSmokeBladeEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalSmokeBladeEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalSmokeBladeEncounter,
+		StarterNormalSmokeBladeEncounterId,
+		FText::FromString(TEXT("烟障游斗")),
+		StarterRuleConfig,
+		{ StarterSmokeEnemy, StarterBladeEnemy });
+	TrackPackage(StarterNormalSmokeBladeEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalShieldBladeEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalShieldBladeEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalShieldBladeEncounter,
+		StarterNormalShieldBladeEncounterId,
+		FText::FromString(TEXT("隘口据守")),
+		StarterRuleConfig,
+		{ StarterShieldGuardEnemy, StarterBladeEnemy });
+	TrackPackage(StarterNormalShieldBladeEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalSmokeShieldEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalSmokeShieldEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalSmokeShieldEncounter,
+		StarterNormalSmokeShieldEncounterId,
+		FText::FromString(TEXT("烟障伏击")),
+		StarterRuleConfig,
+		{ StarterSmokeEnemy, StarterShieldGuardEnemy });
+	TrackPackage(StarterNormalSmokeShieldEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterNormalToxicArrowsEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterNormalToxicArrowsEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterNormalToxicArrowsEncounter,
+		StarterNormalToxicArrowsEncounterId,
+		FText::FromString(TEXT("毒箭夹阵")),
+		StarterRuleConfig,
+		{ StarterCrossbowEnemy, StarterSmokeEnemy });
+	TrackPackage(StarterNormalToxicArrowsEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterEliteIronWallEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterEliteIronWallEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterEliteIronWallEncounter,
+		StarterEliteIronWallEncounterId,
+		FText::FromString(TEXT("铁壁教头")),
+		StarterRuleConfig,
+		{ StarterInstructorEnemy, StarterShieldGuardEnemy });
+	TrackPackage(StarterEliteIronWallEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterEliteToxicRitualEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterEliteToxicRitualEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterEliteToxicRitualEncounter,
+		StarterEliteToxicRitualEncounterId,
+		FText::FromString(TEXT("毒烟法阵")),
+		StarterRuleConfig,
+		{ StarterToxicEnemy, StarterSmokeEnemy });
+	TrackPackage(StarterEliteToxicRitualEncounter, PackagesToSave);
+
+	UFinalBattleEncounterDefinition* StarterBossEncounter = LoadOrCreateAsset<UFinalBattleEncounterDefinition>(StarterBossEncounterPath, bCreatedAsset);
+	ConfigureStarterEncounter(
+		StarterBossEncounter,
+		StarterBossEncounterId,
+		FText::FromString(TEXT("黑风寨主·厉魁")),
+		StarterRuleConfig,
+		{ StarterBossEnemy });
+	TrackPackage(StarterBossEncounter, PackagesToSave);
 
 	UFinalRunRouteDefinition* StarterRunRoute = LoadOrCreateAsset<UFinalRunRouteDefinition>(StarterRunRoutePath, bCreatedAsset);
 	StarterRunRoute->RouteId = StarterRouteId;
@@ -1347,13 +1923,25 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EliteBattleNode.FloorIndex = 5;
 		EliteBattleNode.EncounterId = StarterEliteEncounter->EncounterId;
 		EliteBattleNode.RuleConfigId = StarterRuleConfig->RuleConfigId;
+		EliteBattleNode.NextNodeIds.Add(StarterBossBattleNodeId);
+
+		FFinalRunNodeDefinition BossBattleNode;
+		BossBattleNode.NodeId = StarterBossBattleNodeId;
+		BossBattleNode.NodeType = EFinalRunNodeType::BossBattle;
+		BossBattleNode.DisplayName = FText::FromString(TEXT("黑风寨主"));
+		BossBattleNode.DisplayLabel = TEXT("RunNode.Starter.BossBattle");
+		BossBattleNode.ChapterIndex = 1;
+		BossBattleNode.FloorIndex = 6;
+		BossBattleNode.EncounterId = StarterBossEncounter->EncounterId;
+		BossBattleNode.RuleConfigId = StarterRuleConfig->RuleConfigId;
 
 		StarterRunRoute->NodeDefinitions = {
 			OpeningBattleNode,
 			RewardNode,
 			EventNode,
 			ShopNode,
-			EliteBattleNode
+			EliteBattleNode,
+			BossBattleNode
 		};
 	}
 	TrackPackage(StarterRunRoute, PackagesToSave);

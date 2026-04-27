@@ -38,6 +38,12 @@ public:
 	bool ClaimPendingBattleReward();
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Run")
+	bool ClaimPendingBattleRewardById(FName RewardId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Run")
+	bool SkipPendingBattleReward();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Run")
 	bool AdvanceToNode(FName NodeId);
 
 	UFUNCTION(BlueprintPure, Category = "Final|Run")
@@ -73,7 +79,8 @@ public:
 private:
 	void ConfigureRunNodeGraphInternal(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, FName InCurrentNodeId);
 	bool ConfigureRunRouteDefinitionInternal(const UFinalRunRouteDefinition& RouteDefinition);
-	bool TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	bool TryExecuteClaimPendingBattleReward(const FName& RewardId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	bool TryExecuteSkipPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveRewardNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveShopNode(const FName& OfferId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
@@ -88,8 +95,9 @@ private:
 	void PopulateNodeEventMetadata(FFinalRunEvent& Event, const FFinalRunNodeDefinition& NodeDefinition) const;
 	void PopulateNodeViewMetadata(FFinalRunNodeOptionViewData& View, const FFinalRunNodeDefinition& NodeDefinition) const;
 	void MarkCurrentNodeResolved();
+	void ClearPendingBattleReward();
+	void SetFlowStageAfterPostBattleReward();
 	bool HasPendingBattleReward() const;
-	int32 GetPendingBattleRewardGold() const;
 	FText GetCurrentNodeStateMessage() const;
 	EFinalRunNodeType GetCurrentNodeType() const;
 	void AppendEvent(const FFinalRunEvent& Event);

@@ -199,37 +199,87 @@ int32 CountRunDeckCards(const TArray<FFinalCardId>& RunDeck, const FFinalCardId&
 	return Count;
 }
 
-int32 FindRunDeckCardIndex(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+struct FFinalBattleCardRewardCandidate
 {
-	return RunDeck.IndexOfByPredicate([&CardId](const FFinalCardId& DeckCardId)
-	{
-		return DeckCardId == CardId;
-	});
-}
+	FFinalCardId CardId;
+	int32 ExistingDeckCount = 0;
+	int32 SourceOrder = 0;
+};
 
-int32 FindRunCharacterIndex(const TArray<FFinalRunPersistentCharacterState>& Characters, const FFinalCharacterId& CharacterId)
-{
-	return Characters.IndexOfByPredicate([&CharacterId](const FFinalRunPersistentCharacterState& CharacterState)
-	{
-		return CharacterState.CharacterId == CharacterId;
-	});
-}
-
-TArray<FFinalRunRewardEntry> BuildBattleRewardEntries(const FFinalBattleResult& Result)
+TArray<FFinalRunRewardEntry> BuildBattleCardRewardEntries(
+	const FFinalBattleResult& Result,
+	const FFinalRunState& RunState,
+	const UFinalDataRegistry* DataRegistry)
 {
 	TArray<FFinalRunRewardEntry> RewardEntries;
-
-	if (Result.Outcome == EFinalBattleOutcome::Victory && Result.RewardGold > 0)
+	if (Result.Outcome != EFinalBattleOutcome::Victory || DataRegistry == nullptr)
 	{
-		FFinalRunRewardEntry GoldEntry;
-		GoldEntry.RewardId = TEXT("BattleReward.Gold");
-		GoldEntry.RewardType = EFinalRunRewardType::Gold;
-		GoldEntry.Value = Result.RewardGold;
-		GoldEntry.DisplayId = TEXT("Currency.Gold");
-		GoldEntry.DisplayName = NSLOCTEXT("FinalRunSession", "RewardDisplayGold", "Gold");
-		GoldEntry.bCanClaim = true;
-		GoldEntry.bClaimed = false;
-		RewardEntries.Add(GoldEntry);
+		return RewardEntries;
+	}
+
+	TArray<FFinalBattleCardRewardCandidate> Candidates;
+	TSet<FName> SeenCardIds;
+	int32 SourceOrder = 0;
+
+	for (const FFinalRunPersistentCharacterState& CharacterState : RunState.Characters)
+	{
+		const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(CharacterState.CharacterId);
+		if (CharacterDefinition == nullptr)
+		{
+			continue;
+		}
+
+		for (const FFinalCardId& CardId : CharacterDefinition->CharacterCardPoolIds)
+		{
+			if (!CardId.IsValid() || SeenCardIds.Contains(CardId.Value))
+			{
+				++SourceOrder;
+				continue;
+			}
+
+			if (DataRegistry->FindCardDefinition(CardId) == nullptr)
+			{
+				++SourceOrder;
+				continue;
+			}
+
+			SeenCardIds.Add(CardId.Value);
+
+			FFinalBattleCardRewardCandidate Candidate;
+			Candidate.CardId = CardId;
+			Candidate.ExistingDeckCount = CountRunDeckCards(RunState.RunDeck, CardId);
+			Candidate.SourceOrder = SourceOrder++;
+			Candidates.Add(MoveTemp(Candidate));
+		}
+	}
+
+	Candidates.StableSort([](const FFinalBattleCardRewardCandidate& Left, const FFinalBattleCardRewardCandidate& Right)
+	{
+		if (Left.ExistingDeckCount != Right.ExistingDeckCount)
+		{
+			return Left.ExistingDeckCount < Right.ExistingDeckCount;
+		}
+
+		return Left.SourceOrder < Right.SourceOrder;
+	});
+
+	const int32 RewardCount = FMath::Min(3, Candidates.Num());
+	for (int32 RewardIndex = 0; RewardIndex < RewardCount; ++RewardIndex)
+	{
+		const FFinalCardId& CardId = Candidates[RewardIndex].CardId;
+		FFinalRunRewardEntry CardEntry;
+		CardEntry.RewardId = *FString::Printf(TEXT("BattleReward.Card.%d.%s"), RewardIndex, *CardId.Value.ToString());
+		CardEntry.RewardType = EFinalRunRewardType::CardGrant;
+		CardEntry.Value = 1;
+		CardEntry.GrantedCardId = CardId;
+		CardEntry.DisplayId = CardId.Value;
+		CardEntry.bCanClaim = true;
+		CardEntry.bClaimed = false;
+		if (const UFinalCardDefinition* CardDefinition = DataRegistry->FindCardDefinition(CardId))
+		{
+			CardEntry.DisplayName = CardDefinition->DisplayName;
+		}
+		RewardEntries.Add(MoveTemp(CardEntry));
 	}
 
 	return RewardEntries;
@@ -636,6 +686,21 @@ bool UFinalRunSession::ClaimPendingBattleReward()
 	return SubmitRunCommand(Command);
 }
 
+bool UFinalRunSession::ClaimPendingBattleRewardById(const FName RewardId)
+{
+	FFinalRunCommand Command;
+	Command.CommandType = EFinalRunCommandType::ClaimPendingBattleReward;
+	Command.PayloadId = RewardId;
+	return SubmitRunCommand(Command);
+}
+
+bool UFinalRunSession::SkipPendingBattleReward()
+{
+	FFinalRunCommand Command;
+	Command.CommandType = EFinalRunCommandType::SkipPendingBattleReward;
+	return SubmitRunCommand(Command);
+}
+
 bool UFinalRunSession::AdvanceToNode(FName NodeId)
 {
 	FFinalRunCommand Command;
@@ -664,7 +729,11 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 		break;
 
 	case EFinalRunCommandType::ClaimPendingBattleReward:
-		bAccepted = TryExecuteClaimPendingBattleReward(DetailEvent, RejectReason, FailureMessage);
+		bAccepted = TryExecuteClaimPendingBattleReward(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
+		break;
+
+	case EFinalRunCommandType::SkipPendingBattleReward:
+		bAccepted = TryExecuteSkipPendingBattleReward(DetailEvent, RejectReason, FailureMessage);
 		break;
 
 	case EFinalRunCommandType::ResolveReward:
@@ -743,6 +812,10 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	CurrentState.LastBattleOutcome = Result.Outcome;
 	CurrentState.LastBattleRewardGold = Result.RewardGold;
 	CurrentState.TeamCurrentHP = Result.TeamCurrentHP;
+	if (Result.Outcome == EFinalBattleOutcome::Victory && Result.RewardGold > 0)
+	{
+		CurrentState.Gold += Result.RewardGold;
+	}
 	ClearBattleStartContext();
 	PendingRewardSourceNodeId = NAME_None;
 	PendingRewardSourceEncounterId = FFinalEncounterId{};
@@ -754,7 +827,12 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 		CurrentState.Characters = Result.UpdatedCharacterStates;
 	}
 
-	PendingRewardEntries = BuildBattleRewardEntries(Result);
+	if (Result.Outcome == EFinalBattleOutcome::Victory)
+	{
+		MarkCurrentNodeResolved();
+	}
+
+	PendingRewardEntries = BuildBattleCardRewardEntries(Result, CurrentState, DataRegistry);
 
 	if (PendingRewardEntries.Num() > 0)
 	{
@@ -765,7 +843,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	}
 	else if (Result.Outcome == EFinalBattleOutcome::Victory)
 	{
-		CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+		SetFlowStageAfterPostBattleReward();
 	}
 	else
 	{
@@ -779,7 +857,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 	Event.NodeId = CurrentNodeId;
 	Event.BattleOutcome = Result.Outcome;
 	Event.TeamCurrentHP = Result.TeamCurrentHP;
-	Event.RewardGold = FFinalRewardResolver::GetRewardGoldTotal(PendingRewardEntries);
+	Event.RewardGold = Result.Outcome == EFinalBattleOutcome::Victory ? Result.RewardGold : 0;
 	Event.RewardEntries = FFinalRewardResolver::MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 	FFinalRewardResolver::PopulateRewardEventViewData(Event, DataRegistry);
 	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
@@ -799,7 +877,7 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 		RewardEvent.SourceNodeId = CurrentNodeId;
 		RewardEvent.EncounterId = Result.EncounterId;
 		RewardEvent.BattleOutcome = Result.Outcome;
-		RewardEvent.RewardGold = GetPendingBattleRewardGold();
+		RewardEvent.RewardGold = Result.Outcome == EFinalBattleOutcome::Victory ? Result.RewardGold : 0;
 		RewardEvent.RewardEntries = FFinalRewardResolver::MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 		FFinalRewardResolver::PopulateRewardEventViewData(RewardEvent, DataRegistry);
 		if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
@@ -828,7 +906,7 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.PendingBattleReward.SourceNodeId = PendingRewardSourceNodeId;
 	Snapshot.PendingBattleReward.SourceEncounterId = PendingRewardSourceEncounterId;
 	Snapshot.PendingBattleReward.SourceBattleOutcome = PendingRewardBattleOutcome;
-	Snapshot.PendingBattleReward.RewardGold = GetPendingBattleRewardGold();
+	Snapshot.PendingBattleReward.RewardGold = HasPendingBattleReward() ? CurrentState.LastBattleRewardGold : 0;
 	Snapshot.PendingBattleReward.bCanClaim = HasPendingBattleReward();
 	Snapshot.PendingBattleReward.RewardEntries = FFinalRewardResolver::MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
 	Snapshot.PendingBattleReward.RewardEntryViews = FFinalRewardResolver::BuildRewardEntryViews(Snapshot.PendingBattleReward.RewardEntries, DataRegistry);
@@ -997,7 +1075,7 @@ bool UFinalRunSession::RestoreFromSaveData(const FFinalRunSaveData& SaveData, FT
 	return true;
 }
 
-bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+bool UFinalRunSession::TryExecuteClaimPendingBattleReward(const FName& RewardId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
 {
 	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
 	if (!HasPendingBattleReward())
@@ -1007,23 +1085,48 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 		return false;
 	}
 
-	if (!FFinalRewardResolver::ValidateRewardEntriesForApplication(PendingRewardEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
+	if (RewardId.IsNone() && PendingRewardEntries.Num() != 1)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPayloadId;
+		OutFailureMessage = FText::FromString(TEXT("ClaimPendingBattleReward requires a reward id when multiple pending rewards are available."));
+		return false;
+	}
+
+	const FFinalRunRewardEntry* SelectedEntry = RewardId.IsNone()
+		? &PendingRewardEntries[0]
+		: PendingRewardEntries.FindByPredicate([&RewardId](const FFinalRunRewardEntry& Entry)
+		{
+			return Entry.RewardId == RewardId;
+		});
+
+	if (SelectedEntry == nullptr)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnknownPendingBattleReward;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "UnknownPendingBattleReward", "Pending battle reward {0} is not available."),
+			FText::FromName(RewardId));
+		return false;
+	}
+
+	TArray<FFinalRunRewardEntry> SelectedEntries;
+	SelectedEntries.Add(*SelectedEntry);
+
+	if (!FFinalRewardResolver::ValidateRewardEntriesForApplication(SelectedEntries, DataRegistry, CurrentState, OutRejectReason, OutFailureMessage))
 	{
 		return false;
 	}
 
-	TArray<FFinalRunRewardEntry> ClaimedEntries = FFinalRewardResolver::MakeClaimedRewardEntries(PendingRewardEntries, DataRegistry);
-	FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(PendingRewardEntries, CurrentState);
+	TArray<FFinalRunRewardEntry> ClaimedEntries = FFinalRewardResolver::MakeClaimedRewardEntries(SelectedEntries, DataRegistry);
+	FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(SelectedEntries, CurrentState);
 
-	CurrentState.LastBattleRewardGold = FFinalRewardResolver::GetRewardGoldTotal(PendingRewardEntries);
-	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+	SetFlowStageAfterPostBattleReward();
 
 	OutDetailEvent.EventType = EFinalRunEventType::PendingBattleRewardClaimed;
 	OutDetailEvent.NodeId = PendingRewardSourceNodeId;
 	OutDetailEvent.SourceNodeId = PendingRewardSourceNodeId;
 	OutDetailEvent.EncounterId = PendingRewardSourceEncounterId;
 	OutDetailEvent.BattleOutcome = PendingRewardBattleOutcome;
-	OutDetailEvent.RewardGold = FFinalRewardResolver::GetRewardGoldTotal(ClaimedEntries);
+	OutDetailEvent.RewardGold = CurrentState.LastBattleRewardGold;
 	OutDetailEvent.RewardEntries = ClaimedEntries;
 	FFinalRewardResolver::PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
 	FFinalRewardResolver::PopulateAffectedCharacterResults(OutDetailEvent, ClaimedEntries, CurrentState, DataRegistry);
@@ -1032,13 +1135,42 @@ bool UFinalRunSession::TryExecuteClaimPendingBattleReward(FFinalRunEvent& OutDet
 		PopulateNodeEventMetadata(OutDetailEvent, *SourceNode);
 	}
 	OutDetailEvent.Message = FText::Format(
-		NSLOCTEXT("FinalRunSession", "PendingBattleRewardClaimed", "Claimed {0} pending battle reward entries."),
-		FText::AsNumber(ClaimedEntries.Num()));
+		NSLOCTEXT("FinalRunSession", "PendingBattleRewardClaimed", "Claimed pending battle reward {0}."),
+		FText::FromName(SelectedEntry->RewardId));
 
-	PendingRewardSourceNodeId = NAME_None;
-	PendingRewardSourceEncounterId = FFinalEncounterId{};
-	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
-	PendingRewardEntries.Reset();
+	ClearPendingBattleReward();
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteSkipPendingBattleReward(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	if (!HasPendingBattleReward())
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPendingBattleReward;
+		OutFailureMessage = FText::FromString(TEXT("There is no pending battle reward to skip."));
+		return false;
+	}
+
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
+	const TArray<FFinalRunRewardEntry> SkippedEntries = FFinalRewardResolver::MakePreviewRewardEntries(PendingRewardEntries, DataRegistry);
+
+	SetFlowStageAfterPostBattleReward();
+
+	OutDetailEvent.EventType = EFinalRunEventType::PendingBattleRewardSkipped;
+	OutDetailEvent.NodeId = PendingRewardSourceNodeId;
+	OutDetailEvent.SourceNodeId = PendingRewardSourceNodeId;
+	OutDetailEvent.EncounterId = PendingRewardSourceEncounterId;
+	OutDetailEvent.BattleOutcome = PendingRewardBattleOutcome;
+	OutDetailEvent.RewardGold = CurrentState.LastBattleRewardGold;
+	OutDetailEvent.RewardEntries = SkippedEntries;
+	FFinalRewardResolver::PopulateRewardEventViewData(OutDetailEvent, DataRegistry);
+	if (const FFinalRunNodeDefinition* SourceNode = FindNodeDefinition(PendingRewardSourceNodeId))
+	{
+		PopulateNodeEventMetadata(OutDetailEvent, *SourceNode);
+	}
+	OutDetailEvent.Message = NSLOCTEXT("FinalRunSession", "PendingBattleRewardSkipped", "Skipped pending battle card reward.");
+
+	ClearPendingBattleReward();
 	return true;
 }
 
@@ -1503,14 +1635,30 @@ void UFinalRunSession::MarkCurrentNodeResolved()
 	}
 }
 
+void UFinalRunSession::ClearPendingBattleReward()
+{
+	PendingRewardSourceNodeId = NAME_None;
+	PendingRewardSourceEncounterId = FFinalEncounterId{};
+	PendingRewardBattleOutcome = EFinalBattleOutcome::None;
+	PendingRewardEntries.Reset();
+}
+
+void UFinalRunSession::SetFlowStageAfterPostBattleReward()
+{
+	if (const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId))
+	{
+		CurrentFlowStage = CurrentNode->NextNodeIds.Num() > 0
+			? EFinalRunFlowStage::AwaitingNodeAdvance
+			: EFinalRunFlowStage::RunEnded;
+		return;
+	}
+
+	CurrentFlowStage = EFinalRunFlowStage::RunEnded;
+}
+
 bool UFinalRunSession::HasPendingBattleReward() const
 {
 	return PendingRewardEntries.Num() > 0;
-}
-
-int32 UFinalRunSession::GetPendingBattleRewardGold() const
-{
-	return FFinalRewardResolver::GetRewardGoldTotal(PendingRewardEntries);
 }
 
 FText UFinalRunSession::GetCurrentNodeStateMessage() const

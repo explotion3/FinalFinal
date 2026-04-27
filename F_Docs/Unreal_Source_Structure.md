@@ -234,6 +234,7 @@ FinalBattle      FinalRun
 #### 4.5.1 FinalApp/UI 推荐分层
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
 * `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页还是关闭外层页
+* 战后奖励第一版由 `FinalRunSession` 生成卡牌候选并应用选择结果：胜利金币自动写入 `RunState.Gold`，`PendingBattleReward` 只承载最多 3 个 `CardGrant` 候选；`FinalApp` 只转发 `RewardId` 或跳过命令
 * `RunFlowSubsystem` 当前还负责把奖励结果类 `RunEvent` 的最近反馈收口成 UI 可读文本，并优先直接消费 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`；raw `RewardEntries` 只保留为回退
 * 当 `RunSession` 进入 `PreparingBattle`、`HasValidBattleStartState == true` 且当前没有 `ActiveBattleSession` 时，`RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`，不把开战逻辑散在单个页面里
 * `RootScreen` / `UIRootLayout` 承载常驻 HUD
@@ -633,7 +634,7 @@ Save / Load 当前边界：
 * `Panel` 不直接控制输入模式和页面栈
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
-* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示并实际消费 `PresentationKind / IconId / VisualTier / DetailText`、raw `RewardEntries` 只作回退，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 及其 metadata，并只转发对应的 `Resolve*` 命令
+* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；战后奖励页优先以 `RewardEntryViews` 为主展示并实际消费 `PresentationKind / IconId / VisualTier / DetailText`、raw `RewardEntries` 只作回退，并只转发 `ClaimPendingBattleRewardById / SkipPendingBattleReward`，节点选择页以 `Progression.AvailableNextNodes` 为主展示，奖励/事件/商店节点页分别真实消费 `PendingRewardNode / PendingEventNode / PendingShopNode` 上的 `RewardEntryViews` 及其 metadata，并只转发对应的 `Resolve*` 命令
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目

@@ -36,6 +36,7 @@ bool ShouldUseRewardEventFeedback(const EFinalRunEventType EventType)
 	{
 	case EFinalRunEventType::PendingBattleRewardGenerated:
 	case EFinalRunEventType::PendingBattleRewardClaimed:
+	case EFinalRunEventType::PendingBattleRewardSkipped:
 	case EFinalRunEventType::BattleResultApplied:
 	case EFinalRunEventType::RewardNodeResolved:
 	case EFinalRunEventType::EventNodeResolved:
@@ -171,6 +172,11 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 
 bool UFinalRunFlowSubsystem::ClaimPendingBattleReward()
 {
+	return ClaimPendingBattleRewardById(NAME_None);
+}
+
+bool UFinalRunFlowSubsystem::ClaimPendingBattleRewardById(const FName RewardId)
+{
 	UFinalRunSession* RunSession = ResolveRunSession();
 	if (RunSession == nullptr)
 	{
@@ -178,7 +184,23 @@ bool UFinalRunFlowSubsystem::ClaimPendingBattleReward()
 		return false;
 	}
 
-	const bool bAccepted = RunSession->ClaimPendingBattleReward();
+	const bool bAccepted = RewardId.IsNone()
+		? RunSession->ClaimPendingBattleReward()
+		: RunSession->ClaimPendingBattleRewardById(RewardId);
+	RefreshRunFlow(true);
+	return bAccepted;
+}
+
+bool UFinalRunFlowSubsystem::SkipPendingBattleReward()
+{
+	UFinalRunSession* RunSession = ResolveRunSession();
+	if (RunSession == nullptr)
+	{
+		LastFlowMessage = NSLOCTEXT("FinalRunFlow", "MissingRunSessionForSkipReward", "当前无法访问 RunSession，无法跳过待领奖励。");
+		return false;
+	}
+
+	const bool bAccepted = RunSession->SkipPendingBattleReward();
 	RefreshRunFlow(true);
 	return bAccepted;
 }

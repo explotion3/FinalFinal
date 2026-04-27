@@ -22,6 +22,18 @@ private:
 	void HandleClaimRewardClicked();
 
 	UFUNCTION()
+	void HandleClaimRewardOption0Clicked();
+
+	UFUNCTION()
+	void HandleClaimRewardOption1Clicked();
+
+	UFUNCTION()
+	void HandleClaimRewardOption2Clicked();
+
+	UFUNCTION()
+	void HandleSkipRewardClicked();
+
+	UFUNCTION()
 	void HandleOpenNodePageClicked();
 
 	UFUNCTION()
@@ -30,6 +42,7 @@ private:
 	UFUNCTION()
 	void HandleOpenModalClicked();
 
+	void HandleClaimRewardOptionClicked(int32 RewardIndex);
 	void EnsureWidgetTree();
 	void RebuildVisual();
 
@@ -41,6 +54,30 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ClaimRewardButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ClaimRewardOption0Button;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ClaimRewardOption0ButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ClaimRewardOption1Button;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ClaimRewardOption1ButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ClaimRewardOption2Button;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ClaimRewardOption2ButtonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> SkipRewardButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkipRewardButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> OpenNodePageButton;

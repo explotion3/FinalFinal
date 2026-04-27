@@ -7,6 +7,7 @@
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
+#include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "UObject/StrongObjectPtr.h"
@@ -530,6 +531,182 @@ bool FFinalPrototypeBattleWritebackAndSaveRestoreTest::RunTest(const FString& Pa
 	TestEqual(TEXT("Restored snapshot deck count should match the exported run snapshot."), RestoredSnapshot.DeckCount, SnapshotAfterBattle.DeckCount);
 	TestEqual(TEXT("Restored snapshot relic count should match the exported run snapshot."), RestoredSnapshot.RelicCount, SnapshotAfterBattle.RelicCount);
 	TestTrue(TEXT("Restored run event sequence should remain self-consistent after save/load."), RestoredRunSession->GetLatestRunEventSequence() >= RunSession->GetLatestRunEventSequence());
+	return !HasAnyErrors();
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalPrototypePostBattleCardRewardAndLinearProgressionTest,
+	"Final.Editor.PrototypeSmoke.PostBattleCardRewardAndLinearProgression",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalPrototypeSmokeTests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalPrototypePostBattleRewardWorld")))
+	{
+		return false;
+	}
+
+	UFinalPrototypeBootstrapDefinition* BootstrapDefinition = Context.DataRegistry
+		? Context.DataRegistry->FindPrototypeBootstrapDefinition(StarterBootstrapId)
+		: nullptr;
+	if (!TestNotNull(TEXT("Starter bootstrap definition must be discoverable for post-battle reward progression."), BootstrapDefinition))
+	{
+		return false;
+	}
+
+	const UFinalRunRouteDefinition* RouteDefinition = Context.DataRegistry->FindRunRouteDefinition(BootstrapDefinition->RunRouteId);
+	if (!TestNotNull(TEXT("Starter route definition must be available."), RouteDefinition))
+	{
+		return false;
+	}
+
+	TestTrue(
+		TEXT("Starter route should include a boss node for the linear endpoint."),
+		RouteDefinition->NodeDefinitions.ContainsByPredicate([](const FFinalRunNodeDefinition& NodeDefinition)
+		{
+			return NodeDefinition.NodeType == EFinalRunNodeType::BossBattle;
+		}));
+
+	UFinalRunSession* RunSession = Context.BootstrapRunFromDefinition(*this, *BootstrapDefinition);
+	if (RunSession == nullptr)
+	{
+		return false;
+	}
+
+	if (Context.StartBattleFromRun(*this) == nullptr)
+	{
+		return false;
+	}
+
+	const int32 InitialGold = RunSession->GetSnapshot().Gold;
+	const int32 InitialDeckCount = RunSession->GetSnapshot().DeckCount;
+
+	const FFinalBattleResult OpeningVictoryResult = BuildSyntheticVictoryResult(*RunSession, *Context.BattleFlowSubsystem);
+	TestTrue(TEXT("Opening battle result should apply to run."), Context.GameFlowSubsystem->CompleteBattleAndApplyResult(OpeningVictoryResult));
+
+	FFinalRunSnapshot Snapshot = RunSession->GetSnapshot();
+	TestEqual(TEXT("Victory gold should be applied immediately."), Snapshot.Gold, InitialGold + SyntheticVictoryRewardGold);
+	TestTrue(TEXT("Post-battle reward should expose card candidates."), Snapshot.PendingBattleReward.bHasPendingReward);
+	TestTrue(TEXT("Post-battle reward should expose no more than three card candidates."), Snapshot.PendingBattleReward.RewardEntries.Num() <= 3);
+	TestTrue(TEXT("Post-battle reward candidates should be card grants."), Snapshot.PendingBattleReward.RewardEntries.ContainsByPredicate([](const FFinalRunRewardEntry& Entry)
+	{
+		return Entry.RewardType == EFinalRunRewardType::CardGrant && Entry.GrantedCardId.IsValid();
+	}));
+	for (const FFinalRunRewardEntry& RewardEntry : Snapshot.PendingBattleReward.RewardEntries)
+	{
+		TestEqual(TEXT("Every post-battle pending reward should be a card grant."), RewardEntry.RewardType, EFinalRunRewardType::CardGrant);
+		TestTrue(TEXT("Every post-battle card grant should reference a valid card id."), RewardEntry.GrantedCardId.IsValid());
+	}
+
+	if (Snapshot.PendingBattleReward.RewardEntries.Num() > 1)
+	{
+		TestFalse(TEXT("Claiming a multi-candidate post-battle reward without RewardId should be rejected."), RunSession->ClaimPendingBattleReward());
+	}
+
+	const FName FirstRewardId = Snapshot.PendingBattleReward.RewardEntries.Num() > 0
+		? Snapshot.PendingBattleReward.RewardEntries[0].RewardId
+		: NAME_None;
+	TestFalse(TEXT("First post-battle card reward id should not be None."), FirstRewardId.IsNone());
+	TestTrue(TEXT("Choosing one post-battle card reward should be accepted."), RunSession->ClaimPendingBattleRewardById(FirstRewardId));
+
+	Snapshot = RunSession->GetSnapshot();
+	TestFalse(TEXT("Pending post-battle reward should clear after choosing a card."), Snapshot.PendingBattleReward.bHasPendingReward);
+	TestEqual(TEXT("Choosing one card reward should add exactly one card to RunDeck."), Snapshot.DeckCount, InitialDeckCount + 1);
+	TestEqual(TEXT("Run should wait for node advance after reward claim."), Snapshot.Progression.FlowStage, EFinalRunFlowStage::AwaitingNodeAdvance);
+	TestTrue(TEXT("Run should expose at least one next node after opening reward claim."), Snapshot.Progression.AvailableNextNodes.Num() > 0);
+
+	const FName RewardNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Reward node id should be available."), RewardNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured reward node."), RunSession->AdvanceToNode(RewardNodeId));
+
+	FFinalRunCommand ResolveRewardCommand;
+	ResolveRewardCommand.CommandType = EFinalRunCommandType::ResolveReward;
+	TestTrue(TEXT("Reward node should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveRewardCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName EventNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Event node id should be available after reward node."), EventNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured event node."), RunSession->AdvanceToNode(EventNodeId));
+
+	Snapshot = RunSession->GetSnapshot();
+	FName EventOptionId = NAME_None;
+	for (const FFinalRunEventOptionViewData& Option : Snapshot.PendingEventNode.Options)
+	{
+		if (Option.bSelectable)
+		{
+			EventOptionId = Option.OptionId;
+			break;
+		}
+	}
+	TestFalse(TEXT("Event node should expose a selectable option."), EventOptionId.IsNone());
+
+	FFinalRunCommand ResolveEventCommand;
+	ResolveEventCommand.CommandType = EFinalRunCommandType::ResolveEvent;
+	ResolveEventCommand.PayloadId = EventOptionId;
+	TestTrue(TEXT("Event node option should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveEventCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName ShopNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Shop node id should be available after event node."), ShopNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured shop node."), RunSession->AdvanceToNode(ShopNodeId));
+
+	Snapshot = RunSession->GetSnapshot();
+	FName ShopOfferId = NAME_None;
+	for (const FFinalRunShopOfferViewData& Offer : Snapshot.PendingShopNode.Offers)
+	{
+		if (Offer.bPurchasable)
+		{
+			ShopOfferId = Offer.OfferId;
+			break;
+		}
+	}
+	TestFalse(TEXT("Shop node should expose a purchasable offer."), ShopOfferId.IsNone());
+
+	FFinalRunCommand ResolveShopCommand;
+	ResolveShopCommand.CommandType = EFinalRunCommandType::ResolveShop;
+	ResolveShopCommand.PayloadId = ShopOfferId;
+	TestTrue(TEXT("Shop offer should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveShopCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName EliteNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Elite node id should be available after shop node."), EliteNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured elite node."), RunSession->AdvanceToNode(EliteNodeId));
+	TestEqual(TEXT("Elite node should prepare battle."), RunSession->GetSnapshot().Progression.FlowStage, EFinalRunFlowStage::PreparingBattle);
+
+	if (Context.StartBattleFromRun(*this) == nullptr)
+	{
+		return false;
+	}
+
+	const FFinalBattleResult EliteVictoryResult = BuildSyntheticVictoryResult(*RunSession, *Context.BattleFlowSubsystem);
+	TestTrue(TEXT("Elite battle result should apply to run."), Context.GameFlowSubsystem->CompleteBattleAndApplyResult(EliteVictoryResult));
+	if (RunSession->GetSnapshot().PendingBattleReward.bHasPendingReward)
+	{
+		TestTrue(TEXT("Elite post-battle card reward can be skipped."), RunSession->SkipPendingBattleReward());
+	}
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName BossNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Boss node id should be available after elite node."), BossNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured boss node."), RunSession->AdvanceToNode(BossNodeId));
+	TestEqual(TEXT("Boss node should prepare battle."), RunSession->GetSnapshot().Progression.FlowStage, EFinalRunFlowStage::PreparingBattle);
+
+	if (Context.StartBattleFromRun(*this) == nullptr)
+	{
+		return false;
+	}
+
+	const FFinalBattleResult BossVictoryResult = BuildSyntheticVictoryResult(*RunSession, *Context.BattleFlowSubsystem);
+	TestTrue(TEXT("Boss battle result should apply to run."), Context.GameFlowSubsystem->CompleteBattleAndApplyResult(BossVictoryResult));
+	if (RunSession->GetSnapshot().PendingBattleReward.bHasPendingReward)
+	{
+		TestTrue(TEXT("Boss post-battle card reward can be skipped."), RunSession->SkipPendingBattleReward());
+	}
+
+	TestEqual(TEXT("Run should end after resolving the boss post-battle reward because no next node exists."), RunSession->GetSnapshot().Progression.FlowStage, EFinalRunFlowStage::RunEnded);
 	return !HasAnyErrors();
 }
 

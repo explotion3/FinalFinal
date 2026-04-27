@@ -24,6 +24,13 @@ void UFinalRunRewardOverlayScreen::ConfigureFromRunSnapshot(const FFinalRunSnaps
 
 void UFinalRunRewardOverlayScreen::HandleClaimRewardClicked()
 {
+	const FFinalRunPendingBattleRewardViewData& PendingReward = GetCachedSnapshot().PendingBattleReward;
+	if (PendingReward.RewardEntries.Num() == 1)
+	{
+		HandleClaimRewardOptionClicked(0);
+		return;
+	}
+
 	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
 	if (RunFlowSubsystem == nullptr)
 	{
@@ -39,6 +46,41 @@ void UFinalRunRewardOverlayScreen::HandleClaimRewardClicked()
 		: (bClaimed
 			? NSLOCTEXT("FinalFlowUI", "RewardClaimSucceeded", "已转发 ClaimPendingBattleReward。")
 			: NSLOCTEXT("FinalFlowUI", "RewardClaimFailed", "ClaimPendingBattleReward 执行失败。")));
+	RebuildVisual();
+}
+
+void UFinalRunRewardOverlayScreen::HandleClaimRewardOption0Clicked()
+{
+	HandleClaimRewardOptionClicked(0);
+}
+
+void UFinalRunRewardOverlayScreen::HandleClaimRewardOption1Clicked()
+{
+	HandleClaimRewardOptionClicked(1);
+}
+
+void UFinalRunRewardOverlayScreen::HandleClaimRewardOption2Clicked()
+{
+	HandleClaimRewardOptionClicked(2);
+}
+
+void UFinalRunRewardOverlayScreen::HandleSkipRewardClicked()
+{
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RewardNoRunFlowSubsystemForSkip", "当前无法访问 RunFlowSubsystem，无法跳过待领奖励。"));
+		RebuildVisual();
+		return;
+	}
+
+	const bool bSkipped = RunFlowSubsystem->SkipPendingBattleReward();
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bSkipped
+			? NSLOCTEXT("FinalFlowUI", "RewardSkipSucceeded", "已跳过战后卡牌奖励。")
+			: NSLOCTEXT("FinalFlowUI", "RewardSkipFailed", "跳过战后卡牌奖励失败。")));
 	RebuildVisual();
 }
 
@@ -68,6 +110,35 @@ void UFinalRunRewardOverlayScreen::HandleOpenModalClicked()
 	}
 }
 
+void UFinalRunRewardOverlayScreen::HandleClaimRewardOptionClicked(const int32 RewardIndex)
+{
+	const FFinalRunPendingBattleRewardViewData& PendingReward = GetCachedSnapshot().PendingBattleReward;
+	if (!PendingReward.RewardEntries.IsValidIndex(RewardIndex))
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RewardOptionMissing", "当前奖励候选不存在，无法领取。"));
+		RebuildVisual();
+		return;
+	}
+
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RewardNoRunFlowSubsystemForOption", "当前无法访问 RunFlowSubsystem，无法领取待领奖励。"));
+		RebuildVisual();
+		return;
+	}
+
+	const FName RewardId = PendingReward.RewardEntries[RewardIndex].RewardId;
+	const bool bClaimed = RunFlowSubsystem->ClaimPendingBattleRewardById(RewardId);
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bClaimed
+			? NSLOCTEXT("FinalFlowUI", "RewardOptionClaimSucceeded", "已领取战后卡牌奖励。")
+			: NSLOCTEXT("FinalFlowUI", "RewardOptionClaimFailed", "领取战后卡牌奖励失败。")));
+	RebuildVisual();
+}
+
 void UFinalRunRewardOverlayScreen::EnsureWidgetTree()
 {
 	EnsureBaseWidgetTree(FLinearColor(0.06f, 0.08f, 0.11f, 0.96f), TEXT("RewardOverlayRoot"), TEXT("RewardOverlayContent"));
@@ -91,6 +162,50 @@ void UFinalRunRewardOverlayScreen::EnsureWidgetTree()
 			ClaimRewardButtonText);
 		ClaimRewardButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleClaimRewardClicked);
 		ContentBox->AddChildToVerticalBox(ClaimRewardButton);
+	}
+
+	if (ClaimRewardOption0Button == nullptr)
+	{
+		ClaimRewardOption0Button = CreateStageButton(
+			TEXT("RewardOverlayClaimOption0Button"),
+			TEXT("RewardOverlayClaimOption0ButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RewardClaimOption0Button", "选择奖励 1"),
+			ClaimRewardOption0ButtonText);
+		ClaimRewardOption0Button->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleClaimRewardOption0Clicked);
+		ContentBox->AddChildToVerticalBox(ClaimRewardOption0Button);
+	}
+
+	if (ClaimRewardOption1Button == nullptr)
+	{
+		ClaimRewardOption1Button = CreateStageButton(
+			TEXT("RewardOverlayClaimOption1Button"),
+			TEXT("RewardOverlayClaimOption1ButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RewardClaimOption1Button", "选择奖励 2"),
+			ClaimRewardOption1ButtonText);
+		ClaimRewardOption1Button->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleClaimRewardOption1Clicked);
+		ContentBox->AddChildToVerticalBox(ClaimRewardOption1Button);
+	}
+
+	if (ClaimRewardOption2Button == nullptr)
+	{
+		ClaimRewardOption2Button = CreateStageButton(
+			TEXT("RewardOverlayClaimOption2Button"),
+			TEXT("RewardOverlayClaimOption2ButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RewardClaimOption2Button", "选择奖励 3"),
+			ClaimRewardOption2ButtonText);
+		ClaimRewardOption2Button->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleClaimRewardOption2Clicked);
+		ContentBox->AddChildToVerticalBox(ClaimRewardOption2Button);
+	}
+
+	if (SkipRewardButton == nullptr)
+	{
+		SkipRewardButton = CreateStageButton(
+			TEXT("RewardOverlaySkipButton"),
+			TEXT("RewardOverlaySkipButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RewardSkipButton", "跳过卡牌奖励"),
+			SkipRewardButtonText);
+		SkipRewardButton->OnClicked.AddDynamic(this, &UFinalRunRewardOverlayScreen::HandleSkipRewardClicked);
+		ContentBox->AddChildToVerticalBox(SkipRewardButton);
 	}
 
 	if (OpenNodePageButton == nullptr)
@@ -176,7 +291,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"RewardOverlayGapText",
-			"当前页已优先消费 PendingBattleReward.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是真实图标资源、卡片化布局，以及多奖励选择、替换、跳过这类更复杂流程。"));
+			"当前页已优先消费 PendingBattleReward.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。当前战后奖励为金币自动入账，卡牌奖励三选一或跳过。"));
 	}
 
 	if (FeedbackText)
@@ -188,7 +303,8 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 	{
 		const bool bCanClaimReward = PendingReward.bHasPendingReward
 			&& PendingReward.bCanClaim
-			&& Progression.bCanClaimPendingBattleReward;
+			&& Progression.bCanClaimPendingBattleReward
+			&& PendingReward.RewardEntries.Num() == 1;
 		ClaimRewardButton->SetIsEnabled(bCanClaimReward);
 	}
 
@@ -204,8 +320,67 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 		}
 		else
 		{
-			ClaimRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardClaimButton", "领取当前奖励条目"));
+			ClaimRewardButtonText->SetText(PendingReward.RewardEntries.Num() == 1
+				? NSLOCTEXT("FinalFlowUI", "RewardClaimButton", "领取当前奖励条目")
+				: NSLOCTEXT("FinalFlowUI", "RewardClaimButtonSelectBelow", "请选择下方一个卡牌奖励"));
 		}
+	}
+
+	auto ConfigureOptionButton = [&PendingReward, &Progression](const int32 OptionIndex, UButton* Button, UTextBlock* ButtonText)
+	{
+		const bool bHasOption = PendingReward.RewardEntryViews.IsValidIndex(OptionIndex) || PendingReward.RewardEntries.IsValidIndex(OptionIndex);
+		const bool bCanChoose = PendingReward.bHasPendingReward
+			&& PendingReward.bCanClaim
+			&& Progression.bCanClaimPendingBattleReward
+			&& bHasOption;
+
+		if (Button)
+		{
+			Button->SetIsEnabled(bCanChoose);
+		}
+
+		if (ButtonText)
+		{
+			if (PendingReward.RewardEntryViews.IsValidIndex(OptionIndex))
+			{
+				const FFinalRunRewardEntryViewData& EntryView = PendingReward.RewardEntryViews[OptionIndex];
+				ButtonText->SetText(FText::Format(
+					NSLOCTEXT("FinalFlowUI", "RewardClaimOptionButtonWithView", "选择 {0}: {1} - {2}"),
+					FText::AsNumber(OptionIndex + 1),
+					FormatRewardEntryViewPrimaryText(EntryView),
+					EntryView.SecondaryText.IsEmpty() ? EntryView.DetailText : EntryView.SecondaryText));
+			}
+			else if (PendingReward.RewardEntries.IsValidIndex(OptionIndex))
+			{
+				const FFinalRunRewardEntry& Entry = PendingReward.RewardEntries[OptionIndex];
+				ButtonText->SetText(FText::Format(
+					NSLOCTEXT("FinalFlowUI", "RewardClaimOptionButtonWithEntry", "选择 {0}: {1}"),
+					FText::AsNumber(OptionIndex + 1),
+					FormatRewardEntryName(Entry)));
+			}
+			else
+			{
+				ButtonText->SetText(FText::Format(
+					NSLOCTEXT("FinalFlowUI", "RewardClaimOptionButtonMissing", "奖励 {0}: 无候选"),
+					FText::AsNumber(OptionIndex + 1)));
+			}
+		}
+	};
+
+	ConfigureOptionButton(0, ClaimRewardOption0Button, ClaimRewardOption0ButtonText);
+	ConfigureOptionButton(1, ClaimRewardOption1Button, ClaimRewardOption1ButtonText);
+	ConfigureOptionButton(2, ClaimRewardOption2Button, ClaimRewardOption2ButtonText);
+
+	if (SkipRewardButton)
+	{
+		SkipRewardButton->SetIsEnabled(PendingReward.bHasPendingReward && PendingReward.bCanClaim && Progression.bCanClaimPendingBattleReward);
+	}
+
+	if (SkipRewardButtonText)
+	{
+		SkipRewardButtonText->SetText(PendingReward.bHasPendingReward
+			? NSLOCTEXT("FinalFlowUI", "RewardSkipButton", "跳过卡牌奖励")
+			: NSLOCTEXT("FinalFlowUI", "RewardSkipButtonDisabled", "当前没有可跳过的卡牌奖励"));
 	}
 
 	if (OpenNodePageButton)

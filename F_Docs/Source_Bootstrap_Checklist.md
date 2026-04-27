@@ -276,6 +276,7 @@
 * `FinalApp` 当前的结果反馈主路径也应优先消费 `RunEvent.RewardEntryViews`，让最近反馈、调试摘要与外层页反馈口径保持一致；raw `RewardEntries` 只作回退
 * 对包含 Growth 类奖励的 `RunEvent`，应在事件中补 `AffectedCharacterResults` 数组，复用现有 `FFinalRunCharacterViewData`，输出结算后的角色持久状态 view data，避免 `FinalApp` 自行推算角色结果
 * `AffectedCharacterResults` 只在 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 的 reward entries 包含 Growth 时填充，不扩大到所有事件
+* 战后奖励第一版已改为金币自动入账 + 卡牌候选选择：`PendingBattleReward` 只保留最多 3 个 `CardGrant` 候选，外层通过 `RewardId` 选择 1 张，或通过 `SkipPendingBattleReward` 跳过
 * 在 `BuildBattleStartRequest()` 中桥接当前遗物的最小 battle-start payload，供 `FinalBattle` 初始化阶段消费
 * 暴露 `FinalRunSaveData`、`ExportSaveData()`、`RestoreFromSaveData()`，仅用于 Run 外层状态导出 / 恢复，不开放 `RunSession` 私有字段给 `FinalApp` 直接写入
 * `FinalRunSaveData` 当前定义 `CurrentSaveVersion = 1`，并提供 `IsSupportedVersion / IsStructurallyValid` 供 `FinalApp` 在 Load 前拒绝坏档
@@ -384,7 +385,7 @@
 12. 敌人死亡后判定胜利
 13. `FinalGameFlowSubsystem::CompleteBattleAndApplyResult` 驱动 `FinalRunSession` 消费 `FinalBattleResult` 并回写单局状态
 14. `FinalRunSession` 生成待领取的战后奖励状态
-15. 外层领取奖励
+15. 外层选择或跳过战后卡牌奖励
 16. 外层推进到下一节点
 
 ### 8.2 第一批验收标准

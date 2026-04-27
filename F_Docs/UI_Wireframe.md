@@ -39,7 +39,7 @@
   * 读取 `RunSession`
   * 增量消费 `RunEvent`
   * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动协调战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页与常驻 HUD
-  * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
+  * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / PendingBattleRewardSkipped / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
   * 当 `RunEvent` 带有 `AffectedCharacterResults` 时，当前反馈主路径与 prototype debug 会直接消费这些角色结果 view data，而不再根据 Growth reward 自行推断角色变化
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
@@ -302,9 +302,13 @@
 * `PendingShopNode.Offers[*].RewardEntryViews[*].PresentationKind / IconId / VisualTier / DetailText`
 * `PendingShopNode.Offers[*].RewardEntries`（raw 回退）
 
+战后奖励页当前第一版已落地：
+* 胜利金币自动入账，页面只展示战后卡牌候选
+* 最多 3 个卡牌候选按钮，点击后通过 `RunFlowSubsystem.ClaimPendingBattleRewardById(RewardId)` 转发给 `FinalRun`
+* 跳过按钮通过 `RunFlowSubsystem.SkipPendingBattleReward()` 转发给 `FinalRun`
+
 战后奖励页仍缺：
 * 真实图标资源、来源说明、卡片化布局与更细的视觉层次
-* 多奖励选择、替换、跳过等 richer reward flow 的结构化状态
 * 奖励条目分组、卡片化布局、二次确认交互
 
 节点选择页仍缺：
@@ -317,7 +321,7 @@
 * 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
-* 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，并实际消费 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退；`RewardGold` 只保留为聚合摘要，并把“领取奖励”意图转发给 `RunFlowSubsystem`
+* 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，并实际消费 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退；`RewardGold / LastBattleRewardGold` 只保留为金币自动入账摘要，并把“选择/跳过卡牌奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
 * 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`
 * 事件节点页当前真实消费 `PendingEventNode.Title / Summary / bCanResolve / bResolved / Options[*].RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把当前选中的 `OptionId` 经 `RunFlowSubsystem` 转发为 `ResolveEvent`

@@ -291,6 +291,7 @@
 * prototype 启动配置也应收回到 `FinalData` 的 bootstrap/profile definition，例如 `PrototypeBootstrapDefinition`，承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / 初始角色持久状态 / InitialTeamCurrentHP`；`FinalApp` 运行时只查询一个 bootstrap stable id
 * 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
 * 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
+* 当前战后奖励第一版口径为：胜利金币在 `ApplyBattleResult` 中自动写入 `RunState.Gold`，`PendingBattleReward` 只保留卡牌候选；外层通过 `ClaimPendingBattleReward(PayloadId = RewardId)` 选择 1 张卡加入 `RunDeck`，或通过 `SkipPendingBattleReward` 跳过卡牌奖励
 * 在保留 raw `RewardEntries` 的前提下，Run 查询面还应补 `RewardEntryViewData` 一类稳定展示数据，至少能表达 `PrimaryText / SecondaryText / Value` 与必要的只读目标 id，避免 `FinalApp` 自行拼接 reward 文案
 * `RewardEntryViewData` 应继续向产品化展示靠拢，最小应补 `PresentationKind / IconId / VisualTier / DetailText` 这类 metadata，并优先通过 `CardDefinition / RelicDefinition / CharacterDefinition` 补全
 * `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 应同时公开 raw reward 与 reward view data，两者分别服务于规则链和展示层
@@ -572,7 +573,8 @@
 * `GetRunLogEntries()`
 * `GetRunEventsSince(Sequence)`
 * `CompleteBattleAndApplyResult(Result)`
-* `ClaimPendingBattleReward()`
+* `ClaimPendingBattleReward()` / `ClaimPendingBattleReward(PayloadId = RewardId)`
+* `SkipPendingBattleReward`
 * `AdvanceToNextNode(NodeId)`
 
 ### 11.2.1 首批必须有的 Run 只读查询面

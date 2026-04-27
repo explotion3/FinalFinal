@@ -9,6 +9,7 @@ enum class EFinalRunCommandType : uint8
 {
 	AdvanceToNode,
 	ClaimPendingBattleReward,
+	SkipPendingBattleReward,
 	ResolveReward,
 	ResolveEvent,
 	ResolveShop
