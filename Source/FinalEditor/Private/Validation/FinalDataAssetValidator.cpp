@@ -765,14 +765,47 @@ namespace FinalDataAssetValidation
 			}
 		}
 
+		if (Enemy->IntentSelectRule == EFinalIntentSelectRule::PhaseSequence && Enemy->PhaseSequence.IsEmpty())
+		{
+			AddWarning(Context, TEXT("IntentSelectRule is PhaseSequence but PhaseSequence is empty; runtime will fall back to all eligible intents."));
+		}
+
+		if (Enemy->IntentSelectRule == EFinalIntentSelectRule::Scripted && Enemy->ScriptedIntentSequence.IsEmpty())
+		{
+			AddError(Context, bIsValid, TEXT("IntentSelectRule is Scripted but ScriptedIntentSequence is empty."));
+		}
+
 		if (Enemy->IntentPool.IsEmpty())
 		{
 			AddError(Context, bIsValid, TEXT("IntentPool must contain at least one intent reference."));
 		}
 
+		TSet<FName> IntentPoolIds;
 		for (int32 Index = 0; Index < Enemy->IntentPool.Num(); ++Index)
 		{
 			ValidateRequiredSoftObject(Context, bIsValid, Enemy->IntentPool[Index], FString::Printf(TEXT("IntentPool[%d]"), Index));
+			if (const UFinalEnemyIntentDefinition* IntentDefinition = Enemy->IntentPool[Index].LoadSynchronous())
+			{
+				IntentPoolIds.Add(IntentDefinition->IntentId);
+			}
+		}
+
+		for (int32 Index = 0; Index < Enemy->ScriptedIntentSequence.Num(); ++Index)
+		{
+			const FFinalEnemyScriptedIntentStep& ScriptedStep = Enemy->ScriptedIntentSequence[Index];
+			if (ScriptedStep.IntentId == NAME_None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("ScriptedIntentSequence[%d].IntentId must be set."), Index));
+				continue;
+			}
+
+			if (!IntentPoolIds.Contains(ScriptedStep.IntentId))
+			{
+				AddError(Context, bIsValid, FString::Printf(
+					TEXT("ScriptedIntentSequence[%d].IntentId '%s' must be present in IntentPool."),
+					Index,
+					*ScriptedStep.IntentId.ToString()));
+			}
 		}
 	}
 
@@ -780,9 +813,27 @@ namespace FinalDataAssetValidation
 	{
 		RequireName(Context, bIsValid, Intent->IntentId, TEXT("IntentId"));
 		RequireText(Context, bIsValid, Intent->DisplayName, TEXT("DisplayName"));
-		ValidatePositive(Context, bIsValid, Intent->Weight, TEXT("Weight"));
+		ValidateNonNegative(Context, bIsValid, Intent->Weight, TEXT("Weight"));
 		ValidateNonNegative(Context, bIsValid, Intent->CooldownTurns, TEXT("CooldownTurns"));
 		ValidateNonNegative(Context, bIsValid, Intent->UseLimitPerBattle, TEXT("UseLimitPerBattle"));
+		ValidatePositive(Context, bIsValid, Intent->MinPreviewRound, TEXT("MinPreviewRound"));
+		ValidateNonNegative(Context, bIsValid, Intent->MaxPreviewRound, TEXT("MaxPreviewRound"));
+		if (Intent->MaxPreviewRound > 0 && Intent->MaxPreviewRound < Intent->MinPreviewRound)
+		{
+			AddError(Context, bIsValid, FString::Printf(
+				TEXT("MaxPreviewRound must be 0 or >= MinPreviewRound, but MaxPreviewRound is %d and MinPreviewRound is %d."),
+				Intent->MaxPreviewRound,
+				Intent->MinPreviewRound));
+		}
+		ValidateProbability(Context, bIsValid, Intent->MinEnemyHpPercent, TEXT("MinEnemyHpPercent"));
+		ValidateProbability(Context, bIsValid, Intent->MaxEnemyHpPercent, TEXT("MaxEnemyHpPercent"));
+		if (Intent->MaxEnemyHpPercent < Intent->MinEnemyHpPercent)
+		{
+			AddError(Context, bIsValid, FString::Printf(
+				TEXT("MaxEnemyHpPercent must be >= MinEnemyHpPercent, but MaxEnemyHpPercent is %.3f and MinEnemyHpPercent is %.3f."),
+				Intent->MaxEnemyHpPercent,
+				Intent->MinEnemyHpPercent));
+		}
 		ValidateEffectArray(Context, bIsValid, Intent->Effects, TEXT("Effects"), true);
 	}
 

@@ -1209,6 +1209,11 @@ Notes: 若目标处于 Break 状态，伤害再提高 20%。
 **可选字段**
 * `CooldownTurns`：冷却回合
 * `UseLimitPerBattle`：本场使用上限
+* `MinPreviewRound`：最早可被预告 / 选择的战斗轮次，默认 1
+* `MaxPreviewRound`：最晚可被预告 / 选择的战斗轮次；0 表示不限制
+* `MinEnemyHpPercent`：敌人当前 HP 百分比下限，0 到 1
+* `MaxEnemyHpPercent`：敌人当前 HP 百分比上限，0 到 1
+* `bDisallowRepeatLastIntent`：是否禁止连续重复上一次已执行的意图
 * `PhaseTags`：可用阶段标签
 * `RequiredEnemyRoleTags`：要求敌人自身具备的定位标签
 * `RequiredEnemyMechanicTags`：要求敌人自身具备的机制标签
@@ -1219,6 +1224,8 @@ Notes: 若目标处于 Break 状态，伤害再提高 20%。
 * 多段攻击由 `UBattleEffect_Damage` 子类增加 `HitCount` 或 `DamageSegments` 承载，不在意图层重复拆字段
 * 召援、护盾、施加中毒 / 腐蚀、蓄势增伤都通过效果列表表达
 * `EnemyIntentDefinition` 只负责“这回合想做什么”，不负责重新发明一套伤害结构
+* `IntentSelectRule = Scripted` 时，敌人模板通过 `ScriptedIntentSequence` 指定固定意图序列；序列项引用的 `IntentId` 必须存在于该敌人的 `IntentPool`
+* `ScriptedIntentSequence` 的序列项包含 `IntentId / PhaseTag / bRepeatLastStep`；`PhaseTag` 为空表示不限制阶段，`bRepeatLastStep` 只在脚本走到末尾时让最后一步持续重复
 
 ### 9.6 StatusDefinition
 **用途**  

@@ -25,7 +25,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	FText PreviewText;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy", meta = (ClampMin = "1"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy", meta = (ClampMin = "0"))
 	int32 Weight = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy", meta = (ClampMin = "0"))
@@ -33,6 +33,21 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy", meta = (ClampMin = "0"))
 	int32 UseLimitPerBattle = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy|Selection", meta = (ClampMin = "1"))
+	int32 MinPreviewRound = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy|Selection", meta = (ClampMin = "0"))
+	int32 MaxPreviewRound = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinEnemyHpPercent = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxEnemyHpPercent = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy|Selection")
+	bool bDisallowRepeatLastIntent = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	TArray<FName> PhaseTags;

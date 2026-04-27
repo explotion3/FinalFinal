@@ -204,6 +204,14 @@ void FFinalBattleInitializationService::InitializeBattle(
 			EnemyState.RuntimeDamagePower = LoadedEnemy->BaseDamagePower;
 			EnemyState.IntentSelectRule = LoadedEnemy->IntentSelectRule;
 			EnemyState.PhaseSequence = LoadedEnemy->PhaseSequence;
+			EnemyState.ScriptedIntentSequence.Reset();
+			for (const FFinalEnemyScriptedIntentStep& ScriptedStep : LoadedEnemy->ScriptedIntentSequence)
+			{
+				FFinalBattleEnemyScriptedIntentRuntimeStep& RuntimeStep = EnemyState.ScriptedIntentSequence.AddDefaulted_GetRef();
+				RuntimeStep.IntentId = ScriptedStep.IntentId;
+				RuntimeStep.PhaseTag = ScriptedStep.PhaseTag;
+				RuntimeStep.bRepeatLastStep = ScriptedStep.bRepeatLastStep;
+			}
 			EnemyState.PhaseSequence.Sort(
 				[](const FFinalEnemyPhaseDefinition& Left, const FFinalEnemyPhaseDefinition& Right)
 				{

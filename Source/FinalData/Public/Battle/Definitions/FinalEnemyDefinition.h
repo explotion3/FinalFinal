@@ -9,6 +9,21 @@
 
 class UFinalEnemyIntentDefinition;
 
+USTRUCT(BlueprintType)
+struct FINALDATA_API FFinalEnemyScriptedIntentStep
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Enemy")
+	FName IntentId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Enemy")
+	FName PhaseTag = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Enemy")
+	bool bRepeatLastStep = false;
+};
+
 UCLASS(BlueprintType)
 class FINALDATA_API UFinalEnemyDefinition : public UPrimaryDataAsset
 {
@@ -44,6 +59,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	TArray<FFinalEnemyPhaseDefinition> PhaseSequence;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
+	TArray<FFinalEnemyScriptedIntentStep> ScriptedIntentSequence;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Enemy")
 	TArray<TSoftObjectPtr<UFinalEnemyIntentDefinition>> IntentPool;

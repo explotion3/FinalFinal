@@ -460,6 +460,24 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 * `TurnStartDrawCount` 与 `InitialHandSize` 分离：前者用于每个玩家回合开始固定抽牌，后者只用于战斗初始化抽牌
 * 当前 Runtime 不再按“补到 N 张手牌”处理回合开始抽牌；若手中保留了牌，仍会额外抽取固定数量的牌
 
+### 9.2.1 敌人意图选择
+敌人意图由 `EnemyIntentDefinition` 提供候选，`FinalBattle` 的 `EnemyIntentService` 在刷新预告时选择当前意图。UI 只读取 `CurrentIntentId / IntentText`，不参与选择。
+
+选择规则：
+* `Cycle`：从上次选择位置之后顺序寻找可用意图
+* `WeightedRandom`：只在可用意图中按 `Weight` 抽取，`Weight = 0` 不参与抽取
+* `PhaseSequence`：优先选择匹配当前阶段标签的可用意图；该阶段没有可用意图时，退回全池可用意图
+* `Scripted`：按敌人已执行意图次数读取 `ScriptedIntentSequence`；脚本项不可用时进入统一 fallback
+
+可用性检查包含：敌人角色标签、使用次数上限、阶段标签、回合范围、敌人 HP 百分比、禁止连续重复、冷却回合。
+
+fallback 顺序：
+1. 忽略冷却，但仍尊重标签、使用上限、阶段、回合、HP、禁止重复
+2. 忽略新增选择条件，只要求存在可用 definition
+3. 如果没有任何 definition，显示普通攻击预告
+
+意图使用次数、冷却回合、连续使用计数只在敌人实际行动提交时更新；刷新预告不会提前消耗这些计数。
+
 ### 9.3 玩家出牌阶段
 1. 玩家打出一张牌
 2. 完整结算该牌效果

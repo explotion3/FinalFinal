@@ -571,6 +571,7 @@ Source
 * Service 可以互相协作，但由 Resolver 或 Session 统一编排
 * 不允许多个 Service 同时持有彼此的状态真相副本
 * 当前代码口径中，`FinalBattleInitializationService / CardService / ResourceService / TurnService / StatusService / EffectExecutionService / EnemyActionService / UnitService / EventService / SnapshotBuilder / EnemyIntentService` 都是 `Private` 下的轻量 `F*` helper，不作为跨模块 UObject 暴露
+* `EnemyIntentService` 负责敌人意图选择、阶段刷新、脚本序列推进、冷却与使用次数提交；`EnemyIntentDefinition / EnemyDefinition` 只提供数据，UI 只消费 snapshot 中的当前意图文本
 * `FinalBattleUnitService` 统一承接 character / enemy / first alive enemy / command target resolve 查询；复杂目标过滤、随机目标、群体目标选择若后续增长，再单独拆 `FinalBattleTargetService`
 
 ### 8.3 Run 入口
