@@ -39,6 +39,9 @@ private:
 	UFUNCTION()
 	void HandleSecondaryActionClicked();
 
+	UFUNCTION()
+	void HandleCloseClicked();
+
 	void EnsureWidgetTree();
 	void RebuildVisual();
 	void ClampSelectionIndices();
@@ -57,56 +60,62 @@ private:
 	const FFinalRunEventOptionViewData* GetSelectedEventOption() const;
 	const FFinalRunShopOfferViewData* GetSelectedShopOffer() const;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CurrentNodeText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StageDetailText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SelectionText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RewardOption0Button;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> RewardOption0ButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RewardOption1Button;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> RewardOption1ButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RewardOption2Button;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> RewardOption2ButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> PreviousChoiceButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PreviousChoiceButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> NextChoiceButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> NextChoiceButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> PrimaryActionButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PrimaryActionButtonText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> SecondaryActionButton;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SecondaryActionButtonText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> CloseButton;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> CloseButtonText;
 
 	UPROPERTY(Transient)
 	int32 SelectedNextNodeIndex = INDEX_NONE;

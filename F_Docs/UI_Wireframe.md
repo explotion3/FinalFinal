@@ -128,7 +128,7 @@
 ## 2.1 RootLayout 分层口径
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
 * `PrototypeRunDebugScreen / FinalBattleEventScreen`：按需打开的 `Overlay Layer` 调试工具，不再和 Battle HUD 常驻同层
-* `Overlay Layer`：默认由 `FinalRunFlowOverlayScreen` 承接 Run 外层主流程；旧的战后奖励、节点选择、奖励节点、事件节点、商店节点专用页保留为显式调试 / 后续详情页入口
+* `Overlay Layer`：默认由 `FinalRunFlowOverlayScreen` 承接 Run 外层主流程；当前 C++ fallback 是右侧紧凑流程面板，不再使用全屏遮罩，面板外区域应尽量保持对 Battle HUD 的点击可达；旧的战后奖励、节点选择、奖励节点、事件节点、商店节点专用页保留为显式调试 / 后续详情页入口
 * `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
 * `Tooltip / Toast Layer`：当前保留为后续扩展挂点
 * 输入优先级：
@@ -151,6 +151,7 @@
   * `RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`
 * 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
 * `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
+* `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
 

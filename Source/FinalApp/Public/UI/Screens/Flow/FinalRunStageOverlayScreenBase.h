@@ -35,19 +35,19 @@ protected:
 	UPROPERTY(Transient)
 	FFinalRunSnapshot CachedSnapshot;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> ContentBox;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TitleText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SummaryText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> GapText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> FeedbackText;
 
 	UPROPERTY(Transient)

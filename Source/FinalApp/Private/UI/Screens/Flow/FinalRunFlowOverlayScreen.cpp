@@ -1,9 +1,18 @@
 #include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Styling/CoreStyle.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
+#include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
 
 using namespace FinalRunFlowScreenUtils;
@@ -38,10 +47,9 @@ FText FormatRewardOptionText(const FFinalRunPendingBattleRewardViewData& Pending
 FText BuildNextNodeSelectionText(const FFinalRunNodeOptionViewData& Node)
 {
 	return FText::Format(
-		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeSelection", "{0} [{1}]\nNodeId: {2}\n章节/楼层: {3}/{4}\n状态: {5}"),
+		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeSelection", "{0} [{1}]\n章节/楼层: {2}/{3}\n状态: {4}"),
 		FormatOptionalText(Node.DisplayName, FormatOptionalName(Node.NodeId, NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeUnnamed", "未命名节点"))),
 		FormatNodeTypeText(Node.NodeType),
-		FormatOptionalName(Node.NodeId, NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeNoId", "无")),
 		FText::AsNumber(Node.ChapterIndex),
 		FText::AsNumber(Node.FloorIndex),
 		FormatOptionalText(Node.AvailabilityMessage, Node.bLocked
@@ -72,6 +80,18 @@ FText BuildShopOfferSelectionText(const FFinalRunShopOfferViewData& Offer)
 			? NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferPurchasable", "可购买")
 			: NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferBlocked", "不可购买")),
 		FText::FromString(BuildRewardPresentationSummaryString(Offer.RewardEntryViews, Offer.RewardEntries)));
+}
+
+FText BuildCompactCurrentNodeText(const FFinalRunProgressionViewData& Progression)
+{
+	return FText::Format(
+		NSLOCTEXT("FinalFlowUI", "RunFlowCompactCurrentNode", "当前节点: {0} [{1}]\n章节/楼层: {2}/{3}"),
+		FormatOptionalText(
+			Progression.CurrentNodeDisplayName,
+			FormatOptionalName(Progression.CurrentNodeId, NSLOCTEXT("FinalFlowUI", "RunFlowCurrentNodeUnnamed", "未命名节点"))),
+		FormatNodeTypeText(Progression.CurrentNodeType),
+		FText::AsNumber(Progression.CurrentChapter),
+		FText::AsNumber(Progression.CurrentFloor));
 }
 }
 
@@ -263,30 +283,71 @@ void UFinalRunFlowOverlayScreen::HandleSecondaryActionClicked()
 		NSLOCTEXT("FinalFlowUI", "RunFlowSkipRewardFailed", "跳过战后卡牌奖励失败。"));
 }
 
+void UFinalRunFlowOverlayScreen::HandleCloseClicked()
+{
+	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
+	{
+		UISubsystem->CloseOverlayScreen(this);
+	}
+}
+
 void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 {
-	EnsureBaseWidgetTree(FLinearColor(0.055f, 0.06f, 0.055f, 0.97f), TEXT("RunFlowOverlayRoot"), TEXT("RunFlowOverlayContent"));
-	if (ContentBox == nullptr)
+	if (WidgetTree == nullptr)
 	{
 		return;
 	}
 
-	if (CurrentNodeText == nullptr)
+	if (WidgetTree->RootWidget == nullptr)
 	{
+		UOverlay* RootOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("RunFlowOverlayRoot"));
+		RootOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		WidgetTree->RootWidget = RootOverlay;
+
+		USizeBox* PanelSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RunFlowOverlayPanelSizeBox"));
+		PanelSizeBox->SetWidthOverride(520.0f);
+
+		UOverlaySlot* PanelSlot = RootOverlay->AddChildToOverlay(PanelSizeBox);
+		if (PanelSlot != nullptr)
+		{
+			PanelSlot->SetHorizontalAlignment(HAlign_Right);
+			PanelSlot->SetVerticalAlignment(VAlign_Fill);
+			PanelSlot->SetPadding(FMargin(0.0f, 72.0f, 24.0f, 72.0f));
+		}
+
+		UBorder* PanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RunFlowOverlayPanel"));
+		PanelBorder->SetBrushColor(FLinearColor(0.035f, 0.04f, 0.035f, 0.92f));
+		PanelBorder->SetPadding(FMargin(18.0f));
+		PanelSizeBox->SetContent(PanelBorder);
+
+		UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("RunFlowOverlayScrollBox"));
+		PanelBorder->SetContent(ScrollBox);
+
+		ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RunFlowOverlayContent"));
+		ScrollBox->AddChild(ContentBox);
+
+		TitleText = CreateStageLabel(TEXT("RunFlowOverlayTitle"), 22);
+		ContentBox->AddChildToVerticalBox(TitleText);
+
+		SummaryText = CreateStageLabel(TEXT("RunFlowOverlaySummary"), 14);
+		ContentBox->AddChildToVerticalBox(SummaryText);
+
 		CurrentNodeText = CreateStageLabel(TEXT("RunFlowCurrentNode"), 13);
-		ContentBox->InsertChildAt(2, CurrentNodeText);
-	}
+		ContentBox->AddChildToVerticalBox(CurrentNodeText);
 
-	if (StageDetailText == nullptr)
-	{
 		StageDetailText = CreateStageLabel(TEXT("RunFlowStageDetail"), 13);
-		ContentBox->InsertChildAt(3, StageDetailText);
+		ContentBox->AddChildToVerticalBox(StageDetailText);
+
+		SelectionText = CreateStageLabel(TEXT("RunFlowSelection"), 13);
+		ContentBox->AddChildToVerticalBox(SelectionText);
+
+		FeedbackText = CreateStageLabel(TEXT("RunFlowOverlayFeedback"), 12);
+		ContentBox->AddChildToVerticalBox(FeedbackText);
 	}
 
-	if (SelectionText == nullptr)
+	if (ContentBox == nullptr)
 	{
-		SelectionText = CreateStageLabel(TEXT("RunFlowSelection"), 13);
-		ContentBox->InsertChildAt(4, SelectionText);
+		return;
 	}
 
 	if (RewardOption0Button == nullptr)
@@ -296,7 +357,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowRewardOption0ButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOption0", "选择卡牌 1"),
 			RewardOption0ButtonText);
-		RewardOption0Button->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption0Clicked);
 		ContentBox->AddChildToVerticalBox(RewardOption0Button);
 	}
 
@@ -307,7 +367,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowRewardOption1ButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOption1", "选择卡牌 2"),
 			RewardOption1ButtonText);
-		RewardOption1Button->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption1Clicked);
 		ContentBox->AddChildToVerticalBox(RewardOption1Button);
 	}
 
@@ -318,7 +377,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowRewardOption2ButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOption2", "选择卡牌 3"),
 			RewardOption2ButtonText);
-		RewardOption2Button->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption2Clicked);
 		ContentBox->AddChildToVerticalBox(RewardOption2Button);
 	}
 
@@ -329,7 +387,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowPreviousChoiceButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowPreviousChoice", "上一个"),
 			PreviousChoiceButtonText);
-		PreviousChoiceButton->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandlePreviousChoiceClicked);
 		ContentBox->AddChildToVerticalBox(PreviousChoiceButton);
 	}
 
@@ -340,7 +397,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowNextChoiceButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowNextChoice", "下一个"),
 			NextChoiceButtonText);
-		NextChoiceButton->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandleNextChoiceClicked);
 		ContentBox->AddChildToVerticalBox(NextChoiceButton);
 	}
 
@@ -351,7 +407,6 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowPrimaryActionButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowPrimaryAction", "执行当前操作"),
 			PrimaryActionButtonText);
-		PrimaryActionButton->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandlePrimaryActionClicked);
 		ContentBox->AddChildToVerticalBox(PrimaryActionButton);
 	}
 
@@ -362,8 +417,50 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 			TEXT("RunFlowSecondaryActionButtonText"),
 			NSLOCTEXT("FinalFlowUI", "RunFlowSecondaryAction", "跳过"),
 			SecondaryActionButtonText);
-		SecondaryActionButton->OnClicked.AddDynamic(this, &UFinalRunFlowOverlayScreen::HandleSecondaryActionClicked);
 		ContentBox->AddChildToVerticalBox(SecondaryActionButton);
+	}
+
+	if (CloseButton == nullptr)
+	{
+		CloseButton = CreateStageButton(
+			TEXT("RunFlowCloseButton"),
+			TEXT("RunFlowCloseButtonText"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowCloseAction", "关闭"),
+			CloseButtonText);
+		ContentBox->AddChildToVerticalBox(CloseButton);
+	}
+
+	if (RewardOption0Button)
+	{
+		RewardOption0Button->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption0Clicked);
+	}
+	if (RewardOption1Button)
+	{
+		RewardOption1Button->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption1Clicked);
+	}
+	if (RewardOption2Button)
+	{
+		RewardOption2Button->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleRewardOption2Clicked);
+	}
+	if (PreviousChoiceButton)
+	{
+		PreviousChoiceButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandlePreviousChoiceClicked);
+	}
+	if (NextChoiceButton)
+	{
+		NextChoiceButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleNextChoiceClicked);
+	}
+	if (PrimaryActionButton)
+	{
+		PrimaryActionButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandlePrimaryActionClicked);
+	}
+	if (SecondaryActionButton)
+	{
+		SecondaryActionButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleSecondaryActionClicked);
+	}
+	if (CloseButton)
+	{
+		CloseButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOverlayScreen::HandleCloseClicked);
 	}
 }
 
@@ -382,18 +479,16 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	if (SummaryText)
 	{
 		SummaryText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowOverlaySummary", "阶段: {0}\n金币: {1} | 牌库: {2} | 遗物: {3}\n待战斗: {4} | 可推进: {5}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowOverlaySummary", "阶段: {0}\n金币: {1} | 牌库: {2} | 遗物: {3}"),
 			FormatFlowStageText(Progression.FlowStage),
 			FText::AsNumber(Snapshot.Gold),
 			FText::AsNumber(Snapshot.DeckCount),
-			FText::AsNumber(Snapshot.RelicCount),
-			FormatBool(Snapshot.PendingBattle.bHasPendingBattleStart),
-			FormatBool(Progression.bCanAdvanceToNextNode)));
+			FText::AsNumber(Snapshot.RelicCount)));
 	}
 
 	if (CurrentNodeText)
 	{
-		CurrentNodeText->SetText(BuildCurrentNodeSummaryText(Progression));
+		CurrentNodeText->SetText(BuildCompactCurrentNodeText(Progression));
 	}
 
 	if (StageDetailText)
@@ -408,10 +503,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (GapText)
 	{
-		GapText->SetText(NSLOCTEXT(
-			"FinalFlowUI",
-			"RunFlowOverlayGap",
-			"统一流程页只转发 RunFlowSubsystem 命令；Battle / Run 规则仍由 FinalBattle / FinalRun 持有。"));
+		GapText->SetText(FText::GetEmpty());
 	}
 
 	if (FeedbackText)
@@ -488,6 +580,16 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	if (SecondaryActionButtonText)
 	{
 		SecondaryActionButtonText->SetText(BuildSecondaryActionText());
+	}
+
+	if (CloseButton)
+	{
+		CloseButton->SetVisibility(ESlateVisibility::Visible);
+		CloseButton->SetIsEnabled(true);
+	}
+	if (CloseButtonText)
+	{
+		CloseButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RunFlowCloseLabel", "关闭"));
 	}
 }
 
