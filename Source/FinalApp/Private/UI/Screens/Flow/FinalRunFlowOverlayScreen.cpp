@@ -95,6 +95,58 @@ FText BuildCompactCurrentNodeText(const FFinalRunProgressionViewData& Progressio
 }
 }
 
+void UFinalRunFlowOptionButton::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+	if (OptionButton)
+	{
+		OptionButton->OnClicked.AddUniqueDynamic(this, &UFinalRunFlowOptionButton::HandleClicked);
+	}
+}
+
+void UFinalRunFlowOptionButton::ConfigureOption(
+	const EFinalRunFlowOptionKind InKind,
+	const FName InPayloadId,
+	const int32 InPayloadIndex,
+	const FText& InLabel,
+	const bool bInEnabled)
+{
+	OptionKind = InKind;
+	PayloadId = InPayloadId;
+	PayloadIndex = InPayloadIndex;
+
+	EnsureWidgetTree();
+	if (OptionLabel)
+	{
+		OptionLabel->SetText(InLabel);
+	}
+	if (OptionButton)
+	{
+		OptionButton->SetIsEnabled(bInEnabled);
+	}
+}
+
+void UFinalRunFlowOptionButton::HandleClicked()
+{
+	OnOptionClicked.Broadcast(this);
+}
+
+void UFinalRunFlowOptionButton::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	OptionButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OptionButton"));
+	OptionLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("OptionLabel"));
+	OptionLabel->SetAutoWrapText(true);
+	OptionLabel->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 12));
+	OptionButton->AddChild(OptionLabel);
+	WidgetTree->RootWidget = OptionButton;
+}
+
 void UFinalRunFlowOverlayScreen::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -341,16 +393,25 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		SelectionText = CreateStageLabel(TEXT("RunFlowSelection"), 13);
 		ContentBox->AddChildToVerticalBox(SelectionText);
 
+		RewardOptionListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardOptionListBox"));
+		ContentBox->AddChildToVerticalBox(RewardOptionListBox);
+
+		NextNodeListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("NextNodeListBox"));
+		ContentBox->AddChildToVerticalBox(NextNodeListBox);
+
+		EventOptionListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EventOptionListBox"));
+		ContentBox->AddChildToVerticalBox(EventOptionListBox);
+
+		ShopOfferListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ShopOfferListBox"));
+		ContentBox->AddChildToVerticalBox(ShopOfferListBox);
+
 		FeedbackText = CreateStageLabel(TEXT("RunFlowOverlayFeedback"), 12);
 		ContentBox->AddChildToVerticalBox(FeedbackText);
 	}
 
-	if (ContentBox == nullptr)
-	{
-		return;
-	}
+	const bool bCanCreateFallbackChildren = ContentBox != nullptr;
 
-	if (RewardOption0Button == nullptr)
+	if (RewardOption0Button == nullptr && bCanCreateFallbackChildren)
 	{
 		RewardOption0Button = CreateStageButton(
 			TEXT("RunFlowRewardOption0Button"),
@@ -360,7 +421,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(RewardOption0Button);
 	}
 
-	if (RewardOption1Button == nullptr)
+	if (RewardOption1Button == nullptr && bCanCreateFallbackChildren)
 	{
 		RewardOption1Button = CreateStageButton(
 			TEXT("RunFlowRewardOption1Button"),
@@ -370,7 +431,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(RewardOption1Button);
 	}
 
-	if (RewardOption2Button == nullptr)
+	if (RewardOption2Button == nullptr && bCanCreateFallbackChildren)
 	{
 		RewardOption2Button = CreateStageButton(
 			TEXT("RunFlowRewardOption2Button"),
@@ -380,7 +441,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(RewardOption2Button);
 	}
 
-	if (PreviousChoiceButton == nullptr)
+	if (PreviousChoiceButton == nullptr && bCanCreateFallbackChildren)
 	{
 		PreviousChoiceButton = CreateStageButton(
 			TEXT("RunFlowPreviousChoiceButton"),
@@ -390,7 +451,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(PreviousChoiceButton);
 	}
 
-	if (NextChoiceButton == nullptr)
+	if (NextChoiceButton == nullptr && bCanCreateFallbackChildren)
 	{
 		NextChoiceButton = CreateStageButton(
 			TEXT("RunFlowNextChoiceButton"),
@@ -400,7 +461,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(NextChoiceButton);
 	}
 
-	if (PrimaryActionButton == nullptr)
+	if (PrimaryActionButton == nullptr && bCanCreateFallbackChildren)
 	{
 		PrimaryActionButton = CreateStageButton(
 			TEXT("RunFlowPrimaryActionButton"),
@@ -410,7 +471,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(PrimaryActionButton);
 	}
 
-	if (SecondaryActionButton == nullptr)
+	if (SecondaryActionButton == nullptr && bCanCreateFallbackChildren)
 	{
 		SecondaryActionButton = CreateStageButton(
 			TEXT("RunFlowSecondaryActionButton"),
@@ -420,7 +481,7 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		ContentBox->AddChildToVerticalBox(SecondaryActionButton);
 	}
 
-	if (CloseButton == nullptr)
+	if (CloseButton == nullptr && bCanCreateFallbackChildren)
 	{
 		CloseButton = CreateStageButton(
 			TEXT("RunFlowCloseButton"),
@@ -499,7 +560,10 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	if (SelectionText)
 	{
 		SelectionText->SetText(BuildSelectionText());
+		SelectionText->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	RebuildOptionLists();
 
 	if (GapText)
 	{
@@ -514,7 +578,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	const int32 RewardCount = Snapshot.PendingBattleReward.RewardEntries.Num();
 	if (RewardOption0Button)
 	{
-		RewardOption0Button->SetVisibility(bPendingBattleReward ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		RewardOption0Button->SetVisibility(ESlateVisibility::Collapsed);
 		RewardOption0Button->SetIsEnabled(bPendingBattleReward && Snapshot.PendingBattleReward.bCanClaim && RewardCount > 0);
 	}
 	if (RewardOption0ButtonText)
@@ -524,7 +588,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (RewardOption1Button)
 	{
-		RewardOption1Button->SetVisibility(bPendingBattleReward ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		RewardOption1Button->SetVisibility(ESlateVisibility::Collapsed);
 		RewardOption1Button->SetIsEnabled(bPendingBattleReward && Snapshot.PendingBattleReward.bCanClaim && RewardCount > 1);
 	}
 	if (RewardOption1ButtonText)
@@ -534,7 +598,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (RewardOption2Button)
 	{
-		RewardOption2Button->SetVisibility(bPendingBattleReward ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		RewardOption2Button->SetVisibility(ESlateVisibility::Collapsed);
 		RewardOption2Button->SetIsEnabled(bPendingBattleReward && Snapshot.PendingBattleReward.bCanClaim && RewardCount > 2);
 	}
 	if (RewardOption2ButtonText)
@@ -544,7 +608,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (PreviousChoiceButton)
 	{
-		PreviousChoiceButton->SetVisibility(CanUsePreviousNext() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		PreviousChoiceButton->SetVisibility(ESlateVisibility::Collapsed);
 		PreviousChoiceButton->SetIsEnabled(CanUsePreviousNext());
 	}
 	if (PreviousChoiceButtonText)
@@ -554,7 +618,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (NextChoiceButton)
 	{
-		NextChoiceButton->SetVisibility(CanUsePreviousNext() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		NextChoiceButton->SetVisibility(ESlateVisibility::Collapsed);
 		NextChoiceButton->SetIsEnabled(CanUsePreviousNext());
 	}
 	if (NextChoiceButtonText)
@@ -564,7 +628,8 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (PrimaryActionButton)
 	{
-		PrimaryActionButton->SetVisibility(CanUsePrimaryAction() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		const bool bUsePrimaryFallback = Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingRewardNode;
+		PrimaryActionButton->SetVisibility((bUsePrimaryFallback && CanUsePrimaryAction()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		PrimaryActionButton->SetIsEnabled(CanUsePrimaryAction());
 	}
 	if (PrimaryActionButtonText)
@@ -625,6 +690,136 @@ void UFinalRunFlowOverlayScreen::ClampSelectionIndices()
 	}
 }
 
+void UFinalRunFlowOverlayScreen::ClearOptionLists()
+{
+	if (RewardOptionListBox)
+	{
+		RewardOptionListBox->ClearChildren();
+		RewardOptionListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (NextNodeListBox)
+	{
+		NextNodeListBox->ClearChildren();
+		NextNodeListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (EventOptionListBox)
+	{
+		EventOptionListBox->ClearChildren();
+		EventOptionListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ShopOfferListBox)
+	{
+		ShopOfferListBox->ClearChildren();
+		ShopOfferListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UFinalRunFlowOverlayScreen::RebuildOptionLists()
+{
+	if (WidgetTree == nullptr)
+	{
+		return;
+	}
+
+	ClearOptionLists();
+
+	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
+	auto AddOption = [this](
+		UVerticalBox* ListBox,
+		const EFinalRunFlowOptionKind Kind,
+		const FName PayloadId,
+		const int32 PayloadIndex,
+		const FText& Label,
+		const bool bEnabled)
+	{
+		if (ListBox == nullptr)
+		{
+			return;
+		}
+
+		UFinalRunFlowOptionButton* OptionWidget = WidgetTree->ConstructWidget<UFinalRunFlowOptionButton>(
+			UFinalRunFlowOptionButton::StaticClass(),
+			*FString::Printf(TEXT("RunFlowOption_%d_%s"), static_cast<int32>(Kind), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
+		if (OptionWidget == nullptr)
+		{
+			return;
+		}
+
+		OptionWidget->ConfigureOption(Kind, PayloadId, PayloadIndex, Label, bEnabled);
+		OptionWidget->OnOptionClicked.AddUObject(this, &UFinalRunFlowOverlayScreen::HandleListOptionClicked);
+		if (UVerticalBoxSlot* OptionSlot = ListBox->AddChildToVerticalBox(OptionWidget))
+		{
+			OptionSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		}
+		ListBox->SetVisibility(ESlateVisibility::Visible);
+	};
+
+	const bool bPendingBattleReward = Snapshot.PendingBattleReward.bHasPendingReward
+		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward;
+	if (bPendingBattleReward)
+	{
+		for (int32 RewardIndex = 0; RewardIndex < Snapshot.PendingBattleReward.RewardEntries.Num(); ++RewardIndex)
+		{
+			AddOption(
+				RewardOptionListBox,
+				EFinalRunFlowOptionKind::Reward,
+				Snapshot.PendingBattleReward.RewardEntries[RewardIndex].RewardId,
+				RewardIndex,
+				FormatRewardOptionText(Snapshot.PendingBattleReward, RewardIndex),
+				Snapshot.PendingBattleReward.bCanClaim);
+		}
+		return;
+	}
+
+	switch (Snapshot.Progression.FlowStage)
+	{
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		for (int32 NodeIndex = 0; NodeIndex < Snapshot.Progression.AvailableNextNodes.Num(); ++NodeIndex)
+		{
+			const FFinalRunNodeOptionViewData& Node = Snapshot.Progression.AvailableNextNodes[NodeIndex];
+			AddOption(
+				NextNodeListBox,
+				EFinalRunFlowOptionKind::NextNode,
+				Node.NodeId,
+				NodeIndex,
+				BuildNextNodeSelectionText(Node),
+				Snapshot.Progression.bCanAdvanceToNextNode && !Node.bLocked);
+		}
+		break;
+
+	case EFinalRunFlowStage::PendingEventNode:
+		for (int32 OptionIndex = 0; OptionIndex < Snapshot.PendingEventNode.Options.Num(); ++OptionIndex)
+		{
+			const FFinalRunEventOptionViewData& Option = Snapshot.PendingEventNode.Options[OptionIndex];
+			AddOption(
+				EventOptionListBox,
+				EFinalRunFlowOptionKind::EventOption,
+				Option.OptionId,
+				OptionIndex,
+				BuildEventOptionSelectionText(Option),
+				Snapshot.PendingEventNode.bCanResolve && !Snapshot.PendingEventNode.bResolved && Option.bSelectable);
+		}
+		break;
+
+	case EFinalRunFlowStage::PendingShopNode:
+		for (int32 OfferIndex = 0; OfferIndex < Snapshot.PendingShopNode.Offers.Num(); ++OfferIndex)
+		{
+			const FFinalRunShopOfferViewData& Offer = Snapshot.PendingShopNode.Offers[OfferIndex];
+			AddOption(
+				ShopOfferListBox,
+				EFinalRunFlowOptionKind::ShopOffer,
+				Offer.OfferId,
+				OfferIndex,
+				BuildShopOfferSelectionText(Offer),
+				Snapshot.PendingShopNode.bCanResolve && !Snapshot.PendingShopNode.bResolved && Offer.bPurchasable && !Offer.bPurchased);
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
 void UFinalRunFlowOverlayScreen::HandleRewardOptionClicked(const int32 RewardIndex)
 {
 	const FFinalRunPendingBattleRewardViewData& PendingReward = GetCachedSnapshot().PendingBattleReward;
@@ -648,6 +843,55 @@ void UFinalRunFlowOverlayScreen::HandleRewardOptionClicked(const int32 RewardInd
 		bAccepted,
 		NSLOCTEXT("FinalFlowUI", "RunFlowClaimRewardSucceeded", "已领取战后卡牌奖励。"),
 		NSLOCTEXT("FinalFlowUI", "RunFlowClaimRewardFailed", "领取战后卡牌奖励失败。"));
+}
+
+void UFinalRunFlowOverlayScreen::HandleListOptionClicked(UFinalRunFlowOptionButton* OptionButton)
+{
+	if (OptionButton == nullptr)
+	{
+		return;
+	}
+
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RunFlowListOptionMissingSubsystem", "当前无法访问 RunFlowSubsystem。"));
+		RebuildVisual();
+		return;
+	}
+
+	bool bAccepted = false;
+	FText SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListActionSucceeded", "操作已提交。");
+	FText FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListActionFailed", "操作提交失败。");
+
+	switch (OptionButton->GetOptionKind())
+	{
+	case EFinalRunFlowOptionKind::Reward:
+		bAccepted = RunFlowSubsystem->ClaimPendingBattleRewardById(OptionButton->GetPayloadId());
+		SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListClaimRewardSucceeded", "已领取战后卡牌奖励。");
+		FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListClaimRewardFailed", "领取战后卡牌奖励失败。");
+		break;
+
+	case EFinalRunFlowOptionKind::NextNode:
+		bAccepted = RunFlowSubsystem->AdvanceToNode(OptionButton->GetPayloadId());
+		SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListAdvanceSucceeded", "已推进到选中节点。");
+		FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListAdvanceFailed", "推进节点失败。");
+		break;
+
+	case EFinalRunFlowOptionKind::EventOption:
+		bAccepted = RunFlowSubsystem->ResolveEventOption(OptionButton->GetPayloadId());
+		SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListEventSucceeded", "已提交事件选项。");
+		FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListEventFailed", "提交事件选项失败。");
+		break;
+
+	case EFinalRunFlowOptionKind::ShopOffer:
+		bAccepted = RunFlowSubsystem->ResolveShopOffer(OptionButton->GetPayloadId());
+		SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListShopSucceeded", "已提交商店商品。");
+		FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListShopFailed", "提交商店商品失败。");
+		break;
+	}
+
+	RefreshAfterFlowAction(bAccepted, SuccessText, FailureText);
 }
 
 bool UFinalRunFlowOverlayScreen::RefreshAfterFlowAction(const bool bAccepted, const FText& SuccessText, const FText& FailureText)

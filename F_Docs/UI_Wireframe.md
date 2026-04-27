@@ -155,6 +155,8 @@
 * `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
 * `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只调用 `UISubsystem.ShowRunFlowOverlay()`，不直接执行任何 RunCommand
+* `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`
+* 旧的上一个 / 下一个 / 执行当前操作按钮保留为字段与奖励节点 fallback，但不再是战后奖励、节点推进、事件、商店的主流程交互路径
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
 
@@ -316,7 +318,7 @@
 
 统一 RunFlow 页当前第一版已落地：
 * 同一页面根据 `FlowStage` 切换当前可执行操作，不再自动跳转到多个专用页
-* 战后卡牌候选、下一节点选择、事件选项、商店商品都在同一页内用按钮轮选 / 提交
+* 战后卡牌候选、下一节点选择、事件选项、商店商品都在同一页内用列表按钮直接提交
 * `RunEnded` 会保留在统一页内显示结束摘要，而不是关闭外层页
 
 战后奖励页仍缺：

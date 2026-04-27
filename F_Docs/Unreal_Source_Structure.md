@@ -236,6 +236,7 @@ FinalBattle      FinalRun
 * `UISubsystem` 当前负责根布局、Battle HUD 创建、页面栈、输入模式与焦点切换
 * `RunFlowSubsystem` 负责读取 `RunSession`，并根据 `RunSnapshot / RunEvent` 决定当前应显示统一 `RunFlowOverlay` 还是关闭外层页；旧的战后奖励页、节点选择页、奖励节点页、事件节点页、商店节点页保留为显式调试 / 后续详情页入口
 * `FinalRunFlowOverlayScreen` 只消费 `RunSnapshot` 并转发 `RunFlowSubsystem` 操作；右侧面板外的 overlay 根层不应作为规则阻断或全屏遮罩使用，避免影响战斗 HUD 的常驻测试
+* `FinalRunFlowOverlayScreen` 的战后奖励、节点推进、事件、商店主操作使用列表按钮直接提交现有 `RunFlowSubsystem` 方法；旧轮选按钮只保留为 fallback / 调试兼容，不作为主交互路径
 * `RunFlowPromptPanel` 属于 Battle HUD 的轻量提示入口，不处理奖励、节点、事件、商店结算；所有流程操作仍必须回到 `RunFlowOverlayScreen -> RunFlowSubsystem -> RunSession`
 * 战后奖励第一版由 `FinalRunSession` 生成卡牌候选并应用选择结果：胜利金币自动写入 `RunState.Gold`，`PendingBattleReward` 只承载最多 3 个 `CardGrant` 候选；`FinalApp` 只转发 `RewardId` 或跳过命令
 * `RunFlowSubsystem` 当前还负责把奖励结果类 `RunEvent` 的最近反馈收口成 UI 可读文本，并优先直接消费 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`；raw `RewardEntries` 只保留为回退
@@ -637,7 +638,7 @@ Save / Load 当前边界：
 * `Panel` 不直接控制输入模式和页面栈
 * `Widget` 只做展示与轻交互，不直接接触权威状态
 * `WidgetController` 负责把 `Snapshot / Event` 变成 `ViewModel`，并把 UI Intent 变成 `BattleCommand / RunCommand`
-* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；当前自动流程主入口为 `FinalRunFlowOverlayScreen`，它按 `FlowStage` 统一消费 `PendingBattleReward / Progression.AvailableNextNodes / PendingRewardNode / PendingEventNode / PendingShopNode`，并只转发 `ClaimPendingBattleRewardById / SkipPendingBattleReward / AdvanceToNode / ResolveReward / ResolveEvent / ResolveShop` 命令
+* `RunFlowSubsystem` 负责 Run 外层页面的自动切换，不把全局流程判断散在单个 Widget 中；当前自动流程主入口为 `FinalRunFlowOverlayScreen`，它按 `FlowStage` 统一消费 `PendingBattleReward / Progression.AvailableNextNodes / PendingRewardNode / PendingEventNode / PendingShopNode`，并通过列表按钮或 fallback 按钮只转发 `ClaimPendingBattleRewardById / SkipPendingBattleReward / AdvanceToNode / ResolveReward / ResolveEvent / ResolveShop` 命令
 * `FinalGameFlowSubsystem` 负责 Run/Battle 的实际桥接收口：创建 `RunSession`、启动/完成战斗，并提供 `PreparingBattle -> StartBattleFromRunSession()` 的自动开战入口
 * `ViewModel` 不保存权威运行时结构副本
 * `BattleHUDScreen` 当前已经退化成 HUD shell：只负责组 layout 和装配 panels，不再直接渲染角色/敌人/手牌/奥义/日志条目

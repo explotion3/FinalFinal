@@ -2,10 +2,60 @@
 
 #include "CoreMinimal.h"
 #include "UI/Screens/Flow/FinalRunStageOverlayScreenBase.h"
+#include "UI/Widgets/FinalWidgetBase.h"
 #include "FinalRunFlowOverlayScreen.generated.h"
 
 class UButton;
 class UTextBlock;
+class UVerticalBox;
+
+enum class EFinalRunFlowOptionKind : uint8
+{
+	Reward,
+	NextNode,
+	EventOption,
+	ShopOffer
+};
+
+class UFinalRunFlowOptionButton;
+DECLARE_MULTICAST_DELEGATE_OneParam(FFinalRunFlowOptionClickedNative, UFinalRunFlowOptionButton*);
+
+UCLASS()
+class FINALAPP_API UFinalRunFlowOptionButton : public UFinalWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+
+	void ConfigureOption(EFinalRunFlowOptionKind InKind, FName InPayloadId, int32 InPayloadIndex, const FText& InLabel, bool bInEnabled);
+
+	EFinalRunFlowOptionKind GetOptionKind() const { return OptionKind; }
+	FName GetPayloadId() const { return PayloadId; }
+	int32 GetPayloadIndex() const { return PayloadIndex; }
+
+	FFinalRunFlowOptionClickedNative OnOptionClicked;
+
+private:
+	UFUNCTION()
+	void HandleClicked();
+
+	void EnsureWidgetTree();
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> OptionButton;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> OptionLabel;
+
+	EFinalRunFlowOptionKind OptionKind = EFinalRunFlowOptionKind::Reward;
+
+	UPROPERTY(Transient)
+	FName PayloadId = NAME_None;
+
+	UPROPERTY(Transient)
+	int32 PayloadIndex = INDEX_NONE;
+};
 
 UCLASS()
 class FINALAPP_API UFinalRunFlowOverlayScreen : public UFinalRunStageOverlayScreenBase
@@ -44,8 +94,11 @@ private:
 
 	void EnsureWidgetTree();
 	void RebuildVisual();
+	void RebuildOptionLists();
+	void ClearOptionLists();
 	void ClampSelectionIndices();
 	void HandleRewardOptionClicked(int32 RewardIndex);
+	void HandleListOptionClicked(UFinalRunFlowOptionButton* OptionButton);
 	bool RefreshAfterFlowAction(bool bAccepted, const FText& SuccessText, const FText& FailureText);
 
 	FText BuildStageDetailText() const;
@@ -68,6 +121,18 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SelectionText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> RewardOptionListBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> NextNodeListBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> EventOptionListBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> ShopOfferListBox;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RewardOption0Button;
