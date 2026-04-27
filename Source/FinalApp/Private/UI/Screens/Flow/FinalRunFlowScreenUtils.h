@@ -46,29 +46,29 @@ inline FText FormatFlowStageText(const EFinalRunFlowStage FlowStage)
 	switch (FlowStage)
 	{
 	case EFinalRunFlowStage::PreparingBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePreparingBattleShared", "战前准备");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePreparingBattleShared", "准备战斗");
 
 	case EFinalRunFlowStage::PendingBattleReward:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingBattleRewardShared", "待领奖励");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingBattleRewardShared", "选择战利品");
 
 	case EFinalRunFlowStage::AwaitingNodeAdvance:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStageAwaitingNodeAdvanceShared", "等待推进节点");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageAwaitingNodeAdvanceShared", "继续旅程");
 
 	case EFinalRunFlowStage::PendingRewardNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingRewardNodeShared", "待处理奖励节点");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingRewardNodeShared", "领取节点奖励");
 
 	case EFinalRunFlowStage::PendingEventNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingEventNodeShared", "待处理事件节点");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingEventNodeShared", "处理事件");
 
 	case EFinalRunFlowStage::PendingShopNode:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingShopNodeShared", "待处理商店节点");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePendingShopNodeShared", "进入商店");
 
 	case EFinalRunFlowStage::RunEnded:
 		return NSLOCTEXT("FinalFlowUI", "RunFlowStageRunEndedShared", "本局结束");
 
 	case EFinalRunFlowStage::None:
 	default:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowStageNoneShared", "未初始化");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageNoneShared", "暂无流程");
 	}
 }
 
@@ -77,27 +77,42 @@ inline FText FormatNodeTypeText(const EFinalRunNodeType NodeType)
 	switch (NodeType)
 	{
 	case EFinalRunNodeType::Battle:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeBattle", "Battle");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeBattle", "普通战");
 
 	case EFinalRunNodeType::Event:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeEvent", "Event");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeEvent", "事件");
 
 	case EFinalRunNodeType::Shop:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeShop", "Shop");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeShop", "商店");
 
 	case EFinalRunNodeType::Reward:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeReward", "Reward");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeReward", "战后奖励");
 
 	case EFinalRunNodeType::EliteBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeEliteBattle", "Elite Battle");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeEliteBattle", "精英战");
 
 	case EFinalRunNodeType::BossBattle:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeBossBattle", "Boss Battle");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeBossBattle", "首领战");
 
 	case EFinalRunNodeType::None:
 	default:
-		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeNone", "None");
+		return NSLOCTEXT("FinalFlowUI", "RunFlowNodeTypeNone", "未知节点");
 	}
+}
+
+inline FText FormatRunNodeDisplayName(const FText& DisplayName, const FName NodeId, const EFinalRunNodeType NodeType)
+{
+	if (!DisplayName.IsEmpty())
+	{
+		return DisplayName;
+	}
+
+	if (NodeType != EFinalRunNodeType::None)
+	{
+		return FormatNodeTypeText(NodeType);
+	}
+
+	return FormatOptionalName(NodeId, NSLOCTEXT("FinalFlowUI", "RunFlowNodeUnnamedShared", "未命名节点"));
 }
 
 inline FText FormatRewardTypeText(const EFinalRunRewardType RewardType)

@@ -436,25 +436,25 @@ FText UFinalRunFlowPromptPanel::BuildPromptText() const
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptBattleReward", "选择战后卡牌");
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptBattleReward", "选择战利品");
 	}
 
 	switch (Snapshot.Progression.FlowStage)
 	{
 	case EFinalRunFlowStage::AwaitingNodeAdvance:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptAdvanceNode", "继续前往下一节点");
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptAdvanceNode", "继续旅程");
 
 	case EFinalRunFlowStage::PendingRewardNode:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRewardNode", "确认奖励节点");
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRewardNode", "领取节点奖励");
 
 	case EFinalRunFlowStage::PendingEventNode:
 		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptEventNode", "处理事件");
 
 	case EFinalRunFlowStage::PendingShopNode:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptShopNode", "进入商店选择");
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptShopNode", "进入商店");
 
 	case EFinalRunFlowStage::RunEnded:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRunEnded", "查看本局结束");
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRunEnded", "查看结算");
 
 	case EFinalRunFlowStage::PreparingBattle:
 	case EFinalRunFlowStage::None:

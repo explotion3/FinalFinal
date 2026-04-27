@@ -155,10 +155,39 @@
 * `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
 * `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只调用 `UISubsystem.ShowRunFlowOverlay()`，不直接执行任何 RunCommand
-* `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`
+* `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`；节点显示优先使用 `DisplayName`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback
+* `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass` 与 `RunFlowOptionButtonClass`；未配置时继续使用 C++ fallback
 * 旧的上一个 / 下一个 / 执行当前操作按钮保留为字段与奖励节点 fallback，但不再是战后奖励、节点推进、事件、商店的主流程交互路径
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
+
+### 2.2.1 RunFlowOverlay WBP 绑定建议
+推荐 `WBP_RunFlowOverlay` 父类使用 `FinalRunFlowOverlayScreen`。根节点保持全屏 `Overlay` 或 `CanvasPanel`，空白区域设为 `Self Hit Test Invisible`，右侧内容面板承载可交互控件。
+
+可绑定控件名：
+* `TitleText`
+* `SummaryText`
+* `CurrentNodeText`
+* `StageDetailText`
+* `FeedbackText`
+* `RewardOptionListBox`
+* `NextNodeListBox`
+* `EventOptionListBox`
+* `ShopOfferListBox`
+* `SecondaryActionButton / SecondaryActionButtonText`
+* `CloseButton / CloseButtonText`
+
+推荐 `WBP_RunFlowOptionButton` 父类使用 `FinalRunFlowOptionButton`。条目只负责展示与点击，不保存 Run 状态，不直接提交 `RunCommand`。
+
+可绑定控件名：
+* `OptionButton`：实际点击区域
+* `TitleText`：主标题，例如卡牌名、`前往：节点名`、事件选项、商品名
+* `SubtitleText`：类型说明，例如奖励类型、节点类型、结果摘要、价格
+* `MetaText`：详情、章节楼层、奖励摘要或商品说明
+* `StateText`：可领取 / 可前往 / 可选择 / 可购买，或不可用原因
+* `OptionLabel`：旧版兼容字段；如果 WBP 只绑定这个控件，C++ 会写入合并后的多行文本
+
+条目数据来源仍是 `RunSnapshot` 展示数据，点击后由 `FinalRunFlowOverlayScreen` 统一转发到 `RunFlowSubsystem`。
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动

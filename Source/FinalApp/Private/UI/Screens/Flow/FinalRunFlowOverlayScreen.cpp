@@ -14,6 +14,7 @@
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
 
 using namespace FinalRunFlowScreenUtils;
 
@@ -25,7 +26,7 @@ FText FormatRewardOptionText(const FFinalRunPendingBattleRewardViewData& Pending
 	{
 		const FFinalRunRewardEntryViewData& RewardView = PendingReward.RewardEntryViews[RewardIndex];
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionView", "选择卡牌 {0}: {1}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionView", "选择卡牌 {0}：{1}"),
 			FText::AsNumber(RewardIndex + 1),
 			FormatRewardEntryViewPrimaryText(RewardView));
 	}
@@ -34,7 +35,7 @@ FText FormatRewardOptionText(const FFinalRunPendingBattleRewardViewData& Pending
 	{
 		const FFinalRunRewardEntry& RewardEntry = PendingReward.RewardEntries[RewardIndex];
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionRaw", "选择卡牌 {0}: {1}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionRaw", "选择卡牌 {0}：{1}"),
 			FText::AsNumber(RewardIndex + 1),
 			FormatRewardEntryName(RewardEntry));
 	}
@@ -46,9 +47,10 @@ FText FormatRewardOptionText(const FFinalRunPendingBattleRewardViewData& Pending
 
 FText BuildNextNodeSelectionText(const FFinalRunNodeOptionViewData& Node)
 {
+	const FText NodeName = FormatRunNodeDisplayName(Node.DisplayName, Node.NodeId, Node.NodeType);
 	return FText::Format(
-		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeSelection", "{0} [{1}]\n章节/楼层: {2}/{3}\n状态: {4}"),
-		FormatOptionalText(Node.DisplayName, FormatOptionalName(Node.NodeId, NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeUnnamed", "未命名节点"))),
+		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeSelection", "{0} · {1}\n第 {2} 章 / 第 {3} 层\n{4}"),
+		NodeName,
 		FormatNodeTypeText(Node.NodeType),
 		FText::AsNumber(Node.ChapterIndex),
 		FText::AsNumber(Node.FloorIndex),
@@ -57,10 +59,139 @@ FText BuildNextNodeSelectionText(const FFinalRunNodeOptionViewData& Node)
 			: NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeAvailable", "可前往")));
 }
 
+FText BuildRewardOptionMetaText(const FFinalRunPendingBattleRewardViewData& PendingReward, const int32 RewardIndex)
+{
+	if (PendingReward.RewardEntryViews.IsValidIndex(RewardIndex))
+	{
+		const FFinalRunRewardEntryViewData& RewardView = PendingReward.RewardEntryViews[RewardIndex];
+		if (!RewardView.DetailText.IsEmpty())
+		{
+			return RewardView.DetailText;
+		}
+		if (!RewardView.SecondaryText.IsEmpty())
+		{
+			return RewardView.SecondaryText;
+		}
+		if (RewardView.Value != 0)
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionValueMeta", "数值：{0}"),
+				FText::AsNumber(RewardView.Value));
+		}
+	}
+
+	if (PendingReward.RewardEntries.IsValidIndex(RewardIndex) && PendingReward.RewardEntries[RewardIndex].Value != 0)
+	{
+		return FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionRawValueMeta", "数值：{0}"),
+			FText::AsNumber(PendingReward.RewardEntries[RewardIndex].Value));
+	}
+
+	return FText::GetEmpty();
+}
+
+FFinalRunFlowOptionButtonData BuildRewardOptionData(const FFinalRunPendingBattleRewardViewData& PendingReward, const int32 RewardIndex)
+{
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = EFinalRunFlowOptionKind::Reward;
+	Data.PayloadIndex = RewardIndex;
+	Data.bEnabled = PendingReward.bCanClaim;
+
+	if (PendingReward.RewardEntries.IsValidIndex(RewardIndex))
+	{
+		Data.PayloadId = PendingReward.RewardEntries[RewardIndex].RewardId;
+	}
+
+	if (PendingReward.RewardEntryViews.IsValidIndex(RewardIndex))
+	{
+		const FFinalRunRewardEntryViewData& RewardView = PendingReward.RewardEntryViews[RewardIndex];
+		Data.Title = FormatRewardEntryViewPrimaryText(RewardView);
+		Data.Subtitle = FormatRewardTypeText(RewardView.RewardType);
+	}
+	else if (PendingReward.RewardEntries.IsValidIndex(RewardIndex))
+	{
+		const FFinalRunRewardEntry& RewardEntry = PendingReward.RewardEntries[RewardIndex];
+		Data.Title = FormatRewardEntryName(RewardEntry);
+		Data.Subtitle = FormatRewardTypeText(RewardEntry.RewardType);
+	}
+	else
+	{
+		Data.Title = FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionTitleMissing", "卡牌候选 {0}"),
+			FText::AsNumber(RewardIndex + 1));
+		Data.Subtitle = NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionSubtitleMissing", "战后卡牌候选");
+	}
+
+	Data.Meta = BuildRewardOptionMetaText(PendingReward, RewardIndex);
+	Data.State = Data.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionStateClaimable", "可领取")
+		: NSLOCTEXT("FinalFlowUI", "RunFlowRewardOptionStateBlocked", "暂不可领取");
+	return Data;
+}
+
+FFinalRunFlowOptionButtonData BuildNextNodeOptionData(const FFinalRunNodeOptionViewData& Node, const int32 NodeIndex, const bool bCanAdvance)
+{
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = EFinalRunFlowOptionKind::NextNode;
+	Data.PayloadId = Node.NodeId;
+	Data.PayloadIndex = NodeIndex;
+	Data.Title = FText::Format(
+		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeOptionTitle", "前往：{0}"),
+		FormatRunNodeDisplayName(Node.DisplayName, Node.NodeId, Node.NodeType));
+	Data.Subtitle = FormatNodeTypeText(Node.NodeType);
+	Data.Meta = FText::Format(
+		NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeOptionMeta", "第 {0} 章 / 第 {1} 层"),
+		FText::AsNumber(Node.ChapterIndex),
+		FText::AsNumber(Node.FloorIndex));
+	Data.bEnabled = bCanAdvance && !Node.bLocked;
+	Data.State = Data.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeOptionStateAvailable", "可前往")
+		: FormatOptionalText(Node.AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "RunFlowNextNodeOptionStateBlocked", "暂不可前往"));
+	return Data;
+}
+
+FFinalRunFlowOptionButtonData BuildEventOptionData(const FFinalRunEventOptionViewData& Option, const int32 OptionIndex, const bool bCanResolve)
+{
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = EFinalRunFlowOptionKind::EventOption;
+	Data.PayloadId = Option.OptionId;
+	Data.PayloadIndex = OptionIndex;
+	Data.Title = FormatOptionalText(Option.DisplayText, FormatOptionalName(Option.OptionId, NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionTitleFallback", "未命名选项")));
+	Data.Subtitle = FormatOptionalText(Option.OutcomeSummary, NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionSubtitleFallback", "无额外结果说明。"));
+	Data.Meta = FText::FromString(BuildRewardPresentationSummaryString(Option.RewardEntryViews, Option.RewardEntries));
+	Data.bEnabled = bCanResolve && Option.bSelectable;
+	Data.State = Data.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionStateSelectable", "可选择")
+		: FormatOptionalText(Option.AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionStateBlocked", "暂不可选择"));
+	return Data;
+}
+
+FFinalRunFlowOptionButtonData BuildShopOfferOptionData(const FFinalRunShopOfferViewData& Offer, const int32 OfferIndex, const bool bCanResolve)
+{
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = EFinalRunFlowOptionKind::ShopOffer;
+	Data.PayloadId = Offer.OfferId;
+	Data.PayloadIndex = OfferIndex;
+	Data.Title = FormatOptionalText(Offer.DisplayName, FormatOptionalName(Offer.OfferId, NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferTitleFallback", "未命名商品")));
+	Data.Subtitle = FText::Format(
+		NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferSubtitle", "价格：{0}"),
+		FText::AsNumber(Offer.Price));
+	Data.Meta = !Offer.Description.IsEmpty()
+		? Offer.Description
+		: FText::FromString(BuildRewardPresentationSummaryString(Offer.RewardEntryViews, Offer.RewardEntries));
+	Data.bEnabled = bCanResolve && Offer.bPurchasable && !Offer.bPurchased;
+	Data.State = Offer.bPurchased
+		? NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferStatePurchased", "已购买")
+		: (Data.bEnabled
+			? NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferStatePurchasable", "可购买")
+			: FormatOptionalText(Offer.AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferStateBlocked", "暂不可购买")));
+	return Data;
+}
+
 FText BuildEventOptionSelectionText(const FFinalRunEventOptionViewData& Option)
 {
 	return FText::Format(
-		NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionSelection", "{0}\n结果: {1}\n状态: {2}\n奖励:\n{3}"),
+		NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionSelection", "{0}\n结果：{1}\n状态：{2}\n奖励：\n{3}"),
 		FormatOptionalText(Option.DisplayText, FormatOptionalName(Option.OptionId, NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionUnnamed", "未命名选项"))),
 		FormatOptionalText(Option.OutcomeSummary, NSLOCTEXT("FinalFlowUI", "RunFlowEventOptionNoOutcome", "无额外结果说明。")),
 		FormatOptionalText(Option.AvailabilityMessage, Option.bSelectable
@@ -72,7 +203,7 @@ FText BuildEventOptionSelectionText(const FFinalRunEventOptionViewData& Option)
 FText BuildShopOfferSelectionText(const FFinalRunShopOfferViewData& Offer)
 {
 	return FText::Format(
-		NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferSelection", "{0}\n价格: {1}\n说明: {2}\n状态: {3}\n奖励:\n{4}"),
+		NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferSelection", "{0}\n价格：{1}\n说明：{2}\n状态：{3}\n奖励：\n{4}"),
 		FormatOptionalText(Offer.DisplayName, FormatOptionalName(Offer.OfferId, NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferUnnamed", "未命名商品"))),
 		FText::AsNumber(Offer.Price),
 		FormatOptionalText(Offer.Description, NSLOCTEXT("FinalFlowUI", "RunFlowShopOfferNoDescription", "无额外说明。")),
@@ -85,10 +216,8 @@ FText BuildShopOfferSelectionText(const FFinalRunShopOfferViewData& Offer)
 FText BuildCompactCurrentNodeText(const FFinalRunProgressionViewData& Progression)
 {
 	return FText::Format(
-		NSLOCTEXT("FinalFlowUI", "RunFlowCompactCurrentNode", "当前节点: {0} [{1}]\n章节/楼层: {2}/{3}"),
-		FormatOptionalText(
-			Progression.CurrentNodeDisplayName,
-			FormatOptionalName(Progression.CurrentNodeId, NSLOCTEXT("FinalFlowUI", "RunFlowCurrentNodeUnnamed", "未命名节点"))),
+		NSLOCTEXT("FinalFlowUI", "RunFlowCompactCurrentNode", "当前节点：{0} · {1}\n第 {2} 章 / 第 {3} 层"),
+		FormatRunNodeDisplayName(Progression.CurrentNodeDisplayName, Progression.CurrentNodeId, Progression.CurrentNodeType),
 		FormatNodeTypeText(Progression.CurrentNodeType),
 		FText::AsNumber(Progression.CurrentChapter),
 		FText::AsNumber(Progression.CurrentFloor));
@@ -112,18 +241,60 @@ void UFinalRunFlowOptionButton::ConfigureOption(
 	const FText& InLabel,
 	const bool bInEnabled)
 {
-	OptionKind = InKind;
-	PayloadId = InPayloadId;
-	PayloadIndex = InPayloadIndex;
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = InKind;
+	Data.PayloadId = InPayloadId;
+	Data.PayloadIndex = InPayloadIndex;
+	Data.Title = InLabel;
+	Data.bEnabled = bInEnabled;
+	Data.State = bInEnabled
+		? NSLOCTEXT("FinalFlowUI", "RunFlowOptionCompatStateEnabled", "可选择")
+		: NSLOCTEXT("FinalFlowUI", "RunFlowOptionCompatStateDisabled", "不可选择");
+	ConfigureOption(Data);
+}
+
+void UFinalRunFlowOptionButton::ConfigureOption(const FFinalRunFlowOptionButtonData& InData)
+{
+	CachedData = InData;
+	OptionKind = InData.Kind;
+	PayloadId = InData.PayloadId;
+	PayloadIndex = InData.PayloadIndex;
 
 	EnsureWidgetTree();
+	const FText CombinedFallbackText = !InData.Subtitle.IsEmpty() || !InData.Meta.IsEmpty() || !InData.State.IsEmpty()
+		? FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RunFlowOptionCombinedFallback", "{0}\n{1}\n{2}\n{3}"),
+			InData.Title,
+			InData.Subtitle,
+			InData.Meta,
+			InData.State)
+		: InData.Title;
 	if (OptionLabel)
 	{
-		OptionLabel->SetText(InLabel);
+		OptionLabel->SetText(CombinedFallbackText);
+	}
+	if (TitleText)
+	{
+		TitleText->SetText(InData.Title);
+	}
+	if (SubtitleText)
+	{
+		SubtitleText->SetText(InData.Subtitle);
+		SubtitleText->SetVisibility(InData.Subtitle.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (MetaText)
+	{
+		MetaText->SetText(InData.Meta);
+		MetaText->SetVisibility(InData.Meta.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (StateText)
+	{
+		StateText->SetText(InData.State);
+		StateText->SetVisibility(InData.State.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 	if (OptionButton)
 	{
-		OptionButton->SetIsEnabled(bInEnabled);
+		OptionButton->SetIsEnabled(InData.bEnabled);
 	}
 }
 
@@ -134,16 +305,49 @@ void UFinalRunFlowOptionButton::HandleClicked()
 
 void UFinalRunFlowOptionButton::EnsureWidgetTree()
 {
-	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	if (WidgetTree == nullptr)
 	{
+		return;
+	}
+	if (WidgetTree->RootWidget != nullptr)
+	{
+		if (OptionButton == nullptr)
+		{
+			OptionButton = Cast<UButton>(WidgetTree->RootWidget);
+		}
 		return;
 	}
 
 	OptionButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OptionButton"));
+	UVerticalBox* TextBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("OptionTextBox"));
+
+	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+	TitleText->SetAutoWrapText(true);
+	TitleText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 13));
+	TextBox->AddChildToVerticalBox(TitleText);
+
+	SubtitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubtitleText"));
+	SubtitleText->SetAutoWrapText(true);
+	SubtitleText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(SubtitleText);
+
+	MetaText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MetaText"));
+	MetaText->SetAutoWrapText(true);
+	MetaText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(MetaText);
+
+	StateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StateText"));
+	StateText->SetAutoWrapText(true);
+	StateText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(StateText);
+
 	OptionLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("OptionLabel"));
+	OptionLabel->SetVisibility(ESlateVisibility::Collapsed);
 	OptionLabel->SetAutoWrapText(true);
 	OptionLabel->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 12));
-	OptionButton->AddChild(OptionLabel);
+	TextBox->AddChildToVerticalBox(OptionLabel);
+
+	OptionButton->AddChild(TextBox);
 	WidgetTree->RootWidget = OptionButton;
 }
 
@@ -540,7 +744,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	if (SummaryText)
 	{
 		SummaryText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowOverlaySummary", "阶段: {0}\n金币: {1} | 牌库: {2} | 遗物: {3}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowOverlaySummary", "阶段：{0}\n金币 {1}  ·  牌库 {2}  ·  遗物 {3}"),
 			FormatFlowStageText(Progression.FlowStage),
 			FText::AsNumber(Snapshot.Gold),
 			FText::AsNumber(Snapshot.DeckCount),
@@ -724,13 +928,10 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 	ClearOptionLists();
 
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
-	auto AddOption = [this](
+	const TSubclassOf<UFinalRunFlowOptionButton> OptionButtonClass = UFinalUIWidgetClassSettings::GetRunFlowOptionButtonClass();
+	auto AddOption = [this, OptionButtonClass](
 		UVerticalBox* ListBox,
-		const EFinalRunFlowOptionKind Kind,
-		const FName PayloadId,
-		const int32 PayloadIndex,
-		const FText& Label,
-		const bool bEnabled)
+		const FFinalRunFlowOptionButtonData& OptionData)
 	{
 		if (ListBox == nullptr)
 		{
@@ -738,14 +939,14 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 		}
 
 		UFinalRunFlowOptionButton* OptionWidget = WidgetTree->ConstructWidget<UFinalRunFlowOptionButton>(
-			UFinalRunFlowOptionButton::StaticClass(),
-			*FString::Printf(TEXT("RunFlowOption_%d_%s"), static_cast<int32>(Kind), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
+			OptionButtonClass ? OptionButtonClass : UFinalRunFlowOptionButton::StaticClass(),
+			*FString::Printf(TEXT("RunFlowOption_%d_%s"), static_cast<int32>(OptionData.Kind), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
 		if (OptionWidget == nullptr)
 		{
 			return;
 		}
 
-		OptionWidget->ConfigureOption(Kind, PayloadId, PayloadIndex, Label, bEnabled);
+		OptionWidget->ConfigureOption(OptionData);
 		OptionWidget->OnOptionClicked.AddUObject(this, &UFinalRunFlowOverlayScreen::HandleListOptionClicked);
 		if (UVerticalBoxSlot* OptionSlot = ListBox->AddChildToVerticalBox(OptionWidget))
 		{
@@ -762,11 +963,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 		{
 			AddOption(
 				RewardOptionListBox,
-				EFinalRunFlowOptionKind::Reward,
-				Snapshot.PendingBattleReward.RewardEntries[RewardIndex].RewardId,
-				RewardIndex,
-				FormatRewardOptionText(Snapshot.PendingBattleReward, RewardIndex),
-				Snapshot.PendingBattleReward.bCanClaim);
+				BuildRewardOptionData(Snapshot.PendingBattleReward, RewardIndex));
 		}
 		return;
 	}
@@ -779,11 +976,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 			const FFinalRunNodeOptionViewData& Node = Snapshot.Progression.AvailableNextNodes[NodeIndex];
 			AddOption(
 				NextNodeListBox,
-				EFinalRunFlowOptionKind::NextNode,
-				Node.NodeId,
-				NodeIndex,
-				BuildNextNodeSelectionText(Node),
-				Snapshot.Progression.bCanAdvanceToNextNode && !Node.bLocked);
+				BuildNextNodeOptionData(Node, NodeIndex, Snapshot.Progression.bCanAdvanceToNextNode));
 		}
 		break;
 
@@ -793,11 +986,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 			const FFinalRunEventOptionViewData& Option = Snapshot.PendingEventNode.Options[OptionIndex];
 			AddOption(
 				EventOptionListBox,
-				EFinalRunFlowOptionKind::EventOption,
-				Option.OptionId,
-				OptionIndex,
-				BuildEventOptionSelectionText(Option),
-				Snapshot.PendingEventNode.bCanResolve && !Snapshot.PendingEventNode.bResolved && Option.bSelectable);
+				BuildEventOptionData(Option, OptionIndex, Snapshot.PendingEventNode.bCanResolve && !Snapshot.PendingEventNode.bResolved));
 		}
 		break;
 
@@ -807,11 +996,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 			const FFinalRunShopOfferViewData& Offer = Snapshot.PendingShopNode.Offers[OfferIndex];
 			AddOption(
 				ShopOfferListBox,
-				EFinalRunFlowOptionKind::ShopOffer,
-				Offer.OfferId,
-				OfferIndex,
-				BuildShopOfferSelectionText(Offer),
-				Snapshot.PendingShopNode.bCanResolve && !Snapshot.PendingShopNode.bResolved && Offer.bPurchasable && !Offer.bPurchased);
+				BuildShopOfferOptionData(Offer, OfferIndex, Snapshot.PendingShopNode.bCanResolve && !Snapshot.PendingShopNode.bResolved));
 		}
 		break;
 
@@ -920,43 +1105,42 @@ FText UFinalRunFlowOverlayScreen::BuildStageDetailText() const
 	if (Snapshot.PendingBattleReward.bHasPendingReward || FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowBattleRewardDetail", "战斗结果: {0}\n自动入账金币: {1}\n卡牌候选:\n{2}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowBattleRewardDetail", "战斗{0}。\n金币 +{1} 已入账。\n选择 1 张卡加入牌库，或跳过本次卡牌奖励。"),
 			FormatBattleOutcomeText(Snapshot.PendingBattleReward.SourceBattleOutcome),
-			FText::AsNumber(Snapshot.PendingBattleReward.RewardGold),
-			FText::FromString(BuildRewardPresentationSummaryString(Snapshot.PendingBattleReward.RewardEntryViews, Snapshot.PendingBattleReward.RewardEntries)));
+			FText::AsNumber(Snapshot.PendingBattleReward.RewardGold));
 	}
 
 	switch (FlowStage)
 	{
 	case EFinalRunFlowStage::AwaitingNodeAdvance:
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceDetail", "当前节点已处理完成。可选下一节点数量: {0}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceDetail", "当前节点已完成。\n选择下一站继续旅程。可选节点：{0}"),
 			FText::AsNumber(Snapshot.Progression.AvailableNextNodes.Num()));
 
 	case EFinalRunFlowStage::PendingRewardNode:
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowRewardNodeDetail", "{0}\n{1}\n奖励:\n{2}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowRewardNodeDetail", "{0}\n{1}\n奖励：\n{2}"),
 			FormatOptionalText(Snapshot.PendingRewardNode.Title, NSLOCTEXT("FinalFlowUI", "RunFlowRewardNodeNoTitle", "奖励节点")),
 			FormatOptionalText(Snapshot.PendingRewardNode.Summary, NSLOCTEXT("FinalFlowUI", "RunFlowRewardNodeNoSummary", "确认当前节点奖励。")),
 			FText::FromString(BuildRewardPresentationSummaryString(Snapshot.PendingRewardNode.RewardEntryViews, Snapshot.PendingRewardNode.RewardEntries)));
 
 	case EFinalRunFlowStage::PendingEventNode:
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowEventNodeDetail", "{0}\n{1}\n选项数量: {2}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowEventNodeDetail", "{0}\n{1}\n选择一个处理方式。选项：{2}"),
 			FormatOptionalText(Snapshot.PendingEventNode.Title, NSLOCTEXT("FinalFlowUI", "RunFlowEventNodeNoTitle", "事件节点")),
 			FormatOptionalText(Snapshot.PendingEventNode.Summary, NSLOCTEXT("FinalFlowUI", "RunFlowEventNodeNoSummary", "选择一个事件选项。")),
 			FText::AsNumber(Snapshot.PendingEventNode.Options.Num()));
 
 	case EFinalRunFlowStage::PendingShopNode:
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowShopNodeDetail", "{0}\n{1}\n商品数量: {2}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowShopNodeDetail", "{0}\n{1}\n选择要购买的商品。商品：{2}"),
 			FormatOptionalText(Snapshot.PendingShopNode.Title, NSLOCTEXT("FinalFlowUI", "RunFlowShopNodeNoTitle", "商店节点")),
 			FormatOptionalText(Snapshot.PendingShopNode.Summary, NSLOCTEXT("FinalFlowUI", "RunFlowShopNodeNoSummary", "选择一个商店商品。")),
 			FText::AsNumber(Snapshot.PendingShopNode.Offers.Num()));
 
 	case EFinalRunFlowStage::RunEnded:
 		return FText::Format(
-			NSLOCTEXT("FinalFlowUI", "RunFlowEndedDetail", "本局已结束。\n最终金币: {0}\n牌库数量: {1}\n遗物数量: {2}\n最近战斗结果: {3}"),
+			NSLOCTEXT("FinalFlowUI", "RunFlowEndedDetail", "本局已结束。\n最终金币：{0}\n牌库数量：{1}\n遗物数量：{2}\n最近战斗结果：{3}"),
 			FText::AsNumber(Snapshot.Gold),
 			FText::AsNumber(Snapshot.DeckCount),
 			FText::AsNumber(Snapshot.RelicCount),
@@ -1009,8 +1193,8 @@ FText UFinalRunFlowOverlayScreen::BuildPrimaryActionText() const
 		if (const FFinalRunNodeOptionViewData* SelectedNode = GetSelectedNextNode())
 		{
 			return FText::Format(
-				NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceAction", "继续到: {0}"),
-				FormatOptionalText(SelectedNode->DisplayName, FormatOptionalName(SelectedNode->NodeId, NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceActionUnnamed", "未命名节点"))));
+				NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceAction", "继续到：{0}"),
+				FormatRunNodeDisplayName(SelectedNode->DisplayName, SelectedNode->NodeId, SelectedNode->NodeType));
 		}
 		return NSLOCTEXT("FinalFlowUI", "RunFlowAdvanceActionMissing", "没有可推进节点");
 

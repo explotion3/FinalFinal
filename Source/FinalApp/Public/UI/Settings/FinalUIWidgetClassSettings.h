@@ -21,6 +21,8 @@ class UFinalBattleResourcePanel;
 class UFinalBattleTopBarPanel;
 class UFinalBattleUltimateEntryWidget;
 class UFinalBattleUltimatePanel;
+class UFinalRunFlowOptionButton;
+class UFinalRunFlowOverlayScreen;
 class UFinalRunFlowPromptPanel;
 
 UCLASS(Config=Game, DefaultConfig, DisplayName="Final UI Widget Classes")
@@ -49,6 +51,8 @@ public:
 	static TSubclassOf<UFinalBattleEnemyEntryWidget> GetBattleEnemyEntryWidgetClass();
 	static TSubclassOf<UFinalBattleUltimateEntryWidget> GetBattleUltimateEntryWidgetClass();
 	static TSubclassOf<UFinalBattleLogEntryWidget> GetBattleLogEntryWidgetClass();
+	static TSubclassOf<UFinalRunFlowOverlayScreen> GetRunFlowOverlayScreenClass();
+	static TSubclassOf<UFinalRunFlowOptionButton> GetRunFlowOptionButtonClass();
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
 	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
@@ -100,4 +104,10 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
 	TSoftClassPtr<UFinalBattleLogEntryWidget> BattleLogEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunFlowOverlayScreen> RunFlowOverlayScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunFlowOptionButton> RunFlowOptionButtonClass;
 };

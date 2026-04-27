@@ -1812,13 +1812,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		FFinalRunNodeDefinition RewardNode;
 		RewardNode.NodeId = StarterRewardNodeId;
 		RewardNode.NodeType = EFinalRunNodeType::Reward;
-		RewardNode.DisplayName = FText::FromString(TEXT("缴获清点"));
+		RewardNode.DisplayName = FText::FromString(TEXT("战后整备"));
 		RewardNode.DisplayLabel = TEXT("RunNode.Starter.Reward");
 		RewardNode.ChapterIndex = 1;
 		RewardNode.FloorIndex = 2;
 		RewardNode.NextNodeIds.Add(StarterEventNodeId);
-		RewardNode.RewardContent.Title = FText::FromString(TEXT("缴获清点"));
-		RewardNode.RewardContent.Summary = FText::FromString(TEXT("首版 starter 奖励节点，占位验证金币、卡牌与成长奖励。"));
+		RewardNode.RewardContent.Title = FText::FromString(TEXT("战后整备"));
+		RewardNode.RewardContent.Summary = FText::FromString(TEXT("清点缴获，整理队伍状态。"));
 		RewardNode.RewardContent.RewardEntries.Add(MakeBaseRewardEntry(
 			TEXT("reward.starter.spoils.gold"),
 			EFinalRunRewardType::Gold,
@@ -1840,13 +1840,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		FFinalRunNodeDefinition EventNode;
 		EventNode.NodeId = StarterEventNodeId;
 		EventNode.NodeType = EFinalRunNodeType::Event;
-		EventNode.DisplayName = FText::FromString(TEXT("崖边告示"));
+		EventNode.DisplayName = FText::FromString(TEXT("山间岔路"));
 		EventNode.DisplayLabel = TEXT("RunNode.Starter.Event");
 		EventNode.ChapterIndex = 1;
 		EventNode.FloorIndex = 3;
 		EventNode.NextNodeIds.Add(StarterShopNodeId);
-		EventNode.EventContent.Title = FText::FromString(TEXT("崖边告示"));
-		EventNode.EventContent.Summary = FText::FromString(TEXT("首版 starter 事件节点，占位验证多选项与最小结果回写。"));
+		EventNode.EventContent.Title = FText::FromString(TEXT("山间岔路"));
+		EventNode.EventContent.Summary = FText::FromString(TEXT("山路分岔，队伍必须决定接下来的行进方式。"));
 
 		FFinalRunEventOptionDefinition HuoOption;
 		HuoOption.OptionId = TEXT("event.starter.option.huo_regroup");
@@ -1882,13 +1882,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		FFinalRunNodeDefinition ShopNode;
 		ShopNode.NodeId = StarterShopNodeId;
 		ShopNode.NodeType = EFinalRunNodeType::Shop;
-		ShopNode.DisplayName = FText::FromString(TEXT("营地行商"));
+		ShopNode.DisplayName = FText::FromString(TEXT("行脚商"));
 		ShopNode.DisplayLabel = TEXT("RunNode.Starter.Shop");
 		ShopNode.ChapterIndex = 1;
 		ShopNode.FloorIndex = 4;
 		ShopNode.NextNodeIds.Add(StarterEliteBattleNodeId);
-		ShopNode.ShopContent.Title = FText::FromString(TEXT("营地行商"));
-		ShopNode.ShopContent.Summary = FText::FromString(TEXT("首版 starter 商店节点，用于验证 starter 卡牌可进入商店 reward payload。"));
+		ShopNode.ShopContent.Title = FText::FromString(TEXT("行脚商"));
+		ShopNode.ShopContent.Summary = FText::FromString(TEXT("简陋摊位上摆着几张可补入牌库的招式。"));
 
 		FFinalRunShopOfferDefinition TieBiOffer;
 		TieBiOffer.OfferId = TEXT("shop.starter.offer.tiebihuifeng");
@@ -1917,7 +1917,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		FFinalRunNodeDefinition EliteBattleNode;
 		EliteBattleNode.NodeId = StarterEliteBattleNodeId;
 		EliteBattleNode.NodeType = EFinalRunNodeType::EliteBattle;
-		EliteBattleNode.DisplayName = FText::FromString(TEXT("教头压阵"));
+		EliteBattleNode.DisplayName = FText::FromString(TEXT("黑风压阵"));
 		EliteBattleNode.DisplayLabel = TEXT("RunNode.Starter.EliteBattle");
 		EliteBattleNode.ChapterIndex = 1;
 		EliteBattleNode.FloorIndex = 5;

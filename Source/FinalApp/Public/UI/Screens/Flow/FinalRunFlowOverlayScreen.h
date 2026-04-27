@@ -20,6 +20,18 @@ enum class EFinalRunFlowOptionKind : uint8
 class UFinalRunFlowOptionButton;
 DECLARE_MULTICAST_DELEGATE_OneParam(FFinalRunFlowOptionClickedNative, UFinalRunFlowOptionButton*);
 
+struct FINALAPP_API FFinalRunFlowOptionButtonData
+{
+	EFinalRunFlowOptionKind Kind = EFinalRunFlowOptionKind::Reward;
+	FName PayloadId = NAME_None;
+	int32 PayloadIndex = INDEX_NONE;
+	FText Title;
+	FText Subtitle;
+	FText Meta;
+	FText State;
+	bool bEnabled = false;
+};
+
 UCLASS()
 class FINALAPP_API UFinalRunFlowOptionButton : public UFinalWidgetBase
 {
@@ -29,6 +41,7 @@ public:
 	virtual void NativeOnInitialized() override;
 
 	void ConfigureOption(EFinalRunFlowOptionKind InKind, FName InPayloadId, int32 InPayloadIndex, const FText& InLabel, bool bInEnabled);
+	void ConfigureOption(const FFinalRunFlowOptionButtonData& InData);
 
 	EFinalRunFlowOptionKind GetOptionKind() const { return OptionKind; }
 	FName GetPayloadId() const { return PayloadId; }
@@ -47,6 +60,20 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> OptionLabel;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> TitleText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> SubtitleText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> MetaText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StateText;
+
+	FFinalRunFlowOptionButtonData CachedData;
 
 	EFinalRunFlowOptionKind OptionKind = EFinalRunFlowOptionKind::Reward;
 
