@@ -1,695 +1,598 @@
 ﻿# 代码功能需求
 
-##
-1. 文档定位
+## 1. 文档定位
 
-本文档用于把当前设计文档中的玩法需求，拆解成 Unreal 项目真正需要落地的代码功能块。 它不负责规定目录结构，也不负责定义字段细节，而是回答两个问题：
-* 代码需要实现哪些系统
-* 每个系统负责什么输入、输出与边界 本文档默认服务于：
-* [GDD4.0.md](GDD4.0.md)
-* [Battle_Rules.md](Battle_Rules.md)
-* [Status_System_Guide.md](Status_System_Guide.md)
-* [Card_Design_Guide.md](Card_Design_Guide.md)
-* [Combat_Data_Schema_v2.md](Combat_Data_Schema_v2.md)
+本文档用于把玩法方向拆解成 Unreal 项目需要落地的代码功能块。
 
----
+本文档不定义具体字段细节，也不规定最终目录结构；它只回答：
 
-##
-2. 首版代码目标
+- 哪些系统需要实现
+- 系统之间的职责边界是什么
+- 首版竖切应该优先实现什么
 
-首版代码需要优先满足：
-* 战斗规则按固定时序稳定结算
-* 静态内容可由 DataAsset 驱动，不靠硬编码卡牌与敌人
-* 战斗内状态与单局外状态分层清楚
-* UI 与表现层不直接改写规则真相
-* 后续新增角色、敌人、遗物、事件时尽量少改底层 首版不追求：
-* 过早插件化
-* 过度抽象的一套万能框架
-* 依赖 Tick 的实时驱动
-* 把全部玩法都塞进 Blueprint
+本文档默认服务于：
+
+- [Power_Fantasy_Direction.md](Power_Fantasy_Direction.md)
+- [Battle_Rules.md](Battle_Rules.md)
+- [Card_Design_Guide.md](Card_Design_Guide.md)
+- [Combat_Data_Schema_v2.md](Combat_Data_Schema_v2.md)
+- [Unreal_Source_Structure.md](Unreal_Source_Structure.md)
 
 ---
 
-##
-3. 总体分层
+## 2. 首版代码目标
 
-代码侧至少应拆成五层：
-* 内容定义层：静态定义、DataAsset、共享协议
-* 运行时状态层：战斗内与单局外的权威状态
-* 规则执行层：命令校验、效果解析、结算顺序、窗口处理
-* 外层编排层：地图、节点、奖励、事件、进入战斗、战后结算
-* 表现接入层：UI、Actor、PaperZD 动画、特效、音频、调试界面 硬性边界：
-* 表现层不能直接改写权威状态
-* 战斗规则层不能直接依赖 Widget 与场景 Actor
-* 单局外系统不能直接操作单张牌的战斗结算
-* 静态定义层不承担运行时逻辑
+首版代码优先验证新的成长爽游方向：
+
+- 战斗规则按固定时序稳定结算
+- 压力进入 `Normal / Critical / Collapse` 状态机
+- 单局内角色可以获得成长进度并升级
+- 角色升级触发一次成长三选一
+- 成长候选混合属性成长与卡牌进化
+- 卡牌进化作用于 `RunCardInstance`，保留 `BaseCardId / CurrentCardId`
+- UI 与表现层只读权威状态，不直接改写规则真相
+
+首版不追求：
+
+- 完整技能树
+- 完整绝学树
+- 强化珠与强化槽完整实现
+- 珠子背包、拆卸、合成树、套装
+- 复杂临界流派与角色专属临界收益
+- 过度抽象的万能框架
 
 ---
 
-##
-4. 战斗内核心功能
+## 3. 总体分层
+
+代码侧至少拆成五层：
+
+- 内容定义层：静态定义、DataAsset、共享协议
+- 运行时状态层：战斗内与单局外的权威状态
+- 规则执行层：命令校验、效果解析、结算顺序、窗口处理
+- 外层编排层：地图、节点、奖励、事件、进入战斗、战后结算、成长选择
+- 表现接入层：UI、Actor、动画、特效、音频、调试界面
+
+硬性边界：
+
+- `FinalBattle` 不直接处理角色升级、成长候选、卡牌进化选择
+- `FinalRun` 不直接执行单张卡牌的战斗结算
+- `FinalData` 不承担运行时规则逻辑
+- `FinalApp` 不保存玩法真相，只负责查询、展示和流程桥接
+
+---
+
+## 4. FinalBattle：战斗内核心功能
 
 ### 4.1 战斗初始化
 
 职责：
-* 根据遭遇模板、规则配置与当前单局状态建立一场战斗
-* 初始化敌人、队伍、抽牌堆、手牌区、持续区、消耗区
-* 处理开战关键词、跨战斗保留崩溃、开战初始状态
+
+- 根据遭遇模板、规则配置与当前单局状态建立一场战斗
+- 初始化敌人、队伍、抽牌堆、手牌区、弃牌堆、消耗区
+- 从 `RunCardInstance.CurrentCardId` 解析战斗中实际使用的卡牌定义
+- 处理开战关键词、开战状态、跨战斗保留的角色状态投影
 
 输入：
-* `BattleEncounterDefinition`
-* `BattleRuleConfig`
-* `RunPersistentState`
+
+- `BattleEncounterDefinition`
+- `BattleRuleConfig`
+- `FinalBattleStartRequest`
 
 输出：
-* `BattleState`
-* 初始 `BattleEvent` 日志
 
-优先级：
-* `P0`
+- `BattleState`
+- 初始 `BattleEvent` 日志
+
+优先级：`P0`
 
 ### 4.2 战斗命令入口
 
 职责：
-* 接收玩家或系统发出的战斗命令
-* 校验命令是否合法
-* 把合法命令交给规则结算层
+
+- 接收玩家或系统发出的战斗命令
+- 校验命令是否合法
+- 把合法命令交给规则结算层
 
 典型命令：
-* 打牌
-* 释放奥义
-* 结束回合
-* 选择目标
+
+- 打牌
+- 释放奥义
+- 结束回合
+- 选择目标
 
 说明：
-* `BattleCommand` 只承载战斗内命令
-* 奖励选择、事件选项、商店购买、成长分支等都属于 `RunCommand`
 
-优先级：
-* `P0`
+- `BattleCommand` 只承载战斗内命令
+- 奖励选择、事件选项、商店购买、成长三选一属于 `RunCommand`
+
+优先级：`P0`
 
 ### 4.3 卡牌与牌区循环
 
 职责：
-* 维护抽牌堆、手牌区、弃牌堆、持续区、消耗区
-* 处理抽牌、弃牌、生成、复制、回收、进入持续区
-* 处理关键词对牌区去向的改写
-* 统一解释卡牌实例的 `Retain / Expend` 关键词，并维护实例层 `bRetained / bConsumeOnPlay / RecycleCount`
-* 统一承接卡牌实例创建、牌区迁移与牌区放置，不让外层直接改 `DeckState.*CardInstanceIds`
-* 统一承接按条件匹配并迁移卡牌实例的牌区操作，避免长出多套 `FromHandToX` 私有实现
-* Battle 私有运行时状态应维护 `CardInstanceId -> CardInstance` 的最小索引，供 `FinalBattleCardService` 统一收口实例查找；卡牌匹配条件收口到 Battle 私有 criteria，不再继续堆散 API 参数
-* `FinalBattleCardService` 还应提供一层清晰的只读卡牌查询：至少区分“统计某牌区内匹配数量”“判定某牌区内是否满足最低匹配数”；抽牌堆耗尽时应先将弃牌堆洗回抽牌堆，再继续抽牌
 
-重点规则来源：
-* [Battle_Rules.md](Battle_Rules.md)
-* [Card_Design_Guide.md](Card_Design_Guide.md)
+- 维护抽牌堆、手牌区、弃牌堆、持续区、消耗区
+- 处理抽牌、弃牌、生成、复制、回收、消耗
+- 统一解释卡牌关键词对牌区去向的改写
+- 维护 `BattleCardInstance` 与其来源 `RunCardInstanceId` 的关联
+- 当 Run 层确认某张卡牌实例进化时，支持刷新对应战斗手牌展示与后续结算定义
 
-优先级：
-* `P0`
+优先级：`P0`
 
 ### 4.4 资源系统
 
 职责：
-* 维护 AP、EP、Break 奖励 AP、受击 EP、普通牌基础 EP
-* 处理奥义消耗与 EP 获取公式
-* 处理回合开始、回合结束、受击、打牌等窗口的资源变化
 
-优先级：
-* `P0`
+- 维护 AP、EP、Break 奖励 AP、受击 EP、普通牌基础 EP
+- 处理奥义消耗与 EP 获取公式
+- 处理回合开始、回合结束、受击、打牌等窗口的资源变化
 
-### 4.5 伤害、治疗、压力
+优先级：`P0`
+
+### 4.5 伤害、治疗、压力与临界状态机
 
 职责：
-* 计算实际伤害、实际生命损失、实际回复量
-* 处理共享血条与角色压力的转化
-* 统一暴击、护盾、减伤、易伤、士气等常见修正
 
-优先级：
-* `P0`
+- 计算实际伤害、实际生命损失、实际回复量
+- 处理共享血条与角色压力的转化
+- 维护角色压力状态：`Normal / Critical / Collapse`
+- 按 `BattleRuleConfig` 计算临界阈值与崩溃阈值
+- 处理首次越过临界阈值保护
+- 处理临界期间继续受压后的崩溃判定
+
+边界：
+
+- `FinalBattle` 负责压力状态机的战斗内权威判断
+- 角色专属临界收益、临界牌、临界流派第一版暂不实现
+- 角色升级与成长选择不在 `FinalBattle` 中处理
+
+优先级：`P0`
 
 ### 4.6 Break 与先机
 
 职责：
-* 处理攻击转削韧
-* 处理中途 Break 检查
-* 处理先机减少事件
-* 处理敌人插队时机与同窗口优先级
 
-优先级：
-* `P0`
+- 处理攻击转削韧
+- 处理中途 Break 检查
+- 处理先机减少事件
+- 处理敌人插队时机与同窗口优先级
+
+优先级：`P0`
 
 ### 4.7 状态系统
 
 职责：
-* 处理状态归属
-* 处理叠层、刷新、覆盖、拒绝获得
-* 按固定窗口结算通用状态与专属状态
-* 处理共享血条下 `team_player` 与角色个人状态边界
 
-优先级：
-* `P0`
+- 处理状态归属、叠层、刷新、覆盖、拒绝获得
+- 按固定窗口结算通用状态与专属状态
+- 处理共享血条下 `team_player` 与角色个人状态边界
+- 支持状态驱动的伤害修正、生命保护、触发条件判断
 
-### 4.8 被动与遗物触发
+优先级：`P0`
 
-职责：
-* 处理战斗内被动
-* 处理遗物触发窗口
-* 记录每回合、每战斗、每效果的触发次数
-* 不允许遗物直接绕过命令与规则结算层改状态
-* 当前最小竖切至少支持共享 `RuntimeTriggers` 协议，并已让角色 `BattleTriggers` 与遗物 `RuntimeTriggers` 复用同一套 trigger schema：
-* `battle-start`：由 `RelicDefinition` 提供少量 battle-start effect，经 `Run -> Battle` 桥接后，在 `FinalBattle` 初始化阶段真实落地并写入 `BattleEvent`
-* `player-turn-start`：由 `RelicDefinition` 提供少量玩家回合开始 effect，在 Battle 初始化后保留到权威状态，并在玩家回合开始窗口真实落地并写入 `BattleEvent`
-* `RuntimeTriggers`：共享运行时触发协议，字段固定为 `Domain / Window / Limit / Conditions / Effects`；当前支持 `OwnerTookHealthDamage`、`PlayerTeamTookHealthDamage`、`PlayerCardResolved` 三个 Battle 窗口，触发效果统一使用 `UFinalBattleEffectDefinition`，卡牌结算条件使用 `UFinalBattleConditionResolvedCard`
-
-优先级：
-* `P1`
-
-### 4.9 崩溃与苏醒
+### 4.8 被动、角色触发与遗物触发
 
 职责：
-* 处理角色崩溃
-* 处理崩溃卡转换
-* 处理苏醒计数、直苏概率、苏醒后恢复
-* 处理跨战斗保留的崩溃状态
 
-优先级：
-* `P0`
+- 处理战斗内被动与遗物触发窗口
+- 统一使用 `RuntimeTriggerDefinition` 记录触发域、窗口、限制、条件与效果
+- 记录每回合、每战斗、每效果的触发次数
+- 不允许遗物或角色触发绕过命令与规则结算层直接改状态
 
-### 4.10 敌人意图与行动
+优先级：`P1`
 
-职责：
-* 选择敌方当前意图
-* 处理敌方多段攻击、召援、蓄力、强化
-* 处理敌方已行动状态和行动顺序
-* 按运行时站位处理同窗口优先级
-
-优先级：
-* `P0`
-
-### 4.11 事件日志与回放基础
+### 4.9 敌人意图与行动
 
 职责：
-* 记录规则层发生了什么
-* 为 UI、表现层、调试工具提供统一事件流
-* 为后续回放、战斗日志、QA 检查保留基础
 
-当前稳定公开面：
-* `BattleEvent` 已承载 `EventSequence`
-* 事件已可携带来源 / 目标单位、关联卡牌 / 奥义 / 状态、关键数值、战斗结果
-* `BattleSession` 已提供全量读取与按序号增量读取，供 `FinalApp/UI` 做事件驱动刷新
-* `FinalApp` 应基于这组公开字段落统一的 BattleEvent presentation/helper 与只读事件账本 UI，服务 HUD、Debug、世界提示与未来 replay-ready 消费，但不承担规则推导
-* `FinalBattleResolver` 当前继续作为唯一对外规则入口，但私有实现细节应回收到 `FinalBattle/Private/Systems`
-* 当前已开始真实承接实现的 Battle 私有 system 至少包括：
-* `FinalBattleInitializationService`：把遭遇、规则和 `FinalBattleInitContext` 展开为初始 `FinalBattleState`，承接角色 / 敌人 runtime state、初始牌堆、初始 intent、默认目标、`SessionStarted` 与 battle-start relic 初始化
-* `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、固定数量抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
-* `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
-* `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
-* `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、runtime trigger 计数重置与 `ActiveRelics` 投影维护
-* `FinalBattleTriggerService`：Battle 内 trigger window 分发与执行，当前统一承接角色与遗物的 `OwnerTookHealthDamage / PlayerTeamTookHealthDamage / PlayerCardResolved`
-* `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 四类上下文，并供 `Effect.Conditions[]` 与 runtime trigger 条件复用同一套运行时判断基础
-* `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
-* `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
-* `FinalData` effect schema 当前区分通用 `UFinalBattleEffectDefinition` 与目标型 `UFinalBattleTargetedEffectDefinition`：基类只保留身份、类型、条件和备注，`UnitTargetRule` 只属于 `Damage / Heal / GainShield / ApplyStatus / RemoveStatus / BonusBreak` 等目标型 effect；`DrawCards / GainAP / GenerateCard / MoveCards` 不承载目标规则
-* `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
-* `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
-* `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
-* `FinalBattleSnapshotBuilder`：统一承接 `FinalBattleState -> FinalBattleSnapshot` 的只读查询投影，编排角色、奥义、敌人、牌堆计数、状态和手牌视图
-* `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot builder facade，不继续作为所有战斗细节的单文件实现；单位查询和默认目标查找统一下沉到 `FinalBattleUnitService`
+- 选择敌方当前意图
+- 处理敌方多段攻击、召援、蓄力、强化
+- 处理敌方已行动状态和行动顺序
+- 按运行时站位处理同窗口优先级
 
-优先级：
-* `P1`
+优先级：`P0`
+
+### 4.10 事件日志与战斗查询
+
+职责：
+
+- 记录规则层发生了什么
+- 为 UI、表现层、调试工具提供统一事件流
+- 提供 `BattleSnapshot / BattleEvent / EventsSince`
+- 为后续回放、战斗日志、QA 检查保留基础
+
+优先级：`P1`
 
 ---
 
-##
-5. 单局外核心功能
+## 5. FinalRun：单局外核心功能
 
 ### 5.1 单局持久状态
 
 职责：
-* 维护当前角色 roster
-* 维护牌组、遗物、金币、事件结果
-* 维护跨战斗保留状态，例如 `CollapseCount`
-* 为战斗开始提供当前队伍、当前牌组和遭遇输入
-* 为战斗开始提供当前遗物的最小 battle 输入，并通过 `FinalBattleStartRequest -> FFinalBattleInitContext` 显式传入 Battle；输入至少包含 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers` 的 Battle-domain 子集，但不让 `FinalBattle` 直接读取 `RunState`
-* 在战斗结束后消费战斗结果并回写单局状态
-* 对外至少提供当前构筑的只读查询面，让 UI 能读取当前牌库条目与遗物条目，而不直接访问 `RunState` 容器真相
 
-优先级：
-* `P0`
+- 维护当前角色 roster
+- 维护 `RunDeck`、遗物、金币、事件结果、节点进度
+- 维护角色持久成长状态：等级、成长进度、根骨、悟性、杀意、跨战斗压力相关字段
+- 维护卡牌实例：`RunCardInstanceId / BaseCardId / CurrentCardId`
+- 为战斗开始提供队伍、牌组、遗物与遭遇输入
+- 在战斗结束后消费 `BattleResult` 并回写单局状态
+
+优先级：`P0`
 
 ### 5.2 单局外命令入口
 
 职责：
-* 接收事件选项、奖励选择、商店购买、成长分支等单局外命令
-* 校验条件、代价与可选项是否合法
-* `RunSession` 负责命令分发与事件时序，reward / event / shop / growth 的私有解析细节应回收到 `FinalRun/Private` 下的 resolver，不把 `FinalRunSession.cpp` 继续扩成单文件真相与解析器混合体
+
+- 接收事件选项、奖励选择、商店购买、成长选择等单局外命令
+- 校验条件、代价与可选项是否合法
+- 将 reward / event / shop / growth 的私有解析细节收口到 `FinalRun/Private` 的 resolver 或 service
 
 典型命令：
-* 进入节点
-* 确认事件选项
-* 确认战后奖励
-* 购买商店内容
-* 选择成长分支
 
-优先级：
-* `P0`
+- 进入节点
+- 确认事件选项
+- 确认战后奖励
+- 购买商店内容
+- 选择成长候选
+
+优先级：`P0`
 
 ### 5.3 地图与节点推进
 
 职责：
-* 维护当前章节、节点池、节点选择结果
-* 组织普通战、精英战、商店、事件、休整、首领战入口
-* prototype 节点图和节点内容流应优先落在 `FinalData` 的 route / node definition 中，由 `FinalRunSession` 读取并接管初始化，不继续由 `FinalApp` 手工拼装 `TArray<FFinalRunNodeDefinition>`
-* 对外查询面至少公开 `CurrentChapter / CurrentFloor / 节点展示名或展示标签 / 已访问 / 锁定状态与原因 / 候选节点展示数据`
-* 当前节点查询面至少明确区分 `已访问` 与 `已解析`，避免 `FinalApp` 通过 flow stage 反推节点状态
 
-优先级：
-* `P1`
+- 维护当前章节、楼层、节点池、节点选择结果
+- 组织普通战、精英战、商店、事件、休整、首领战入口
+- 基于 `RunRouteDefinition` 推进节点，不让 `FinalApp` 手工拼装主流程
 
-### 5.4 事件系统
+优先级：`P1`
+
+### 5.4 事件、奖励与商店
 
 职责：
-* 呈现事件选项
-* 校验选项条件与代价
-* 结算事件奖励、删牌、加牌、成长分支、压力变化
 
-优先级：
-* `P1`
+- 生成战后奖励、事件选项、商店商品
+- 校验选项条件与代价
+- 结算金币、加牌、删牌、遗物、恢复、压力变化等外层奖励
+- 提供结构化 `RewardEntry` 与 `RewardEntryViewData`
 
-### 5.5 奖励与商店
+说明：
 
-职责：
-* 生成战后奖励
-* 管理删牌、购牌、买遗物、恢复、重铸等行为
-* 维护单局构筑修正路径
-* 奖励协议中的“真正授予对象”应使用稳定的 typed payload 标识，例如 `GrantedCardId / GrantedRelicId / RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，不能长期把 `DisplayId` 当作权威玩法身份
-* 当前 `RunState` 至少应真实承接：`Gold -> Gold`、`CardGrant -> RunDeck`、`RelicGrant -> Relics`、`RemoveCard -> 从 RunDeck 删除目标卡`、`UpgradeCard -> 用升级结果替换 RunDeck 中的目标卡`
-* `CardGrant / RelicGrant` 在真正落地到 `RunState` 前，应通过 `FinalDataRegistry` 校验对应 definition 是否存在；`RelicGrant` 的 `DisplayName / DisplayId` fallback 应优先来自 `RelicDefinition`
-* `RemoveCard / UpgradeCard` 落地前应校验必要 payload、对应 card definition、以及 `RunDeck` 中是否存在目标卡；`UpgradeCard` 还应校验升级结果不是无效或自指
-* `Growth` 当前阶段可先支持锚定 `RunPersistentCharacterState` 的最小 typed payload，例如 `GrowthTargetCharacterId + GrowthEffectType + Value`，并真实落地到 `CurrentStress / CurrentAwakenCount / CollapseCount`
-* `FinalDataRegistry` 运行时应先承担 definition 资产发现/加载主路径，至少覆盖 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`
-* `FinalDataRegistry` 启动期不应再对全部 definition 资产调用 `GetAsset()`；当前主路径应只读取 `AssetRegistrySearchable` stable id tag，建立 `StableId -> SoftObjectPath` 索引，并在 `FindXxxDefinition(...)` 首次被调用时同步按需加载并缓存目标 definition
-* prototype content 应优先落成项目里的真实 definition 资产，由 `FinalDataRegistry` 在运行时发现并注册；`FinalApp` 的测试入口只按 stable id 查询这些内容，不再主路径 `NewObject` 创建 definition bundle
-* 当前 prototype bundle 推荐落在 `/Game/Prototype/Definitions/...`，并由 Editor 侧的 `FinalPrototypeContentBootstrap` commandlet 负责生成或刷新；运行时若缺少对应 stable id，应返回明确缺失错误，而不是继续让 `FinalApp` 充当主内容源
-* 当前已开始录入真实 starter content：`FinalPrototypeContentBootstrap` 会同时刷新 `/Game/Prototype/Definitions/Starter/...` 下的 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人与普通 / 精英遭遇；这些内容仍通过 `FinalDataRegistry` 与 Editor validation 进入现有数据驱动体系，不回写成 `FinalApp` 或规则层硬编码
-* starter content 第一版已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制收回 Runtime：当前 effect 协议已承接 `Heal / ApplyStatus / RemoveStatus / GainAP / BonusBreak`，starter 资产中的 Huo / Ye 相关卡牌与奥义不再只靠文本占位
-* starter content 当前已把沈清弦 `剑阵` 第一波收回到 Battle Runtime：`布锋` 随机生成衍生剑阵牌、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为 battle 内衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌后兑现伤害/抽牌
-* Battle 当前已补第一阶段对象化 `BattleConditionDefinition`：`Effect.Conditions[]` 支持 `HandCard / TargetState / StatusChanged / MovedCards` 四类内联条件对象，runtime trigger 还复用 `ResolvedCard` 条件；`FinalData` 只定义条件数据，运行时求值统一收口到 `FinalBattleConditionService`。每个 condition 类通过 C++ `GetConditionContext()` 声明 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard`，由 service 明确分派到 source / target / chain-record / resolved-card 四类判断路径；其中 `StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的真实链路记录
-* Battle 当前还把 effect list scratch state 显式拆成 `ChainRecord` 与 `Transient` 两层：只有 `StatusChanged / MovedCards` 这类后续 condition 需要读取的真实事实进入 `ChainRecord`，像“本条链至少成功造成过一次敌方生命伤害”这类只服务执行流程的临时标记保留在 `Transient`
-* `HandCard` 条件至少支持 `RequiredCardId / RequiredKeyword / MinimumCount / bGeneratedOnly / bRequireInHand`，并由 `FinalBattleCardService` 提供“按当前手牌内容统计/判定是否满足条件”的只读查询
-* starter content 当前已用这套协议把 `守阵` 的“若手中有剑阵牌”改成真实规则：基础护盾始终生效，只有当前手牌里存在满足条件的衍生剑阵牌时，后续抽牌收益才会执行
-* Battle 当前已补最小“状态驱动的伤害修正”协议：`StatusDefinition` 可配置 `OutgoingDamagePercentPerStack / bExpireAtPlayerTurnEnd / bConsumeOnSuccessfulOwnerDamage / bOnlyAffectAttackCards`，`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正，并在成功对敌伤害后按规则消费一层状态
-* starter content 当前已把 `锋锐剑阵` 与 `万象归阵` 的第一波战斗真相收回到 Runtime：`锋锐剑阵` 会对自身施加 1 层 `锋锐`，令下一张攻击牌伤害提高 20% 且在成功造成敌方生命伤害后消耗；`万象归阵` 现已改为抽 2 张牌、生成 1 张剑阵牌，并为每名角色施加 1 层 `士气`
-* Battle 当前已补共享 `RuntimeTriggerDefinition`：`CharacterDefinition.BattleTriggers` 与 `RelicDefinition.RuntimeTriggers` 统一使用 `Domain / Window / Limit / Conditions / Effects`，初始化时镜像到角色或遗物 runtime trigger state；当前 starter 已用它把霍断岳“受压得刀势”、护心铜镜和阵门木签收回 Runtime
-* `TargetState` 条件可要求实际敌方目标存在、存活、且 `CurrentBreakValue <= 0`；condition 不满足时该 effect 静默跳过且不产生副作用。当前 starter 已用它把霍断岳 `断岳绝式` 的 Break 条件额外伤害收回 Runtime
-* Battle 当前已补最小 incoming team HP damage protection 协议：`StatusDefinition / BattleStatusInstance` 可配置 `IncomingTeamHealthDamageReductionPercentPerStack / bConsumeOnPreventedTeamHealthDamage`，`FinalBattleStatusService` 在护盾后、扣共享生命前应用保护；当前 starter 已用它把叶半夏 `回天续脉` 的 `生命免疫` 保护收回 Runtime。`免疫` 仍是上位状态概念，`生命免疫` 只是当前已落地的共享生命 HP damage protection 子类
-* starter content 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口等；这些内容仍应先补协议与规则服务，再升级为权威效果
-* prototype 启动配置也应收回到 `FinalData` 的 bootstrap/profile definition，例如 `PrototypeBootstrapDefinition`，承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / 初始角色持久状态 / InitialTeamCurrentHP`；`FinalApp` 运行时只查询一个 bootstrap stable id
-* 当前最小 `GrowthEffectType` 可先限制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`；更大的成长树、奥义解锁与终极天赋仍后置
-* 战后奖励查询面至少公开结构化 `RewardEntries`，可扩展到金币、卡牌、遗物、删牌与升级牌
-* 当前战后奖励第一版口径为：胜利金币在 `ApplyBattleResult` 中自动写入 `RunState.Gold`，`PendingBattleReward` 只保留卡牌候选；外层通过 `ClaimPendingBattleReward(PayloadId = RewardId)` 选择 1 张卡加入 `RunDeck`，或通过 `SkipPendingBattleReward` 跳过卡牌奖励
-* 在保留 raw `RewardEntries` 的前提下，Run 查询面还应补 `RewardEntryViewData` 一类稳定展示数据，至少能表达 `PrimaryText / SecondaryText / Value` 与必要的只读目标 id，避免 `FinalApp` 自行拼接 reward 文案
-* `RewardEntryViewData` 应继续向产品化展示靠拢，最小应补 `PresentationKind / IconId / VisualTier / DetailText` 这类 metadata，并优先通过 `CardDefinition / RelicDefinition / CharacterDefinition` 补全
-* `PendingBattleReward / PendingRewardNode / EventOption / ShopOffer` 应同时公开 raw reward 与 reward view data，两者分别服务于规则链和展示层
-* 非战斗节点查询面至少公开 `PendingRewardNode / PendingEventNode / PendingShopNode` 的最小结构化内容，供 UI 读取标题、简介、选项、商品与可执行状态
+- 常规奖励不直接负责角色升级
+- 如果奖励会影响角色成长，应通过成长相关 payload 或成长服务落地
 
-优先级：
-* `P1`
+优先级：`P1`
 
-### 5.6 角色成长入口
+### 5.5 战斗结果回写与成长进度
 
 职责：
-* 发放特有卡
-* 升级或分支变体
-* 解锁奥义与技能树节点
 
-优先级：
-* `P1`
+- 接收 `BattleResult`
+- 回写金币、节点状态、胜负结果、跨战斗角色状态
+- 根据战斗事实增加角色成长进度
+- 当角色满足升级条件时，进入 `PendingGrowthChoice` 状态
 
-### 5.7 Run 查询与事件流
+说明：
+
+- 战斗事实可以包括出牌、Break、击杀、承压、进入临界等记录
+- 第一版可以先用简单规则增加成长进度，后续再细化来源权重
+
+优先级：`P0`
+
+### 5.6 角色升级与成长三选一
 
 职责：
-* 为 `FinalApp` 与调试工具提供 `RunSnapshot`
-* 提供结构化 `RunEvent`，记录初始化、战前桥接、RunCommand、战后回写等关键外层流程
-* 提供全量读取与按序号增量读取，避免 UI 只能猜当前 Run 状态
-* 对于会产出奖励结果的 `RunEvent`，在保留 raw `RewardEntries` 的前提下，也应补 `RewardEntryViewData` 数组，供 toast、日志和结果反馈直接消费
-* 对于会修改角色持久状态的 `RunEvent`（含 Growth 类奖励），应在事件中补 `AffectedCharacterResults` 数组，输出结算后的角色 view data，避免 FinalApp 自行推算角色结果
-* `AffectedCharacterResults` 复用现有 `FFinalRunCharacterViewData`，包含 `DisplayName / IconId / StateSummaryText / CurrentStress / bCollapsed / CurrentAwakenCount / CollapseCount`
-* 当前只有 `EventNodeResolved / RewardNodeResolved / ShopOfferPurchased / PendingBattleRewardClaimed` 在 reward entries 包含 Growth 时才会填充 `AffectedCharacterResults`
-* `RunSnapshot` 当前应至少公开 `CurrentBuild` 这类只读 view data，用于呈现 `RunDeck / Relics` 的聚合条目、展示名与数量
-* `RunSnapshot.Characters` 不应只停留在调试数值，应至少补 `DisplayName` 与最小展示辅助字段，并优先通过 `CharacterDefinition` 查询补全，避免 `FinalApp` 自行猜角色名
-* `RunSession` 在组装 `BattleStartRequest` 时，应能桥接最小遗物战斗输入，例如 battle-start relic effects，并经由 `FinalBattleStartRequest -> FFinalBattleInitContext` 显式传入 `FinalBattle`；不要把 `RunState.Relics` 私有容器直接暴露给 `FinalBattle`
 
-优先级：
-* `P1`
+- 维护角色等级与升级条件
+- 角色升级时生成 3 个成长候选
+- 候选项混合属性成长与卡牌进化
+- 应用玩家选择的成长候选
+
+候选类型：
+
+- 属性成长：根骨 / 悟性 / 杀意 +1
+- 卡牌进化：基础卡 -> 进化卡
+- 高阶卡牌进化：进化卡 -> 绝学卡，第一版可暂不实现
+
+边界：
+
+- 成长三选一属于 `FinalRun`
+- `FinalBattle` 只记录战斗事实，不决定升级奖励
+- `FinalApp` 只展示候选并提交选择，不自行推导候选结果
+
+优先级：`P0`
+
+### 5.7 卡牌实例进化
+
+职责：
+
+- 管理 `RunCardInstance` 的 `BaseCardId / CurrentCardId`
+- 应用卡牌进化结果
+- 校验进化来源与目标是否合法
+- 保证进化后卡牌仍能追溯原始基础卡
+- 为 UI 查询提供当前卡牌展示定义
+
+说明：
+
+- 第一版进化可以通过替换 `CurrentCardId` 实现
+- 强化珠、强化槽、同名珠合成等系统先只预留，不进入第一版实现
+
+优先级：`P0`
+
+### 5.8 Run 查询与事件流
+
+职责：
+
+- 提供 `RunSnapshot / RunEvent / EventsSince`
+- 公开当前节点、奖励、成长选择、角色状态、牌库、遗物等只读视图
+- 对会修改角色或卡牌实例的事件输出结构化结果，避免 UI 自行推算
+
+优先级：`P1`
 
 ---
 
-##
-6. 内容与数据功能
+## 6. FinalData：内容与数据功能
 
 ### 6.1 定义资产加载
 
 职责：
-* 加载角色、卡牌、敌人、状态、遗物、事件、遭遇、规则配置等定义
-* 通过稳定 ID 提供查询入口
-* 启动期只建立 stable id 到 soft object path 的索引；具体 definition 对象由查询入口按需加载，避免 PIE 启动阶段全量同步加载内容资产
 
-优先级：
-* `P0`
+- 加载角色、卡牌、敌人、状态、遗物、事件、遭遇、规则配置等定义
+- 通过稳定 ID 提供查询入口
+- 启动期建立 stable id 到 soft object path 的索引，并按需加载 definition
+
+优先级：`P0`
 
 ### 6.2 资源校验
 
 职责：
-* 校验 ID 是否重复
-* 校验外部引用是否缺失
-* 校验效果字段是否与协议匹配
-* 校验文案、关键词、类型是否符合规范
 
-当前已开始落地：
-* `FinalEditor` 已建立最小 Editor-only 数据资产校验器
-* 第一版优先覆盖 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / RuleConfig / Status / Ultimate` definition
-* 当前校验范围已覆盖：稳定主 ID、`DisplayName`、关键数值、直接软引用、效果数组空项、最小 relic battle-start / player-turn-start effect 合法性，以及共享 `RuntimeTriggers` 的 Domain / Window / Effects 合法性；`ResolvedCard` 条件启用费用匹配时要求费用非负
-* 当前已补一层 Editor-only 全项目扫描/索引，用于检查 `Card / Character / Enemy / EnemyIntent / Encounter / Relic / Status / Ultimate / RuleConfig / RunRoute` 的主 ID 是否重复
-* 当前已补第一批跨资产稳定 ID 引用存在性检查：`CharacterDefinition.InitialLoadoutCards[*].CardId`、`CharacterDefinition.CharacterCardPoolIds[*]`、`CharacterDefinition.UltimateId`、`CharacterDefinition.SignatureStatusId`
-* 当前已补 `RunRouteDefinition` 内容一致性校验：`RouteId / EntryNodeId`、同 route 内 `NodeDefinitions[*].NodeId` 唯一性、`NextNodeIds[*]` 可达性，以及 battle / reward / event / shop 节点的最小结构合法性
-* 当前已补 reward payload typed reference 校验，覆盖 `Gold / CardGrant / RelicGrant / RemoveCard / UpgradeCard / Growth`，并对缺失 stable id、非法 growth effect、自指升级和非正数值给出明确错误
-* 全局一致性校验结果仍挂回当前被校验资产，并会报出缺失字段名、缺失稳定 ID 和重复 ID 的冲突资产路径
-* 当前已补 prototype vertical slice 的 Editor 自动化冒烟测试，覆盖 `prototype.bootstrap.test / prototype.bootstrap.starter.chapter1` 等 stable id 的发现、bootstrap 核心引用经 `FinalDataRegistry` 解析、bootstrap 启动最小 run、run 进入 battle 并执行最小推进、battle result 回写 run，以及战斗外 `ExportSaveData / RestoreFromSaveData`
-* 遗物允许暂时没有 `BattleStartEffects / PlayerTurnStartEffects / RuntimeTriggers`，以便录入未来窗口、经济、商店类合法遗物；若数组有条目，则校验 `RuntimeTriggers` 的 `Domain / Window` 非空、`Effects` 非空，且内联 condition / effect payload 合法
-* 不做自动修复、复杂编辑器 UI、内容资产迁移，也不改变 Runtime 规则语义
+- 校验 ID 是否重复
+- 校验外部引用是否缺失
+- 校验效果字段是否与协议匹配
+- 校验文案、关键词、类型是否符合规范
+- 校验成长候选、卡牌进化、临界配置的基础合法性
 
-优先级：
-* `P1`
+优先级：`P1`
 
 ### 6.3 数据查询与索引
 
 职责：
-* 按 `CardId / EnemyId / EventId / RelicId` 查询
-* 按标签、章节、稀有度、角色归属、推荐阶段做筛选
-* 为 Battle / Run / UI 提供 `Enemy / EnemyIntent / Status / Ultimate` 等静态定义查询
 
-优先级：
-* `P1`
+- 按稳定 ID 查询卡牌、敌人、状态、遗物、事件、遭遇、规则配置
+- 按标签、章节、稀有度、角色归属、推荐阶段做筛选
+- 为 Battle / Run / UI 提供静态定义查询
+
+优先级：`P1`
+
+### 6.4 成长与进化定义
+
+职责：
+
+- 定义角色成长参数，例如升级阈值、根骨、悟性、杀意的首版效果
+- 定义成长候选展示字段
+- 定义卡牌进化关系，例如 `FromCardId -> ToCardId`
+- 定义进化候选过滤条件，例如角色归属、进化阶段、卡牌标签
+
+首版最小定义：
+
+- `CharacterGrowthConfig`
+- `GrowthChoiceDefinition`
+- `CardEvolutionDefinition`
+
+优先级：`P0`
+
+### 6.5 强化珠与强化槽定义预留
+
+职责：
+
+- 预留强化珠、珠阶、珠级、强化槽槽级的定义入口
+- 第一版不要求实现强化珠运行时逻辑
+
+优先级：`P2`
 
 ---
 
-##
-7. 表现与外层接入
+## 7. FinalApp：表现与外层接入
 
 ### 7.1 UI 编排与视图模型
 
 职责：
-* 在 `FinalApp` 中维护运行时 UI 根布局与页面层级
-* 采用“常驻 HUD + Overlay + Modal + Tooltip + Toast”分层
-* 把权威状态转成 UI 可读数据
-* 不在 Widget 中做规则推导
-* 优先事件驱动刷新，不依赖 Tick 或 Blueprint Binding 轮询权威状态
 
-最低要求：
-* `UISubsystem` 负责根布局、页面栈、输入模式与焦点恢复
-* `WidgetController` 负责订阅 `BattleSnapshot / BattleEvent / RunQuery` 并组装 `ViewModel`
-* `ViewModel` 不绑定某一版具体布局
-* `Widget` 只读 `ViewModel`，不直接访问 `BattleState / RunState` 私有结构
+- 维护 UI 根布局与页面层级
+- 把权威状态转成 UI 可读数据
+- 不在 Widget 中做规则推导
+- 优先事件驱动刷新，不依赖 Tick 或 Blueprint Binding 轮询权威状态
 
-当前已落地：
-* `UISubsystem + UIRootLayout + BattleHUDScreen`
-* `FinalBattleWidgetController` 已可把 `Snapshot / Event` 转成首轮 `HUD Presentation`
-* `FinalApp` 可结合 `FinalData / RunSession` 补齐遭遇名、金币、`EP` 上限、角色名、卡牌名等展示字段
-* `FinalApp` 当前已补 BattleEvent 统一投影 helper，并新增最小只读 Battle event ledger UI；`BattleHUD`、`PrototypeRunDebugScreen`、`BattleDirector` 优先共用这套事件投影，而不是各自散拼
-* `BattleDirector` 当前已从文本占位生成器收口成世界展示编排器：世界层 roster 由它按 `BattleSnapshot / BattleEvent` 驱动生成/复用 `BattlePresentationActor`
-* `BattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用；场景站位真相来自 `BattleStageAnchorActor`，旧原点 / 间距参数只保留为 fallback
-* `UISubsystem` 当前默认只把 `BattleHUDScreen` 挂在常驻 `HUD Layer`；`PrototypeRunDebugScreen` 与 `FinalBattleEventScreen` 作为 prototype debug/ledger overlay 按需打开，不再常驻压在 Battle HUD 上
-* `BattleHUDScreen` 当前只承接主战斗信息、命令入口、最近事件摘要与 debug overlay 打开入口；完整账本与 run 调试摘要不再常驻混排在主 HUD 内
+首版新增要求：
 
-优先级：
-* `P0`
+- 展示角色成长三选一
+- 展示属性成长结果
+- 展示卡牌进化结果
+- 展示压力 `Normal / Critical / Collapse` 状态
+
+优先级：`P0`
 
 ### 7.2 世界桥接
 
 职责：
-* 在场景中生成和维护角色 / 敌人表现 Actor
-* 接收战斗事件并驱动表现
-* 不在 Actor 中改写战斗真相
 
-优先级：
-* `P0`
+- 在场景中生成和维护角色 / 敌人表现 Actor
+- 接收战斗事件并驱动表现
+- 不在 Actor 中改写战斗真相
+
+优先级：`P0`
 
 ### 7.3 输入与交互
 
 职责：
-* 承接战斗内的手牌点击、目标选择、结束回合输入
-* 把战斗内输入转换成 `BattleCommand`
-* 把事件、奖励、商店、成长等单局外输入转换成 `RunCommand`
-* 明确 `GameOnly / GameAndUI / UIOnly` 的切换时机
-* 在覆盖页、模态页打开与关闭时恢复焦点，不让单个 Widget 各自持有输入模式真相
 
-优先级：
-* `P0`
+- 把战斗内输入转换成 `BattleCommand`
+- 把事件、奖励、商店、成长选择等单局外输入转换成 `RunCommand`
+- 统一处理输入模式、焦点恢复、覆盖页与模态页
+
+优先级：`P0`
 
 ### 7.4 音画反馈
 
 职责：
-* 根据战斗事件播放动画、特效、音频、浮字
-* 不参与最终数值判定
 
-优先级：
-* `P1`
+- 根据战斗事件播放动画、特效、音频、浮字
+- 根据成长事件播放升级、进化、临界提示
+- 不参与最终数值判定
+
+优先级：`P1`
 
 ---
 
-##
-8. 保存、调试与测试支撑
+## 8. 保存、调试与测试支撑
 
 ### 8.1 Save / Load
 
 职责：
-* 当前第一版只保存战斗外 Run 外层状态，由 `FinalApp` 协调固定 SaveGame slot，`FinalRun` 通过公开 `FinalRunSaveData` 协议导出与恢复
-* 保存稳定 ID、`FFinalRunState`、Run 事件日志、节点配置与访问 / 解析进度、当前 FlowStage、待领奖励上下文
-* `FinalRunSaveData` 当前支持 `SaveVersion == 1`，Load 前必须做版本校验与结构合法性检查，坏档应返回明确失败原因并拒绝恢复
-* 结构校验当前至少覆盖空 Run 状态、当前节点 / 已访问节点 / 已解析节点是否存在于配置节点中、待领奖励上下文自洽，以及 `LastEventSequence` 是否覆盖 RunLog 最大序号
-* 支持战斗外继续读取 `CollapseCount` 等持久字段，恢复后 `RunSnapshot` 应反映恢复后的外层状态
-* 当前不保存 active `BattleSession` 内部状态；存在 active battle 时 Save / Load 应拒绝
-* 当前不保存 UI 页面栈、Widget 状态、transient UObject definition，也不做自动迁移、async save/load、正式存档菜单或生产级多 slot 管理
-* `PrototypeRunDebugScreen` 可显示固定 slot 是否存在、最近 Save/Load 状态与失败原因，并提供原型级 Save / Load 按钮；这不是正式存档 UI
 
-优先级：
-* `P1`
+- 保存战斗外 Run 状态
+- 保存角色等级、成长进度、三大成长属性
+- 保存 `RunCardInstance` 的 `BaseCardId / CurrentCardId`
+- 不保存 active `BattleSession` 内部状态
+
+优先级：`P1`
 
 ### 8.2 调试工具
 
 职责：
-* 查看当前战斗状态
-* 查看敌人意图
-* 查看状态实例、被动实例、遗物触发记录
-* 输出战斗事件日志
-* 提供只读 Battle 事件账本视图，并与 HUD / 世界桥接共用统一事件投影 helper
 
-优先级：
-* `P1`
+- 查看当前战斗状态、压力状态、敌人意图、状态实例
+- 查看 Run 状态、角色成长状态、待处理成长选择
+- 查看卡牌实例的 Base / Current 关系
+- 输出战斗事件与 Run 事件日志
+
+优先级：`P1`
 
 ### 8.3 自动化校验
 
 职责：
-* 基础规则回归
-* 数据资产合法性检查
-* 关键战斗链路冒烟测试
 
-优先级：
-* `P2`
+- 基础规则回归
+- 数据资产合法性检查
+- 角色升级与卡牌进化链路冒烟测试
+- 临界状态机冒烟测试
+
+优先级：`P2`
 
 ---
 
-##
-9. 首版优先级建议
+## 9. 首版优先级建议
 
 ### 9.1 P0 必做
-* 内容定义加载
-* 单局持久状态
-* 单局外命令入口
-* 战斗初始化
-* 战斗命令入口
-* 卡牌与牌区循环
-* 资源系统
-* 伤害、治疗、压力
-* Break 与先机
-* 状态系统
-* 崩溃与苏醒
-* 敌人意图与行动
-* UI 视图模型
-* 世界桥接
-* 输入与交互
+
+- 内容定义加载
+- 单局持久状态
+- 单局外命令入口
+- 战斗初始化
+- 战斗命令入口
+- 卡牌与牌区循环
+- AP / EP 资源系统
+- 伤害、治疗、压力与临界状态机
+- Break 与先机
+- 状态系统
+- 敌人意图与行动
+- 角色升级成长三选一
+- 卡牌实例进化
+- UI 视图模型
+- 输入与交互
 
 ### 9.2 P1 应做
-* 被动与遗物触发
-* 事件系统
-* 奖励与商店
-* 角色成长入口
-* 数据查询与索引
-* 资源校验
-* 战斗事件日志
-* Save / Load
-* 音画反馈
-* 调试工具
+
+- 被动、角色触发与遗物触发
+- 事件、奖励与商店
+- 地图与节点推进
+- Run 查询与事件流
+- Battle 查询与事件日志
+- 资源校验
+- Save / Load
+- 音画反馈
+- 调试工具
 
 ### 9.3 P2 后续补
-* 自动化校验
-* 完整回放
-* 编辑器增强工具
+
+- 强化珠与强化槽完整运行时
+- 完整绝学化
+- 角色专属临界收益
+- 完整回放
+- 编辑器增强工具
 
 ---
 
-##
-10. 功能归属总表
+## 10. 功能归属总表
 
 | 功能块 | 主归属模块 | 对外入口 | 不应放入 |
-| ---
-
-| ---
-
-| ---
-
-| --- |
+| --- | --- | --- | --- |
 | 定义资产加载 | `FinalData` | 数据查询服务 / 资源注册表 | `FinalBattle`、`FinalApp` |
+| 成长与进化定义 | `FinalData` | 成长配置 / 进化定义查询 | `FinalBattle` |
 | 战斗初始化 | `FinalBattle` | `BattleSession` | `BattleGameMode` |
 | 战斗命令入口 | `FinalBattle` | `SubmitCommand` | Widget、Actor |
 | 卡牌与牌区循环 | `FinalBattle` | 卡牌服务 / 结算器 | `FinalRun` |
-| 资源系统 | `FinalBattle` | 资源服务 | UI |
-| 伤害、治疗、压力 | `FinalBattle` | 结算器 / 原子操作 | Blueprint |
+| 压力临界状态机 | `FinalBattle` | 压力服务 / 战斗结算 | `FinalRun`、Widget |
 | Break 与先机 | `FinalBattle` | Break 服务 / 回合服务 | `FinalRun` |
 | 状态系统 | `FinalBattle` | 状态服务 | Widget |
-| Battle 只读查询与事件流 | `FinalBattle` | `BattleSnapshot / BattleEvent / EventsSince` | `FinalApp` 内部私有缓存真相 |
-| 崩溃与苏醒 | `FinalBattle` | 崩溃苏醒服务 | `FinalApp` |
 | 敌人意图与行动 | `FinalBattle` | 意图服务 / 回合服务 | 世界表现 Actor |
 | 单局持久状态 | `FinalRun` | `RunSession` | `FinalBattle` |
 | 单局外命令入口 | `FinalRun` | `SubmitRunCommand` | `FinalBattle` |
-| 地图与节点推进 | `FinalRun` | 节点解析器 | `FinalBattle` |
-| 事件系统 | `FinalRun` | 事件解析器 | Widget |
-| 奖励与商店 | `FinalRun` | 奖励 / 商店解析器 | `FinalBattle` |
-| 角色成长入口 | `FinalRun` | 成长解析器 | `FinalBattle` |
-| Run 只读查询与事件流 | `FinalRun` | `RunSnapshot / RunEvent / EventsSince` | `FinalApp` 内部私有缓存真相 |
-| UI 页面栈与根布局 | `FinalApp` | `UISubsystem / RootLayout` | `FinalBattle`、`FinalRun` |
-| UI 视图模型 | `FinalApp` | Widget Controller / ViewModel / HUDScreen | `FinalBattle` 内部服务 |
-| 世界桥接 | `FinalApp` | Flow Subsystem / Director | `FinalBattle` |
-| Save / Load | `FinalApp` 协调，`FinalRun` 提供 Save DTO / Restore API | `UFinalSaveGameCoordinator` / `UFinalRunSaveGame` / `FFinalRunSaveData` | `FinalBattle` 内部类、active battle 状态、UI 状态 |
-| 数据校验 / 编辑器工具 | `FinalEditor` | DataValidation 校验器 / 后续编辑器菜单 | Runtime 模块 |
-
-说明：
-* `FinalBattle` 与 `FinalRun` 都不应直接依赖彼此
-* 二者通过 `FinalData` 的静态定义与 `FinalApp` 的桥接流程协作
-* UI 只读权威状态，不直接写入战斗或单局状态
+| 角色升级成长三选一 | `FinalRun` | 成长服务 / 成长解析器 | `FinalBattle`、Widget |
+| 卡牌实例进化 | `FinalRun` | 卡牌实例服务 | `FinalBattle` 规则细节 |
+| 事件、奖励与商店 | `FinalRun` | 事件 / 奖励 / 商店解析器 | Widget |
+| Run 查询与事件流 | `FinalRun` | `RunSnapshot / RunEvent / EventsSince` | `FinalApp` 私有缓存真相 |
+| UI 页面与视图模型 | `FinalApp` | `UISubsystem / ViewModel` | `FinalBattle`、`FinalRun` |
+| 世界桥接 | `FinalApp` | Director / Presentation Actor | `FinalBattle` |
+| Save / Load | `FinalApp` 协调，`FinalRun` 提供 Save DTO / Restore API | Save coordinator | active battle 状态、UI 状态 |
+| 数据校验 / 编辑器工具 | `FinalEditor` | DataValidation / Commandlet | Runtime 模块 |
 
 ---
 
-##
-11. 首批最小可玩闭环
+## 11. 首批最小可玩闭环
 
-### 11.1 目标链路
+首批代码至少需要跑通下面链路：
 
-首批代码至少需要跑通下面这条链路：
-1. 进入一个普通战节点
-2. `FinalGameFlowSubsystem` 从 `RunSession` 发起战斗输入组装
-3. `FinalBattleFlowSubsystem` 创建 `BattleSession`
-4. 完成战斗开始初始化
+1. 启动一局 Run
+2. 进入普通战节点
+3. `FinalRun` 组装战斗输入
+4. `FinalBattle` 创建战斗并初始化牌堆
 5. 玩家打出 1 张牌
-6. 结算伤害、削韧、Break、先机变化
-7. 敌人行动
-8. 回合结束并进入下一回合
+6. 结算伤害、削韧、Break、先机与压力
+7. 压力可进入 `Critical`，并在继续受压时进入崩溃判定
+8. 敌人行动
 9. 战斗胜利
-10. `FinalGameFlowSubsystem` 提交 `BattleResult` 并回写 `RunSession`
-11. `RunSession` 进入明确的 `PendingBattleReward` 外层状态
-12. 外层领取战后奖励
-13. 外层显式推进到下一节点
-
-### 11.2 首批必须有的公开接口
-* `BootstrapNewRun()`
-* `ConfigureBattleStartState(...)`
-* `StartBattleFromRunSession()`
-* `SubmitBattleCommand(Command)`
-* `SubmitRunCommand(Command)`
-* `GetCurrentBattleSnapshot()`
-* `GetBattleLogEntries()`
-* `GetBattleEventsSince(Sequence)`
-* `GetRunSnapshot()`
-* `GetRunLogEntries()`
-* `GetRunEventsSince(Sequence)`
-* `CompleteBattleAndApplyResult(Result)`
-* `ClaimPendingBattleReward()` / `ClaimPendingBattleReward(PayloadId = RewardId)`
-* `SkipPendingBattleReward`
-* `AdvanceToNextNode(NodeId)`
-
-### 11.2.1 首批必须有的 Run 只读查询面
-* `RunSnapshot.PendingBattleReward`
-* `RunSnapshot.PendingRewardNode`
-* `RunSnapshot.PendingEventNode`
-* `RunSnapshot.PendingShopNode`
-* `RunSnapshot.Progression`
-
-### 11.3 首批必须有的最小状态
-* `RunState`
-* `BattleState`
-* `BattleCharacterState`
-* `BattleEnemyState`
-* `TeamDeckState`
-* `BattleCardInstance`
-* `BattleStatusInstance`
-
-### 11.4 首批必须可录入的最小资产
-* `BattleRuleConfig`
-* `CharacterDefinition`
-* `CardDefinition`
-* `UltimateDefinition`
-* `EnemyDefinition`
-* `EnemyIntentDefinition`
-* `StatusDefinition`
-* `BattleEncounterDefinition`
-
-### 11.5 首批明确不进闭环的内容
-* 商店
-* 复杂事件链
-* 技能树
-* 多阶段首领
-* 完整存档恢复
-* 编辑器批量工具
+10. `FinalRun` 消费 `BattleResult`
+11. 某名角色获得成长进度并升级
+12. 进入 `PendingGrowthChoice`
+13. UI 展示成长三选一
+14. 玩家选择属性成长或卡牌进化
+15. 如果选择卡牌进化，`RunCardInstance.CurrentCardId` 被替换
+16. 下一场战斗使用进化后的卡牌定义
 
 ---
 
-##
-12. 首版必须预留的扩展点
+## 12. 首版暂不实现
 
-### 12.1 战斗侧
-* 效果系统必须允许继续增加新的 `BattleEffectDefinition` 子类
-* Battle effect 基类只保留身份、目标、条件和备注，不承载无语义的通用数值字段；具体数值必须放在 effect 子类 payload 或 `Scalar`
-* 状态系统必须允许新增状态类别、叠加规则和刷新规则
-* 敌人行动系统必须允许加入召援、多阶段、阶段切换与特殊意图
-* 牌区系统必须预留持续区、消耗区、生成牌与复制牌的扩展空间
-
-### 12.2 单局外侧
-* `RunSession` 必须允许扩展事件、商店、遗物、角色成长
-* 奖励系统必须允许后续加入“删牌、加牌、升级牌、角色成长分支”
-* 已落地的奖励类型需要在 `RunState` 内真实反映，而不是只停留在 Snapshot 展示层
-* 节点推进必须允许后续加入特殊节点类型
-
-### 12.3 表现层
-* ViewModel 不绑定某一版 UI 布局
-* Root HUD 与 `Overlay / Modal` 分层必须可扩展，不因新增页面而改动 Battle / Run 规则层
-* UI 页面栈、输入模式、焦点恢复必须集中由 `FinalApp` 管理
-* 战斗事件日志必须能继续服务动画、音效、调试面板和回放
-* 世界桥接层必须允许替换表现 Actor 而不影响规则层
-* `BattleHUDScreen` 当前已收口为 shell：只负责 layout 和 panel 装配；后续替换成 Widget Blueprint 不应改变 `WidgetController / ViewModel` 合约
-* `FinalBattleWidgetController` 当前作为 Battle HUD coordinator 统一订阅 `BattleFlowSubsystem`，panel controller 不各自持有 Battle 真相或重复订阅流程事件
-* Battle HUD 当前已拆成 `PanelWidget + 子ViewModel + 子Controller`：panel 自己订阅自己的 view model，screen 不再直接刷新角色/敌人/手牌/奥义/最近事件细节
-
-### 12.4 工程侧
-* 模块间不通过 include 私有实现偷引用
-* 公共 API 尽量以 Session、Query、Request、Result 这类稳定接口暴露
-* 不提前引入 GAS、行为树或 Tick 驱动，除非后续明确某个系统无法承载
+- 完整技能树
+- 完整绝学树
+- 强化珠即时镶嵌
+- 强化槽槽级限制珠阶
+- 同卡同名珠三合一升级
+- 珠子背包、拆卸、合成树、套装
+- 角色专属临界收益
+- 临界牌
+- 临界流派遗物
+- 生产级多 slot 存档
+- 完整回放系统
 
 ---
 
-##
-13. 与源码架构的关系
+## 13. 与源码架构的关系
 
-本文档只负责把功能拆开。 实际 Unreal 模块、目录、Public / Private 边界、Build.cs 依赖，统一由 [Unreal_Source_Structure.md](Unreal_Source_Structure.md) 定义。
+本文档只负责把功能拆开。
 
+实际 Unreal 模块、目录、Public / Private 边界、Build.cs 依赖，统一由 [Unreal_Source_Structure.md](Unreal_Source_Structure.md) 定义。
