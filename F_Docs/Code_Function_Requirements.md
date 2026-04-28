@@ -1,12 +1,11 @@
-# 代码功能需求
+﻿# 代码功能需求
 
-## 1. 文档定位
-本文档用于把当前设计文档中的玩法需求，拆解成 Unreal 项目真正需要落地的代码功能块。  
-它不负责规定目录结构，也不负责定义字段细节，而是回答两个问题：
+##
+1. 文档定位
+
+本文档用于把当前设计文档中的玩法需求，拆解成 Unreal 项目真正需要落地的代码功能块。 它不负责规定目录结构，也不负责定义字段细节，而是回答两个问题：
 * 代码需要实现哪些系统
-* 每个系统负责什么输入、输出与边界
-
-本文档默认服务于：
+* 每个系统负责什么输入、输出与边界 本文档默认服务于：
 * [GDD4.0.md](GDD4.0.md)
 * [Battle_Rules.md](Battle_Rules.md)
 * [Status_System_Guide.md](Status_System_Guide.md)
@@ -15,15 +14,15 @@
 
 ---
 
-## 2. 首版代码目标
+##
+2. 首版代码目标
+
 首版代码需要优先满足：
 * 战斗规则按固定时序稳定结算
 * 静态内容可由 DataAsset 驱动，不靠硬编码卡牌与敌人
 * 战斗内状态与单局外状态分层清楚
 * UI 与表现层不直接改写规则真相
-* 后续新增角色、敌人、遗物、事件时尽量少改底层
-
-首版不追求：
+* 后续新增角色、敌人、遗物、事件时尽量少改底层 首版不追求：
 * 过早插件化
 * 过度抽象的一套万能框架
 * 依赖 Tick 的实时驱动
@@ -31,15 +30,15 @@
 
 ---
 
-## 3. 总体分层
+##
+3. 总体分层
+
 代码侧至少应拆成五层：
 * 内容定义层：静态定义、DataAsset、共享协议
 * 运行时状态层：战斗内与单局外的权威状态
 * 规则执行层：命令校验、效果解析、结算顺序、窗口处理
 * 外层编排层：地图、节点、奖励、事件、进入战斗、战后结算
-* 表现接入层：UI、Actor、PaperZD 动画、特效、音频、调试界面
-
-硬性边界：
+* 表现接入层：UI、Actor、PaperZD 动画、特效、音频、调试界面 硬性边界：
 * 表现层不能直接改写权威状态
 * 战斗规则层不能直接依赖 Widget 与场景 Actor
 * 单局外系统不能直接操作单张牌的战斗结算
@@ -47,9 +46,11 @@
 
 ---
 
-## 4. 战斗内核心功能
+##
+4. 战斗内核心功能
 
 ### 4.1 战斗初始化
+
 职责：
 * 根据遭遇模板、规则配置与当前单局状态建立一场战斗
 * 初始化敌人、队伍、抽牌堆、手牌区、持续区、消耗区
@@ -68,6 +69,7 @@
 * `P0`
 
 ### 4.2 战斗命令入口
+
 职责：
 * 接收玩家或系统发出的战斗命令
 * 校验命令是否合法
@@ -87,6 +89,7 @@
 * `P0`
 
 ### 4.3 卡牌与牌区循环
+
 职责：
 * 维护抽牌堆、手牌区、弃牌堆、持续区、消耗区
 * 处理抽牌、弃牌、生成、复制、回收、进入持续区
@@ -105,6 +108,7 @@
 * `P0`
 
 ### 4.4 资源系统
+
 职责：
 * 维护 AP、EP、Break 奖励 AP、受击 EP、普通牌基础 EP
 * 处理奥义消耗与 EP 获取公式
@@ -114,6 +118,7 @@
 * `P0`
 
 ### 4.5 伤害、治疗、压力
+
 职责：
 * 计算实际伤害、实际生命损失、实际回复量
 * 处理共享血条与角色压力的转化
@@ -123,6 +128,7 @@
 * `P0`
 
 ### 4.6 Break 与先机
+
 职责：
 * 处理攻击转削韧
 * 处理中途 Break 检查
@@ -133,6 +139,7 @@
 * `P0`
 
 ### 4.7 状态系统
+
 职责：
 * 处理状态归属
 * 处理叠层、刷新、覆盖、拒绝获得
@@ -143,6 +150,7 @@
 * `P0`
 
 ### 4.8 被动与遗物触发
+
 职责：
 * 处理战斗内被动
 * 处理遗物触发窗口
@@ -157,6 +165,7 @@
 * `P1`
 
 ### 4.9 崩溃与苏醒
+
 职责：
 * 处理角色崩溃
 * 处理崩溃卡转换
@@ -167,6 +176,7 @@
 * `P0`
 
 ### 4.10 敌人意图与行动
+
 职责：
 * 选择敌方当前意图
 * 处理敌方多段攻击、召援、蓄力、强化
@@ -177,6 +187,7 @@
 * `P0`
 
 ### 4.11 事件日志与回放基础
+
 职责：
 * 记录规则层发生了什么
 * 为 UI、表现层、调试工具提供统一事件流
@@ -189,20 +200,20 @@
 * `FinalApp` 应基于这组公开字段落统一的 BattleEvent presentation/helper 与只读事件账本 UI，服务 HUD、Debug、世界提示与未来 replay-ready 消费，但不承担规则推导
 * `FinalBattleResolver` 当前继续作为唯一对外规则入口，但私有实现细节应回收到 `FinalBattle/Private/Systems`
 * 当前已开始真实承接实现的 Battle 私有 system 至少包括：
-  * `FinalBattleInitializationService`：把遭遇、规则和 `FinalBattleInitContext` 展开为初始 `FinalBattleState`，承接角色 / 敌人 runtime state、初始牌堆、初始 intent、默认目标、`SessionStarted` 与 battle-start relic 初始化
-  * `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、固定数量抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
-  * `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
-  * `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
+* `FinalBattleInitializationService`：把遭遇、规则和 `FinalBattleInitContext` 展开为初始 `FinalBattleState`，承接角色 / 敌人 runtime state、初始牌堆、初始 intent、默认目标、`SessionStarted` 与 battle-start relic 初始化
+* `FinalBattleCardService`：手牌/牌堆去向、卡牌实例查找、固定数量抽牌与手牌视图构建；同时承接 battle 内衍生牌实例生成、直接入手、`ConsumePile` 去向、初始化抽牌堆准备（洗牌 + `开战` 置顶）与回合结束手牌整理
+* `FinalBattleResourceService`：AP / EP 初始化、增减与回合资源重置
+* `FinalBattleTurnService`：`EndTurn` 后敌人行动推进与玩家回合开始窗口衔接；玩家新回合开始按 `BattleRuleConfig.TurnStartDrawCount` 固定抽牌，不按手牌数补到目标值
 * `FinalBattleRelicService`：battle-start / player-turn-start 遗物数值触发、runtime trigger 计数重置与 `ActiveRelics` 投影维护
 * `FinalBattleTriggerService`：Battle 内 trigger window 分发与执行，当前统一承接角色与遗物的 `OwnerTookHealthDamage / PlayerTeamTookHealthDamage / PlayerCardResolved`
 * `FinalBattleConditionService`：统一承接 Battle 私有条件求值，区分 `SourceOnly / ChainRecord / TargetRequired / ResolvedCard` 四类上下文，并供 `Effect.Conditions[]` 与 runtime trigger 条件复用同一套运行时判断基础
-  * `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
-  * `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
-  * `FinalData` effect schema 当前区分通用 `UFinalBattleEffectDefinition` 与目标型 `UFinalBattleTargetedEffectDefinition`：基类只保留身份、类型、条件和备注，`UnitTargetRule` 只属于 `Damage / Heal / GainShield / ApplyStatus / RemoveStatus / BonusBreak` 等目标型 effect；`DrawCards / GainAP / GenerateCard / MoveCards` 不承载目标规则
-  * `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
-  * `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
-  * `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
-  * `FinalBattleSnapshotBuilder`：统一承接 `FinalBattleState -> FinalBattleSnapshot` 的只读查询投影，编排角色、奥义、敌人、牌堆计数、状态和手牌视图
+* `FinalBattleStatusService`：当前最小状态窗口 tick、状态加层/减层/移除与状态快照整理
+* `FinalBattleEffectExecutionService`：承接 effect list dispatch、scalar 解析，以及 `Damage / Heal / ApplyStatus / RemoveStatus / GainShield / DrawCards / GainAP / BonusBreak / GenerateCard / MoveCards` 的 Battle 私有解释执行；它只负责执行 payload 并写入 effect-chain 真实记录，条件判定已下沉到 `FinalBattleConditionService`
+* `FinalData` effect schema 当前区分通用 `UFinalBattleEffectDefinition` 与目标型 `UFinalBattleTargetedEffectDefinition`：基类只保留身份、类型、条件和备注，`UnitTargetRule` 只属于 `Damage / Heal / GainShield / ApplyStatus / RemoveStatus / BonusBreak` 等目标型 effect；`DrawCards / GainAP / GenerateCard / MoveCards` 不承载目标规则
+* `FinalBattleEnemyActionService`：承接单个敌人的当前 intent effect 执行，以及 intent 缺失 / unsupported 时的最小 fallback 普攻解析
+* `FinalBattleUnitService`：承接玩家角色 / 敌人 / 第一名存活敌人 / command target 的基础查询，Resolver 与私有 system 不再各自保留局部 lookup helper
+* `FinalBattleEventService`：统一写入 `BattleEvent`，负责 `EventSequence / BattleId / Round / bBattleEnded / bPlayerVictory` 元数据填充，供 Resolver 与私有 system 共用
+* `FinalBattleSnapshotBuilder`：统一承接 `FinalBattleState -> FinalBattleSnapshot` 的只读查询投影，编排角色、奥义、敌人、牌堆计数、状态和手牌视图
 * `FinalBattleResolver` 负责调用初始化服务、command dispatch、事件时序与 snapshot builder facade，不继续作为所有战斗细节的单文件实现；单位查询和默认目标查找统一下沉到 `FinalBattleUnitService`
 
 优先级：
@@ -210,9 +221,11 @@
 
 ---
 
-## 5. 单局外核心功能
+##
+5. 单局外核心功能
 
 ### 5.1 单局持久状态
+
 职责：
 * 维护当前角色 roster
 * 维护牌组、遗物、金币、事件结果
@@ -226,6 +239,7 @@
 * `P0`
 
 ### 5.2 单局外命令入口
+
 职责：
 * 接收事件选项、奖励选择、商店购买、成长分支等单局外命令
 * 校验条件、代价与可选项是否合法
@@ -242,6 +256,7 @@
 * `P0`
 
 ### 5.3 地图与节点推进
+
 职责：
 * 维护当前章节、节点池、节点选择结果
 * 组织普通战、精英战、商店、事件、休整、首领战入口
@@ -253,6 +268,7 @@
 * `P1`
 
 ### 5.4 事件系统
+
 职责：
 * 呈现事件选项
 * 校验选项条件与代价
@@ -262,6 +278,7 @@
 * `P1`
 
 ### 5.5 奖励与商店
+
 职责：
 * 生成战后奖励
 * 管理删牌、购牌、买遗物、恢复、重铸等行为
@@ -301,6 +318,7 @@
 * `P1`
 
 ### 5.6 角色成长入口
+
 职责：
 * 发放特有卡
 * 升级或分支变体
@@ -310,6 +328,7 @@
 * `P1`
 
 ### 5.7 Run 查询与事件流
+
 职责：
 * 为 `FinalApp` 与调试工具提供 `RunSnapshot`
 * 提供结构化 `RunEvent`，记录初始化、战前桥接、RunCommand、战后回写等关键外层流程
@@ -327,9 +346,11 @@
 
 ---
 
-## 6. 内容与数据功能
+##
+6. 内容与数据功能
 
 ### 6.1 定义资产加载
+
 职责：
 * 加载角色、卡牌、敌人、状态、遗物、事件、遭遇、规则配置等定义
 * 通过稳定 ID 提供查询入口
@@ -339,6 +360,7 @@
 * `P0`
 
 ### 6.2 资源校验
+
 职责：
 * 校验 ID 是否重复
 * 校验外部引用是否缺失
@@ -362,6 +384,7 @@
 * `P1`
 
 ### 6.3 数据查询与索引
+
 职责：
 * 按 `CardId / EnemyId / EventId / RelicId` 查询
 * 按标签、章节、稀有度、角色归属、推荐阶段做筛选
@@ -372,9 +395,11 @@
 
 ---
 
-## 7. 表现与外层接入
+##
+7. 表现与外层接入
 
 ### 7.1 UI 编排与视图模型
+
 职责：
 * 在 `FinalApp` 中维护运行时 UI 根布局与页面层级
 * 采用“常驻 HUD + Overlay + Modal + Tooltip + Toast”分层
@@ -402,6 +427,7 @@
 * `P0`
 
 ### 7.2 世界桥接
+
 职责：
 * 在场景中生成和维护角色 / 敌人表现 Actor
 * 接收战斗事件并驱动表现
@@ -411,6 +437,7 @@
 * `P0`
 
 ### 7.3 输入与交互
+
 职责：
 * 承接战斗内的手牌点击、目标选择、结束回合输入
 * 把战斗内输入转换成 `BattleCommand`
@@ -422,6 +449,7 @@
 * `P0`
 
 ### 7.4 音画反馈
+
 职责：
 * 根据战斗事件播放动画、特效、音频、浮字
 * 不参与最终数值判定
@@ -431,9 +459,11 @@
 
 ---
 
-## 8. 保存、调试与测试支撑
+##
+8. 保存、调试与测试支撑
 
 ### 8.1 Save / Load
+
 职责：
 * 当前第一版只保存战斗外 Run 外层状态，由 `FinalApp` 协调固定 SaveGame slot，`FinalRun` 通过公开 `FinalRunSaveData` 协议导出与恢复
 * 保存稳定 ID、`FFinalRunState`、Run 事件日志、节点配置与访问 / 解析进度、当前 FlowStage、待领奖励上下文
@@ -448,6 +478,7 @@
 * `P1`
 
 ### 8.2 调试工具
+
 职责：
 * 查看当前战斗状态
 * 查看敌人意图
@@ -459,6 +490,7 @@
 * `P1`
 
 ### 8.3 自动化校验
+
 职责：
 * 基础规则回归
 * 数据资产合法性检查
@@ -469,7 +501,8 @@
 
 ---
 
-## 9. 首版优先级建议
+##
+9. 首版优先级建议
 
 ### 9.1 P0 必做
 * 内容定义加载
@@ -507,10 +540,17 @@
 
 ---
 
-## 10. 功能归属总表
+##
+10. 功能归属总表
 
 | 功能块 | 主归属模块 | 对外入口 | 不应放入 |
-| --- | --- | --- | --- |
+| ---
+
+| ---
+
+| ---
+
+| --- |
 | 定义资产加载 | `FinalData` | 数据查询服务 / 资源注册表 | `FinalBattle`、`FinalApp` |
 | 战斗初始化 | `FinalBattle` | `BattleSession` | `BattleGameMode` |
 | 战斗命令入口 | `FinalBattle` | `SubmitCommand` | Widget、Actor |
@@ -542,9 +582,11 @@
 
 ---
 
-## 11. 首批最小可玩闭环
+##
+11. 首批最小可玩闭环
 
 ### 11.1 目标链路
+
 首批代码至少需要跑通下面这条链路：
 1. 进入一个普通战节点
 2. `FinalGameFlowSubsystem` 从 `RunSession` 发起战斗输入组装
@@ -613,7 +655,8 @@
 
 ---
 
-## 12. 首版必须预留的扩展点
+##
+12. 首版必须预留的扩展点
 
 ### 12.1 战斗侧
 * 效果系统必须允许继续增加新的 `BattleEffectDefinition` 子类
@@ -645,6 +688,8 @@
 
 ---
 
-## 13. 与源码架构的关系
-本文档只负责把功能拆开。  
-实际 Unreal 模块、目录、Public / Private 边界、Build.cs 依赖，统一由 [Unreal_Source_Structure.md](Unreal_Source_Structure.md) 定义。
+##
+13. 与源码架构的关系
+
+本文档只负责把功能拆开。 实际 Unreal 模块、目录、Public / Private 边界、Build.cs 依赖，统一由 [Unreal_Source_Structure.md](Unreal_Source_Structure.md) 定义。
+
