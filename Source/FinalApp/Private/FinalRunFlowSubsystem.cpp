@@ -11,6 +11,11 @@ namespace
 {
 FText BuildSnapshotFlowMessage(const FFinalRunSnapshot& Snapshot)
 {
+	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
+	{
+		return NSLOCTEXT("FinalRunFlow", "PendingGrowthChoice", "请选择当前角色的成长方向。");
+	}
+
 	if (!Snapshot.Progression.CurrentNodeStateMessage.IsEmpty()
 		&& (Snapshot.PendingBattleReward.bHasPendingReward
 			|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
@@ -41,6 +46,7 @@ bool ShouldUseRewardEventFeedback(const EFinalRunEventType EventType)
 	case EFinalRunEventType::RewardNodeResolved:
 	case EFinalRunEventType::EventNodeResolved:
 	case EFinalRunEventType::ShopOfferPurchased:
+	case EFinalRunEventType::GrowthChoiceApplied:
 		return true;
 
 	case EFinalRunEventType::Info:
@@ -153,9 +159,15 @@ void UFinalRunFlowSubsystem::RefreshRunFlow(const bool bForce)
 	}
 
 	CachedSnapshot = RunSession->GetSnapshot();
-	if (LastFlowMessage.IsEmpty())
+	const FText SnapshotFlowMessage = BuildSnapshotFlowMessage(CachedSnapshot);
+	const bool bShouldPreserveRejectFeedback = bHasNewEvents && LastProcessedRunEvent.EventType == EFinalRunEventType::RunCommandRejected;
+	if (CachedSnapshot.PendingGrowthChoice.bHasPendingChoice && !bShouldPreserveRejectFeedback)
 	{
-		LastFlowMessage = BuildSnapshotFlowMessage(CachedSnapshot);
+		LastFlowMessage = SnapshotFlowMessage;
+	}
+	else if (LastFlowMessage.IsEmpty())
+	{
+		LastFlowMessage = SnapshotFlowMessage;
 	}
 
 	if (UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
@@ -243,6 +255,14 @@ bool UFinalRunFlowSubsystem::ResolveShopOffer(const FName OfferId)
 		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveShop", "当前无法访问 RunSession，无法提交商店节点购买请求。"));
 }
 
+bool UFinalRunFlowSubsystem::SelectGrowthChoice(const FName ChoiceInstanceId)
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::SelectGrowthChoice,
+		ChoiceInstanceId,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForSelectGrowthChoice", "当前无法访问 RunSession，无法提交成长选择。"));
+}
+
 FFinalRunSnapshot UFinalRunFlowSubsystem::GetCurrentRunSnapshot() const
 {
 	if (const UFinalRunSession* RunSession = ResolveRunSession())
@@ -306,6 +326,10 @@ void UFinalRunFlowSubsystem::ApplyPresentationForSnapshot(const FFinalRunSnapsho
 
 	switch (DesiredOverlay)
 	{
+	case EFinalRunPresentedOverlay::GrowthChoice:
+		UISubsystem->ShowRunGrowthChoiceOverlay();
+		break;
+
 	case EFinalRunPresentedOverlay::RunFlow:
 		UISubsystem->ShowRunFlowOverlay();
 		break;
@@ -375,6 +399,11 @@ void UFinalRunFlowSubsystem::CloseActiveFlowOverlay() const
 
 EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const FFinalRunSnapshot& Snapshot) const
 {
+	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
+	{
+		return EFinalRunPresentedOverlay::GrowthChoice;
+	}
+
 	if (Snapshot.Progression.FlowStage == EFinalRunFlowStage::PreparingBattle
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::None)
 	{

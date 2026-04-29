@@ -357,9 +357,9 @@ void UFinalRunFlowPromptPanel::RefreshPrompt()
 
 void UFinalRunFlowPromptPanel::HandleOpenFlowClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalUISubsystem>() : nullptr)
+	if (UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem())
 	{
-		UISubsystem->ShowRunFlowOverlay();
+		RunFlowSubsystem->RefreshRunFlow(true);
 	}
 
 	RefreshPrompt();
@@ -402,6 +402,11 @@ bool UFinalRunFlowPromptPanel::ShouldShowPrompt() const
 	}
 
 	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
+	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
+	{
+		return true;
+	}
+
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
@@ -433,6 +438,11 @@ FText UFinalRunFlowPromptPanel::BuildPromptText() const
 	}
 
 	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
+	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
+	{
+		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptGrowthChoice", "选择成长");
+	}
+
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{

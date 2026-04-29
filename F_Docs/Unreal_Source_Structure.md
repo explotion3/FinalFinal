@@ -295,6 +295,7 @@ UFinalBattleFlowSubsystem
 UFinalRunFlowSubsystem
 UFinalUISubsystem
 UFinalSaveGameCoordinator
+UFinalRunGrowthChoiceOverlayScreen
 ```
 
 原则：
@@ -303,6 +304,7 @@ UFinalSaveGameCoordinator
 - `FinalApp` 不直接修改 `BattleState` 和 `RunPersistentState` 私有结构。
 - UI 只通过 Snapshot / ViewModel / Command 与规则层交互。
 - World Actor 只表现规则结果，不反向决定规则。
+- 独立 Growth overlay 也只是 `RunSnapshot.PendingGrowthChoice` 的只读投影；真正的成长应用仍然只发生在 `FinalRun`
 
 ---
 
@@ -414,6 +416,15 @@ SelectGrowthChoice (RunCommand)
 `FinalBattle` 只提供战斗事实，不直接触发升级 UI。
 
 `FinalApp` 负责展示成长选择 UI，并把玩家选择提交给 `FinalRun`。
+
+当前 `FinalApp` 落地口径：
+
+```text
+RunFlowSubsystem
+-> 统一读取 RunSnapshot / RunEvent
+-> 若存在 PendingGrowthChoice，则优先呈现 FinalRunGrowthChoiceOverlayScreen
+-> 否则继续走统一 FinalRunFlowOverlayScreen
+```
 
 ---
 

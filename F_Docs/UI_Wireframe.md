@@ -30,6 +30,7 @@
   * `FinalModalScreenBase`
   * `FinalRunStageOverlayScreenBase`
   * `FinalRunFlowOverlayScreen`（Run 外层统一主流程页）
+  * `FinalRunGrowthChoiceOverlayScreen`（角色成长选择页）
   * `FinalRunRewardOverlayScreen`（战后奖励页）
   * `FinalRunNodeOverlayScreen`（节点选择页）
   * `FinalRunRewardNodeOverlayScreen`（奖励节点页）
@@ -39,7 +40,9 @@
 * 当前 `FinalApp` 已新增 `RunFlowSubsystem`：
   * 读取 `RunSession`
   * 增量消费 `RunEvent`
-  * 根据 `RunSnapshot.Progression / PendingBattleReward` 自动打开统一 `FinalRunFlowOverlayScreen`，并由该页在同一入口内承接战后奖励、节点推进、奖励节点、事件节点、商店节点与本局结束
+  * 根据 `RunSnapshot.Progression / PendingBattleReward / PendingGrowthChoice` 自动路由外层页
+  * 当存在 `PendingGrowthChoice` 时，优先打开独立 `FinalRunGrowthChoiceOverlayScreen`
+  * 其他外层阶段仍由统一 `FinalRunFlowOverlayScreen` 承接战后奖励、节点推进、奖励节点、事件节点、商店节点与本局结束
   * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / PendingBattleRewardSkipped / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
   * 当 `RunEvent` 带有 `AffectedCharacterResults` 时，当前反馈主路径与 prototype debug 会直接消费这些角色结果 view data，而不再根据 Growth reward 自行推断角色变化
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
@@ -131,6 +134,7 @@
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
 * `PrototypeRunDebugScreen / FinalBattleEventScreen`：按需打开的 `Overlay Layer` 调试工具，不再和 Battle HUD 常驻同层
 * `Overlay Layer`：默认由 `FinalRunFlowOverlayScreen` 承接 Run 外层主流程；当前 C++ fallback 是右侧紧凑流程面板，不再使用全屏遮罩，面板外区域应尽量保持对 Battle HUD 的点击可达；旧的战后奖励、节点选择、奖励节点、事件节点、商店节点专用页保留为显式调试 / 后续详情页入口
+* `Overlay Layer`：当 `PendingGrowthChoice` 存在时，优先由独立 `FinalRunGrowthChoiceOverlayScreen` 占用；成长处理完成后再回到普通 RunFlow overlay 路径
 * `Modal Layer`：承接确认、放弃、二次确认等阻断交互；优先级高于 `Overlay`
 * `Tooltip / Toast Layer`：当前保留为后续扩展挂点
 * 输入优先级：
@@ -140,6 +144,7 @@
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
 * Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
+  * 若存在 `PendingGrowthChoice`，优先打开独立 Growth overlay
   * 进入 `PendingBattleReward` 时打开统一 RunFlow 页，并显示战后卡牌候选与跳过按钮
   * 进入 `AwaitingNodeAdvance` 时在统一 RunFlow 页显示可前往下一节点
   * 进入 `PendingRewardNode` 时在统一 RunFlow 页显示奖励节点确认
@@ -152,9 +157,10 @@
   * 当前没有 `ActiveBattleSession`
   * `RunFlowSubsystem` 会委托 `FinalGameFlowSubsystem` 自动调用 `StartBattleFromRunSession()`
 * 自动开战后不保留 Run overlay；屏幕恢复为常驻 Battle HUD 输入模式
-* `UISubsystem.ShowRunFlowOverlay()` 是当前自动流程主入口
+* `RunFlowSubsystem.RefreshRunFlow(true)` 是当前自动流程主入口；它会根据最新 snapshot 决定打开 Growth overlay 还是普通 RunFlow overlay
 * `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
-* `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只调用 `UISubsystem.ShowRunFlowOverlay()`，不直接执行任何 RunCommand
+* `FinalRunGrowthChoiceOverlayScreen` 当前是独立 screen，只消费 `RunSnapshot.PendingGrowthChoice` 与角色 view data；它不保存成长真相，只负责选择并转发 `SelectGrowthChoice`
+* `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于成长选择、战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只触发 `RunFlowSubsystem.RefreshRunFlow(true)`，不直接执行任何 RunCommand
 * `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`；节点显示优先使用 `DisplayName`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback
 * `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass` 与 `RunFlowOptionButtonClass`；未配置时继续使用 C++ fallback
 * 旧的上一个 / 下一个 / 执行当前操作按钮保留为字段与奖励节点 fallback，但不再是战后奖励、节点推进、事件、商店的主流程交互路径
@@ -188,6 +194,21 @@
 * `OptionLabel`：旧版兼容字段；如果 WBP 只绑定这个控件，C++ 会写入合并后的多行文本
 
 条目数据来源仍是 `RunSnapshot` 展示数据，点击后由 `FinalRunFlowOverlayScreen` 统一转发到 `RunFlowSubsystem`。
+
+### 2.2.2 RunGrowthChoiceOverlay WBP 绑定建议
+推荐 `WBP_RunGrowthChoiceOverlay` 父类使用 `FinalRunGrowthChoiceOverlayScreen`。它是独立 overlay，不与统一 `RunFlowOverlay` 混用。
+
+可绑定控件名：
+* `TitleText`
+* `SummaryText`
+* `CharacterSummaryText`
+* `SelectionSummaryText`
+* `GrowthChoiceListBox`
+* `PrimaryActionButton / PrimaryActionButtonText`
+* `CloseButton / CloseButtonText`
+* `FeedbackText`
+
+推荐继续复用 `FinalRunFlowOptionButton` 作为候选条目控件。条目只负责展示和回传被点击的 `ChoiceInstanceId / PayloadIndex`，不直接执行 Run 规则。
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动
@@ -364,7 +385,9 @@
 * 多奖励、多选项、多商品下更细的卡片化表现与焦点管理
 
 当前实现口径：
+* `PendingGrowthChoice` 当前已经成为正式 Run 外层页的一部分；若它与其他外层流程并存，Growth overlay 优先
 * 自动流程主入口是 `FinalRunFlowOverlayScreen`；旧专用页继续编译并保留为显式调试 / 后续详情页能力
+* `FinalRunGrowthChoiceOverlayScreen` 是自动流程主入口之一，但只承接成长选择；战后奖励、节点推进、事件、商店、RunEnded 仍走统一 `FinalRunFlowOverlayScreen`
 * 战后奖励页当前优先以 `PendingBattleReward.RewardEntryViews` 为主展示口径，并实际消费 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退；`RewardGold / LastBattleRewardGold` 只保留为金币自动入账摘要，并把“选择/跳过卡牌奖励”意图转发给 `RunFlowSubsystem`
 * 节点选择页当前以 `Progression.AvailableNextNodes` 和当前节点展示字段为主展示口径，并把“推进节点”意图转发给 `RunFlowSubsystem`
 * 奖励节点页当前真实消费 `PendingRewardNode.Title / Summary / bCanResolve / bResolved / RewardEntryViews`，并实际显示 `PresentationKind / IconId / VisualTier / DetailText`；raw `RewardEntries` 只作回退，并把“确认奖励节点”意图经 `RunFlowSubsystem` 转发为 `ResolveReward`

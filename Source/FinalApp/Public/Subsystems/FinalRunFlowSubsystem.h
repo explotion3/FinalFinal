@@ -11,6 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinalRunFlowStateChangedSignature);
 enum class EFinalRunPresentedOverlay : uint8
 {
 	None,
+	GrowthChoice,
 	RunFlow,
 	BattleReward,
 	NodeSelect,
@@ -55,6 +56,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
 	bool ResolveShopOffer(FName OfferId);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool SelectGrowthChoice(FName ChoiceInstanceId);
+
 	UFUNCTION(BlueprintPure, Category = "Final|RunFlow")
 	FFinalRunSnapshot GetCurrentRunSnapshot() const;
 
@@ -63,6 +67,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|RunFlow")
 	FText GetLastFlowMessage() const;
+
+	EFinalRunPresentedOverlay GetPresentedOverlay() const
+	{
+		return PresentedOverlay;
+	}
 
 	UPROPERTY(BlueprintAssignable, Category = "Final|RunFlow")
 	FFinalRunFlowStateChangedSignature OnRunFlowStateChanged;

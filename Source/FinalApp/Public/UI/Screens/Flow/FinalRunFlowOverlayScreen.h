@@ -14,7 +14,8 @@ enum class EFinalRunFlowOptionKind : uint8
 	Reward,
 	NextNode,
 	EventOption,
-	ShopOffer
+	ShopOffer,
+	GrowthChoice
 };
 
 class UFinalRunFlowOptionButton;

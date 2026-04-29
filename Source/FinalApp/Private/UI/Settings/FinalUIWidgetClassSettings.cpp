@@ -3,6 +3,7 @@
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunGrowthChoiceOverlayScreen.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
@@ -127,6 +128,11 @@ TSubclassOf<UFinalBattleLogEntryWidget> UFinalUIWidgetClassSettings::GetBattleLo
 TSubclassOf<UFinalRunFlowOverlayScreen> UFinalUIWidgetClassSettings::GetRunFlowOverlayScreenClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunFlowOverlayScreenClass);
+}
+
+TSubclassOf<UFinalRunGrowthChoiceOverlayScreen> UFinalUIWidgetClassSettings::GetRunGrowthChoiceOverlayScreenClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunGrowthChoiceOverlayScreenClass);
 }
 
 TSubclassOf<UFinalRunFlowOptionButton> UFinalUIWidgetClassSettings::GetRunFlowOptionButtonClass()

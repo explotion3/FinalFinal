@@ -13,6 +13,7 @@ class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
 class UFinalPrototypeRunDebugScreen;
 class UFinalRunFlowOverlayScreen;
+class UFinalRunGrowthChoiceOverlayScreen;
 class UFinalRunStageOverlayScreenBase;
 class UFinalPlaceholderModalScreen;
 class UFinalRunEventNodeOverlayScreen;
@@ -64,6 +65,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void ShowRunFlowOverlay();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ShowRunGrowthChoiceOverlay();
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	void ShowBattleRewardOverlayPlaceholder();
@@ -153,6 +157,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunFlowOverlayScreen> RunFlowOverlayScreen;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalRunGrowthChoiceOverlayScreen> RunGrowthChoiceOverlayScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunRewardOverlayScreen> RewardOverlayScreen;

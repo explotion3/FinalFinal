@@ -422,6 +422,7 @@
 - 展示属性成长结果
 - 展示卡牌进化结果
 - 展示压力 `Normal / Critical / Collapse` 状态
+- 当存在 `PendingGrowthChoice` 时，优先展示独立成长 overlay，再回到普通 Run 外层流程
 
 优先级：`P0`
 
@@ -442,6 +443,13 @@
 - 把战斗内输入转换成 `BattleCommand`
 - 把事件、奖励、商店、成长选择等单局外输入转换成 `RunCommand`
 - 统一处理输入模式、焦点恢复、覆盖页与模态页
+
+当前阶段补充：
+
+- `FinalRunFlowSubsystem` 仍是 `FinalApp` 内唯一的 Run 外层流程桥接入口
+- `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
+- Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相
+- `SelectGrowthChoice` 仍然只通过 `RunFlowSubsystem -> RunSession.SubmitRunCommand()` 提交，不新增 UI 直写规则入口
 
 优先级：`P0`
 

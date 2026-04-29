@@ -15,6 +15,7 @@
 #include "UI/Screens/Flow/FinalPlaceholderModalScreen.h"
 #include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunGrowthChoiceOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunNodeOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunRewardNodeOverlayScreen.h"
@@ -48,6 +49,7 @@ void UFinalUISubsystem::Deinitialize()
 	OverlayScreenStack.Reset();
 	ModalScreenStack.Reset();
 	RunFlowOverlayScreen = nullptr;
+	RunGrowthChoiceOverlayScreen = nullptr;
 	RewardOverlayScreen = nullptr;
 	NodeOverlayScreen = nullptr;
 	RewardNodeOverlayScreen = nullptr;
@@ -279,6 +281,12 @@ void UFinalUISubsystem::ShowRunFlowOverlay()
 	ConfigureAndOpenRunOverlay(RunFlowOverlayScreen);
 }
 
+void UFinalUISubsystem::ShowRunGrowthChoiceOverlay()
+{
+	EnsureFlowScreens();
+	ConfigureAndOpenRunOverlay(RunGrowthChoiceOverlayScreen);
+}
+
 void UFinalUISubsystem::ShowBattleRewardOverlayPlaceholder()
 {
 	EnsureFlowScreens();
@@ -450,6 +458,11 @@ void UFinalUISubsystem::EnsureFlowScreens()
 	if (RunFlowOverlayScreen == nullptr)
 	{
 		RunFlowOverlayScreen = CreateWidget<UFinalRunFlowOverlayScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRunFlowOverlayScreenClass());
+	}
+
+	if (RunGrowthChoiceOverlayScreen == nullptr)
+	{
+		RunGrowthChoiceOverlayScreen = CreateWidget<UFinalRunGrowthChoiceOverlayScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRunGrowthChoiceOverlayScreenClass());
 	}
 
 	if (RewardOverlayScreen == nullptr)
