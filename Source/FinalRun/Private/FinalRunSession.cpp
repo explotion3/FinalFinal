@@ -185,12 +185,12 @@ const UFinalCardDefinition* FindRewardCardDefinition(const FFinalCardId& CardId,
 	return DataRegistry->FindCardDefinition(CardId);
 }
 
-int32 CountRunDeckCards(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+int32 CountRunDeckCards(const TArray<FFinalRunCardInstance>& RunDeck, const FFinalCardId& CardId)
 {
 	int32 Count = 0;
-	for (const FFinalCardId& DeckCardId : RunDeck)
+	for (const FFinalRunCardInstance& DeckCardInstance : RunDeck)
 	{
-		if (DeckCardId == CardId)
+		if (DeckCardInstance.GetEffectiveCardId() == CardId)
 		{
 			++Count;
 		}
@@ -452,8 +452,9 @@ FFinalRunCurrentBuildViewData BuildCurrentBuildViewData(const FFinalRunState& Ru
 
 	TMap<FName, int32> DeckCardCounts;
 	TArray<FFinalCardId> OrderedDeckCardIds;
-	for (const FFinalCardId& CardId : RunState.RunDeck)
+	for (const FFinalRunCardInstance& CardInstance : RunState.RunDeck)
 	{
+		const FFinalCardId CardId = CardInstance.GetEffectiveCardId();
 		if (!CardId.IsValid())
 		{
 			continue;
@@ -659,7 +660,29 @@ void UFinalRunSession::ConfigureBattleStartState(const FFinalEncounterId& Encoun
 	CurrentState.CurrentEncounterId = EncounterId;
 	CurrentState.CurrentRuleConfigId = RuleConfigId;
 	CurrentState.Characters = PartyStates;
-	CurrentState.RunDeck = DeckCardIds;
+	CurrentState.RunDeck.Reset();
+	CurrentState.NextRunCardInstanceSerial = 1;
+
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
+	for (const FFinalCardId& CardId : DeckCardIds)
+	{
+		if (!CardId.IsValid())
+		{
+			continue;
+		}
+
+		FFinalCharacterId OwnerCharacterId;
+		if (const UFinalCardDefinition* CardDefinition = DataRegistry != nullptr ? DataRegistry->FindCardDefinition(CardId) : nullptr)
+		{
+			if (!CardDefinition->OwnerUnitId.IsNone())
+			{
+				OwnerCharacterId = FFinalCharacterId(CardDefinition->OwnerUnitId);
+			}
+		}
+
+		const FName InstanceId = FName(*FString::Printf(TEXT("RunCard_%d"), CurrentState.NextRunCardInstanceSerial++));
+		CurrentState.RunDeck.Add(FFinalRunCardInstance::Make(InstanceId, CardId, OwnerCharacterId));
+	}
 	CurrentState.TeamCurrentHP = InTeamCurrentHP;
 	CurrentState.bHasPendingBattleStart = EncounterId.IsValid()
 		&& RuleConfigId.IsValid()
@@ -792,7 +815,16 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 	Request.EncounterId = CurrentState.CurrentEncounterId;
 	Request.RuleConfigId = CurrentState.CurrentRuleConfigId;
 	Request.TeamCurrentHP = CurrentState.TeamCurrentHP;
-	Request.DeckCardIds = CurrentState.RunDeck;
+	Request.DeckCardIds.Reset();
+	Request.DeckCardIds.Reserve(CurrentState.RunDeck.Num());
+	for (const FFinalRunCardInstance& CardInstance : CurrentState.RunDeck)
+	{
+		const FFinalCardId EffectiveCardId = CardInstance.GetEffectiveCardId();
+		if (EffectiveCardId.IsValid())
+		{
+			Request.DeckCardIds.Add(EffectiveCardId);
+		}
+	}
 	Request.PartyStates = CurrentState.Characters;
 	Request.BattleStartRelics = BuildBattleStartRelicInputs(CurrentState, DataRegistry);
 
@@ -1719,4 +1751,5 @@ void UFinalRunSession::AppendEvent(const FFinalRunEvent& Event)
 
 	RunLogEntries.Add(MoveTemp(EventToAppend));
 }
+
 

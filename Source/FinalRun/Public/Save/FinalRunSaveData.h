@@ -14,7 +14,7 @@ struct FINALRUN_API FFinalRunSaveData
 {
 	GENERATED_BODY()
 
-	static constexpr int32 CurrentSaveVersion = 1;
+	static constexpr int32 CurrentSaveVersion = 2;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Final|Run|Save")
 	int32 SaveVersion = CurrentSaveVersion;
@@ -59,3 +59,4 @@ struct FINALRUN_API FFinalRunSaveData
 	bool IsStructurallyValid(FText* OutFailureReason = nullptr) const;
 	int32 GetMaxRunLogEventSequence() const;
 };
+

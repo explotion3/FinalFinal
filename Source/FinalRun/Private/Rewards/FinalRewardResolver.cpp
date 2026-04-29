@@ -269,24 +269,25 @@ void NormalizeRewardEntries(TArray<FFinalRunRewardEntry>& RewardEntries, const b
 	}
 }
 
-int32 CountRunDeckCards(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+int32 CountRunDeckCards(const TArray<FFinalRunCardInstance>& RunDeck, const FFinalCardId& CardId)
 {
 	int32 Count = 0;
-	for (const FFinalCardId& DeckCardId : RunDeck)
+	for (const FFinalRunCardInstance& DeckCardInstance : RunDeck)
 	{
-		if (DeckCardId == CardId)
+		if (DeckCardInstance.GetEffectiveCardId() == CardId)
 		{
 			++Count;
 		}
 	}
+
 	return Count;
 }
 
-int32 FindRunDeckCardIndex(const TArray<FFinalCardId>& RunDeck, const FFinalCardId& CardId)
+int32 FindRunDeckCardIndex(const TArray<FFinalRunCardInstance>& RunDeck, const FFinalCardId& CardId)
 {
-	return RunDeck.IndexOfByPredicate([&CardId](const FFinalCardId& DeckCardId)
+	return RunDeck.IndexOfByPredicate([&CardId](const FFinalRunCardInstance& DeckCardInstance)
 	{
-		return DeckCardId == CardId;
+		return DeckCardInstance.GetEffectiveCardId() == CardId;
 	});
 }
 
@@ -871,7 +872,8 @@ void FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(
 		case EFinalRunRewardType::CardGrant:
 			for (int32 GrantIndex = 0; GrantIndex < GetRewardEntryApplicationCount(Entry); ++GrantIndex)
 			{
-				RunState.RunDeck.Add(Entry.GrantedCardId);
+				const FName InstanceId = FName(*FString::Printf(TEXT("RunCard_%d"), RunState.NextRunCardInstanceSerial++));
+				RunState.RunDeck.Add(FFinalRunCardInstance::Make(InstanceId, Entry.GrantedCardId));
 			}
 			break;
 
@@ -899,7 +901,13 @@ void FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(
 				const int32 RunDeckIndex = FindRunDeckCardIndex(RunState.RunDeck, Entry.UpgradeFromCardId);
 				if (RunDeckIndex != INDEX_NONE)
 				{
-					RunState.RunDeck[RunDeckIndex] = Entry.UpgradeToCardId;
+					FFinalRunCardInstance& CardInstance = RunState.RunDeck[RunDeckIndex];
+					if (!CardInstance.BaseCardId.IsValid())
+					{
+						CardInstance.BaseCardId = Entry.UpgradeFromCardId;
+					}
+					CardInstance.CurrentCardId = Entry.UpgradeToCardId;
+					CardInstance.EvolutionStage = EFinalCardEvolutionStage::Evolved;
 				}
 			}
 			break;
@@ -913,3 +921,4 @@ void FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(
 		}
 	}
 }
+

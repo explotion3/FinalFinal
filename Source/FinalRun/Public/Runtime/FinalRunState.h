@@ -4,6 +4,7 @@
 #include "Ids/FinalIds.h"
 #include "Requests/FinalBattleResult.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
+#include "Runtime/FinalRunCardInstance.h"
 #include "FinalRunState.generated.h"
 
 USTRUCT(BlueprintType)
@@ -39,8 +40,13 @@ struct FINALRUN_API FFinalRunState
 	TArray<FFinalRunPersistentCharacterState> Characters;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
-	TArray<FFinalCardId> RunDeck;
+	TArray<FFinalRunCardInstance> RunDeck;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 NextRunCardInstanceSerial = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRelicId> Relics;
 };
+
+
