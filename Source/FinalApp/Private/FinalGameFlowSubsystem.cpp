@@ -40,6 +40,12 @@ UFinalBattleSession* UFinalGameFlowSubsystem::StartBattleFromRunSession()
 		return nullptr;
 	}
 
+	if (RunSession->HasPendingGrowthChoice())
+	{
+		LastFlowFailureReason = FText::FromString(TEXT("RunSession still has a pending growth choice to resolve before starting battle."));
+		return nullptr;
+	}
+
 	if (!RunSession->HasValidBattleStartState())
 	{
 		LastFlowFailureReason = FText::FromString(TEXT("RunSession does not have a valid battle start state."));
@@ -86,7 +92,8 @@ bool UFinalGameFlowSubsystem::TryAutoStartPreparedBattleFromRun()
 	}
 
 	const FFinalRunSnapshot Snapshot = RunSession->GetSnapshot();
-	if (Snapshot.Progression.FlowStage != EFinalRunFlowStage::PreparingBattle)
+	if (Snapshot.Progression.FlowStage != EFinalRunFlowStage::PreparingBattle
+		|| Snapshot.PendingGrowthChoice.bHasPendingChoice)
 	{
 		return false;
 	}

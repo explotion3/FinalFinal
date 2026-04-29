@@ -97,6 +97,7 @@ private:
 	FFinalRunPersistentCharacterState* FindMutableCharacterState(const FFinalCharacterId& CharacterId);
 	const FFinalRunPersistentCharacterState* FindCharacterState(const FFinalCharacterId& CharacterId) const;
 	bool TryLevelUpCharacter(FFinalRunPersistentCharacterState& CharacterState);
+	void PrimePendingGrowthChoiceFromInitialState();
 	bool GenerateGrowthChoicesForCharacter(const FFinalRunPersistentCharacterState& CharacterState);
 	const FFinalRunNodeDefinition* FindNodeDefinition(const FName& NodeId) const;
 	TArray<FFinalRunNodeOptionViewData> BuildAvailableNextNodeViews() const;

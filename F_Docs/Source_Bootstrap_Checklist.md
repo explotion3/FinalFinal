@@ -407,6 +407,8 @@
 * 启动性能护栏：definition 主 ID 字段必须带 `AssetRegistrySearchable`，内容刷新后应运行 `FinalPrototypeContentBootstrap` 写入 tag；若 registry 日志出现 missing stable id tag，应优先重存对应资产，而不是在 runtime registry 中 fallback 全量加载
 * 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
 * 当前 starter bundle 也已以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
+* starter bundle 当前已补最小成长初始化链：三名 starter 角色都有 `CharacterGrowthConfig`，starter bootstrap 也会显式写入初始成长字段；`FinalGameInstance` 会在 run 初始化时把二者合并成完整 `RunPersistentCharacterState`
+* starter bundle 当前已补第一条真实成长验收内容：霍断岳 `断岳斩 -> 断岳斩·破阵` 的 `CardEvolutionDefinition` 已落地，可直接用于 Growth overlay 的卡牌进化候选
 * starter bundle 继续复用 `FinalPrototypeContentBootstrap` commandlet、`FinalDataRegistry` 与 `FinalEditor` validation；当前已把霍断岳 `刀势`、叶半夏 `药引` 的第一波 battle-side 机制录入成真实可运行数据，starter 资产不再只靠文案描述这些资源
 * starter bundle 当前已把沈清弦 `剑阵` 第一波接回 Runtime：`布锋` 随机生成 `过牌剑阵 / 破阵剑阵`、`引阵` 稳定生成 `过牌剑阵`、`过牌剑阵 / 破阵剑阵` 作为衍生牌进入手牌并在打出后进入 `ConsumePile`、`引爆剑阵` 真实消耗 1 张手中的衍生剑阵牌
 * Battle 当前已补最小 `HandCardRequirement` 协议，并把它接到现有 `GainShield / DrawCards` 等效果上；`FinalBattleCardService` 负责统计当前手牌中满足条件的卡数量，并供 Battle resolver 做 gated effect 判定
@@ -420,7 +422,8 @@
 * starter bundle 当前已把 `TargetState` 条件迁入 `Effect.Conditions[]`：可按实际敌方目标是否处于 Break 做 gated 执行；霍断岳 `断岳绝式` 已追加一段“目标 Break 时额外攻击倍率伤害”的真实效果
 * starter bundle 当前已补最小 incoming team HP damage protection：`生命免疫` 状态挂在 `team_player`，护盾后抵消下一次会扣共享生命的 HP damage，触发后消耗，未触发则在玩家回合结束时过期；叶半夏 `回天续脉` 已施加该状态。`免疫` 保持为上位状态概念，不被这条首版保护协议完全替代
 * starter bundle 仍保留占位的内容包括：`万象归阵` 的阵牌扩散、复杂治疗保护、更复杂 Break 条件追伤链、经济 / 商店 / 未来窗口效果；这些内容仍以后续协议与规则服务深化为前提
-* `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry` 并构造最小 `RunSession`
+* `FinalGameInstance` 当前集中持有 prototype bootstrap profile 的单点真相：默认 stable id 已切到 `prototype.bootstrap.starter.chapter1`，同时保留 `prototype.bootstrap.test` 作为调试回切入口；运行时按当前选中的 bootstrap stable id 查询 `FinalDataRegistry`，把 `InitialCharacterStates + CharacterGrowthConfig` 合并成最小 `RunSession`
+* starter bootstrap 当前默认会让霍断岳在开局进入一次待处理成长选择；外层流程应先处理 Growth overlay，再自动进入原本首场 battle
 * prototype Run 图当前已收回到 `FinalData` 的 `RunRouteDefinition`；`FinalGameInstance` 不再主路径 `NewObject` 拼整套节点图，也不再运行时生成整包 prototype definition
 * prototype 启动配置当前也已从 `FinalGameInstance` 收回到 `PrototypeBootstrapDefinition`，统一承载 `RuleConfigId / EncounterId / RunRouteId / PartyCharacterIds / StarterDeckCardIds / InitialCharacterStates / InitialTeamCurrentHP`
 * prototype bootstrap 调试切换当前由 `FinalGameInstance` 单点收口：`FinalBattlePlayerController` 的 exec 命令和 `PrototypeRunDebugScreen` 的 starter/test 切换按钮都只透传到这一个入口，不再各自硬编码 bootstrap id

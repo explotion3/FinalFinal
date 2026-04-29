@@ -28,6 +28,8 @@
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
+#include "Run/Definitions/FinalCardEvolutionDefinition.h"
+#include "Run/Definitions/FinalCharacterGrowthConfig.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
@@ -45,6 +47,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterHuoLieFengCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoLieFeng");
 	const FString StarterHuoWenJiaCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoWenJia");
 	const FString StarterHuoDuanYueZhanCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoDuanYueZhan");
+	const FString StarterHuoDuanYueZhanPoZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoDuanYueZhanPoZhen");
 	const FString StarterHuoTieBiHuiFengCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoTieBiHuiFeng");
 	const FString StarterYeXingZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_YeXingZhen");
 	const FString StarterYeTiaoXiCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_YeTiaoXi");
@@ -110,6 +113,10 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterBossEncounterPath = StarterRootPath / TEXT("Encounters/DA_Encounter_Starter_BlackwindChief");
 	const FString StarterBootstrapPath = StarterRootPath / TEXT("Bootstrap/DA_PrototypeBootstrap_StarterChapter1");
 	const FString StarterRunRoutePath = StarterRootPath / TEXT("Run/DA_RunRoute_StarterChapter1");
+	const FString StarterHuoGrowthConfigPath = StarterRootPath / TEXT("Growth/DA_CharacterGrowthConfig_Starter_HuoDuanyue");
+	const FString StarterYeGrowthConfigPath = StarterRootPath / TEXT("Growth/DA_CharacterGrowthConfig_Starter_YeBanxia");
+	const FString StarterShenGrowthConfigPath = StarterRootPath / TEXT("Growth/DA_CharacterGrowthConfig_Starter_ShenQingxian");
+	const FString StarterHuoDuanYueZhanPoZhenEvolutionPath = StarterRootPath / TEXT("Growth/DA_CardEvolution_Starter_HuoDuanYueZhanPoZhen");
 	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
 	const FString StarterTokenZeroDrawRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_TokenZeroDraw");
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
@@ -131,9 +138,13 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterHuoUltimateId(TEXT("ultimate.starter.huo.duanyuejueshi"));
 	const FName StarterYeUltimateId(TEXT("ultimate.starter.ye.huitianxumai"));
 	const FName StarterShenUltimateId(TEXT("ultimate.starter.shen.wanxiangguizhen"));
+	const FName StarterHuoGrowthConfigId(TEXT("growth.config.starter.huo.duanyue"));
+	const FName StarterYeGrowthConfigId(TEXT("growth.config.starter.ye.banxia"));
+	const FName StarterShenGrowthConfigId(TEXT("growth.config.starter.shen.qingxian"));
 	const FName StarterHuoLieFengCardId(TEXT("card.starter.huo.liefeng"));
 	const FName StarterHuoWenJiaCardId(TEXT("card.starter.huo.wenjia"));
 	const FName StarterHuoDuanYueZhanCardId(TEXT("card.starter.huo.duanyuezhan"));
+	const FName StarterHuoDuanYueZhanPoZhenCardId(TEXT("card.starter.huo.duanyuezhan.pozhen"));
 	const FName StarterHuoTieBiHuiFengCardId(TEXT("card.starter.huo.tiebihuifeng"));
 	const FName StarterYeXingZhenCardId(TEXT("card.starter.ye.xingzhen"));
 	const FName StarterYeTiaoXiCardId(TEXT("card.starter.ye.tiaoxi"));
@@ -162,6 +173,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterEliteToxicRitualEncounterId(TEXT("encounter.starter.chapter1.toxic_ritual"));
 	const FName StarterBossEncounterId(TEXT("encounter.starter.chapter1.blackwind_chief"));
 	const FName StarterRouteId(TEXT("run.route.starter.chapter1"));
+	const FName StarterHuoDuanYueZhanPoZhenEvolutionId(TEXT("evo.starter.huo.duanyuezhan.pozhen"));
 	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
 	const FName StarterTokenZeroDrawRelicId(TEXT("relic_token_zero_draw"));
 	const FName StarterOpeningBattleNodeId(TEXT("run.starter.node.battle.roadblock"));
@@ -516,6 +528,21 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	TrackPackage(StarterShenUltimate, PackagesToSave);
 
 	UFinalCharacterDefinition* StarterHuoCharacter = LoadOrCreateAsset<UFinalCharacterDefinition>(StarterHuoCharacterPath, bCreatedAsset);
+	UFinalCharacterGrowthConfig* StarterHuoGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterHuoGrowthConfigPath, bCreatedAsset);
+	StarterHuoGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterHuoGrowthConfigId);
+	StarterHuoGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	TrackPackage(StarterHuoGrowthConfig, PackagesToSave);
+
+	UFinalCharacterGrowthConfig* StarterYeGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterYeGrowthConfigPath, bCreatedAsset);
+	StarterYeGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterYeGrowthConfigId);
+	StarterYeGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	TrackPackage(StarterYeGrowthConfig, PackagesToSave);
+
+	UFinalCharacterGrowthConfig* StarterShenGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterShenGrowthConfigPath, bCreatedAsset);
+	StarterShenGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterShenGrowthConfigId);
+	StarterShenGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	TrackPackage(StarterShenGrowthConfig, PackagesToSave);
+
 	StarterHuoCharacter->CharacterId = FFinalCharacterId(StarterHuoCharacterId);
 	StarterHuoCharacter->DisplayName = FText::FromString(TEXT("霍断岳"));
 	StarterHuoCharacter->BaseVitalShare = 24;
@@ -526,6 +553,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoCharacter->BaseCritChance = 0.05f;
 	StarterHuoCharacter->BaseCritDamage = 1.5f;
 	StarterHuoCharacter->EpGainPerAP = 1;
+	StarterHuoCharacter->GrowthConfigId = StarterHuoGrowthConfig->GrowthConfigId;
 	StarterHuoCharacter->UltimateId = StarterHuoUltimate->UltimateId;
 	StarterHuoCharacter->SignatureStatusId = StarterHuoStatus->StatusId;
 	StarterHuoCharacter->BattleTriggers.Reset();
@@ -556,6 +584,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeCharacter->BaseCritChance = 0.05f;
 	StarterYeCharacter->BaseCritDamage = 1.5f;
 	StarterYeCharacter->EpGainPerAP = 1;
+	StarterYeCharacter->GrowthConfigId = StarterYeGrowthConfig->GrowthConfigId;
 	StarterYeCharacter->UltimateId = StarterYeUltimate->UltimateId;
 	StarterYeCharacter->SignatureStatusId = StarterYeStatus->StatusId;
 	TrackPackage(StarterYeCharacter, PackagesToSave);
@@ -571,6 +600,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenCharacter->BaseCritChance = 0.08f;
 	StarterShenCharacter->BaseCritDamage = 1.5f;
 	StarterShenCharacter->EpGainPerAP = 1;
+	StarterShenCharacter->GrowthConfigId = StarterShenGrowthConfig->GrowthConfigId;
 	StarterShenCharacter->UltimateId = StarterShenUltimate->UltimateId;
 	StarterShenCharacter->SignatureStatusId = StarterShenStatus->StatusId;
 	TrackPackage(StarterShenCharacter, PackagesToSave);
@@ -669,6 +699,62 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleSourceStat::Attack,
 		1);
 	TrackPackage(StarterHuoDuanYueZhanCard, PackagesToSave);
+
+	UFinalCardDefinition* StarterHuoDuanYueZhanPoZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoDuanYueZhanPoZhenCardPath, bCreatedAsset);
+	StarterHuoDuanYueZhanPoZhenCard->CardId = FFinalCardId(StarterHuoDuanYueZhanPoZhenCardId);
+	StarterHuoDuanYueZhanPoZhenCard->OwnerUnitId = StarterHuoCharacterId;
+	StarterHuoDuanYueZhanPoZhenCard->DisplayName = FText::FromString(TEXT("断岳斩·破阵"));
+	StarterHuoDuanYueZhanPoZhenCard->CardType = EFinalCardType::Attack;
+	StarterHuoDuanYueZhanPoZhenCard->Rarity = EFinalRarity::Rare;
+	StarterHuoDuanYueZhanPoZhenCard->BaseCostAP = 1;
+	StarterHuoDuanYueZhanPoZhenCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 150% 的伤害。额外造成 4 点削韧。消耗 1 层刀势：再额外造成 3 点削韧。"));
+	StarterHuoDuanYueZhanPoZhenCard->Effects.Reset();
+	AddBonusBreakEffect(
+		StarterHuoDuanYueZhanPoZhenCard,
+		StarterHuoDuanYueZhanPoZhenCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan_pozhen.break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		4.0f,
+		EFinalBattleScalarMode::Flat);
+	AddRemoveStatusEffect(
+		StarterHuoDuanYueZhanPoZhenCard,
+		StarterHuoDuanYueZhanPoZhenCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan_pozhen.consume_daoshi"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoStatus,
+		1);
+	UFinalBattleEffectBonusBreak* StarterHuoDuanYueZhanPoZhenConsumeBreak = AddBonusBreakEffect(
+		StarterHuoDuanYueZhanPoZhenCard,
+		StarterHuoDuanYueZhanPoZhenCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan_pozhen.consume_break"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		3.0f,
+		EFinalBattleScalarMode::Flat);
+	AddStatusChangedCondition(StarterHuoDuanYueZhanPoZhenConsumeBreak, StarterHuoStatus->StatusId, 1);
+	AddDamageEffect(
+		StarterHuoDuanYueZhanPoZhenCard,
+		StarterHuoDuanYueZhanPoZhenCard->Effects,
+		TEXT("effect.starter.huo.duanyuezhan_pozhen.damage"),
+		EFinalBattleUnitTargetRule::SelectedEnemy,
+		1.5f,
+		EFinalBattleScalarMode::SourceStatMultiplier,
+		EFinalBattleSourceStat::Attack,
+		1);
+	TrackPackage(StarterHuoDuanYueZhanPoZhenCard, PackagesToSave);
+
+	UFinalCardEvolutionDefinition* StarterHuoDuanYueZhanPoZhenEvolution = LoadOrCreateAsset<UFinalCardEvolutionDefinition>(StarterHuoDuanYueZhanPoZhenEvolutionPath, bCreatedAsset);
+	StarterHuoDuanYueZhanPoZhenEvolution->EvolutionId = FFinalCardEvolutionId(StarterHuoDuanYueZhanPoZhenEvolutionId);
+	StarterHuoDuanYueZhanPoZhenEvolution->FromCardId = StarterHuoDuanYueZhanCard->CardId;
+	StarterHuoDuanYueZhanPoZhenEvolution->ToCardId = StarterHuoDuanYueZhanPoZhenCard->CardId;
+	StarterHuoDuanYueZhanPoZhenEvolution->FromStage = EFinalCardEvolutionStage::Base;
+	StarterHuoDuanYueZhanPoZhenEvolution->ToStage = EFinalCardEvolutionStage::Evolved;
+	StarterHuoDuanYueZhanPoZhenEvolution->EvolutionType = EFinalCardEvolutionType::ImmediatePower;
+	StarterHuoDuanYueZhanPoZhenEvolution->RequiredOwnerCharacterId = StarterHuoCharacter->CharacterId;
+	StarterHuoDuanYueZhanPoZhenEvolution->RequiredCardTags.Reset();
+	StarterHuoDuanYueZhanPoZhenEvolution->bAllowAsLevelUpCandidate = true;
+	StarterHuoDuanYueZhanPoZhenEvolution->DisplayName = FText::FromString(TEXT("断岳斩·破阵"));
+	StarterHuoDuanYueZhanPoZhenEvolution->Description = FText::FromString(TEXT("让断岳斩更适合破开敌阵：基础伤害与削韧同步提高，消耗刀势后的额外削韧也更强。"));
+	TrackPackage(StarterHuoDuanYueZhanPoZhenEvolution, PackagesToSave);
 
 	UFinalCardDefinition* StarterHuoTieBiHuiFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoTieBiHuiFengCardPath, bCreatedAsset);
 	StarterHuoTieBiHuiFengCard->CardId = FFinalCardId(StarterHuoTieBiHuiFengCardId);
@@ -1958,9 +2044,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterShenCharacter->CharacterId
 	};
 	StarterBootstrap->InitialCharacterStates = {
-		MakeBootstrapCharacterState(StarterHuoCharacter->CharacterId, 0),
-		MakeBootstrapCharacterState(StarterYeCharacter->CharacterId, 0),
-		MakeBootstrapCharacterState(StarterShenCharacter->CharacterId, 0)
+		MakeBootstrapCharacterState(StarterHuoCharacter->CharacterId, 0, 1, 100, 100, 0, 0, 0),
+		MakeBootstrapCharacterState(StarterYeCharacter->CharacterId, 0, 1, 0, 0, 0, 0, 0),
+		MakeBootstrapCharacterState(StarterShenCharacter->CharacterId, 0, 1, 0, 0, 0, 0, 0)
 	};
 	StarterBootstrap->StarterDeckCardIds = {
 		StarterHuoLieFengCard->CardId,

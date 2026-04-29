@@ -818,6 +818,12 @@ void UFinalRunSession::ConfigureBattleStartState(const FFinalEncounterId& Encoun
 		CurrentState.RunDeck.Add(FFinalRunCardInstance::Make(InstanceId, CardId, OwnerCharacterId));
 	}
 	CurrentState.TeamCurrentHP = InTeamCurrentHP;
+	CurrentState.PendingGrowthChoice.Reset();
+	for (FFinalRunPersistentCharacterState& CharacterState : CurrentState.Characters)
+	{
+		CharacterState.bHasPendingGrowthChoice = false;
+	}
+	PrimePendingGrowthChoiceFromInitialState();
 	CurrentState.bHasPendingBattleStart = EncounterId.IsValid()
 		&& RuleConfigId.IsValid()
 		&& PartyStates.Num() > 0
@@ -1230,6 +1236,24 @@ bool UFinalRunSession::TryLevelUpCharacter(FFinalRunPersistentCharacterState& Ch
 
 	CharacterState.bHasPendingGrowthChoice = true;
 	return true;
+}
+
+void UFinalRunSession::PrimePendingGrowthChoiceFromInitialState()
+{
+	if (HasPendingGrowthChoice())
+	{
+		return;
+	}
+
+	for (FFinalRunPersistentCharacterState& CharacterState : CurrentState.Characters)
+	{
+		if (CharacterState.BreakthroughRequiredValue > 0
+			&& CharacterState.BreakthroughValue >= CharacterState.BreakthroughRequiredValue)
+		{
+			TryLevelUpCharacter(CharacterState);
+			break;
+		}
+	}
 }
 
 bool UFinalRunSession::GenerateGrowthChoicesForCharacter(const FFinalRunPersistentCharacterState& CharacterState)

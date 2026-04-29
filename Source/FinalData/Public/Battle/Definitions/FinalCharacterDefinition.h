@@ -62,6 +62,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
 	int32 EpGainPerAP = 1;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character|Growth")
+	FFinalCharacterGrowthConfigId GrowthConfigId;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
 	TArray<FFinalInitialLoadoutCardEntry> InitialLoadoutCards;
 

@@ -2,10 +2,12 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Engine/GameInstance.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
+#include "Run/Definitions/FinalCharacterGrowthConfig.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
@@ -18,6 +20,41 @@ namespace FinalPrototypeSmokeTests
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
 	const int32 SyntheticVictoryRewardGold = 15;
 	const int32 BattleCommandSafetyLimit = 64;
+
+	FFinalRunPersistentCharacterState BuildInitialRunCharacterState(
+		const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState,
+		const UFinalCharacterGrowthConfig* GrowthConfig)
+	{
+		FFinalRunPersistentCharacterState CharacterState;
+		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
+		CharacterState.Level = FMath::Max(BootstrapCharacterState.Level, 1);
+		CharacterState.BreakthroughValue = FMath::Max(BootstrapCharacterState.BreakthroughValue, 0);
+		CharacterState.BreakthroughRequiredValue = BootstrapCharacterState.BreakthroughRequiredValue > 0
+			? BootstrapCharacterState.BreakthroughRequiredValue
+			: (GrowthConfig != nullptr && GrowthConfig->BaseBreakthroughRequiredValue > 0 ? GrowthConfig->BaseBreakthroughRequiredValue : 100);
+		CharacterState.RootBone = FMath::Max(BootstrapCharacterState.RootBone, 0);
+		CharacterState.Insight = FMath::Max(BootstrapCharacterState.Insight, 0);
+		CharacterState.KillingIntent = FMath::Max(BootstrapCharacterState.KillingIntent, 0);
+		CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
+		CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
+		CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
+		CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
+		return CharacterState;
+	}
+
+	bool ResolvePendingGrowthChoiceIfPresent(UFinalRunSession& RunSession)
+	{
+		const FFinalRunPendingGrowthChoice& PendingGrowthChoice = RunSession.GetPendingGrowthChoice();
+		if (!PendingGrowthChoice.bIsValid || PendingGrowthChoice.Choices.IsEmpty())
+		{
+			return true;
+		}
+
+		FFinalRunCommand Command;
+		Command.CommandType = EFinalRunCommandType::SelectGrowthChoice;
+		Command.PayloadId = PendingGrowthChoice.Choices[0].ChoiceInstanceId;
+		return RunSession.SubmitRunCommand(Command);
+	}
 
 	struct FAutomationContext
 	{
@@ -131,13 +168,12 @@ namespace FinalPrototypeSmokeTests
 			PartyStates.Reserve(BootstrapDefinition.InitialCharacterStates.Num());
 			for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : BootstrapDefinition.InitialCharacterStates)
 			{
-				FFinalRunPersistentCharacterState CharacterState;
-				CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
-				CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
-				CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
-				CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
-				CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
-				PartyStates.Add(CharacterState);
+				const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(BootstrapCharacterState.CharacterId);
+				const UFinalCharacterGrowthConfig* GrowthConfig =
+					(CharacterDefinition != nullptr && CharacterDefinition->GrowthConfigId.IsValid())
+						? DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId)
+						: nullptr;
+				PartyStates.Add(BuildInitialRunCharacterState(BootstrapCharacterState, GrowthConfig));
 			}
 
 			RunSession->ConfigureBattleStartState(
@@ -203,9 +239,16 @@ namespace FinalPrototypeSmokeTests
 
 		for (int32 Index = 0; Index < BootstrapDefinition.InitialCharacterStates.Num(); ++Index)
 		{
-			if (Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition.InitialCharacterStates[Index].CharacterId) == nullptr)
+			const UFinalCharacterDefinition* CharacterDefinition = Context.DataRegistry->FindCharacterDefinition(BootstrapDefinition.InitialCharacterStates[Index].CharacterId);
+			if (CharacterDefinition == nullptr)
 			{
 				AddMissingReferenceError(Test, FString::Printf(TEXT("InitialCharacterStates[%d].CharacterId"), Index), BootstrapDefinition.InitialCharacterStates[Index].CharacterId.ToString());
+				bValid = false;
+			}
+			else if (CharacterDefinition->GrowthConfigId.IsValid()
+				&& Context.DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId) == nullptr)
+			{
+				AddMissingReferenceError(Test, FString::Printf(TEXT("InitialCharacterStates[%d].GrowthConfigId"), Index), CharacterDefinition->GrowthConfigId.ToString());
 				bValid = false;
 			}
 		}
@@ -363,6 +406,9 @@ bool FFinalStarterBootstrapRegistryReferenceTest::RunTest(const FString& Paramet
 	TestEqual(TEXT("Resolved starter bootstrap ID should match the expected starter content bundle bootstrap."), StarterBootstrapDefinition->BootstrapId, StarterBootstrapId);
 	TestTrue(TEXT("Starter bootstrap definition should satisfy its own structural validity check."), StarterBootstrapDefinition->IsValidDefinition());
 	ValidateBootstrapRegistryReferences(*this, Context, *StarterBootstrapDefinition);
+	TestNotNull(
+		TEXT("Starter growth evolution definition should be discoverable through FinalDataRegistry."),
+		Context.DataRegistry->FindCardEvolutionDefinition(FFinalCardEvolutionId(FName(TEXT("evo.starter.huo.duanyuezhan.pozhen")))));
 	return !HasAnyErrors();
 }
 
@@ -575,6 +621,8 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	{
 		return false;
 	}
+
+	TestTrue(TEXT("Starter bootstrap initial pending growth choice should be resolvable before entering the first battle."), ResolvePendingGrowthChoiceIfPresent(*RunSession));
 
 	if (Context.StartBattleFromRun(*this) == nullptr)
 	{

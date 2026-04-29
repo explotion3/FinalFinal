@@ -2,12 +2,14 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Requests/FinalBattleResult.h"
+#include "Run/Definitions/FinalCharacterGrowthConfig.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
@@ -18,6 +20,41 @@
 namespace FinalRunFlowGrowthUITests
 {
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
+
+	FFinalRunPersistentCharacterState BuildInitialRunCharacterState(
+		const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState,
+		const UFinalCharacterGrowthConfig* GrowthConfig)
+	{
+		FFinalRunPersistentCharacterState CharacterState;
+		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
+		CharacterState.Level = FMath::Max(BootstrapCharacterState.Level, 1);
+		CharacterState.BreakthroughValue = FMath::Max(BootstrapCharacterState.BreakthroughValue, 0);
+		CharacterState.BreakthroughRequiredValue = BootstrapCharacterState.BreakthroughRequiredValue > 0
+			? BootstrapCharacterState.BreakthroughRequiredValue
+			: (GrowthConfig != nullptr && GrowthConfig->BaseBreakthroughRequiredValue > 0 ? GrowthConfig->BaseBreakthroughRequiredValue : 100);
+		CharacterState.RootBone = FMath::Max(BootstrapCharacterState.RootBone, 0);
+		CharacterState.Insight = FMath::Max(BootstrapCharacterState.Insight, 0);
+		CharacterState.KillingIntent = FMath::Max(BootstrapCharacterState.KillingIntent, 0);
+		CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
+		CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
+		CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
+		CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
+		return CharacterState;
+	}
+
+	bool ResolvePendingGrowthChoiceIfPresent(UFinalRunSession& RunSession)
+	{
+		const FFinalRunPendingGrowthChoice& PendingGrowthChoice = RunSession.GetPendingGrowthChoice();
+		if (!PendingGrowthChoice.bIsValid || PendingGrowthChoice.Choices.IsEmpty())
+		{
+			return true;
+		}
+
+		FFinalRunCommand Command;
+		Command.CommandType = EFinalRunCommandType::SelectGrowthChoice;
+		Command.PayloadId = PendingGrowthChoice.Choices[0].ChoiceInstanceId;
+		return RunSession.SubmitRunCommand(Command);
+	}
 
 	struct FAutomationContext
 	{
@@ -155,13 +192,12 @@ namespace FinalRunFlowGrowthUITests
 			PartyStates.Reserve(BootstrapDefinition->InitialCharacterStates.Num());
 			for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : BootstrapDefinition->InitialCharacterStates)
 			{
-				FFinalRunPersistentCharacterState CharacterState;
-				CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
-				CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
-				CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
-				CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
-				CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
-				PartyStates.Add(CharacterState);
+				const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(BootstrapCharacterState.CharacterId);
+				const UFinalCharacterGrowthConfig* GrowthConfig =
+					(CharacterDefinition != nullptr && CharacterDefinition->GrowthConfigId.IsValid())
+						? DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId)
+						: nullptr;
+				PartyStates.Add(BuildInitialRunCharacterState(BootstrapCharacterState, GrowthConfig));
 			}
 
 			RunSession->ConfigureBattleStartState(
@@ -209,6 +245,38 @@ namespace FinalRunFlowGrowthUITests
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalStarterBootstrapInitialGrowthOverlayTest,
+	"Final.Editor.RunFlow.GrowthStarterBootstrapShowsInitialOverlay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalStarterBootstrapInitialGrowthOverlayTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalStarterBootstrapInitialGrowthOverlayTest")))
+	{
+		return false;
+	}
+
+	FFinalCharacterId CharacterId;
+	UFinalRunSession* RunSession = Context.BootstrapStarterRun(*this, CharacterId);
+	if (RunSession == nullptr)
+	{
+		return false;
+	}
+
+	Context.RunFlowSubsystem->HandleRunSessionChanged();
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunSnapshot Snapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
+	TestTrue(TEXT("Starter bootstrap should now create an initial pending growth choice."), Snapshot.PendingGrowthChoice.bHasPendingChoice);
+	TestEqual(TEXT("Starter bootstrap should present GrowthChoice before the prepared battle auto-starts."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
+	TestEqual(TEXT("Starter bootstrap initial growth choice should target the first configured starter character."), Snapshot.PendingGrowthChoice.CharacterId, CharacterId);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalRunFlowGrowthOverlayPriorityTest,
 	"Final.Editor.RunFlow.GrowthOverlayTakesPriorityOverPendingBattleReward",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -229,6 +297,8 @@ bool FFinalRunFlowGrowthOverlayPriorityTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+
+	TestTrue(TEXT("Starter bootstrap initial pending growth choice should be resolvable before starting battle."), ResolvePendingGrowthChoiceIfPresent(*RunSession));
 
 	if (!TestNotNull(TEXT("Starter run should start a battle from the configured route entry."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
 	{

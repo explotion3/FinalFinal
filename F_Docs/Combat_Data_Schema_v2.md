@@ -289,8 +289,10 @@ GemTier:      1 / 2 / 3 / 4
 | `UltimateId` | 奥义 ID |
 | `RoleTags` | 角色定位标签 |
 | `ContentTags` | 内容主题标签 |
+| `GrowthConfigId` | 角色默认成长配置，可为空 |
 
-第一版角色成长属性不直接写进 `CharacterDefinition`，而是写入 `RunPersistentCharacterState`。
+第一版角色成长属性不直接写进 `CharacterDefinition`，而是写入 `RunPersistentCharacterState`。  
+当前 `CharacterDefinition` 只允许通过 `GrowthConfigId` 指向角色默认成长配置，用于提供诸如默认突破阈值这类“角色成长口径”，不承担本局初始成长状态真相。
 
 ### 5.3 CardDefinition
 
@@ -381,6 +383,7 @@ ApplyPassive
 - 第一版卡牌进化通过替换 `RunCardInstance.CurrentCardId` 实现。
 - 进化不修改 `BaseCardId`。
 - 绝学化可先复用该定义，但第一版不要求完整内容池。
+- starter 当前已补最小真实内容链：霍断岳 `断岳斩 -> 断岳斩·破阵`，用于直接验收成长 overlay 的卡牌进化路径。
 
 示例：
 
@@ -538,6 +541,7 @@ EvolutionStage: Evolved
 - 当前首版运行时同一时刻只维护一个 `PendingGrowthChoice`。
 - Step 4 已落地的最小结构只保存 `bIsValid / CharacterId / Choices`。
 - `PendingChoiceId / GeneratedAtNodeId / bResolved` 这类审计字段可以在接入 UI、命令与事件后再补。
+- 当前 starter bootstrap 允许在 run 初始化后立刻触发一次 `PendingGrowthChoice`，用于手工验收成长 UI 与命令链。
 
 ### 6.5 GrowthChoiceInstance
 

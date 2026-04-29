@@ -13,6 +13,24 @@ struct FINALDATA_API FFinalPrototypeBootstrapCharacterState
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap")
 	FFinalCharacterId CharacterId;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "1"))
+	int32 Level = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "0"))
+	int32 BreakthroughValue = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "0"))
+	int32 BreakthroughRequiredValue = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "0"))
+	int32 RootBone = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "0"))
+	int32 Insight = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap|Growth", meta = (ClampMin = "0"))
+	int32 KillingIntent = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|PrototypeBootstrap", meta = (ClampMin = "0"))
 	int32 CurrentStress = 0;
 

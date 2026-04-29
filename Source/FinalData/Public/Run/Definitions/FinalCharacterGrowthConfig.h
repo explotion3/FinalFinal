@@ -14,6 +14,9 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AssetRegistrySearchable, Category = "Final|Growth")
     FFinalCharacterGrowthConfigId GrowthConfigId;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth", meta = (ClampMin = "1"))
+    int32 BaseBreakthroughRequiredValue = 100;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|RootBone")
     int32 RootBoneVitalSharePerPoint = 6;
 

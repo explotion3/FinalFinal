@@ -144,10 +144,24 @@ namespace FinalPrototypeContentBootstrap
 		return Entry;
 	}
 
-	FFinalPrototypeBootstrapCharacterState MakeBootstrapCharacterState(const FFinalCharacterId& CharacterId, const int32 CurrentStress)
+	FFinalPrototypeBootstrapCharacterState MakeBootstrapCharacterState(
+		const FFinalCharacterId& CharacterId,
+		const int32 CurrentStress,
+		const int32 Level,
+		const int32 BreakthroughValue,
+		const int32 BreakthroughRequiredValue,
+		const int32 RootBone,
+		const int32 Insight,
+		const int32 KillingIntent)
 	{
 		FFinalPrototypeBootstrapCharacterState CharacterState;
 		CharacterState.CharacterId = CharacterId;
+		CharacterState.Level = FMath::Max(Level, 1);
+		CharacterState.BreakthroughValue = FMath::Max(BreakthroughValue, 0);
+		CharacterState.BreakthroughRequiredValue = FMath::Max(BreakthroughRequiredValue, 0);
+		CharacterState.RootBone = FMath::Max(RootBone, 0);
+		CharacterState.Insight = FMath::Max(Insight, 0);
+		CharacterState.KillingIntent = FMath::Max(KillingIntent, 0);
 		CharacterState.CurrentStress = CurrentStress;
 		CharacterState.bCollapsed = false;
 		CharacterState.CurrentAwakenCount = 0;

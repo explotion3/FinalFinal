@@ -279,6 +279,7 @@
 - 战斗事实可以包括出牌、Break、击杀、承压、进入临界等记录
 - 第一版可以先用简单规则增加成长进度，后续再细化来源权重
 - 当前 Step 4 运行时已提供 `UFinalRunSession::AddBreakthroughValue()` 作为最小成长入口；它会先累计突破值，再在没有待处理成长选择时尝试触发一次升级
+- 当前 run 初始化还会合并 `PrototypeBootstrap.InitialCharacterStates` 与角色默认 `CharacterGrowthConfig`，在进入首场战斗前就构造完整 `RunPersistentCharacterState`
 
 优先级：`P0`
 
@@ -310,6 +311,7 @@
 - 当前候选生成是 deterministic：默认 `RootBone +1`、`Insight +1`，第 3 个候选在“可进化卡牌”和 `KillingIntent +1` 之间二选一。
 - Step 5 已落地 `SelectGrowthChoice` RunCommand：选择成功后会应用属性成长或卡牌进化，并清空当前 `PendingGrowthChoice`。
 - 当前不会在应用成长选择后自动连锁触发下一次升级；剩余突破值会保留到后续再次显式触发成长入口时再处理。
+- starter 首章当前允许“开局即 pending growth”作为验收入口：若 bootstrap 初值已经达到阈值，则先处理成长选择，再进入首场 battle。
 
 优先级：`P0`
 

@@ -40,7 +40,15 @@ namespace FinalPrototypeContentBootstrap
 	FFinalRunRewardEntry MakeRemoveCardRewardEntry(FName RewardId, const FFinalCardId& RemovedCardId, const FText& DisplayName);
 	FFinalRunRewardEntry MakeUpgradeCardRewardEntry(FName RewardId, const FFinalCardId& UpgradeFromCardId, const FFinalCardId& UpgradeToCardId, const FText& DisplayName);
 	FFinalInitialLoadoutCardEntry MakeLoadoutEntry(const FFinalCardId& CardId, int32 Count, EFinalLoadoutRole LoadoutRole);
-	FFinalPrototypeBootstrapCharacterState MakeBootstrapCharacterState(const FFinalCharacterId& CharacterId, int32 CurrentStress);
+	FFinalPrototypeBootstrapCharacterState MakeBootstrapCharacterState(
+		const FFinalCharacterId& CharacterId,
+		int32 CurrentStress,
+		int32 Level = 1,
+		int32 BreakthroughValue = 0,
+		int32 BreakthroughRequiredValue = 0,
+		int32 RootBone = 0,
+		int32 Insight = 0,
+		int32 KillingIntent = 0);
 
 	UFinalBattleConditionTargetState* AddTargetStateCondition(UFinalBattleEffectDefinition* Effect, const FFinalBattleTargetStateRequirement& Requirement);
 	UFinalBattleConditionStatusChanged* AddStatusChangedCondition(UFinalBattleEffectDefinition* Effect, const FFinalStatusId& StatusId, int32 MinimumStacks);

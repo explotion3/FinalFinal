@@ -50,3 +50,12 @@
 - `FinalUISubsystem` 当前已正式管理新的 Growth overlay screen，并通过 `FinalUIWidgetClassSettings` 暴露可替换的 `RunGrowthChoiceOverlayScreenClass`。
 - `FinalRunGrowthChoiceOverlayScreen` 当前只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 反馈，不保存成长真相，也不直接触碰 `RunSession` 私有状态。
 - `BattleHUD` 的 `RunFlowPromptPanel` 现在也会识别待处理成长，并通过 `RunFlowSubsystem.RefreshRunFlow(true)` 重新打开正确的外层页，而不再硬编码只打开普通 `RunFlowOverlay`。
+
+## 2026-04-29 Step 7：成长初始化接入 DataAsset，并提供 starter 手工验收入口
+
+- `PrototypeBootstrap` 当前已扩展初始成长状态：`Level / BreakthroughValue / BreakthroughRequiredValue / RootBone / Insight / KillingIntent`。
+- `CharacterDefinition` 当前已可选指向 `CharacterGrowthConfig`；`CharacterGrowthConfig` 也已补默认突破阈值字段，用于 run 初始化时提供角色默认成长配置。
+- `FinalGameInstance` 当前会在启动 prototype run 时合并 `InitialCharacterStates + CharacterGrowthConfig`，生成完整 `FFinalRunPersistentCharacterState`，不再只传压力相关字段。
+- `UFinalRunSession::ConfigureBattleStartState()` 当前会在装配完角色与牌组后预热一次初始成长：若某角色初始突破值已达到阈值，则立刻生成一个 `PendingGrowthChoice`，但仍只保留同一时刻一个 pending choice。
+- `FinalGameFlowSubsystem` 当前不会在存在 pending growth 时跳过成长直接自动开战；starter 首章默认会先让霍断岳进入一次成长选择，再回到首场 battle。
+- starter bundle 当前已补三份 `CharacterGrowthConfig`，并新增霍断岳 `断岳斩 -> 断岳斩·破阵` 的最小真实进化内容链，便于直接手工验收属性成长与卡牌进化两条路径。

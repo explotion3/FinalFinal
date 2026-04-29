@@ -1,7 +1,9 @@
 #include "App/FinalGameInstance.h"
 
+#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
+#include "Run/Definitions/FinalCharacterGrowthConfig.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Subsystems/FinalGameFlowSubsystem.h"
@@ -56,7 +58,15 @@ namespace FinalTestBootstrap
 
 		for (const FFinalPrototypeBootstrapCharacterState& CharacterState : BootstrapDefinition->InitialCharacterStates)
 		{
-			AppendMissingReference(OutMissingIds, CharacterState.CharacterId.ToString(), DataRegistry->FindCharacterDefinition(CharacterState.CharacterId) != nullptr);
+			const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(CharacterState.CharacterId);
+			AppendMissingReference(OutMissingIds, CharacterState.CharacterId.ToString(), CharacterDefinition != nullptr);
+			if (CharacterDefinition != nullptr && CharacterDefinition->GrowthConfigId.IsValid())
+			{
+				AppendMissingReference(
+					OutMissingIds,
+					CharacterDefinition->GrowthConfigId.ToString(),
+					DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId) != nullptr);
+			}
 		}
 
 		for (const FFinalCardId& CardId : BootstrapDefinition->StarterDeckCardIds)
@@ -68,6 +78,28 @@ namespace FinalTestBootstrap
 		OutMissingIds = UniqueMissingIds.Array();
 		OutMissingIds.Sort();
 		return BootstrapDefinition;
+	}
+
+	FFinalRunPersistentCharacterState BuildInitialRunCharacterState(
+		const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState,
+		const UFinalCharacterGrowthConfig* GrowthConfig)
+	{
+		FFinalRunPersistentCharacterState CharacterState;
+		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
+		CharacterState.Level = FMath::Max(BootstrapCharacterState.Level, 1);
+		CharacterState.BreakthroughValue = FMath::Max(BootstrapCharacterState.BreakthroughValue, 0);
+		CharacterState.BreakthroughRequiredValue = BootstrapCharacterState.BreakthroughRequiredValue > 0
+			? BootstrapCharacterState.BreakthroughRequiredValue
+			: (GrowthConfig != nullptr && GrowthConfig->BaseBreakthroughRequiredValue > 0 ? GrowthConfig->BaseBreakthroughRequiredValue : 100);
+		CharacterState.RootBone = FMath::Max(BootstrapCharacterState.RootBone, 0);
+		CharacterState.Insight = FMath::Max(BootstrapCharacterState.Insight, 0);
+		CharacterState.KillingIntent = FMath::Max(BootstrapCharacterState.KillingIntent, 0);
+		CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
+		CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
+		CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
+		CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
+		CharacterState.bHasPendingGrowthChoice = false;
+		return CharacterState;
 	}
 }
 
@@ -139,15 +171,17 @@ bool UFinalGameInstance::PrepareTestBattleRun()
 
 	TArray<FFinalRunPersistentCharacterState> PartyStates;
 	PartyStates.Reserve(ActivePrototypeBootstrapDefinition->InitialCharacterStates.Num());
+	UFinalDataRegistry* DataRegistry = GetSubsystem<UFinalDataRegistry>();
 	for (const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState : ActivePrototypeBootstrapDefinition->InitialCharacterStates)
 	{
-		FFinalRunPersistentCharacterState CharacterState;
-		CharacterState.CharacterId = BootstrapCharacterState.CharacterId;
-		CharacterState.CurrentStress = BootstrapCharacterState.CurrentStress;
-		CharacterState.bCollapsed = BootstrapCharacterState.bCollapsed;
-		CharacterState.CurrentAwakenCount = BootstrapCharacterState.CurrentAwakenCount;
-		CharacterState.CollapseCount = BootstrapCharacterState.CollapseCount;
-		PartyStates.Add(CharacterState);
+		const UFinalCharacterDefinition* CharacterDefinition = DataRegistry != nullptr
+			? DataRegistry->FindCharacterDefinition(BootstrapCharacterState.CharacterId)
+			: nullptr;
+		const UFinalCharacterGrowthConfig* GrowthConfig =
+			(CharacterDefinition != nullptr && CharacterDefinition->GrowthConfigId.IsValid() && DataRegistry != nullptr)
+				? DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId)
+				: nullptr;
+		PartyStates.Add(FinalTestBootstrap::BuildInitialRunCharacterState(BootstrapCharacterState, GrowthConfig));
 	}
 
 	RunSession->ConfigureBattleStartState(
