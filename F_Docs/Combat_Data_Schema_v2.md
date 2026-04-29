@@ -762,6 +762,7 @@ EvolutionStage: Evolved
 | `ModifierId` | 修正记录自身 ID |
 | `SourceType` | 来源类型：Card / Status / Passive / Relic / System |
 | `DurationPolicy` | 持续窗口：`UntilPlayed / EndOfTurn / EndOfRound / EndOfBattle / ManualClear` |
+| `bExpireAtPlayerTurnEnd` | 是否在玩家回合结束时额外清理 |
 | `ApplyOrder` | 同一卡上的稳定应用顺序 |
 | `OutgoingDamagePercentDelta` | 当前卡实例独有的伤害百分比修正 |
 | `PatchPayload` | 费用、关键词、行为位或运行时图 patch 载荷 |
@@ -819,6 +820,25 @@ EvolutionStage: Evolved
 | `RelicId` | 遗物 ID |
 | `TriggerStates` | 触发状态列表 |
 | `CustomCounters` | 特殊计数，可为空 |
+
+`RuntimeTriggers` 当前已支持在 `Effects` 之后追加 `TriggeredCardModifiers`。  
+首版 target source 为 `DrawnCardsFromExecutedEffects`，用于把 trigger follow-up modifier 直接挂到本次 effect summary 中抽到的 battle card instance 上。
+
+### 7.9 BattleEffectExecutionSummary
+
+用途：描述一组 effect 在本次结算中产出的聚合结果，供 trigger / growth fact / battle event follow-up 继续消费。
+
+核心字段补充：
+
+| 字段 | 说明 |
+|---|---|
+| `TotalCardsDrawn` | 本次结算总抽牌数量 |
+| `DrawnCardInstanceIds` | 本次结算实际抽到的 `BattleCardInstanceId` 列表 |
+
+说明：
+
+- `DrawnCardInstanceIds` 是 `RuntimeTriggers -> TriggeredCardModifiers` 的稳定目标协议。
+- `FinalBattle` 不通过文本日志猜测抽到哪张牌，而是直接从 effect summary 读取这些实例 ID。
 
 ## 8. 关键数据流
 

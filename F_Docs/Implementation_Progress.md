@@ -108,3 +108,12 @@
 - `锋锐` 当前只作用于手牌中的攻击牌；抽牌堆、弃牌堆、消耗区和持续区中的牌不投影这条状态。
 - `士气` 继续保留通用状态伤害修正路径，因此当前 `士气 + 锋锐` 会正确叠加为“全局状态伤害加成 + 当前出牌卡局部加成”。
 - 本步骤扩展了 `Final.Battle.CardProjection.*` 自动化测试，覆盖 `锋锐` 投影、与 `士气` 叠加、成功造成伤害后的层数消耗与重算、以及生成进手攻击牌的即时投影。
+
+## 2026-04-29 Step 13：`阵门木签` 接入 relic-driven BattleCard modifier
+
+- `阵门木签` 当前已从“第一次打出 0 AP 牌后抽 1”扩展为第一条正式的 `Relic -> RuntimeTriggers -> TriggeredCardModifiers -> BattleCard projection` 链。
+- 共享 `FFinalRuntimeTriggerDefinition` 当前已补 `TriggeredCardModifiers`，首版支持在 trigger `Effects` 之后，基于 `DrawnCardsFromExecutedEffects` 目标来源把 follow-up modifier 挂到 battle card instance。
+- `FFinalBattleEffectExecutionSummary` 当前已补 `DrawnCardInstanceIds`，用于把本次 trigger 实际抽到的牌实例稳定传给 follow-up modifier 逻辑，而不通过文本日志推断。
+- `FinalBattleTriggerService` 当前会在 relic runtime trigger effects 执行成功后，直接按 effect summary 把 `阵门木签` 的 `-1 AP / +20% 伤害` modifier 投影到抽到的攻击牌；若该牌带 `SourceRunCardInstanceId`，还会同步投影到当前 battle 中全部同源实例。
+- `FFinalBattleCardModifierRecord` 当前已补 `bExpireAtPlayerTurnEnd`；因此 `阵门木签` 的临时修正现在同时支持“打出后清除”与“若未打出则在玩家回合结束后清除”。
+- 本步骤扩展了 `Final.Battle.CardProjection.*` 自动化测试，覆盖攻击牌抽到后投影、生成为非攻击牌时不投影、打出后清除、回合结束后清除这四条基础行为。

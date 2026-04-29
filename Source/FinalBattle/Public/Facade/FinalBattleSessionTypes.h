@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Ids/FinalIds.h"
 #include "Run/Bridge/FinalBattleRelicPayload.h"
 
@@ -101,6 +102,7 @@ struct FINALBATTLE_API FFinalBattleCardModifierRecord
 	FName ModifierId = NAME_None;
 	EFinalBattleCardModifierSourceType SourceType = EFinalBattleCardModifierSourceType::System;
 	EFinalBattleCardModifierDuration DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+	bool bExpireAtPlayerTurnEnd = false;
 	int32 ApplyOrder = 0;
 	int32 CostDeltaAP = 0;
 	FGameplayTagContainer AddedKeywords;

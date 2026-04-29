@@ -664,6 +664,22 @@ namespace FinalDataAssetValidation
 				Trigger.Effects,
 				*FString::Printf(TEXT("%s.Effects"), *TriggerFieldName),
 				true);
+
+			for (int32 ModifierIndex = 0; ModifierIndex < Trigger.TriggeredCardModifiers.Num(); ++ModifierIndex)
+			{
+				const FFinalTriggeredCardModifierDefinition& ModifierDefinition = Trigger.TriggeredCardModifiers[ModifierIndex];
+				const FString ModifierFieldName = FString::Printf(TEXT("%s.TriggeredCardModifiers[%d]"), *TriggerFieldName, ModifierIndex);
+
+				if (ModifierDefinition.TargetSource == EFinalTriggeredCardModifierTargetSource::None)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
+				}
+
+				if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
+				}
+			}
 		}
 	}
 

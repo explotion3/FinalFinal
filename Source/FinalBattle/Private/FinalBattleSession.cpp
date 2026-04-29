@@ -72,6 +72,7 @@ FFinalBattleEvent UFinalBattleSession::SubmitCommand(const FFinalBattleCommand& 
 		}
 		else if (Command.CommandType == EFinalBattleCommandType::EndTurn)
 		{
+			CardService.ClearCardModifiersExpiringAtPlayerTurnEnd(*State, this);
 			CardService.ClearCardModifiersByDuration(*State, this, EFinalBattleCardModifierDuration::EndOfTurn);
 			CardService.ClearCardModifiersByDuration(*State, this, EFinalBattleCardModifierDuration::EndOfRound);
 		}
@@ -272,6 +273,48 @@ void UFinalBattleSession::AddReferencedObjects(UObject* InThis, FReferenceCollec
 	if (This->State == nullptr)
 	{
 		return;
+	}
+
+	auto AddRuntimeTriggerReferences = [&Collector](TArray<FFinalBattleRuntimeTriggerState>& TriggerStates)
+	{
+		for (FFinalBattleRuntimeTriggerState& TriggerState : TriggerStates)
+		{
+			for (TObjectPtr<UFinalBattleConditionDefinition>& Condition : TriggerState.TriggerDefinition.Conditions)
+			{
+				Collector.AddReferencedObject(Condition);
+			}
+
+			for (TObjectPtr<UFinalBattleEffectDefinition>& Effect : TriggerState.TriggerDefinition.Effects)
+			{
+				Collector.AddReferencedObject(Effect);
+			}
+		}
+	};
+
+	for (FFinalBattleStartRelicInput& ActiveRelic : This->State->ActiveRelics)
+	{
+		for (FFinalRuntimeTriggerDefinition& TriggerDefinition : ActiveRelic.RuntimeTriggers)
+		{
+			for (TObjectPtr<UFinalBattleConditionDefinition>& Condition : TriggerDefinition.Conditions)
+			{
+				Collector.AddReferencedObject(Condition);
+			}
+
+			for (TObjectPtr<UFinalBattleEffectDefinition>& Effect : TriggerDefinition.Effects)
+			{
+				Collector.AddReferencedObject(Effect);
+			}
+		}
+	}
+
+	for (FFinalBattleRelicRuntimeState& RuntimeState : This->State->RelicRuntimeStates)
+	{
+		AddRuntimeTriggerReferences(RuntimeState.TriggerStates);
+	}
+
+	for (FFinalBattleCharacterState& CharacterState : This->State->Characters)
+	{
+		AddRuntimeTriggerReferences(CharacterState.TriggerStates);
 	}
 
 	for (FFinalBattleCardInstance& CardInstance : This->State->CardInstances)

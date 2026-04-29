@@ -598,6 +598,29 @@ int32 FFinalBattleCardService::ClearCardModifiersByDuration(
 	return ReprojectedCardCount;
 }
 
+int32 FFinalBattleCardService::ClearCardModifiersExpiringAtPlayerTurnEnd(
+	FFinalBattleState& BattleState,
+	UObject* RuntimeProjectionOwner) const
+{
+	int32 ReprojectedCardCount = 0;
+	for (FFinalBattleCardInstance& CardInstance : BattleState.CardInstances)
+	{
+		const int32 RemovedCount = CardInstance.ModifierRecords.RemoveAll([](const FFinalBattleCardModifierRecord& Candidate)
+		{
+			return Candidate.bExpireAtPlayerTurnEnd;
+		});
+		if (RemovedCount <= 0)
+		{
+			continue;
+		}
+
+		ReprojectCardInstanceInternal(CardInstance, RuntimeProjectionOwner);
+		++ReprojectedCardCount;
+	}
+
+	return ReprojectedCardCount;
+}
+
 bool FFinalBattleCardService::ReprojectCardInstance(
 	FFinalBattleState& BattleState,
 	const FGuid& CardInstanceId,
@@ -728,9 +751,16 @@ void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleSta
 	MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DiscardPile);
 }
 
-int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const int32 DrawCount) const
+int32 FFinalBattleCardService::DrawCards(
+	FFinalBattleState& BattleState,
+	const int32 DrawCount,
+	TArray<FGuid>* OutDrawnCardInstanceIds) const
 {
 	int32 DrawnCount = 0;
+	if (OutDrawnCardInstanceIds != nullptr)
+	{
+		OutDrawnCardInstanceIds->Reset();
+	}
 
 	for (int32 DrawIndex = 0; DrawIndex < DrawCount; ++DrawIndex)
 	{
@@ -744,6 +774,10 @@ int32 FFinalBattleCardService::DrawCards(FFinalBattleState& BattleState, const i
 
 		const FGuid DrawnCardId = BattleState.DeckState.DrawPileCardInstanceIds[0];
 		MoveCardInstanceToZone(BattleState, DrawnCardId, EFinalBattleCardZone::Hand);
+		if (OutDrawnCardInstanceIds != nullptr)
+		{
+			OutDrawnCardInstanceIds->Add(DrawnCardId);
+		}
 		++DrawnCount;
 	}
 

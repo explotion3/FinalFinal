@@ -22,6 +22,7 @@ struct FFinalBattleEffectExecutionSummary
 	int32 TotalStatusStacksApplied = 0;
 	int32 TotalStatusStacksRemoved = 0;
 	int32 TotalCardsDrawn = 0;
+	TArray<FGuid> DrawnCardInstanceIds;
 	int32 TotalAPGained = 0;
 	int32 ResolvedEffectCount = 0;
 };

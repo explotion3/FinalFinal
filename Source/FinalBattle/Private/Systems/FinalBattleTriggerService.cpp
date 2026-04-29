@@ -1,8 +1,11 @@
 #include "Systems/FinalBattleTriggerService.h"
 
+#include "Battle/Definitions/FinalCardDefinition.h"
+#include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
+#include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
@@ -13,6 +16,13 @@ namespace
 const FName OwnerTookHealthDamageTag(TEXT("battle.trigger.owner_took_health_damage"));
 const FName PlayerTeamTookHealthDamageTag(TEXT("battle.trigger.player_team_took_health_damage"));
 const FName PlayerCardResolvedTag(TEXT("battle.trigger.player_card_resolved"));
+const FName RelicTriggeredModifierIdPrefix(TEXT("relic.trigger"));
+
+const FFinalBattleCardService& GetCardService()
+{
+	static const FFinalBattleCardService CardService;
+	return CardService;
+}
 
 bool CanTrigger(const FFinalBattleRuntimeTriggerState& TriggerState)
 {
@@ -79,6 +89,138 @@ bool IsValidBattleRuntimeTrigger(const FFinalRuntimeTriggerDefinition& TriggerDe
 	return TriggerDefinition.Domain == EFinalRuntimeTriggerDomain::Battle
 		&& TriggerDefinition.Window != EFinalRuntimeTriggerWindow::None
 		&& !TriggerDefinition.Effects.IsEmpty();
+}
+
+EFinalBattleCardModifierDuration ConvertTriggeredModifierDuration(
+	const EFinalTriggeredCardModifierDurationPolicy DurationPolicy)
+{
+	switch (DurationPolicy)
+	{
+	case EFinalTriggeredCardModifierDurationPolicy::UntilPlayed:
+		return EFinalBattleCardModifierDuration::UntilPlayed;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfTurn:
+		return EFinalBattleCardModifierDuration::EndOfTurn;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfRound:
+		return EFinalBattleCardModifierDuration::EndOfRound;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfBattle:
+		return EFinalBattleCardModifierDuration::EndOfBattle;
+
+	case EFinalTriggeredCardModifierDurationPolicy::ManualClear:
+	default:
+		return EFinalBattleCardModifierDuration::ManualClear;
+	}
+}
+
+bool MatchesTriggeredModifierCardFilter(
+	const FFinalBattleCardInstance& CardInstance,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition)
+{
+	if (!ModifierDefinition.bRequireCardType)
+	{
+		return true;
+	}
+
+	const UFinalCardDefinition* EffectiveDefinition = CardInstance.ProjectedDefinition != nullptr
+		? CardInstance.ProjectedDefinition
+		: CardInstance.BaseDefinition;
+	return EffectiveDefinition != nullptr
+		&& EffectiveDefinition->CardType == ModifierDefinition.RequiredCardType;
+}
+
+void CollectTriggeredModifierTargetIds(
+	const FFinalBattleState& BattleState,
+	const FFinalBattleCardInstance& SourceCardInstance,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	TArray<FGuid>& OutTargetCardInstanceIds)
+{
+	OutTargetCardInstanceIds.Reset();
+
+	if (ModifierDefinition.bApplyToAllSameSourceRunCardInstances
+		&& !SourceCardInstance.SourceRunCardInstanceId.IsNone())
+	{
+		for (const FFinalBattleCardInstance& Candidate : BattleState.CardInstances)
+		{
+			if (Candidate.SourceRunCardInstanceId == SourceCardInstance.SourceRunCardInstanceId)
+			{
+				OutTargetCardInstanceIds.AddUnique(Candidate.CardInstanceId);
+			}
+		}
+		return;
+	}
+
+	OutTargetCardInstanceIds.Add(SourceCardInstance.CardInstanceId);
+}
+
+void ApplyTriggeredCardModifierDefinition(
+	FFinalBattleState& BattleState,
+	const FFinalRelicId& RelicId,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	const FGuid& DrawnCardInstanceId)
+{
+	FFinalBattleCardInstance* DrawnCardInstance = GetCardService().FindCardInstance(BattleState, DrawnCardInstanceId);
+	if (DrawnCardInstance == nullptr || !MatchesTriggeredModifierCardFilter(*DrawnCardInstance, ModifierDefinition))
+	{
+		return;
+	}
+
+	TArray<FGuid> TargetCardInstanceIds;
+	CollectTriggeredModifierTargetIds(BattleState, *DrawnCardInstance, ModifierDefinition, TargetCardInstanceIds);
+	if (TargetCardInstanceIds.IsEmpty())
+	{
+		return;
+	}
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = FName(*FString::Printf(
+		TEXT("%s.%s.%s"),
+		*RelicTriggeredModifierIdPrefix.ToString(),
+		*RelicId.Value.ToString(),
+		*DrawnCardInstanceId.ToString(EGuidFormats::DigitsWithHyphensLower)));
+	ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Relic;
+	ModifierRecord.DurationPolicy = ConvertTriggeredModifierDuration(ModifierDefinition.DurationPolicy);
+	ModifierRecord.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
+	ModifierRecord.ApplyOrder = 2000;
+	ModifierRecord.CostDeltaAP = ModifierDefinition.CostDeltaAP;
+	ModifierRecord.OutgoingDamagePercentDelta = ModifierDefinition.OutgoingDamagePercentDelta;
+
+	for (const FGuid& TargetCardInstanceId : TargetCardInstanceIds)
+	{
+		GetCardService().RemoveCardModifier(BattleState, TargetCardInstanceId, BattleState.RuntimeProjectionOwner, ModifierRecord.ModifierId);
+		GetCardService().AddCardModifier(BattleState, TargetCardInstanceId, BattleState.RuntimeProjectionOwner, ModifierRecord);
+	}
+}
+
+void ApplyTriggeredCardModifiers(
+	FFinalBattleState& BattleState,
+	const FFinalRelicId& RelicId,
+	const FFinalRuntimeTriggerDefinition& TriggerDefinition,
+	const FFinalBattleEffectExecutionSummary& TriggerSummary)
+{
+	if (TriggerDefinition.TriggeredCardModifiers.IsEmpty() || TriggerSummary.DrawnCardInstanceIds.IsEmpty())
+	{
+		return;
+	}
+
+	for (const FFinalTriggeredCardModifierDefinition& ModifierDefinition : TriggerDefinition.TriggeredCardModifiers)
+	{
+		if (ModifierDefinition.TargetSource != EFinalTriggeredCardModifierTargetSource::DrawnCardsFromExecutedEffects)
+		{
+			continue;
+		}
+
+		if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+		{
+			continue;
+		}
+
+		for (const FGuid& DrawnCardInstanceId : TriggerSummary.DrawnCardInstanceIds)
+		{
+			ApplyTriggeredCardModifierDefinition(BattleState, RelicId, ModifierDefinition, DrawnCardInstanceId);
+		}
+	}
 }
 
 FText BuildRelicTriggerMessage(
@@ -187,6 +329,7 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 			InOutSummary.TotalStatusStacksApplied += TriggerSummary.TotalStatusStacksApplied;
 			InOutSummary.TotalStatusStacksRemoved += TriggerSummary.TotalStatusStacksRemoved;
 			InOutSummary.TotalCardsDrawn += TriggerSummary.TotalCardsDrawn;
+			InOutSummary.DrawnCardInstanceIds.Append(TriggerSummary.DrawnCardInstanceIds);
 			InOutSummary.TotalAPGained += TriggerSummary.TotalAPGained;
 			InOutSummary.ResolvedEffectCount += TriggerSummary.ResolvedEffectCount;
 		}
@@ -294,6 +437,7 @@ void FFinalBattleTriggerService::HandlePlayerCardResolved(
 				continue;
 			}
 
+			ApplyTriggeredCardModifiers(BattleState, RuntimeState.RelicId, TriggerDefinition, TriggerSummary);
 			MarkTriggered(TriggerState);
 			OutGeneratedEvents.Add(BuildTriggeredEvent(
 				RuntimeState.RelicId,

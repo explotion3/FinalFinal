@@ -20,7 +20,7 @@
 | `断铁磨石` | `relic_whetstone_break` | 武学遗物 | 普通 | `每回合你的第一张攻击牌额外造成 1 点削韧。` | 首章最基础的 Break 遗物 |
 | `护心铜镜` | `relic_bronze_mirror_guard` | 战术遗物 | 普通 | `每回合第一次承受实际生命损失后，获得 8 护盾。` | 提高承压稳定性 |
 | `回春药囊` | `relic_medicine_pouch_recover` | 武学遗物 | 普通 | `每回合第一次实际回复生命时，再随机使 1 名合法角色降低 1 点压力。` | 强化治疗减压闭环 |
-| `阵门木签` | `relic_token_zero_draw` | 武学遗物 | 普通 | `每回合第一次打出 0 AP 牌时，抽 1 张牌。` | 强化 0 费与阵牌节奏 |
+| `阵门木签` | `relic_token_zero_draw` | 武学遗物 | 普通 | `每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且伤害提高 20%。` | 强化 0 费与阵牌节奏 |
 | `山道旧钱` | `relic_old_coin_road` | 奇物秘宝 | 普通 | `普通战胜利后，额外获得 20 金。` | 强化前期经济与商店修正 |
 | `留锋布条` | `relic_cloth_break_punish` | 武学遗物 | 稀有 | `你对 Break 目标造成的伤害提高 15%。` | 明确奖励 Break 兑现 |
 | `抢拍铜哨` | `relic_whistle_tempo` | 战术遗物 | 稀有 | `每回合第一次打出 2 AP 及以上且正常触发先机减少事件的牌后，额外触发 1 次先机减少事件。` | 强化高费抢节奏打法 |
@@ -61,10 +61,15 @@ Runtime 状态：
 定位：强化 `0 AP` 与阵牌节奏的基础遗物。
 
 效果文本：
-* `每回合第一次打出 0 AP 牌时，抽 1 张牌。`
+* `每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且伤害提高 20%。`
 
 Runtime 状态：
-* 已进入 Runtime。资产 `relic_token_zero_draw` 使用共享 `RelicDefinition.RuntimeTriggers`，配置为 `Domain=Battle`、`Window=PlayerCardResolved`、`Limit=OncePerPlayerTurn`、`Conditions=[ResolvedCard(RequiredCardCostAP=0)]`、`Effects=[DrawCards(1)]`。
+* 已进入 Runtime。资产 `relic_token_zero_draw` 使用共享 `RelicDefinition.RuntimeTriggers`，配置为 `Domain=Battle`、`Window=PlayerCardResolved`、`Limit=OncePerPlayerTurn`、`Conditions=[ResolvedCard(RequiredCardCostAP=0)]`、`Effects=[DrawCards(1)]`，并追加 `TriggeredCardModifiers`：
+  * 目标来源：`DrawnCardsFromExecutedEffects`
+  * 过滤：仅攻击牌
+  * 修正：`CostDeltaAP = -1`、`OutgoingDamagePercentDelta = +20`
+  * 生命周期：`UntilPlayed + bExpireAtPlayerTurnEnd`
+  * 若抽到的牌带 `SourceRunCardInstanceId`，则会同步投影到当前 battle 中全部同源实例
 * 触发口径是玩家卡牌成功结算后；命令被拒绝不会触发，卡牌内部分 follow-up effect 因条件不满足而跳过不影响“这张牌已成功结算”的窗口。
 
 ### 3.5 山道旧钱

@@ -417,7 +417,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterTokenZeroDrawRelic->DisplayId = TEXT("Relic.Starter.TokenZeroDraw");
 	StarterTokenZeroDrawRelic->DisplayName = FText::FromString(TEXT("阵门木签"));
 	StarterTokenZeroDrawRelic->Rarity = EFinalRarity::Common;
-	StarterTokenZeroDrawRelic->Description = FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。"));
+	StarterTokenZeroDrawRelic->Description = FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且伤害提高 20%。"));
 	StarterTokenZeroDrawRelic->BattleStartEffects.Reset();
 	StarterTokenZeroDrawRelic->PlayerTurnStartEffects.Reset();
 	StarterTokenZeroDrawRelic->RuntimeTriggers.Reset();
@@ -438,6 +438,16 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 			TEXT("effect.starter.relic.token_zero_draw.draw"),
 			1,
 			FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。")));
+
+		FFinalTriggeredCardModifierDefinition& TriggeredModifier = TriggerDefinition.TriggeredCardModifiers.AddDefaulted_GetRef();
+		TriggeredModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::DrawnCardsFromExecutedEffects;
+		TriggeredModifier.bRequireCardType = true;
+		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
+		TriggeredModifier.CostDeltaAP = -1;
+		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
+		TriggeredModifier.bApplyToAllSameSourceRunCardInstances = true;
 	}
 	TrackPackage(StarterTokenZeroDrawRelic, PackagesToSave);
 

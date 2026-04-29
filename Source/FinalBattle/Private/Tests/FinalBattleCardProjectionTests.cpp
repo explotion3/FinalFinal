@@ -8,9 +8,13 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
+#include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "Run/Definitions/FinalRelicDefinition.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Facade/FinalBattleSession.h"
 #include "Facade/FinalBattleSessionTypes.h"
@@ -259,6 +263,97 @@ namespace FinalBattleCardProjectionTests
 		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
 		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
 		return Session;
+	}
+
+	TStrongObjectPtr<UFinalBattleSession> CreateSessionWithDeckAndRelics(
+		UFinalBattleEncounterDefinition* EncounterDefinition,
+		UFinalBattleRuleConfig* RuleConfig,
+		UFinalCharacterDefinition* CharacterDefinition,
+		const TArray<UFinalCardDefinition*>& CardDefinitions,
+		const TArray<FName>& SourceRunCardInstanceIds,
+		const TArray<FFinalBattleStartRelicInput>& BattleStartRelics)
+	{
+		FFinalBattleInitContext InitContext;
+		InitContext.TeamCurrentHP = 20;
+
+		FFinalBattleCharacterInitData& CharacterInit = InitContext.PartyMembers.AddDefaulted_GetRef();
+		CharacterInit.CharacterDefinition = CharacterDefinition;
+		CharacterInit.CurrentStress = 0;
+		CharacterInit.bCollapsed = false;
+		CharacterInit.CurrentAwakenCount = 0;
+		CharacterInit.CollapseCount = 0;
+		CharacterInit.VitalShare = CharacterDefinition->BaseVitalShare;
+		CharacterInit.StressCap = CharacterDefinition->BaseStressCap;
+		CharacterInit.RuntimeAttack = CharacterDefinition->BaseAttack;
+		CharacterInit.RuntimeDefense = CharacterDefinition->BaseDefense;
+		CharacterInit.RuntimeBreakRate = CharacterDefinition->BaseBreakRate;
+		CharacterInit.RuntimeCritChance = CharacterDefinition->BaseCritChance;
+		CharacterInit.RuntimeCritDamage = CharacterDefinition->BaseCritDamage;
+
+		for (int32 CardIndex = 0; CardIndex < CardDefinitions.Num(); ++CardIndex)
+		{
+			UFinalCardDefinition* CardDefinition = CardDefinitions[CardIndex];
+			if (CardDefinition == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCardInitData& CardInit = InitContext.DeckCards.AddDefaulted_GetRef();
+			CardInit.CardDefinition = CardDefinition;
+			CardInit.CardId = CardDefinition->CardId;
+			CardInit.OwnerCharacterId = CharacterDefinition->CharacterId;
+			CardInit.SourceRunCardInstanceId = SourceRunCardInstanceIds.IsValidIndex(CardIndex) ? SourceRunCardInstanceIds[CardIndex] : NAME_None;
+			InitContext.DeckDefinitions.Add(CardDefinition);
+		}
+
+		InitContext.BattleStartRelics = BattleStartRelics;
+
+		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
+		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+		return Session;
+	}
+
+	TStrongObjectPtr<UFinalRelicDefinition> MakeTokenZeroDrawRelicDefinition()
+	{
+		TStrongObjectPtr<UFinalRelicDefinition> RelicDefinition(NewObject<UFinalRelicDefinition>(GetTransientPackage()));
+		RelicDefinition->RelicId = FFinalRelicId(FName(TEXT("relic.test.token_zero_draw")));
+		RelicDefinition->DisplayName = FText::FromString(TEXT("Token Zero Draw"));
+
+		FFinalRuntimeTriggerDefinition& TriggerDefinition = RelicDefinition->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRuntimeTriggerWindow::PlayerCardResolved;
+		TriggerDefinition.Limit = EFinalRuntimeTriggerLimit::OncePerPlayerTurn;
+
+		UFinalBattleConditionResolvedCard* ResolvedCardCondition = NewObject<UFinalBattleConditionResolvedCard>(RelicDefinition.Get());
+		ResolvedCardCondition->Requirement.bRequireCardCostAP = true;
+		ResolvedCardCondition->Requirement.RequiredCardCostAP = 0;
+		TriggerDefinition.Conditions.Add(ResolvedCardCondition);
+
+		UFinalBattleEffectDrawCards* DrawCardsEffect = NewObject<UFinalBattleEffectDrawCards>(RelicDefinition.Get());
+		DrawCardsEffect->EffectId = TEXT("effect.test.relic.token_zero_draw.draw");
+		DrawCardsEffect->DrawCount = 1;
+		TriggerDefinition.Effects.Add(DrawCardsEffect);
+
+		FFinalTriggeredCardModifierDefinition& TriggeredModifier = TriggerDefinition.TriggeredCardModifiers.AddDefaulted_GetRef();
+		TriggeredModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::DrawnCardsFromExecutedEffects;
+		TriggeredModifier.bRequireCardType = true;
+		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
+		TriggeredModifier.CostDeltaAP = -1;
+		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
+		TriggeredModifier.bApplyToAllSameSourceRunCardInstances = true;
+		return RelicDefinition;
+	}
+
+	FFinalBattleStartRelicInput MakeBattleStartRelicInput(const UFinalRelicDefinition* RelicDefinition)
+	{
+		FFinalBattleStartRelicInput RelicInput;
+		RelicInput.RelicId = RelicDefinition != nullptr ? RelicDefinition->RelicId : FFinalRelicId();
+		RelicInput.DisplayId = RelicDefinition != nullptr ? RelicDefinition->DisplayId : NAME_None;
+		RelicInput.DisplayName = RelicDefinition != nullptr ? RelicDefinition->DisplayName : FText::GetEmpty();
+		RelicInput.RuntimeTriggers = RelicDefinition != nullptr ? RelicDefinition->RuntimeTriggers : TArray<FFinalRuntimeTriggerDefinition>{};
+		return RelicInput;
 	}
 
 	const FFinalBattleCardViewData* FindSingleHandCard(const FFinalBattleSnapshot& Snapshot)
@@ -792,6 +887,262 @@ bool FFinalBattleCardProjectionFengRuiAppliesToGeneratedAttackCardsTest::RunTest
 	}
 
 	TestEqual(TEXT("A generated attack card entering hand while FengRui is active should immediately gain +20% projected outgoing damage."), Session->GetCardProjectionView(GeneratedAttackHandCard->CardInstanceId).EffectiveOutgoingDamagePercent, 20);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionZeroCostRelicDrawnAttackGetsProjectedModifierTest,
+	"Final.Battle.CardProjection.ZeroCostRelicDrawnAttackGetsProjectedModifier",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionZeroCostRelicDrawnAttackGetsProjectedModifierTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.relic_draw_attack")));
+	const FFinalCardId TriggerCardId(FName(TEXT("card.test.relic.trigger_attack")));
+	const FFinalCardId DrawnAttackCardId(FName(TEXT("card.test.relic.drawn_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalCardDefinition> TriggerCard = MakeDamageCard(TriggerCardId, CharacterId, TEXT("Zero Cost Trigger"), 0, 2.0f);
+	TriggerCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TStrongObjectPtr<UFinalCardDefinition> DrawnAttackCard = MakeDamageCard(DrawnAttackCardId, CharacterId, TEXT("Drawn Attack"), 1, 5.0f);
+	TStrongObjectPtr<UFinalRelicDefinition> RelicDefinition = MakeTokenZeroDrawRelicDefinition();
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeckAndRelics(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ TriggerCard.Get(), DrawnAttackCard.Get() },
+		TArray<FName>{ TEXT("run.card.trigger"), TEXT("run.card.drawn_attack") },
+		TArray<FFinalBattleStartRelicInput>{ MakeBattleStartRelicInput(RelicDefinition.Get()) });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* TriggerHandCard = FindHandCardById(Snapshot, TriggerCardId);
+	if (!TestNotNull(TEXT("Opening 0 AP trigger card should begin in hand."), TriggerHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand TriggerCommand;
+	TriggerCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	TriggerCommand.CardInstanceId = TriggerHandCard->CardInstanceId;
+	TriggerCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the opening 0 AP trigger card should succeed."), Session->SubmitCommand(TriggerCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot AfterTriggerSnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* DrawnAttackHandCard = FindHandCardById(AfterTriggerSnapshot, DrawnAttackCardId);
+	if (!TestNotNull(TEXT("Relic draw should put the attack card into hand."), DrawnAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView DrawnProjection = Session->GetCardProjectionView(DrawnAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Relic-driven attack draw should reduce projected AP cost by 1."), DrawnProjection.EffectiveCostAP, 0);
+	TestEqual(TEXT("Relic-driven attack draw should add +20% projected outgoing damage."), DrawnProjection.EffectiveOutgoingDamagePercent, 20);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionZeroCostRelicDrawnNonAttackDoesNotGetModifierTest,
+	"Final.Battle.CardProjection.ZeroCostRelicDrawnNonAttackDoesNotGetModifier",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionZeroCostRelicDrawnNonAttackDoesNotGetModifierTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.relic_draw_non_attack")));
+	const FFinalCardId TriggerCardId(FName(TEXT("card.test.relic.trigger_non_attack")));
+	const FFinalCardId DrawnSkillCardId(FName(TEXT("card.test.relic.drawn_skill")));
+	const FName StatusId(TEXT("status.test.relic.drawn_skill"));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalCardDefinition> TriggerCard = MakeDamageCard(TriggerCardId, CharacterId, TEXT("Zero Cost Trigger"), 0, 2.0f);
+	TriggerCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TStrongObjectPtr<UFinalStatusDefinition> DrawnSkillStatus = MakeProjectedStatusDefinition(StatusId, 0, 0, false, false, false, false);
+	TStrongObjectPtr<UFinalCardDefinition> DrawnSkillCard = MakeApplyStatusCard(DrawnSkillCardId, CharacterId, TEXT("Drawn Skill"), DrawnSkillStatus.Get(), 1);
+	TStrongObjectPtr<UFinalRelicDefinition> RelicDefinition = MakeTokenZeroDrawRelicDefinition();
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeckAndRelics(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ TriggerCard.Get(), DrawnSkillCard.Get() },
+		TArray<FName>{ TEXT("run.card.trigger"), TEXT("run.card.drawn_skill") },
+		TArray<FFinalBattleStartRelicInput>{ MakeBattleStartRelicInput(RelicDefinition.Get()) });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* TriggerHandCard = FindHandCardById(Snapshot, TriggerCardId);
+	if (!TestNotNull(TEXT("Opening 0 AP trigger card should begin in hand."), TriggerHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand TriggerCommand;
+	TriggerCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	TriggerCommand.CardInstanceId = TriggerHandCard->CardInstanceId;
+	TriggerCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the opening 0 AP trigger card should succeed."), Session->SubmitCommand(TriggerCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot AfterTriggerSnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* DrawnSkillHandCard = FindHandCardById(AfterTriggerSnapshot, DrawnSkillCardId);
+	if (!TestNotNull(TEXT("Relic draw should put the non-attack skill into hand."), DrawnSkillHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView DrawnProjection = Session->GetCardProjectionView(DrawnSkillHandCard->CardInstanceId);
+	TestEqual(TEXT("Non-attack cards drawn by the relic should keep their projected AP cost."), DrawnProjection.EffectiveCostAP, DrawnSkillCard->BaseCostAP);
+	TestEqual(TEXT("Non-attack cards drawn by the relic should not gain outgoing damage."), DrawnProjection.EffectiveOutgoingDamagePercent, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionZeroCostRelicModifierClearsOnPlayTest,
+	"Final.Battle.CardProjection.ZeroCostRelicModifierClearsOnPlay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionZeroCostRelicModifierClearsOnPlayTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.relic_clear_on_play")));
+	const FFinalCardId TriggerCardId(FName(TEXT("card.test.relic.trigger_clear_on_play")));
+	const FFinalCardId DrawnAttackCardId(FName(TEXT("card.test.relic.drawn_attack_clear_on_play")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalCardDefinition> TriggerCard = MakeDamageCard(TriggerCardId, CharacterId, TEXT("Zero Cost Trigger"), 0, 2.0f);
+	TriggerCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TStrongObjectPtr<UFinalCardDefinition> DrawnAttackCard = MakeDamageCard(DrawnAttackCardId, CharacterId, TEXT("Drawn Attack"), 1, 5.0f);
+	TStrongObjectPtr<UFinalRelicDefinition> RelicDefinition = MakeTokenZeroDrawRelicDefinition();
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeckAndRelics(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ TriggerCard.Get(), DrawnAttackCard.Get() },
+		TArray<FName>{ TEXT("run.card.trigger"), TEXT("run.card.drawn_attack") },
+		TArray<FFinalBattleStartRelicInput>{ MakeBattleStartRelicInput(RelicDefinition.Get()) });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* TriggerHandCard = FindHandCardById(Snapshot, TriggerCardId);
+	if (!TestNotNull(TEXT("Opening 0 AP trigger card should begin in hand."), TriggerHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand TriggerCommand;
+	TriggerCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	TriggerCommand.CardInstanceId = TriggerHandCard->CardInstanceId;
+	TriggerCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the opening 0 AP trigger card should succeed."), Session->SubmitCommand(TriggerCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* DrawnAttackHandCard = FindHandCardById(Snapshot, DrawnAttackCardId);
+	if (!TestNotNull(TEXT("Relic draw should put the attack card into hand."), DrawnAttackHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand AttackCommand;
+	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	AttackCommand.CardInstanceId = DrawnAttackHandCard->CardInstanceId;
+	AttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the relic-buffed attack should succeed."), Session->SubmitCommand(AttackCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleCardProjectionView ProjectionAfterPlay = Session->GetCardProjectionView(DrawnAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Relic modifier should clear immediately after the buffed attack is played."), ProjectionAfterPlay.ModifierCount, 0);
+	TestEqual(TEXT("After play cleanup the projected cost should return to base."), ProjectionAfterPlay.EffectiveCostAP, DrawnAttackCard->BaseCostAP);
+	TestEqual(TEXT("After play cleanup the projected outgoing damage bonus should be removed."), ProjectionAfterPlay.EffectiveOutgoingDamagePercent, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionZeroCostRelicModifierClearsAtTurnEndTest,
+	"Final.Battle.CardProjection.ZeroCostRelicModifierClearsAtTurnEnd",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionZeroCostRelicModifierClearsAtTurnEndTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.relic_clear_at_turn_end")));
+	const FFinalCardId TriggerCardId(FName(TEXT("card.test.relic.trigger_clear_at_turn_end")));
+	const FFinalCardId RetainedAttackCardId(FName(TEXT("card.test.relic.retained_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalCardDefinition> TriggerCard = MakeDamageCard(TriggerCardId, CharacterId, TEXT("Zero Cost Trigger"), 0, 2.0f);
+	TriggerCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TStrongObjectPtr<UFinalCardDefinition> RetainedAttackCard = MakeRetainedDamageCard(RetainedAttackCardId, CharacterId, TEXT("Retained Attack"), 1, 5.0f);
+	TStrongObjectPtr<UFinalRelicDefinition> RelicDefinition = MakeTokenZeroDrawRelicDefinition();
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeckAndRelics(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ TriggerCard.Get(), RetainedAttackCard.Get() },
+		TArray<FName>{ TEXT("run.card.trigger"), TEXT("run.card.retained_attack") },
+		TArray<FFinalBattleStartRelicInput>{ MakeBattleStartRelicInput(RelicDefinition.Get()) });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* TriggerHandCard = FindHandCardById(Snapshot, TriggerCardId);
+	if (!TestNotNull(TEXT("Opening 0 AP trigger card should begin in hand."), TriggerHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand TriggerCommand;
+	TriggerCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	TriggerCommand.CardInstanceId = TriggerHandCard->CardInstanceId;
+	TriggerCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the opening 0 AP trigger card should succeed."), Session->SubmitCommand(TriggerCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* RetainedAttackHandCard = FindHandCardById(Snapshot, RetainedAttackCardId);
+	if (!TestNotNull(TEXT("Relic draw should put the retained attack card into hand."), RetainedAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView ProjectionBeforeEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Retained attack should be buffed before end turn cleanup."), ProjectionBeforeEndTurn.EffectiveOutgoingDamagePercent, 20);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestTrue(TEXT("Ending the turn should succeed."), Session->SubmitCommand(EndTurnCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot AfterEndTurnSnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* RetainedAttackAfterEndTurn = FindHandCardById(AfterEndTurnSnapshot, RetainedAttackCardId);
+	if (!TestNotNull(TEXT("Retained attack should remain in hand after turn end cleanup."), RetainedAttackAfterEndTurn))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView ProjectionAfterEndTurn = Session->GetCardProjectionView(RetainedAttackAfterEndTurn->CardInstanceId);
+	TestEqual(TEXT("Relic modifier should clear from retained cards at player turn end."), ProjectionAfterEndTurn.ModifierCount, 0);
+	TestEqual(TEXT("Retained card cost should return to base after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
+	TestEqual(TEXT("Retained card damage bonus should be removed after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
 	return true;
 }
 

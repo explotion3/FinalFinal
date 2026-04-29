@@ -958,8 +958,10 @@ bool ExecuteDrawCardsEffect(
 	}
 
 	const int32 HandCountBeforeDraw = State.DeckState.HandCardInstanceIds.Num();
-	GetCardService().DrawCards(State, FMath::Max(DrawCardsEffect->DrawCount, 0));
+	TArray<FGuid> DrawnCardInstanceIds;
+	GetCardService().DrawCards(State, FMath::Max(DrawCardsEffect->DrawCount, 0), &DrawnCardInstanceIds);
 	Summary.TotalCardsDrawn += FMath::Max(State.DeckState.HandCardInstanceIds.Num() - HandCountBeforeDraw, 0);
+	Summary.DrawnCardInstanceIds.Append(DrawnCardInstanceIds);
 	if (State.DeckState.HandCardInstanceIds.Num() > HandCountBeforeDraw)
 	{
 		GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), SourceOwnerUnitId);

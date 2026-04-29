@@ -105,6 +105,10 @@ public:
 		UObject* RuntimeProjectionOwner,
 		EFinalBattleCardModifierDuration DurationPolicy) const;
 
+	int32 ClearCardModifiersExpiringAtPlayerTurnEnd(
+		FFinalBattleState& BattleState,
+		UObject* RuntimeProjectionOwner) const;
+
 	bool ReprojectCardInstance(
 		FFinalBattleState& BattleState,
 		const FGuid& CardInstanceId,
@@ -141,7 +145,7 @@ public:
 	void MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 
 	// 抽指定数量的牌；若抽牌堆为空，会先尝试把弃牌堆洗回抽牌堆。
-	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount) const;
+	int32 DrawCards(FFinalBattleState& BattleState, int32 DrawCount, TArray<FGuid>* OutDrawnCardInstanceIds = nullptr) const;
 
 	// 基于当前手牌实例构建对外只读的手牌视图数据。
 	void BuildHandCardViews(

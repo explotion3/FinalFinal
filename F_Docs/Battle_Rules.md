@@ -271,7 +271,19 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - **迟滞**：先机干预状态，在先机变化或敌方行动检查时参与判定。
 - **专属状态**：默认优先挂接到条件触发窗口；若为持续型状态，再按各自文本接入固定窗口。
 
-### 6.5 状态结算顺序
+### 6.5 RuntimeTriggers 派生 BattleCard modifier
+
+当前 battle 内允许 `RuntimeTriggers` 在执行完 `Effects` 后，再根据 effect summary 派生 card-scoped modifier。
+
+首版已落地口径：
+
+- follow-up 目标来源当前支持 `DrawnCardsFromExecutedEffects`
+- modifier 直接挂到 battle card instance，而不是回写 `RunCardInstance`
+- 同源联动仅在目标 battle card 带 `SourceRunCardInstanceId` 时生效
+- card modifier 继续只通过 `BattleCard projection` 生效，不额外走第二条全局遗物伤害修正路径
+- `阵门木签` 当前是第一条正式落地的 relic-driven card modifier：玩家每回合第一次打出 `0 AP` 牌后，先抽 1，再把 `-1 AP / +20% 伤害` 挂到本次抽到的攻击牌及其同源实例上，持续到打出或玩家回合结束
+
+### 6.6 状态结算顺序
 
 同一窗口内需要同时结算多个状态时，默认按以下顺序处理：
 
@@ -281,7 +293,7 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 
 若多个同类状态同时存在，则默认按站位顺序与状态添加顺序处理。
 
-### 6.6 共享血条下的玩家侧状态边界
+### 6.7 共享血条下的玩家侧状态边界
 
 在共享血条结构下，玩家侧状态默认分为两类：
 
