@@ -8,6 +8,17 @@
 #include "FinalRunState.generated.h"
 
 USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunPendingGrowthChoice
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    FFinalCharacterId CharacterId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    bool bIsValid = false;
+};
+USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunState
 {
 	GENERATED_BODY()
@@ -38,6 +49,8 @@ struct FINALRUN_API FFinalRunState
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunPersistentCharacterState> Characters;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    FFinalRunPendingGrowthChoice PendingGrowthChoice;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunCardInstance> RunDeck;

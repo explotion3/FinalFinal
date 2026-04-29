@@ -11,6 +11,26 @@ struct FINALRUN_API FFinalRunPersistentCharacterState
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalCharacterId CharacterId;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 Level = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 BreakthroughValue = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 BreakthroughRequiredValue = 100;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 RootBone = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 Insight = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    int32 KillingIntent = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
+    bool bHasPendingGrowthChoice = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 CurrentStress = 0;

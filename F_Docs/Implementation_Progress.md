@@ -10,3 +10,9 @@
   - remove-card removes the first matching effective card id;
   - upgrade-card updates `CurrentCardId` on the matching instance.
 - No growth-choice generation, attribute growth, UI, battle fact integration, or hand refresh logic is implemented in this step.
+## Step 2：角色成长状态
+
+- `FFinalRunPersistentCharacterState` 增加角色等级、突破值、突破阈值、根骨、悟性、杀意与待成长标记。
+- `FFinalRunState` 增加轻量的 `PendingGrowthChoice`，用于记录当前是否有角色等待成长选择。
+- 本步骤只落状态结构，不生成成长三选一，不应用属性成长，不执行卡牌进化，不接 UI。
+- `RunDeck` 仍是 Run 内牌组唯一真相源；卡牌实例迁移与本步骤保持解耦。
