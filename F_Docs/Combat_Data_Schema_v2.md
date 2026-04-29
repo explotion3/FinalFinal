@@ -498,6 +498,22 @@ EvolutionStage: Evolved
 
 这些定义不应承载角色升级三选一或 Run 内卡牌进化的主逻辑。
 
+其中 `StatusDefinition` 当前已补最小 card projection 字段，用于把部分状态同步成 `BattleCard` 上的 derived modifiers：
+
+| 字段 | 说明 |
+|---|---|
+| `OutgoingDamagePercentPerStack` | 通用状态伤害修正，每层百分比 |
+| `bOnlyAffectAttackCards` | 通用状态伤害修正是否只影响攻击牌 |
+| `bProjectToOwnedHandCards` | 是否把这条状态投影到拥有者当前手牌 |
+| `ProjectedCardTypeFilter` | 投影到手牌时的卡牌类型过滤 |
+| `ProjectedOutgoingDamagePercentPerStack` | 投影到手牌卡 modifier 的每层伤害百分比 |
+
+当前首版规则约束：
+
+- `士气` 继续走通用状态伤害修正路径。
+- `锋锐` 已迁移为“状态驱动的手牌攻击牌 modifier”，因此 `OutgoingDamagePercentPerStack = 0`，实际伤害修正来自投影后的 `BattleCard` modifier。
+- 这组投影字段当前只服务 Battle 内 derived card modifier，不会回写 Run。
+
 ## 6. Run 内持久结构
 
 ### 6.1 RunState
@@ -724,21 +740,39 @@ EvolutionStage: Evolved
 | `BaseCardId` | 原始基础卡 ID |
 | `CurrentCardId` | 当前使用模板 ID |
 | `RuntimeOwnerUnitId` | 当前所属单位 |
-| `RuntimeCostAP` | 当前 AP 消耗 |
-| `RuntimeKeywords` | 当前实际关键词 |
-| `TempModifiers` | 临时修正集合 |
-| `RecycleCount` | 回收剩余次数 |
-| `bRetained` | 是否保留 |
-| `bConsumeOnPlay` | 打出后是否进入消耗区 |
+| `BaseDefinition` | 当前基础模板定义 |
+| `ModifierRecords` | battle 内临时修正记录集合 |
+| `ProjectedDefinition` | 当前投影后的运行时定义副本 |
+| `RuntimeCostAP` | 当前投影 AP 消耗 |
+| `RuntimeKeywords` | 当前投影关键词 |
+| `RuntimeBehavior` | 当前投影牌区行为位 |
 
 说明：
 
 - 战斗开始时由 `RunCardInstance` 生成基础战斗实例。
 - 衍生牌、复制牌、敌方塞入牌可以没有 `RunCardInstanceId`。
-- 若 Run 内卡牌进化发生在战斗中，当前 battle 中直接来源于目标 `RunCardInstanceId` 的对应实例都会同步刷新 `CurrentCardId` 与基础定义字段。
-- 当前首版刷新会重建基础 runtime 字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / RuntimeBehavior / bRetained / bConsumeOnPlay`。
-- 临时费用、临时关键词、临时数值只写入 `BattleCardInstance` 或 `TempModifiers`，不回写 Run。
-- 当前首版不承诺保留未来独立 temp modifier 层中的临时修正；生成牌、复制牌、衍生牌、临时牌也不联动这次刷新。
+- 若 Run 内卡牌进化发生在战斗中，当前 battle 中直接来源于目标 `RunCardInstanceId` 的对应实例都会同步刷新 base `CurrentCardId / BaseDefinition`，并重新投影当前运行时定义。
+- 临时费用、临时关键词、临时行为位和运行时图 patch 只写入 `BattleCardInstance.ModifierRecords`，不回写 Run。
+- 生成牌、复制牌、衍生牌、临时牌默认不联动这次刷新，因为它们不保留来源 `RunCardInstanceId`。
+
+`ModifierRecords` 首版统一包含以下协议字段：
+
+| 字段 | 说明 |
+|---|---|
+| `ModifierId` | 修正记录自身 ID |
+| `SourceType` | 来源类型：Card / Status / Passive / Relic / System |
+| `DurationPolicy` | 持续窗口：`UntilPlayed / EndOfTurn / EndOfRound / EndOfBattle / ManualClear` |
+| `ApplyOrder` | 同一卡上的稳定应用顺序 |
+| `OutgoingDamagePercentDelta` | 当前卡实例独有的伤害百分比修正 |
+| `PatchPayload` | 费用、关键词、行为位或运行时图 patch 载荷 |
+
+当前首版允许的 patch 作用范围只覆盖卡牌自身运行时图：
+
+- AP 费用修正
+- 关键词增删
+- `retain / consume / recycle` 行为位覆盖
+- effect 节点替换 / 插入 / 移除 / 常见载荷覆写
+- requirement / condition 节点替换 / 插入 / 移除 / 常见载荷覆写
 
 ### 7.6 BattleStatusInstance
 
@@ -851,7 +885,8 @@ GrowthChoiceInstance
 ```text
 BaseCardId 不变
 CurrentCardId 改变
-BattleCardInstance 只重建基础定义字段，不回滚历史结算
+BattleCardInstance 更新 base definition 后保留 ModifierRecords 并重新投影
+历史已经完成的结算不回滚
 ```
 
 ### 8.4 压力临界
@@ -945,7 +980,7 @@ FinalData 提供定义
 ```text
 RunCardInstance
 BattleCardInstance
-TempModifiers
+ModifierRecords
 ```
 
 ### 10.3 避免第一版范围膨胀

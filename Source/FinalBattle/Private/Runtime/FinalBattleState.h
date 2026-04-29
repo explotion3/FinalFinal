@@ -15,6 +15,7 @@
 struct FFinalBattleState
 {
 	FGuid BattleId;
+	UObject* RuntimeProjectionOwner = nullptr;
 	FFinalEncounterId EncounterId;
 	FFinalRuleConfigId RuleConfigId;
 	FText EncounterDisplayName;

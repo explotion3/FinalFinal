@@ -39,6 +39,10 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	FFinalBattleEndTurnResult Result;
 	CardService.ResolveEndTurnHandCleanup(BattleState);
 	StatusService.ResolvePlayerTurnEndStatuses(BattleState);
+	for (const FFinalBattleCharacterState& CharacterState : BattleState.Characters)
+	{
+		StatusService.ResyncProjectedHandCardModifiers(BattleState, CardService, CharacterState.RuntimeUnitId);
+	}
 
 	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)
 	{

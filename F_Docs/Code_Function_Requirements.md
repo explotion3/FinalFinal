@@ -116,7 +116,9 @@
 - 处理抽牌、弃牌、生成、复制、回收、消耗
 - 统一解释卡牌关键词对牌区去向的改写
 - 维护 `BattleCardInstance` 与其来源 `RunCardInstanceId` 的关联
-- 当 Run 层确认某张卡牌实例进化时，支持刷新当前 battle 中直接来源于该 `RunCardInstanceId` 的 card instance，并同步更新后续结算定义
+- 维护 battle 内卡牌临时修正 / 投影层：`base definition + modifier records + projected runtime`
+- 当 Run 层确认某张卡牌实例进化时，支持刷新当前 battle 中直接来源于该 `RunCardInstanceId` 的 card instance，并在保留 battle 内临时修正的前提下重新投影后续结算定义
+- 运行时图克隆、patch 执行和持续窗口清理全部属于 `FinalBattle` 私有实现；`FinalRun` 与 `FinalApp` 不持有 battle card modifier 真相
 
 优先级：`P0`
 

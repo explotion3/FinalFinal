@@ -286,7 +286,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
-	if (CardInstance->SourceDefinition == nullptr)
+	if (CardInstance->ProjectedDefinition == nullptr)
 	{
 		Event = BuildRejectedCommandEvent(
 			EFinalBattleCommandRejectReason::CardDefinitionMissing,
@@ -321,7 +321,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
-	if (!GetEffectExecutionService().HasSupportedEffect(CardInstance->SourceDefinition))
+	if (!GetEffectExecutionService().HasSupportedEffect(CardInstance->ProjectedDefinition))
 	{
 		Event = BuildRejectedCommandEvent(
 			EFinalBattleCommandRejectReason::UnsupportedCardEffects,
@@ -333,7 +333,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	}
 
 	const FFinalBattleCharacterState* OwnerCharacterState = GetUnitService().FindCharacterState(State, CardInstance->RuntimeOwnerUnitId);
-	const UFinalCardDefinition* SourceCardDefinition = CardInstance->SourceDefinition;
+	const UFinalCardDefinition* SourceCardDefinition = CardInstance->ProjectedDefinition;
 	const FName ResolvedRuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
 	const FGuid ResolvedCardInstanceId = CardInstance->CardInstanceId;
 	const FFinalCardId ResolvedCardId = CardInstance->CardId;
@@ -351,11 +351,12 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 	FFinalBattleEffectExecutionSummary Summary;
-	Summary.SourceCharacterId = CardInstance->SourceDefinition != nullptr && OwnerCharacterState != nullptr ? OwnerCharacterState->CharacterId : FFinalCharacterId{};
+	Summary.SourceCharacterId = CardInstance->ProjectedDefinition != nullptr && OwnerCharacterState != nullptr ? OwnerCharacterState->CharacterId : FFinalCharacterId{};
 	Summary.SourceCardId = ResolvedCardId;
 	Summary.CommandSource = EFinalBattleGrowthCommandSource::PlayCard;
 	Summary.bCausedByPlayerCommand = true;
 	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, GetUnitService(), Summary);
+	GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), ResolvedRuntimeOwnerUnitId);
 	EmitGrowthFactsFromSummary(State, Summary);
 
 	TArray<FFinalBattleEvent> RelicEvents;

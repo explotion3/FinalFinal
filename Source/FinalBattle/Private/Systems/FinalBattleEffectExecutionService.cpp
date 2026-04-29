@@ -433,6 +433,19 @@ int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPe
 	return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseDamage) * ModifierScale), 0);
 }
 
+int32 ResolveCurrentCardOutgoingDamageModifierPercent(
+	const FFinalBattleState& State,
+	const FFinalBattleEffectExecutionContext& ExecutionContext)
+{
+	if (!ExecutionContext.Transient.SourceCardInstanceId.IsValid())
+	{
+		return 0;
+	}
+
+	const FFinalBattleCardInstance* SourceCardInstance = GetCardService().FindCardInstance(State, ExecutionContext.Transient.SourceCardInstanceId);
+	return SourceCardInstance != nullptr ? SourceCardInstance->RuntimeOutgoingDamagePercent : 0;
+}
+
 bool ShouldApplyCriticalHit(const FFinalBattleCharacterState* SourceCharacterState)
 {
 	if (SourceCharacterState == nullptr)
@@ -584,6 +597,7 @@ bool ExecuteGenerateCardEffect(
 			State,
 			SelectedCardDefinition,
 			SourceOwnerUnitId,
+			State.RuntimeProjectionOwner,
 			NAME_None,
 			GenerateCardEffect->bGeneratedCard,
 			GenerateCardEffect->bTemporaryCard);
@@ -602,6 +616,7 @@ bool ExecuteGenerateCardEffect(
 		return false;
 	}
 
+	GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), SourceOwnerUnitId);
 	++Summary.ResolvedEffectCount;
 	return true;
 }
@@ -650,6 +665,11 @@ bool ExecuteMoveCardsEffect(
 	if (MovedCount <= 0)
 	{
 		return false;
+	}
+
+	if (SourceZone == EFinalBattleCardZone::Hand || DestinationZone == EFinalBattleCardZone::Hand)
+	{
+		GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), SourceOwnerUnitId);
 	}
 
 	if (MoveCardsEffect->bRecordMovedCards)
@@ -773,7 +793,7 @@ bool ExecuteApplyStatusEffect(
 	int32 AppliedStacks = 0;
 	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
 	{
-		AppliedStacks += GetStatusService().AddStatusStacks(
+		const int32 AppliedStacksForTarget = GetStatusService().AddStatusStacks(
 			State,
 			TargetOwnerUnitId,
 			SourceOwnerUnitId,
@@ -781,6 +801,11 @@ bool ExecuteApplyStatusEffect(
 			ApplyStatusEffect->StatusDefinition,
 			ApplyStatusEffect->Stacks,
 			ApplyStatusEffect->DurationOverride);
+		AppliedStacks += AppliedStacksForTarget;
+		if (AppliedStacksForTarget > 0)
+		{
+			GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), TargetOwnerUnitId);
+		}
 	}
 
 	if (AppliedStacks <= 0)
@@ -839,6 +864,10 @@ bool ExecuteRemoveStatusEffect(
 			StatusId,
 			EFinalBattleStatusChangeKind::Removed,
 			RemovedStacksForTarget);
+		if (RemovedStacksForTarget > 0)
+		{
+			GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), TargetOwnerUnitId);
+		}
 	}
 
 	if (RemovedStacks <= 0)
@@ -931,6 +960,10 @@ bool ExecuteDrawCardsEffect(
 	const int32 HandCountBeforeDraw = State.DeckState.HandCardInstanceIds.Num();
 	GetCardService().DrawCards(State, FMath::Max(DrawCardsEffect->DrawCount, 0));
 	Summary.TotalCardsDrawn += FMath::Max(State.DeckState.HandCardInstanceIds.Num() - HandCountBeforeDraw, 0);
+	if (State.DeckState.HandCardInstanceIds.Num() > HandCountBeforeDraw)
+	{
+		GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), SourceOwnerUnitId);
+	}
 	++Summary.ResolvedEffectCount;
 	return true;
 }
@@ -985,7 +1018,8 @@ bool ExecuteDamageEffect(
 	const int32 DamageModifierPercent = SourceCharacterState != nullptr
 		? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
 		: 0;
-	const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent);
+	const int32 CardOutgoingDamageModifierPercent = ResolveCurrentCardOutgoingDamageModifierPercent(State, ExecutionContext);
+	const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent + CardOutgoingDamageModifierPercent);
 	if (DamagePerHit <= 0)
 	{
 		return false;
@@ -1198,6 +1232,10 @@ bool ExecuteEffectListInternal(
 	FFinalBattleEffectExecutionSummary& Summary)
 {
 	FFinalBattleEffectExecutionContext ExecutionContext;
+	if (Command != nullptr && Command->CommandType == EFinalBattleCommandType::PlayCard)
+	{
+		ExecutionContext.Transient.SourceCardInstanceId = Command->CardInstanceId;
+	}
 	const FName SourceOwnerUnitId = ResolveSourceOwnerUnitId(SourceCharacterState, SourceEnemyState);
 	const bool bIsAttackCardDamage = SourceCardDefinition != nullptr && SourceCardDefinition->CardType == EFinalCardType::Attack;
 
@@ -1272,6 +1310,7 @@ bool ExecuteEffectListInternal(
 	if (SourceCharacterState != nullptr && ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage)
 	{
 		GetStatusService().ConsumeOutgoingDamageModifierStacks(State, SourceOwnerUnitId, bIsAttackCardDamage);
+		GetStatusService().ResyncProjectedHandCardModifiers(State, GetCardService(), SourceOwnerUnitId);
 	}
 
 	return Summary.ResolvedEffectCount > 0;

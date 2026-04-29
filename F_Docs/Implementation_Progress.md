@@ -88,5 +88,23 @@
 - `FinalBattle` 当前已把 `SourceRunCardInstanceId` 写入直接来源的 `BattleCardInstance`，供 active battle 中按来源实例定位刷新。
 - 选择卡牌进化候选成功后，`FinalRunFlowSubsystem -> FinalGameFlowSubsystem -> FinalBattleFlowSubsystem` 会立即桥接一次 active battle card refresh；`FinalBattle` 不直接读取 `RunState`。
 - 当前首版刷新范围只覆盖直接来源于目标 `RunCardInstance` 的 battle 实例，因此 hand / draw / discard / consume / ongoing 中的同一实例都会原地更新。
-- 当前首版刷新会重建基础定义字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / RuntimeBehavior / retain / consume`；历史结算不回滚，也不承诺保留未来 temp modifier 层中的临时修正。
 - generated / temporary / copied cards 当前默认不联动，因为它们不保留来源 `RunCardInstanceId`。
+
+## 2026-04-29 Step 11：BattleCard 临时修正 / 投影层
+
+- `FinalBattle` 当前已把 `BattleCardInstance` 正式收成 `base definition + modifier records + projected runtime` 三层口径，不再把裸 runtime 字段当成唯一真相。
+- battle 内每张卡当前都会基于 base `CardDefinition` 构建运行时定义副本，再按 `ApplyOrder` 顺序应用 modifier records，生成当前的 `ProjectedDefinition / RuntimeCostAP / RuntimeKeywords / RuntimeBehavior`。
+- 当前首版统一支持以下卡牌临时修正持续窗口：`UntilPlayed / EndOfTurn / EndOfRound / EndOfBattle / ManualClear`。
+- `RefreshCardsForRunCardInstance(...)` 当前不再直接重建一组 runtime 字段，而是更新 base `CurrentCardId / BaseDefinition` 后保留既有 `ModifierRecords` 并重新投影；因此战中进化已能保留临时减费、临时关键词和 `retain / consume / recycle` 覆盖。
+- 运行时图 patch 当前仍只允许作用于卡牌自身运行时图：effect / requirement / condition 的替换、插入、移除和常见载荷覆写；静态 `UFinalCardDefinition` 不会被运行时修改。
+- `generated / temporary / copied` cards 当前仍然不自动继承 `RunCardInstanceId` 来源语义，这条规则继续留给后续单独收口。
+- 本步骤新增 `Final.Battle.CardProjection.*` 自动化测试，并保持 `Final.Editor.RunFlow.Growth` 里的进化刷新回归通过。
+
+## 2026-04-29 Step 12：`锋锐` 接入 BattleCard modifier / projection
+
+- `锋锐` 当前已从通用状态伤害修正路径迁移为“状态驱动的 BattleCard modifier”；玩法语义保持为“下一张攻击牌伤害提高 20%”。
+- `StatusDefinition` 当前已补最小 card projection 字段：`bProjectToOwnedHandCards / ProjectedCardTypeFilter / ProjectedOutgoingDamagePercentPerStack`。
+- `FinalBattle` 当前会根据角色身上的 `锋锐` 层数，把拥有者当前手牌中的攻击牌同步为 derived `BattleCard` modifiers，并在抽牌进手、生成牌进手、手牌移动、状态叠层/消耗/过期后立即重建同步。
+- `锋锐` 当前只作用于手牌中的攻击牌；抽牌堆、弃牌堆、消耗区和持续区中的牌不投影这条状态。
+- `士气` 继续保留通用状态伤害修正路径，因此当前 `士气 + 锋锐` 会正确叠加为“全局状态伤害加成 + 当前出牌卡局部加成”。
+- 本步骤扩展了 `Final.Battle.CardProjection.*` 自动化测试，覆盖 `锋锐` 投影、与 `士气` 叠加、成功造成伤害后的层数消耗与重算、以及生成进手攻击牌的即时投影。

@@ -307,10 +307,19 @@
 * `默认归属`：沈清弦当前实际出牌的角色运行时单位
 * `摘要文本`：下一张攻击牌伤害提高 20%；若本回合未触发，则在回合结束时移除。
 * `starter 第一波 Runtime 字段落点`：
-  * `OutgoingDamagePercentPerStack = 20`
+  * `OutgoingDamagePercentPerStack = 0`
   * `bExpireAtPlayerTurnEnd = true`
   * `bConsumeOnSuccessfulOwnerDamage = true`
   * `bOnlyAffectAttackCards = true`
+  * `bProjectToOwnedHandCards = true`
+  * `ProjectedCardTypeFilter = Attack`
+  * `ProjectedOutgoingDamagePercentPerStack = 20`
+* `当前 Battle 规则口径`：
+  * `锋锐` 不再走通用状态伤害修正路径。
+  * 当前由 `FinalBattle` 把 `锋锐` 同步为手牌攻击牌上的 derived `BattleCard` modifier。
+  * 首版只作用于当前手牌中的攻击牌；抽到手或生成进手的新攻击牌，只要 `锋锐` 仍在，也会立即获得同样投影。
+  * 弃牌堆、抽牌堆、消耗区、持续区中的牌默认不带 `锋锐` 投影。
+  * 成功造成一次伤害后仍只消耗 1 层；若本回合未触发，则在玩家回合结束时移除。
 
 ### 10.5 刀势
 * `StatusId`：`status_dao_shi`

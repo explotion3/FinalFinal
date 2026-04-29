@@ -91,6 +91,18 @@ namespace FinalRunFlowGrowthUITests
 		});
 	}
 
+	FFinalBattleCardModifierRecord BuildPreservedEvolutionModifier()
+	{
+		FFinalBattleCardModifierRecord ModifierRecord;
+		ModifierRecord.ModifierId = TEXT("modifier.test.evolution_preserve");
+		ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+		ModifierRecord.CostDeltaAP = -1;
+		ModifierRecord.AddedKeywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain")));
+		ModifierRecord.bOverrideConsumeOnPlay = true;
+		ModifierRecord.bConsumeOnPlay = true;
+		return ModifierRecord;
+	}
+
 	const FFinalRunGrowthChoiceInstance* FindEvolutionChoiceForRunCardInstance(
 		const FFinalRunSnapshot& Snapshot,
 		const FName TargetRunCardInstanceId)
@@ -576,7 +588,12 @@ bool FFinalRunFlowBattleGrowthBridgePresentationTest::RunTest(const FString& Par
 	Command.CommandType = EFinalBattleCommandType::PlayCard;
 	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
 	Command.TargetUnitId = TargetUnitId;
-	TestTrue(TEXT("Playing the deterministic bridge card should succeed."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+	const bool bBridgeCardPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(Command);
+	if (!bBridgeCardPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Bridge card reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Playing the deterministic bridge card should succeed."), bBridgeCardPlayed);
 
 	const FFinalRunSnapshot RunSnapshot = RunSession->GetSnapshot();
 	TestTrue(TEXT("Player-command growth bridge should create a pending growth choice immediately after the command resolves."), RunSnapshot.PendingGrowthChoice.bHasPendingChoice);
@@ -899,7 +916,12 @@ bool FFinalBattleGrowthKillingIntentDamageAndCritTest::RunTest(const FString& Pa
 	Command.CommandType = EFinalBattleCommandType::PlayCard;
 	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
 	Command.TargetUnitId = TargetUnitId;
-	TestTrue(TEXT("Baseline attack should resolve successfully before Killing Intent grows."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+	const bool bBaselineAttackPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(Command);
+	if (!bBaselineAttackPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Baseline attack reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Baseline attack should resolve successfully before Killing Intent grows."), bBaselineAttackPlayed);
 
 	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
 	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
@@ -935,7 +957,12 @@ bool FFinalBattleGrowthKillingIntentDamageAndCritTest::RunTest(const FString& Pa
 
 	const int32 EnemyHpBeforeCriticalAttack = EnemyView->CurrentHP;
 	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
-	TestTrue(TEXT("Post-growth attack should resolve successfully after Killing Intent refresh."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+	const bool bPostGrowthAttackPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(Command);
+	if (!bPostGrowthAttackPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Post-growth attack reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Post-growth attack should resolve successfully after Killing Intent refresh."), bPostGrowthAttackPlayed);
 
 	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
 	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
@@ -1050,6 +1077,96 @@ bool FFinalBattleGrowthEvolutionRefreshesHandCardTest::RunTest(const FString& Pa
 	}
 
 	TestEqual(TEXT("The evolved hand card should resolve using the evolved card definition."), EnemyHpBeforeEvolvedAttack - EnemyView->CurrentHP, 10);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionRefreshPreservesTemporaryProjectionTest,
+	"Final.Editor.RunFlow.GrowthEvolutionRefreshPreservesTemporaryProjection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionRefreshPreservesTemporaryProjectionTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionRefreshPreservesTemporaryProjectionTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_preserve")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_preserve")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_preserve.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_preserve.evolved")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_preserve")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_preserve")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_preserve")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_preserve")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Preserve Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Preserve Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterConfigurableDamageCard(BaseCardId, CharacterId, TEXT("Preserve Base Slash"), EFinalCardType::Attack, 2, 1.0f);
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Preserve Evolved Slash"), EFinalCardType::Skill, 4, 2.0f);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Preserve Base Slash"));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, BaseCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for preserve-projection evolution refresh test."), RunSession))
+	{
+		return false;
+	}
+
+	UFinalBattleSession* BattleSession = Context.GameFlowSubsystem->StartBattleFromRunSession();
+	if (!TestNotNull(TEXT("Battle session should start for preserve-projection evolution refresh test."), BattleSession))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[0].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Preserve-projection test should begin with the target run card instance in hand."), HandCard))
+	{
+		return false;
+	}
+
+	const FGuid HandCardInstanceId = HandCard->CardInstanceId;
+	TestTrue(TEXT("Battle session should accept a temporary projection modifier before evolution."), BattleSession->AddCardModifier(HandCardInstanceId, BuildPreservedEvolutionModifier()));
+
+	FFinalBattleCardProjectionView ProjectionBeforeRefresh = BattleSession->GetCardProjectionView(HandCardInstanceId);
+	TestEqual(TEXT("The pre-evolution projection modifier should reduce AP cost by one."), ProjectionBeforeRefresh.EffectiveCostAP, 1);
+	TestTrue(TEXT("The pre-evolution projection modifier should mark the hand card as retained."), ProjectionBeforeRefresh.bRetained);
+	TestTrue(TEXT("The pre-evolution projection modifier should mark the hand card as consume-on-play."), ProjectionBeforeRefresh.bConsumeOnPlay);
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the preserve-projection test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(Context.RunFlowSubsystem->GetCurrentRunSnapshot(), TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the preserve-projection hand card."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the preserve-projection evolution choice should succeed."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	HandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("The evolved hand card should still be visible after refresh."), HandCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("The evolved hand card should expose the evolved card id after refresh."), HandCard->CardId.Value, EvolvedCardId.Value);
+	TestEqual(TEXT("The evolved hand card should preserve the temporary cost modifier through refresh."), HandCard->RuntimeCostAP, 3);
+	TestTrue(TEXT("The evolved hand card should preserve the temporary retain modifier through refresh."), HandCard->bRetained);
+
+	const FFinalBattleCardProjectionView ProjectionAfterRefresh = BattleSession->GetCardProjectionView(HandCardInstanceId);
+	TestTrue(TEXT("The evolved hand card should preserve the temporary consume-on-play override through refresh."), ProjectionAfterRefresh.bConsumeOnPlay);
+	TestEqual(TEXT("The evolved hand card should still have exactly one active temporary projection modifier after refresh."), ProjectionAfterRefresh.ModifierCount, 1);
 	return true;
 }
 
@@ -1201,7 +1318,12 @@ bool FFinalBattleGrowthEvolutionRefreshesDiscardPileCardTest::RunTest(const FStr
 	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
 	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
 	PlayCardCommand.TargetUnitId = TargetUnitId;
-	TestTrue(TEXT("Playing the base card should move it into discard before evolution."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+	const bool bDiscardBaseCardPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand);
+	if (!bDiscardBaseCardPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Discard refresh reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Playing the base card should move it into discard before evolution."), bDiscardBaseCardPlayed);
 
 	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the discard refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
 	Context.RunFlowSubsystem->RefreshRunFlow(true);
@@ -1289,7 +1411,12 @@ bool FFinalBattleGrowthEvolutionRefreshesConsumePileCardTest::RunTest(const FStr
 	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
 	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
 	PlayCardCommand.TargetUnitId = TargetUnitId;
-	TestTrue(TEXT("Playing the consume card should move it into the consume pile before evolution."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+	const bool bConsumeCardPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand);
+	if (!bConsumeCardPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Consume refresh reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Playing the consume card should move it into the consume pile before evolution."), bConsumeCardPlayed);
 
 	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the consume refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
 	Context.RunFlowSubsystem->RefreshRunFlow(true);
@@ -1376,7 +1503,12 @@ bool FFinalBattleGrowthEvolutionDoesNotRefreshGeneratedCardTest::RunTest(const F
 	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
 	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
 	PlayCardCommand.TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone() ? BattleSnapshot.Enemies[0].RuntimeUnitId : BattleSnapshot.CurrentTargetUnitId;
-	TestTrue(TEXT("Playing the generator card should create a generated temporary card."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+	const bool bGeneratorCardPlayed = Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand);
+	if (!bGeneratorCardPlayed)
+	{
+		AddInfo(FString::Printf(TEXT("Generated-card reject message: %s"), *Context.BattleFlowSubsystem->GetLastCommandEvent().Message.ToString()));
+	}
+	TestTrue(TEXT("Playing the generator card should create a generated temporary card."), bGeneratorCardPlayed);
 
 	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
 	if (!TestEqual(TEXT("After the generator resolves, the temporary generated card should be the only hand card."), BattleSnapshot.HandCards.Num(), 1))

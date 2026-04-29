@@ -4,6 +4,7 @@
 #include "Ids/FinalIds.h"
 
 struct FFinalBattleCharacterStatusesViewData;
+class FFinalBattleCardService;
 struct FFinalBattleState;
 struct FFinalBattleStatusInstance;
 struct FFinalBattleStatusViewData;
@@ -39,6 +40,10 @@ public:
 	int32 GetStatusStacks(const FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;
 	const FFinalBattleStatusInstance* FindStatusInstance(const FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;
 	FFinalBattleStatusInstance* FindStatusInstance(FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;
+	void ResyncProjectedHandCardModifiers(
+		FFinalBattleState& BattleState,
+		const FFinalBattleCardService& CardService,
+		FName OwnerUnitId) const;
 	void BuildStatusSnapshotData(
 		const FFinalBattleState& BattleState,
 		TArray<FFinalBattleCharacterStatusesViewData>& OutCharacterStatuses,

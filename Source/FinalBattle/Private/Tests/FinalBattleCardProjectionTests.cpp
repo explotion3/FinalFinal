@@ -1,0 +1,798 @@
+#include "Misc/AutomationTest.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Battle/Definitions/FinalBattleEncounterDefinition.h"
+#include "Battle/Definitions/FinalBattleRuleConfig.h"
+#include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Definitions/FinalCharacterDefinition.h"
+#include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectDamage.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "Commands/FinalBattleCommand.h"
+#include "Facade/FinalBattleSession.h"
+#include "Facade/FinalBattleSessionTypes.h"
+#include "Queries/FinalBattleSnapshot.h"
+#include "UObject/StrongObjectPtr.h"
+
+namespace FinalBattleCardProjectionTests
+{
+	TStrongObjectPtr<UFinalBattleRuleConfig> MakeRuleConfig(const int32 InitialHandSize = 1)
+	{
+		TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig(NewObject<UFinalBattleRuleConfig>(GetTransientPackage()));
+		RuleConfig->RuleConfigId = FFinalRuleConfigId(FName(TEXT("rule.test.card_projection")));
+		RuleConfig->InitialHandSize = InitialHandSize;
+		RuleConfig->InitialAP = 3;
+		RuleConfig->TurnStartDrawCount = InitialHandSize;
+		return RuleConfig;
+	}
+
+	TStrongObjectPtr<UFinalEnemyDefinition> MakeEnemyDefinition(const int32 MaxHP = 20)
+	{
+		TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition(NewObject<UFinalEnemyDefinition>(GetTransientPackage()));
+		EnemyDefinition->EnemyId = FFinalEnemyId(FName(TEXT("enemy.test.card_projection")));
+		EnemyDefinition->DisplayName = FText::FromString(TEXT("Projection Dummy"));
+		EnemyDefinition->MaxHP = MaxHP;
+		EnemyDefinition->MaxBreakValue = 10;
+		EnemyDefinition->BaseDamagePower = 0;
+		EnemyDefinition->InitialInitiativeValue = 0;
+		EnemyDefinition->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+		return EnemyDefinition;
+	}
+
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> MakeEncounter(UFinalBattleRuleConfig* RuleConfig, UFinalEnemyDefinition* EnemyDefinition)
+	{
+		TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition(NewObject<UFinalBattleEncounterDefinition>(GetTransientPackage()));
+		EncounterDefinition->EncounterId = FFinalEncounterId(FName(TEXT("encounter.test.card_projection")));
+		EncounterDefinition->DisplayName = FText::FromString(TEXT("Projection Encounter"));
+		EncounterDefinition->RuleConfig = RuleConfig;
+
+		FFinalEnemyRosterEntry& Entry = EncounterDefinition->EnemyRoster.AddDefaulted_GetRef();
+		Entry.EnemyDefinition = EnemyDefinition;
+		Entry.PositionIndex = 0;
+		Entry.SpawnWave = 1;
+		return EncounterDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCharacterDefinition> MakeCharacterDefinition()
+	{
+		TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition(NewObject<UFinalCharacterDefinition>(GetTransientPackage()));
+		CharacterDefinition->CharacterId = FFinalCharacterId(FName(TEXT("character.test.card_projection")));
+		CharacterDefinition->DisplayName = FText::FromString(TEXT("Projection Hero"));
+		CharacterDefinition->BaseVitalShare = 20;
+		CharacterDefinition->BaseStressCap = 12;
+		CharacterDefinition->BaseAttack = 5;
+		CharacterDefinition->BaseDefense = 0;
+		CharacterDefinition->BaseBreakRate = 1.0f;
+		CharacterDefinition->BaseCritChance = 0.0f;
+		CharacterDefinition->BaseCritDamage = 1.5f;
+		return CharacterDefinition;
+	}
+
+	UFinalBattleEffectDamage* AddFlatDamageEffect(UFinalCardDefinition* CardDefinition, const FName EffectId, const float Damage)
+	{
+		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+		DamageEffect->EffectId = EffectId;
+		DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+		DamageEffect->Scalar.BaseValue = Damage;
+		CardDefinition->Effects.Add(DamageEffect);
+		return DamageEffect;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeDamageCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP,
+		const float Damage)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = BaseCostAP;
+		CardDefinition->CardType = EFinalCardType::Attack;
+		AddFlatDamageEffect(CardDefinition.Get(), FName(TEXT("effect.base.damage")), Damage);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeRetainedDamageCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP,
+		const float Damage)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition = MakeDamageCard(CardId, CharacterId, DisplayName, BaseCostAP, Damage);
+		CardDefinition->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain")));
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalStatusDefinition> MakeProjectedStatusDefinition(
+		const FName StatusName,
+		const int32 OutgoingDamagePercentPerStack,
+		const int32 ProjectedOutgoingDamagePercentPerStack,
+		const bool bProjectToOwnedHandCards,
+		const bool bConsumeOnSuccessfulOwnerDamage,
+		const bool bExpireAtPlayerTurnEnd,
+		const bool bOnlyAffectAttackCards)
+	{
+		TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
+		StatusDefinition->StatusId = FFinalStatusId(StatusName);
+		StatusDefinition->DisplayName = FText::FromName(StatusName);
+		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
+		StatusDefinition->MaxStacks = 9;
+		StatusDefinition->OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
+		StatusDefinition->bProjectToOwnedHandCards = bProjectToOwnedHandCards;
+		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
+		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = ProjectedOutgoingDamagePercentPerStack;
+		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
+		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+		StatusDefinition->bOnlyAffectAttackCards = bOnlyAffectAttackCards;
+		return StatusDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeApplyStatusCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 Stacks)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = 0;
+		CardDefinition->CardType = EFinalCardType::Skill;
+
+		UFinalBattleEffectApplyStatus* ApplyStatusEffect = NewObject<UFinalBattleEffectApplyStatus>(CardDefinition.Get());
+		ApplyStatusEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.apply_status"), *CardId.Value.ToString()));
+		ApplyStatusEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		ApplyStatusEffect->StatusDefinition = StatusDefinition;
+		ApplyStatusEffect->StatusId = StatusDefinition != nullptr ? StatusDefinition->StatusId : FFinalStatusId();
+		ApplyStatusEffect->Stacks = Stacks;
+		CardDefinition->Effects.Add(ApplyStatusEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeGenerateAttackCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		UFinalCardDefinition* GeneratedCardDefinition)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = 0;
+		CardDefinition->CardType = EFinalCardType::Skill;
+
+		UFinalBattleEffectGenerateCard* GenerateEffect = NewObject<UFinalBattleEffectGenerateCard>(CardDefinition.Get());
+		GenerateEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.generate"), *CardId.Value.ToString()));
+		GenerateEffect->GeneratedCardDefinition = GeneratedCardDefinition;
+		GenerateEffect->GeneratedCardId = GeneratedCardDefinition != nullptr ? GeneratedCardDefinition->CardId : FFinalCardId();
+		GenerateEffect->GenerateCount = 1;
+		GenerateEffect->bGeneratedCard = true;
+		GenerateEffect->bTemporaryCard = true;
+		CardDefinition->Effects.Add(GenerateEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalBattleSession> CreateSession(
+		UFinalBattleEncounterDefinition* EncounterDefinition,
+		UFinalBattleRuleConfig* RuleConfig,
+		UFinalCharacterDefinition* CharacterDefinition,
+		UFinalCardDefinition* CardDefinition,
+		const FName SourceRunCardInstanceId)
+	{
+		FFinalBattleInitContext InitContext;
+		InitContext.TeamCurrentHP = 20;
+
+		FFinalBattleCharacterInitData& CharacterInit = InitContext.PartyMembers.AddDefaulted_GetRef();
+		CharacterInit.CharacterDefinition = CharacterDefinition;
+		CharacterInit.CurrentStress = 0;
+		CharacterInit.bCollapsed = false;
+		CharacterInit.CurrentAwakenCount = 0;
+		CharacterInit.CollapseCount = 0;
+		CharacterInit.VitalShare = CharacterDefinition->BaseVitalShare;
+		CharacterInit.StressCap = CharacterDefinition->BaseStressCap;
+		CharacterInit.RuntimeAttack = CharacterDefinition->BaseAttack;
+		CharacterInit.RuntimeDefense = CharacterDefinition->BaseDefense;
+		CharacterInit.RuntimeBreakRate = CharacterDefinition->BaseBreakRate;
+		CharacterInit.RuntimeCritChance = CharacterDefinition->BaseCritChance;
+		CharacterInit.RuntimeCritDamage = CharacterDefinition->BaseCritDamage;
+
+		FFinalBattleCardInitData& CardInit = InitContext.DeckCards.AddDefaulted_GetRef();
+		CardInit.CardDefinition = CardDefinition;
+		CardInit.CardId = CardDefinition->CardId;
+		CardInit.OwnerCharacterId = CharacterDefinition->CharacterId;
+		CardInit.SourceRunCardInstanceId = SourceRunCardInstanceId;
+		InitContext.DeckDefinitions.Add(CardDefinition);
+
+		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
+		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+		return Session;
+	}
+
+	TStrongObjectPtr<UFinalBattleSession> CreateSessionWithDeck(
+		UFinalBattleEncounterDefinition* EncounterDefinition,
+		UFinalBattleRuleConfig* RuleConfig,
+		UFinalCharacterDefinition* CharacterDefinition,
+		const TArray<UFinalCardDefinition*>& CardDefinitions)
+	{
+		FFinalBattleInitContext InitContext;
+		InitContext.TeamCurrentHP = 20;
+
+		FFinalBattleCharacterInitData& CharacterInit = InitContext.PartyMembers.AddDefaulted_GetRef();
+		CharacterInit.CharacterDefinition = CharacterDefinition;
+		CharacterInit.CurrentStress = 0;
+		CharacterInit.bCollapsed = false;
+		CharacterInit.CurrentAwakenCount = 0;
+		CharacterInit.CollapseCount = 0;
+		CharacterInit.VitalShare = CharacterDefinition->BaseVitalShare;
+		CharacterInit.StressCap = CharacterDefinition->BaseStressCap;
+		CharacterInit.RuntimeAttack = CharacterDefinition->BaseAttack;
+		CharacterInit.RuntimeDefense = CharacterDefinition->BaseDefense;
+		CharacterInit.RuntimeBreakRate = CharacterDefinition->BaseBreakRate;
+		CharacterInit.RuntimeCritChance = CharacterDefinition->BaseCritChance;
+		CharacterInit.RuntimeCritDamage = CharacterDefinition->BaseCritDamage;
+
+		for (UFinalCardDefinition* CardDefinition : CardDefinitions)
+		{
+			if (CardDefinition == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCardInitData& CardInit = InitContext.DeckCards.AddDefaulted_GetRef();
+			CardInit.CardDefinition = CardDefinition;
+			CardInit.CardId = CardDefinition->CardId;
+			CardInit.OwnerCharacterId = CharacterDefinition->CharacterId;
+			InitContext.DeckDefinitions.Add(CardDefinition);
+		}
+
+		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
+		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+		return Session;
+	}
+
+	const FFinalBattleCardViewData* FindSingleHandCard(const FFinalBattleSnapshot& Snapshot)
+	{
+		return Snapshot.HandCards.Num() == 1 ? &Snapshot.HandCards[0] : nullptr;
+	}
+
+	const FFinalBattleCardViewData* FindHandCardById(const FFinalBattleSnapshot& Snapshot, const FFinalCardId& CardId)
+	{
+		return Snapshot.HandCards.FindByPredicate(
+			[&CardId](const FFinalBattleCardViewData& Candidate)
+			{
+				return Candidate.CardId == CardId;
+			});
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionRefreshPreservesModifiersTest,
+	"Final.Battle.CardProjection.BaseRefreshPreservesModifiers",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionRefreshPreservesModifiersTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_projection_refresh")));
+	const FName SourceRunCardInstanceId(TEXT("run.card.test.refresh"));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.card_projection.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.card_projection.evolved")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+	TStrongObjectPtr<UFinalCardDefinition> BaseCardDefinition = MakeDamageCard(BaseCardId, CharacterId, TEXT("Projection Base Slash"), 2, 3.0f);
+	TStrongObjectPtr<UFinalCardDefinition> EvolvedCardDefinition = MakeDamageCard(EvolvedCardId, CharacterId, TEXT("Projection Evolved Slash"), 4, 6.0f);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		BaseCardDefinition.Get(),
+		SourceRunCardInstanceId);
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	if (!TestNotNull(TEXT("Projection refresh test should begin with one hand card."), HandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = TEXT("modifier.refresh.preserve");
+	ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+	ModifierRecord.ApplyOrder = 1;
+	ModifierRecord.CostDeltaAP = -1;
+	ModifierRecord.AddedKeywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain")));
+	ModifierRecord.bOverrideConsumeOnPlay = true;
+	ModifierRecord.bConsumeOnPlay = true;
+	TestTrue(TEXT("The temporary projection modifier should be added to the hand card."), Session->AddCardModifier(HandCard->CardInstanceId, ModifierRecord));
+
+	FFinalBattleCardProjectionView ProjectionBeforeRefresh = Session->GetCardProjectionView(HandCard->CardInstanceId);
+	TestEqual(TEXT("The modifier should reduce the projected AP cost before refresh."), ProjectionBeforeRefresh.EffectiveCostAP, 1);
+	TestTrue(TEXT("The modifier should set retained before refresh."), ProjectionBeforeRefresh.bRetained);
+	TestTrue(TEXT("The modifier should set consume-on-play before refresh."), ProjectionBeforeRefresh.bConsumeOnPlay);
+
+	FFinalBattleCardRefreshRequest RefreshRequest;
+	RefreshRequest.SourceRunCardInstanceId = SourceRunCardInstanceId;
+	RefreshRequest.NewCardId = EvolvedCardId;
+	RefreshRequest.NewDefinition = EvolvedCardDefinition.Get();
+	TestEqual(TEXT("Refreshing by run-card instance should update the active battle card once."), Session->RefreshCardsForRunCardInstance(RefreshRequest), 1);
+
+	FFinalBattleCardProjectionView ProjectionAfterRefresh = Session->GetCardProjectionView(HandCard->CardInstanceId);
+	TestEqual(TEXT("The refreshed card should now project the evolved card id."), ProjectionAfterRefresh.CardId.Value, EvolvedCardId.Value);
+	TestEqual(TEXT("Refreshing the base definition should preserve the temporary AP modifier."), ProjectionAfterRefresh.EffectiveCostAP, 3);
+	TestTrue(TEXT("Refreshing the base definition should preserve the temporary retain modifier."), ProjectionAfterRefresh.bRetained);
+	TestTrue(TEXT("Refreshing the base definition should preserve the temporary consume-on-play modifier."), ProjectionAfterRefresh.bConsumeOnPlay);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionEffectPatchDrivesResolutionTest,
+	"Final.Battle.CardProjection.EffectPatchDrivesProjectedResolution",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionEffectPatchDrivesResolutionTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_projection_patch")));
+	const FName SourceRunCardInstanceId(TEXT("run.card.test.patch"));
+	const FFinalCardId CardId(FName(TEXT("card.test.card_projection.patch")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+	TStrongObjectPtr<UFinalCardDefinition> CardDefinition = MakeDamageCard(CardId, CharacterId, TEXT("Projection Patch Slash"), 1, 3.0f);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		CardDefinition.Get(),
+		SourceRunCardInstanceId);
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	if (!TestNotNull(TEXT("Effect patch test should begin with one hand card."), HandCard))
+	{
+		return false;
+	}
+
+	UFinalBattleEffectDamage* ReplacementEffect = NewObject<UFinalBattleEffectDamage>(GetTransientPackage());
+	ReplacementEffect->EffectId = TEXT("effect.replacement.damage");
+	ReplacementEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+	ReplacementEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+	ReplacementEffect->Scalar.BaseValue = 9.0f;
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = TEXT("modifier.patch.replace_effect");
+	ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+
+	FFinalBattleCardEffectPatch& EffectPatch = ModifierRecord.EffectPatches.AddDefaulted_GetRef();
+	EffectPatch.TargetEffectId = TEXT("effect.base.damage");
+	EffectPatch.Operation = EFinalBattleCardEffectPatchOperation::Replace;
+	EffectPatch.EffectDefinition = ReplacementEffect;
+
+	TestTrue(TEXT("Effect patch modifier should be accepted."), Session->AddCardModifier(HandCard->CardInstanceId, ModifierRecord));
+	FFinalBattleCardProjectionView ProjectionView = Session->GetCardProjectionView(HandCard->CardInstanceId);
+	TestEqual(TEXT("Replacing the base effect should still leave one projected effect."), ProjectionView.EffectCount, 1);
+
+	const FFinalBattleSnapshot SnapshotBeforePlay = Session->GetSnapshot();
+	if (!TestTrue(TEXT("Effect patch test requires a targetable enemy in the opening snapshot."), SnapshotBeforePlay.Enemies.Num() == 1))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand PlayCardCommand;
+	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	PlayCardCommand.CardInstanceId = HandCard->CardInstanceId;
+	PlayCardCommand.TargetUnitId = SnapshotBeforePlay.Enemies[0].RuntimeUnitId;
+	const FFinalBattleEvent PlayEvent = Session->SubmitCommand(PlayCardCommand);
+	if (!TestTrue(TEXT("The patched card should still resolve as a playable card."), PlayEvent.EventType != EFinalBattleEventType::CommandRejected))
+	{
+		return false;
+	}
+
+	const FFinalBattleSnapshot SnapshotAfterPlay = Session->GetSnapshot();
+	if (!TestTrue(TEXT("Effect patch test should keep exactly one enemy for damage verification."), SnapshotAfterPlay.Enemies.Num() == 1))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("The replaced damage effect should determine the resolved damage amount."), SnapshotAfterPlay.Enemies[0].CurrentHP, 11);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionUntilPlayedClearsAfterPlayTest,
+	"Final.Battle.CardProjection.UntilPlayedClearsAfterPlay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionUntilPlayedClearsAfterPlayTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_projection_until_played")));
+	const FName SourceRunCardInstanceId(TEXT("run.card.test.until_played"));
+	const FFinalCardId CardId(FName(TEXT("card.test.card_projection.until_played")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+	TStrongObjectPtr<UFinalCardDefinition> CardDefinition = MakeDamageCard(CardId, CharacterId, TEXT("Projection Until Played Slash"), 2, 3.0f);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		CardDefinition.Get(),
+		SourceRunCardInstanceId);
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	if (!TestNotNull(TEXT("UntilPlayed cleanup test should begin with one hand card."), HandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = TEXT("modifier.until_played.cost");
+	ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::UntilPlayed;
+	ModifierRecord.CostDeltaAP = -1;
+	TestTrue(TEXT("UntilPlayed modifier should be accepted before play."), Session->AddCardModifier(HandCard->CardInstanceId, ModifierRecord));
+
+	FFinalBattleCardProjectionView ProjectionBeforePlay = Session->GetCardProjectionView(HandCard->CardInstanceId);
+	TestEqual(TEXT("UntilPlayed modifier should reduce the projected cost before play."), ProjectionBeforePlay.EffectiveCostAP, 1);
+	TestEqual(TEXT("UntilPlayed modifier should count as one active modifier before play."), ProjectionBeforePlay.ModifierCount, 1);
+
+	const FFinalBattleSnapshot SnapshotBeforePlay = Session->GetSnapshot();
+	FFinalBattleCommand PlayCardCommand;
+	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	PlayCardCommand.CardInstanceId = HandCard->CardInstanceId;
+	PlayCardCommand.TargetUnitId = SnapshotBeforePlay.Enemies[0].RuntimeUnitId;
+	const FFinalBattleEvent PlayEvent = Session->SubmitCommand(PlayCardCommand);
+	TestTrue(TEXT("Playing the card should succeed so the UntilPlayed cleanup path runs."), PlayEvent.EventType != EFinalBattleEventType::CommandRejected);
+
+	FFinalBattleCardProjectionView ProjectionAfterPlay = Session->GetCardProjectionView(HandCard->CardInstanceId);
+	TestEqual(TEXT("UntilPlayed modifiers should be cleared immediately after the card resolves."), ProjectionAfterPlay.ModifierCount, 0);
+	TestEqual(TEXT("After UntilPlayed cleanup the projected cost should return to the base cost."), ProjectionAfterPlay.EffectiveCostAP, 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionFengRuiProjectsToHandAttackCardsTest,
+	"Final.Battle.CardProjection.FengRuiProjectsToHandAttackCards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionFengRuiProjectsToHandAttackCardsTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.fengrui.project")));
+	const FFinalCardId FengRuiCardId(FName(TEXT("card.test.fengrui.apply")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.fengrui.attack")));
+	const FFinalCardId SkillCardId(FName(TEXT("card.test.fengrui.skill")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedStatusDefinition(
+		TEXT("status.test.fengrui"),
+		0,
+		20,
+		true,
+		true,
+		true,
+		true);
+	TStrongObjectPtr<UFinalCardDefinition> FengRuiApplyCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Attack Card"), 1, 5.0f);
+	TStrongObjectPtr<UFinalCardDefinition> SkillCard = MakeApplyStatusCard(SkillCardId, CharacterId, TEXT("Skill Card"), FengRuiStatus.Get(), 0);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ FengRuiApplyCard.Get(), AttackCard.Get(), SkillCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* FengRuiHandCard = FindHandCardById(Snapshot, FengRuiCardId);
+	if (!TestNotNull(TEXT("Should begin with the FengRui apply card in hand."), FengRuiHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ApplyCommand;
+	ApplyCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyCommand.CardInstanceId = FengRuiHandCard->CardInstanceId;
+	ApplyCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	const FFinalBattleEvent ApplyEvent = Session->SubmitCommand(ApplyCommand);
+	if (!TestTrue(TEXT("Applying FengRui should resolve as a playable skill card."), ApplyEvent.EventType != EFinalBattleEventType::CommandRejected))
+	{
+		return false;
+	}
+
+	const FFinalBattleSnapshot AfterApplySnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AttackHandCard = FindHandCardById(AfterApplySnapshot, AttackCardId);
+	const FFinalBattleCardViewData* NonAttackHandCard = FindHandCardById(AfterApplySnapshot, SkillCardId);
+	if (!TestNotNull(TEXT("Attack card should remain in hand after FengRui is applied."), AttackHandCard)
+		|| !TestNotNull(TEXT("Non-attack skill card should remain in hand after FengRui is applied."), NonAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView AttackProjection = Session->GetCardProjectionView(AttackHandCard->CardInstanceId);
+	const FFinalBattleCardProjectionView NonAttackProjection = Session->GetCardProjectionView(NonAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("FengRui should project +20% outgoing damage onto current hand attack cards."), AttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("FengRui should not project outgoing damage onto non-attack hand cards."), NonAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionFengRuiStacksWithShiQiTest,
+	"Final.Battle.CardProjection.FengRuiStacksWithShiQi",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionFengRuiStacksWithShiQiTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.fengrui.shiqi")));
+	const FFinalCardId FengRuiCardId(FName(TEXT("card.test.fengrui.apply_stack")));
+	const FFinalCardId ShiQiCardId(FName(TEXT("card.test.shiqi.apply")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.fengrui.stack_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedStatusDefinition(
+		TEXT("status.test.fengrui.stack"),
+		0,
+		20,
+		true,
+		true,
+		true,
+		true);
+	TStrongObjectPtr<UFinalStatusDefinition> ShiQiStatus = MakeProjectedStatusDefinition(
+		TEXT("status.test.shiqi.stack"),
+		20,
+		0,
+		false,
+		false,
+		true,
+		false);
+	TStrongObjectPtr<UFinalCardDefinition> FengRuiApplyCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1);
+	TStrongObjectPtr<UFinalCardDefinition> ShiQiApplyCard = MakeApplyStatusCard(ShiQiCardId, CharacterId, TEXT("Apply ShiQi"), ShiQiStatus.Get(), 1);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Stack Attack"), 1, 10.0f);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ FengRuiApplyCard.Get(), ShiQiApplyCard.Get(), AttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* FengRuiHandCard = FindHandCardById(Snapshot, FengRuiCardId);
+	const FFinalBattleCardViewData* ShiQiHandCard = FindHandCardById(Snapshot, ShiQiCardId);
+	if (!TestNotNull(TEXT("FengRui apply card should begin in hand."), FengRuiHandCard)
+		|| !TestNotNull(TEXT("ShiQi apply card should begin in hand."), ShiQiHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ApplyFengRuiCommand;
+	ApplyFengRuiCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyFengRuiCommand.CardInstanceId = FengRuiHandCard->CardInstanceId;
+	ApplyFengRuiCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the FengRui apply card should succeed."), Session->SubmitCommand(ApplyFengRuiCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	ShiQiHandCard = FindHandCardById(Snapshot, ShiQiCardId);
+	FFinalBattleCommand ApplyShiQiCommand;
+	ApplyShiQiCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyShiQiCommand.CardInstanceId = ShiQiHandCard->CardInstanceId;
+	ApplyShiQiCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the ShiQi apply card should succeed."), Session->SubmitCommand(ApplyShiQiCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AttackHandCard = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Attack card should remain in hand before the stacked damage check."), AttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView AttackProjection = Session->GetCardProjectionView(AttackHandCard->CardInstanceId);
+	TestEqual(TEXT("FengRui should still only contribute +20% through card projection."), AttackProjection.EffectiveOutgoingDamagePercent, 20);
+
+	FFinalBattleCommand AttackCommand;
+	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	AttackCommand.CardInstanceId = AttackHandCard->CardInstanceId;
+	AttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	const FFinalBattleEvent AttackEvent = Session->SubmitCommand(AttackCommand);
+	if (!TestTrue(TEXT("The stacked FengRui + ShiQi attack should resolve successfully."), AttackEvent.EventType != EFinalBattleEventType::CommandRejected))
+	{
+		return false;
+	}
+
+	const FFinalBattleSnapshot AfterAttackSnapshot = Session->GetSnapshot();
+	TestEqual(TEXT("Base 10 damage with +20% ShiQi and +20% FengRui should resolve to 14 total damage."), AfterAttackSnapshot.Enemies[0].CurrentHP, 6);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionFengRuiConsumesAndReprojectsTest,
+	"Final.Battle.CardProjection.FengRuiConsumesAndReprojects",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionFengRuiConsumesAndReprojectsTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.fengrui.consume")));
+	const FFinalCardId FengRuiCardId(FName(TEXT("card.test.fengrui.apply_consume")));
+	const FFinalCardId AttackCardAId(FName(TEXT("card.test.fengrui.attack_a")));
+	const FFinalCardId AttackCardBId(FName(TEXT("card.test.fengrui.attack_b")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(30);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedStatusDefinition(
+		TEXT("status.test.fengrui.consume"),
+		0,
+		20,
+		true,
+		true,
+		true,
+		true);
+	TStrongObjectPtr<UFinalCardDefinition> FengRuiApplyCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply Double FengRui"), FengRuiStatus.Get(), 2);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCardA = MakeDamageCard(AttackCardAId, CharacterId, TEXT("Attack A"), 1, 5.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCardB = MakeDamageCard(AttackCardBId, CharacterId, TEXT("Attack B"), 1, 5.0f);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ FengRuiApplyCard.Get(), AttackCardA.Get(), AttackCardB.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* FengRuiHandCard = FindHandCardById(Snapshot, FengRuiCardId);
+	if (!TestNotNull(TEXT("Double FengRui apply card should begin in hand."), FengRuiHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ApplyCommand;
+	ApplyCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyCommand.CardInstanceId = FengRuiHandCard->CardInstanceId;
+	ApplyCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Applying two FengRui stacks should succeed."), Session->SubmitCommand(ApplyCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AttackHandCardA = FindHandCardById(Snapshot, AttackCardAId);
+	const FFinalBattleCardViewData* AttackHandCardB = FindHandCardById(Snapshot, AttackCardBId);
+	if (!TestNotNull(TEXT("Attack A should be in hand after applying FengRui."), AttackHandCardA)
+		|| !TestNotNull(TEXT("Attack B should be in hand after applying FengRui."), AttackHandCardB))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Two FengRui stacks should project +40% onto Attack A."), Session->GetCardProjectionView(AttackHandCardA->CardInstanceId).EffectiveOutgoingDamagePercent, 40);
+	TestEqual(TEXT("Two FengRui stacks should project +40% onto Attack B."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveOutgoingDamagePercent, 40);
+
+	FFinalBattleCommand AttackCommand;
+	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	AttackCommand.CardInstanceId = AttackHandCardA->CardInstanceId;
+	AttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the first FengRui-buffed attack should succeed."), Session->SubmitCommand(AttackCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	AttackHandCardB = FindHandCardById(Snapshot, AttackCardBId);
+	if (!TestNotNull(TEXT("One attack card should remain in hand after consuming one FengRui stack."), AttackHandCardB))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("After one successful attack, the remaining hand attack should reproject to +20%."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveOutgoingDamagePercent, 20);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionFengRuiAppliesToGeneratedAttackCardsTest,
+	"Final.Battle.CardProjection.FengRuiAppliesToGeneratedAttackCards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionFengRuiAppliesToGeneratedAttackCardsTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.fengrui.generate")));
+	const FFinalCardId FengRuiCardId(FName(TEXT("card.test.fengrui.apply_generate")));
+	const FFinalCardId GenerateCardId(FName(TEXT("card.test.fengrui.generate_skill")));
+	const FFinalCardId GeneratedAttackCardId(FName(TEXT("card.test.fengrui.generated_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+	CharacterDefinition->CharacterId = CharacterId;
+
+	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedStatusDefinition(
+		TEXT("status.test.fengrui.generate"),
+		0,
+		20,
+		true,
+		true,
+		true,
+		true);
+	TStrongObjectPtr<UFinalCardDefinition> FengRuiApplyCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1);
+	TStrongObjectPtr<UFinalCardDefinition> GeneratedAttackCard = MakeDamageCard(GeneratedAttackCardId, CharacterId, TEXT("Generated Attack"), 1, 5.0f);
+	TStrongObjectPtr<UFinalCardDefinition> GenerateAttackCard = MakeGenerateAttackCard(GenerateCardId, CharacterId, TEXT("Generate Attack"), GeneratedAttackCard.Get());
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		TArray<UFinalCardDefinition*>{ FengRuiApplyCard.Get(), GenerateAttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* FengRuiHandCard = FindHandCardById(Snapshot, FengRuiCardId);
+	const FFinalBattleCardViewData* GenerateHandCard = FindHandCardById(Snapshot, GenerateCardId);
+	if (!TestNotNull(TEXT("FengRui apply card should begin in hand."), FengRuiHandCard)
+		|| !TestNotNull(TEXT("Generate attack card should begin in hand."), GenerateHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ApplyCommand;
+	ApplyCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyCommand.CardInstanceId = FengRuiHandCard->CardInstanceId;
+	ApplyCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Applying FengRui before generation should succeed."), Session->SubmitCommand(ApplyCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	GenerateHandCard = FindHandCardById(Snapshot, GenerateCardId);
+	FFinalBattleCommand GenerateCommand;
+	GenerateCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	GenerateCommand.CardInstanceId = GenerateHandCard->CardInstanceId;
+	GenerateCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Generating an attack card into hand while FengRui is active should succeed."), Session->SubmitCommand(GenerateCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot AfterGenerateSnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* GeneratedAttackHandCard = FindHandCardById(AfterGenerateSnapshot, GeneratedAttackCardId);
+	if (!TestNotNull(TEXT("Generated attack card should appear in hand."), GeneratedAttackHandCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("A generated attack card entering hand while FengRui is active should immediately gain +20% projected outgoing damage."), Session->GetCardProjectionView(GeneratedAttackHandCard->CardInstanceId).EffectiveOutgoingDamagePercent, 20);
+	return true;
+}
+
+#endif

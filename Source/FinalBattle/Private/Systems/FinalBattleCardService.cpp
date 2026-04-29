@@ -1,7 +1,9 @@
 #include "Systems/FinalBattleCardService.h"
 
+#include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Algo/RandomShuffle.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
@@ -47,11 +49,13 @@ int32 ResolveInitialRecycleCount(const FGameplayTagContainer& Keywords)
 	return 0;
 }
 
-void InitializeRuntimeKeywordState(FFinalBattleCardInstance& CardInstance)
+FFinalBattleCardRuntimeBehavior BuildRuntimeBehaviorFromKeywords(const FGameplayTagContainer& Keywords)
 {
-	CardInstance.RuntimeBehavior.bRetained = HasRetainKeyword(CardInstance.RuntimeKeywords);
-	CardInstance.RuntimeBehavior.bConsumeOnPlay = HasExpendKeyword(CardInstance.RuntimeKeywords);
-	CardInstance.RuntimeBehavior.RecycleCount = ResolveInitialRecycleCount(CardInstance.RuntimeKeywords);
+	FFinalBattleCardRuntimeBehavior Behavior;
+	Behavior.bRetained = HasRetainKeyword(Keywords);
+	Behavior.bConsumeOnPlay = HasExpendKeyword(Keywords);
+	Behavior.RecycleCount = ResolveInitialRecycleCount(Keywords);
+	return Behavior;
 }
 
 bool RemoveCardInstanceId(TArray<FGuid>& CardInstanceIds, const FGuid& CardInstanceId)
@@ -194,6 +198,160 @@ const FFinalBattleCardInstance* ResolveCardInstanceById(const FFinalBattleState&
 		*CardInstance.CardInstanceId.ToString());
 	return CardInstance.CardInstanceId == CardInstanceId ? &CardInstance : nullptr;
 }
+
+UFinalBattleEffectDefinition* DuplicateEffectForRuntime(UFinalBattleEffectDefinition* EffectDefinition, UObject* RuntimeProjectionOwner)
+{
+	return EffectDefinition != nullptr && RuntimeProjectionOwner != nullptr
+		? DuplicateObject<UFinalBattleEffectDefinition>(EffectDefinition, RuntimeProjectionOwner)
+		: nullptr;
+}
+
+UFinalBattleConditionDefinition* DuplicateConditionForRuntime(UFinalBattleConditionDefinition* ConditionDefinition, UObject* RuntimeProjectionOwner)
+{
+	return ConditionDefinition != nullptr && RuntimeProjectionOwner != nullptr
+		? DuplicateObject<UFinalBattleConditionDefinition>(ConditionDefinition, RuntimeProjectionOwner)
+		: nullptr;
+}
+
+int32 FindEffectIndexById(const TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, const FName EffectId)
+{
+	if (EffectId.IsNone())
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 Index = 0; Index < Effects.Num(); ++Index)
+	{
+		if (Effects[Index] != nullptr && Effects[Index]->EffectId == EffectId)
+		{
+			return Index;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 FindConditionIndexById(const TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions, const FName ConditionId)
+{
+	if (ConditionId.IsNone())
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 Index = 0; Index < Conditions.Num(); ++Index)
+	{
+		if (Conditions[Index] != nullptr && Conditions[Index]->ConditionId == ConditionId)
+		{
+			return Index;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+void ApplyConditionPatchToEffect(
+	UFinalBattleEffectDefinition* RuntimeEffectDefinition,
+	const FFinalBattleCardConditionPatch& ConditionPatch,
+	UObject* RuntimeProjectionOwner)
+{
+	if (RuntimeEffectDefinition == nullptr)
+	{
+		return;
+	}
+
+	TArray<TObjectPtr<UFinalBattleConditionDefinition>>& Conditions = RuntimeEffectDefinition->Conditions;
+	const int32 TargetConditionIndex = FindConditionIndexById(Conditions, ConditionPatch.TargetConditionId);
+
+	switch (ConditionPatch.Operation)
+	{
+	case EFinalBattleCardEffectPatchOperation::Replace:
+		if (TargetConditionIndex != INDEX_NONE && ConditionPatch.ConditionDefinition != nullptr)
+		{
+			Conditions[TargetConditionIndex] = DuplicateConditionForRuntime(ConditionPatch.ConditionDefinition, RuntimeProjectionOwner);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::InsertBefore:
+		if (TargetConditionIndex != INDEX_NONE && ConditionPatch.ConditionDefinition != nullptr)
+		{
+			Conditions.Insert(DuplicateConditionForRuntime(ConditionPatch.ConditionDefinition, RuntimeProjectionOwner), TargetConditionIndex);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::InsertAfter:
+		if (TargetConditionIndex != INDEX_NONE && ConditionPatch.ConditionDefinition != nullptr)
+		{
+			Conditions.Insert(DuplicateConditionForRuntime(ConditionPatch.ConditionDefinition, RuntimeProjectionOwner), TargetConditionIndex + 1);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::Remove:
+		if (TargetConditionIndex != INDEX_NONE)
+		{
+			Conditions.RemoveAt(TargetConditionIndex);
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+void ApplyEffectPatchToDefinition(
+	UFinalCardDefinition* RuntimeCardDefinition,
+	const FFinalBattleCardEffectPatch& EffectPatch,
+	UObject* RuntimeProjectionOwner)
+{
+	if (RuntimeCardDefinition == nullptr)
+	{
+		return;
+	}
+
+	TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects = RuntimeCardDefinition->Effects;
+	const int32 TargetEffectIndex = FindEffectIndexById(Effects, EffectPatch.TargetEffectId);
+
+	switch (EffectPatch.Operation)
+	{
+	case EFinalBattleCardEffectPatchOperation::Replace:
+		if (TargetEffectIndex != INDEX_NONE && EffectPatch.EffectDefinition != nullptr)
+		{
+			Effects[TargetEffectIndex] = DuplicateEffectForRuntime(EffectPatch.EffectDefinition, RuntimeProjectionOwner);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::InsertBefore:
+		if (TargetEffectIndex != INDEX_NONE && EffectPatch.EffectDefinition != nullptr)
+		{
+			Effects.Insert(DuplicateEffectForRuntime(EffectPatch.EffectDefinition, RuntimeProjectionOwner), TargetEffectIndex);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::InsertAfter:
+		if (TargetEffectIndex != INDEX_NONE && EffectPatch.EffectDefinition != nullptr)
+		{
+			Effects.Insert(DuplicateEffectForRuntime(EffectPatch.EffectDefinition, RuntimeProjectionOwner), TargetEffectIndex + 1);
+		}
+		break;
+
+	case EFinalBattleCardEffectPatchOperation::Remove:
+		if (TargetEffectIndex != INDEX_NONE)
+		{
+			Effects.RemoveAt(TargetEffectIndex);
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+void RemoveKeywordTags(FGameplayTagContainer& Keywords, const FGameplayTagContainer& RemovedKeywords)
+{
+	for (const FGameplayTag& RemovedKeyword : RemovedKeywords)
+	{
+		Keywords.RemoveTag(RemovedKeyword);
+	}
+}
 }
 
 void FFinalBattleCardService::InitializeDeckState(FFinalTeamDeckState& DeckState) const
@@ -204,6 +362,7 @@ void FFinalBattleCardService::InitializeDeckState(FFinalTeamDeckState& DeckState
 void FFinalBattleCardService::InitializeDeckCards(
 	FFinalBattleState& BattleState,
 	const TArray<FFinalBattleCardInitData>& DeckCards,
+	UObject* RuntimeProjectionOwner,
 	const TMap<FName, FName>& TemplateToRuntimeUnitMap) const
 {
 	for (const FFinalBattleCardInitData& DeckCard : DeckCards)
@@ -225,6 +384,7 @@ void FFinalBattleCardService::InitializeDeckCards(
 			BattleState,
 			CardDefinition,
 			RuntimeOwnerUnitId,
+			RuntimeProjectionOwner,
 			DeckCard.SourceRunCardInstanceId,
 			false,
 			false);
@@ -349,6 +509,7 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 	FFinalBattleState& BattleState,
 	UFinalCardDefinition* CardDefinition,
 	const FName RuntimeOwnerUnitId,
+	UObject* RuntimeProjectionOwner,
 	const FName SourceRunCardInstanceId,
 	const bool bGeneratedCard,
 	const bool bTemporaryCard) const
@@ -360,19 +521,95 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 
 	FFinalBattleCardInstance CardInstance;
 	CardInstance.CardInstanceId = FGuid::NewGuid();
+	CardInstance.CardId = CardDefinition->CardId;
 	CardInstance.SourceRunCardInstanceId = SourceRunCardInstanceId;
 	CardInstance.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
+	CardInstance.BaseDefinition = CardDefinition;
 	CardInstance.bGeneratedCard = bGeneratedCard;
 	CardInstance.bTemporaryCard = bTemporaryCard;
-	ApplyCardDefinitionToInstance(CardInstance, CardDefinition);
+	ReprojectCardInstanceInternal(CardInstance, RuntimeProjectionOwner);
 
 	BattleState.CardInstances.Add(CardInstance);
 	BattleState.CardInstanceIndexById.Add(CardInstance.CardInstanceId, BattleState.CardInstances.Num() - 1);
 	return CardInstance.CardInstanceId;
 }
 
+bool FFinalBattleCardService::AddCardModifier(
+	FFinalBattleState& BattleState,
+	const FGuid& CardInstanceId,
+	UObject* RuntimeProjectionOwner,
+	const FFinalBattleCardModifierRecord& ModifierRecord) const
+{
+	FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+	if (CardInstance == nullptr || ModifierRecord.ModifierId.IsNone())
+	{
+		return false;
+	}
+
+	CardInstance->ModifierRecords.Add(ModifierRecord);
+	return ReprojectCardInstanceInternal(*CardInstance, RuntimeProjectionOwner);
+}
+
+bool FFinalBattleCardService::RemoveCardModifier(
+	FFinalBattleState& BattleState,
+	const FGuid& CardInstanceId,
+	UObject* RuntimeProjectionOwner,
+	const FName ModifierId) const
+{
+	FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+	if (CardInstance == nullptr || ModifierId.IsNone())
+	{
+		return false;
+	}
+
+	const int32 RemovedCount = CardInstance->ModifierRecords.RemoveAll([&ModifierId](const FFinalBattleCardModifierRecord& Candidate)
+	{
+		return Candidate.ModifierId == ModifierId;
+	});
+	if (RemovedCount <= 0)
+	{
+		return false;
+	}
+
+	return ReprojectCardInstanceInternal(*CardInstance, RuntimeProjectionOwner);
+}
+
+int32 FFinalBattleCardService::ClearCardModifiersByDuration(
+	FFinalBattleState& BattleState,
+	UObject* RuntimeProjectionOwner,
+	const EFinalBattleCardModifierDuration DurationPolicy) const
+{
+	int32 ReprojectedCardCount = 0;
+	for (FFinalBattleCardInstance& CardInstance : BattleState.CardInstances)
+	{
+		const int32 RemovedCount = CardInstance.ModifierRecords.RemoveAll([DurationPolicy](const FFinalBattleCardModifierRecord& Candidate)
+		{
+			return Candidate.DurationPolicy == DurationPolicy;
+		});
+		if (RemovedCount <= 0)
+		{
+			continue;
+		}
+
+		ReprojectCardInstanceInternal(CardInstance, RuntimeProjectionOwner);
+		++ReprojectedCardCount;
+	}
+
+	return ReprojectedCardCount;
+}
+
+bool FFinalBattleCardService::ReprojectCardInstance(
+	FFinalBattleState& BattleState,
+	const FGuid& CardInstanceId,
+	UObject* RuntimeProjectionOwner) const
+{
+	FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+	return CardInstance != nullptr && ReprojectCardInstanceInternal(*CardInstance, RuntimeProjectionOwner);
+}
+
 int32 FFinalBattleCardService::RefreshCardsForRunCardInstance(
 	FFinalBattleState& BattleState,
+	UObject* RuntimeProjectionOwner,
 	const FFinalBattleCardRefreshRequest& RefreshRequest) const
 {
 	if (RefreshRequest.SourceRunCardInstanceId.IsNone() || RefreshRequest.NewDefinition == nullptr || !RefreshRequest.NewCardId.IsValid())
@@ -388,7 +625,9 @@ int32 FFinalBattleCardService::RefreshCardsForRunCardInstance(
 			continue;
 		}
 
-		ApplyCardDefinitionToInstance(CardInstance, RefreshRequest.NewDefinition);
+		CardInstance.CardId = RefreshRequest.NewCardId;
+		CardInstance.BaseDefinition = RefreshRequest.NewDefinition;
+		ReprojectCardInstanceInternal(CardInstance, RuntimeProjectionOwner);
 		++RefreshedCount;
 	}
 
@@ -529,11 +768,11 @@ void FFinalBattleCardService::BuildHandCardViews(
 		CardView.SourceRunCardInstanceId = CardInstance->SourceRunCardInstanceId;
 		CardView.CardId = CardInstance->CardId;
 		CardView.RuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
-		CardView.DisplayName = CardInstance->SourceDefinition != nullptr
-			? CardInstance->SourceDefinition->DisplayName
+		CardView.DisplayName = CardInstance->ProjectedDefinition != nullptr
+			? CardInstance->ProjectedDefinition->DisplayName
 			: FText::FromName(CardInstance->CardId.Value);
-		CardView.CardType = CardInstance->SourceDefinition != nullptr
-			? CardInstance->SourceDefinition->CardType
+		CardView.CardType = CardInstance->ProjectedDefinition != nullptr
+			? CardInstance->ProjectedDefinition->CardType
 			: EFinalCardType::Attack;
 		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
 		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
@@ -547,18 +786,162 @@ void FFinalBattleCardService::BuildHandCardViews(
 	}
 }
 
-void FFinalBattleCardService::ApplyCardDefinitionToInstance(FFinalBattleCardInstance& CardInstance, UFinalCardDefinition* CardDefinition) const
+FFinalBattleCardProjectionView FFinalBattleCardService::BuildProjectionView(
+	const FFinalBattleState& BattleState,
+	const FGuid& CardInstanceId) const
 {
-	if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
+	FFinalBattleCardProjectionView ProjectionView;
+	const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+	if (CardInstance == nullptr)
+	{
+		return ProjectionView;
+	}
+
+	ProjectionView.CardInstanceId = CardInstance->CardInstanceId;
+	ProjectionView.CardId = CardInstance->CardId;
+	ProjectionView.EffectiveCostAP = CardInstance->RuntimeCostAP;
+	ProjectionView.EffectiveKeywords = CardInstance->RuntimeKeywords;
+	ProjectionView.bRetained = CardInstance->RuntimeBehavior.bRetained;
+	ProjectionView.bConsumeOnPlay = CardInstance->RuntimeBehavior.bConsumeOnPlay;
+	ProjectionView.RecycleCount = CardInstance->RuntimeBehavior.RecycleCount;
+	ProjectionView.EffectiveOutgoingDamagePercent = CardInstance->RuntimeOutgoingDamagePercent;
+	ProjectionView.EffectCount = CardInstance->ProjectedDefinition != nullptr ? CardInstance->ProjectedDefinition->Effects.Num() : 0;
+	ProjectionView.ModifierCount = CardInstance->ModifierRecords.Num();
+	ProjectionView.bHasProjectedDefinition = CardInstance->ProjectedDefinition != nullptr;
+	return ProjectionView;
+}
+
+void FFinalBattleCardService::ApplyCardModifierRecordToDefinition(
+	FFinalBattleCardInstance& CardInstance,
+	const FFinalBattleCardModifierRecord& ModifierRecord,
+	UFinalCardDefinition* RuntimeCardDefinition) const
+{
+	if (RuntimeCardDefinition == nullptr)
 	{
 		return;
 	}
 
-	CardInstance.CardId = CardDefinition->CardId;
-	CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
-	CardInstance.RuntimeKeywords = CardDefinition->Keywords;
-	CardInstance.SourceDefinition = CardDefinition;
-	InitializeRuntimeKeywordState(CardInstance);
+	if (ModifierRecord.bReplaceEntireEffectList)
+	{
+		RuntimeCardDefinition->Effects.Reset();
+		for (UFinalBattleEffectDefinition* ReplacementEffect : ModifierRecord.ReplacementEffects)
+		{
+			if (UFinalBattleEffectDefinition* RuntimeEffect = DuplicateEffectForRuntime(ReplacementEffect, RuntimeCardDefinition))
+			{
+				RuntimeCardDefinition->Effects.Add(RuntimeEffect);
+			}
+		}
+	}
+
+	for (const FFinalBattleCardEffectPatch& EffectPatch : ModifierRecord.EffectPatches)
+	{
+		ApplyEffectPatchToDefinition(RuntimeCardDefinition, EffectPatch, RuntimeCardDefinition);
+	}
+
+	for (const FFinalBattleCardConditionPatch& ConditionPatch : ModifierRecord.ConditionPatches)
+	{
+		const int32 TargetEffectIndex = FindEffectIndexById(RuntimeCardDefinition->Effects, ConditionPatch.TargetEffectId);
+		if (TargetEffectIndex == INDEX_NONE || !RuntimeCardDefinition->Effects.IsValidIndex(TargetEffectIndex))
+		{
+			continue;
+		}
+
+		ApplyConditionPatchToEffect(RuntimeCardDefinition->Effects[TargetEffectIndex], ConditionPatch, RuntimeCardDefinition);
+	}
+}
+
+void FFinalBattleCardService::ApplyCardDefinitionProjection(
+	FFinalBattleCardInstance& CardInstance,
+	UFinalCardDefinition* RuntimeCardDefinition,
+	const int32 EffectiveCostAP,
+	const FGameplayTagContainer& EffectiveKeywords,
+	const FFinalBattleCardRuntimeBehavior& EffectiveBehavior,
+	const int32 EffectiveOutgoingDamagePercent) const
+{
+	CardInstance.ProjectedDefinition = RuntimeCardDefinition;
+	CardInstance.CardId = RuntimeCardDefinition != nullptr && RuntimeCardDefinition->CardId.IsValid()
+		? RuntimeCardDefinition->CardId
+		: CardInstance.CardId;
+	CardInstance.RuntimeCostAP = EffectiveCostAP;
+	CardInstance.RuntimeKeywords = EffectiveKeywords;
+	CardInstance.RuntimeBehavior = EffectiveBehavior;
+	CardInstance.RuntimeOutgoingDamagePercent = EffectiveOutgoingDamagePercent;
+}
+
+bool FFinalBattleCardService::ReprojectCardInstanceInternal(FFinalBattleCardInstance& CardInstance, UObject* RuntimeProjectionOwner) const
+{
+	if (CardInstance.BaseDefinition == nullptr || !CardInstance.BaseDefinition->CardId.IsValid() || RuntimeProjectionOwner == nullptr)
+	{
+		return false;
+	}
+
+	UFinalCardDefinition* RuntimeCardDefinition = DuplicateObject<UFinalCardDefinition>(CardInstance.BaseDefinition, RuntimeProjectionOwner);
+	if (RuntimeCardDefinition == nullptr)
+	{
+		return false;
+	}
+
+	TArray<int32> ModifierIndices;
+	ModifierIndices.Reserve(CardInstance.ModifierRecords.Num());
+	for (int32 ModifierIndex = 0; ModifierIndex < CardInstance.ModifierRecords.Num(); ++ModifierIndex)
+	{
+		ModifierIndices.Add(ModifierIndex);
+	}
+
+	ModifierIndices.StableSort([&CardInstance](const int32 LeftIndex, const int32 RightIndex)
+	{
+		return CardInstance.ModifierRecords[LeftIndex].ApplyOrder < CardInstance.ModifierRecords[RightIndex].ApplyOrder;
+	});
+
+	int32 EffectiveCostAP = RuntimeCardDefinition->BaseCostAP;
+	FGameplayTagContainer EffectiveKeywords = RuntimeCardDefinition->Keywords;
+	int32 EffectiveOutgoingDamagePercent = 0;
+	TOptional<bool> OverrideRetained;
+	TOptional<bool> OverrideConsumeOnPlay;
+	TOptional<int32> OverrideRecycleCount;
+
+	for (const int32 ModifierIndex : ModifierIndices)
+	{
+		const FFinalBattleCardModifierRecord& ModifierRecord = CardInstance.ModifierRecords[ModifierIndex];
+		ApplyCardModifierRecordToDefinition(CardInstance, ModifierRecord, RuntimeCardDefinition);
+		EffectiveCostAP += ModifierRecord.CostDeltaAP;
+		EffectiveOutgoingDamagePercent += ModifierRecord.OutgoingDamagePercentDelta;
+		EffectiveKeywords.AppendTags(ModifierRecord.AddedKeywords);
+		RemoveKeywordTags(EffectiveKeywords, ModifierRecord.RemovedKeywords);
+
+		if (ModifierRecord.bOverrideRetained)
+		{
+			OverrideRetained = ModifierRecord.bRetained;
+		}
+
+		if (ModifierRecord.bOverrideConsumeOnPlay)
+		{
+			OverrideConsumeOnPlay = ModifierRecord.bConsumeOnPlay;
+		}
+
+		if (ModifierRecord.bOverrideRecycleCount)
+		{
+			OverrideRecycleCount = ModifierRecord.RecycleCount;
+		}
+	}
+
+	EffectiveCostAP = FMath::Max(EffectiveCostAP, 0);
+	FFinalBattleCardRuntimeBehavior EffectiveBehavior = BuildRuntimeBehaviorFromKeywords(EffectiveKeywords);
+	if (OverrideRetained.IsSet())
+	{
+		EffectiveBehavior.bRetained = OverrideRetained.GetValue();
+	}
+	if (OverrideConsumeOnPlay.IsSet())
+	{
+		EffectiveBehavior.bConsumeOnPlay = OverrideConsumeOnPlay.GetValue();
+	}
+	if (OverrideRecycleCount.IsSet())
+	{
+		EffectiveBehavior.RecycleCount = FMath::Max(OverrideRecycleCount.GetValue(), 0);
+	}
+
+	ApplyCardDefinitionProjection(CardInstance, RuntimeCardDefinition, EffectiveCostAP, EffectiveKeywords, EffectiveBehavior, EffectiveOutgoingDamagePercent);
+	return true;
 }
 
 bool FFinalBattleCardService::RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const

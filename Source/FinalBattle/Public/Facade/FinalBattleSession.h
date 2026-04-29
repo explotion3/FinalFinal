@@ -47,7 +47,12 @@ public:
 	int32 GetLatestGrowthFactBatchSequence() const;
 
 	bool RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats);
+	bool AddCardModifier(const FGuid& CardInstanceId, const FFinalBattleCardModifierRecord& ModifierRecord);
+	bool RemoveCardModifier(const FGuid& CardInstanceId, FName ModifierId);
+	int32 ClearCardModifiersByDuration(EFinalBattleCardModifierDuration DurationPolicy);
+	bool ReprojectCardInstance(const FGuid& CardInstanceId);
 	int32 RefreshCardsForRunCardInstance(const FFinalBattleCardRefreshRequest& RefreshRequest);
+	FFinalBattleCardProjectionView GetCardProjectionView(const FGuid& CardInstanceId) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();
@@ -61,6 +66,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleRuleConfig> RuleConfig;
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	FFinalBattleState* State = nullptr;
 	FFinalBattleResolver* Resolver = nullptr;

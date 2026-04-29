@@ -2,13 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Conditions/Requirements/FinalBattleHandCardRequirement.h"
+#include "Facade/FinalBattleSessionTypes.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Runtime/FinalBattleCardInstance.h"
 #include "Systems/FinalBattleCardMatchCriteria.h"
 
 class UFinalCardDefinition;
 class FFinalBattleUnitService;
-struct FFinalBattleCardInstance;
 struct FFinalBattleCardInitData;
 struct FFinalBattleCardRefreshRequest;
 struct FFinalBattleCardViewData;
@@ -35,6 +36,7 @@ public:
 	void InitializeDeckCards(
 		FFinalBattleState& BattleState,
 		const TArray<FFinalBattleCardInitData>& DeckCards,
+		UObject* RuntimeProjectionOwner,
 		const TMap<FName, FName>& TemplateToRuntimeUnitMap) const;
 
 	// 开战前整理初始抽牌堆：先洗牌，再把带“开战”关键词的牌置顶。
@@ -81,13 +83,41 @@ public:
 		FFinalBattleState& BattleState,
 		UFinalCardDefinition* CardDefinition,
 		FName RuntimeOwnerUnitId,
+		UObject* RuntimeProjectionOwner,
 		FName SourceRunCardInstanceId = NAME_None,
 		bool bGeneratedCard = false,
 		bool bTemporaryCard = false) const;
 
+	bool AddCardModifier(
+		FFinalBattleState& BattleState,
+		const FGuid& CardInstanceId,
+		UObject* RuntimeProjectionOwner,
+		const FFinalBattleCardModifierRecord& ModifierRecord) const;
+
+	bool RemoveCardModifier(
+		FFinalBattleState& BattleState,
+		const FGuid& CardInstanceId,
+		UObject* RuntimeProjectionOwner,
+		FName ModifierId) const;
+
+	int32 ClearCardModifiersByDuration(
+		FFinalBattleState& BattleState,
+		UObject* RuntimeProjectionOwner,
+		EFinalBattleCardModifierDuration DurationPolicy) const;
+
+	bool ReprojectCardInstance(
+		FFinalBattleState& BattleState,
+		const FGuid& CardInstanceId,
+		UObject* RuntimeProjectionOwner) const;
+
 	int32 RefreshCardsForRunCardInstance(
 		FFinalBattleState& BattleState,
+		UObject* RuntimeProjectionOwner,
 		const FFinalBattleCardRefreshRequest& RefreshRequest) const;
+
+	FFinalBattleCardProjectionView BuildProjectionView(
+		const FFinalBattleState& BattleState,
+		const FGuid& CardInstanceId) const;
 
 	// 把现有卡牌实例移动到指定牌区；进入目标牌区前会先脱离所有旧牌区。
 	bool MoveCardInstanceToZone(
@@ -123,7 +153,22 @@ private:
 	// 抽牌堆为空时，把弃牌堆洗回抽牌堆。
 	bool RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const;
 
-	void ApplyCardDefinitionToInstance(FFinalBattleCardInstance& CardInstance, UFinalCardDefinition* CardDefinition) const;
+	void ApplyCardModifierRecordToDefinition(
+		FFinalBattleCardInstance& CardInstance,
+		const FFinalBattleCardModifierRecord& ModifierRecord,
+		UFinalCardDefinition* RuntimeCardDefinition) const;
+
+	void ApplyCardDefinitionProjection(
+		FFinalBattleCardInstance& CardInstance,
+		UFinalCardDefinition* RuntimeCardDefinition,
+		int32 EffectiveCostAP,
+		const FGameplayTagContainer& EffectiveKeywords,
+		const FFinalBattleCardRuntimeBehavior& EffectiveBehavior,
+		int32 EffectiveOutgoingDamagePercent) const;
+
+	bool ReprojectCardInstanceInternal(
+		FFinalBattleCardInstance& CardInstance,
+		UObject* RuntimeProjectionOwner) const;
 
 	// 从指定牌区收集满足条件的卡牌实例 Id，不做实际迁移。
 	void CollectMatchingCardInstanceIdsInZone(

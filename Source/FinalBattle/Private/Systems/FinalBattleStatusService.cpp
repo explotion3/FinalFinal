@@ -1,14 +1,18 @@
 #include "Systems/FinalBattleStatusService.h"
 
+#include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Queries/FinalBattleQueryTypes.h"
+#include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Runtime/FinalBattleStatusInstance.h"
+#include "Systems/FinalBattleCardService.h"
 
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const TCHAR* DerivedStatusHandProjectionPrefix = TEXT("status.hand_projection.");
 
 bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName OwnerUnitId)
 {
@@ -26,7 +30,7 @@ bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName Owner
 
 bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& StatusInstance, const bool bIsAttackCardDamage)
 {
-	if (StatusInstance.OutgoingDamagePercentPerStack == 0)
+	if (StatusInstance.bProjectToOwnedHandCards || StatusInstance.OutgoingDamagePercentPerStack == 0)
 	{
 		return false;
 	}
@@ -37,6 +41,38 @@ bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& Status
 	}
 
 	return true;
+}
+
+bool IsProjectedHandCardModifierApplicable(const FFinalBattleStatusInstance& StatusInstance, const bool bIsAttackCardDamage)
+{
+	if (!StatusInstance.bProjectToOwnedHandCards
+		|| StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0
+		|| StatusInstance.CurrentStacks <= 0)
+	{
+		return false;
+	}
+
+	if (StatusInstance.ProjectedCardTypeFilter == EFinalCardType::Attack && !bIsAttackCardDamage)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool IsDerivedStatusHandProjectionModifier(const FFinalBattleCardModifierRecord& ModifierRecord)
+{
+	return ModifierRecord.SourceType == EFinalBattleCardModifierSourceType::Status
+		&& ModifierRecord.ModifierId.ToString().StartsWith(DerivedStatusHandProjectionPrefix);
+}
+
+FName BuildDerivedStatusHandProjectionModifierId(const FGuid& StatusInstanceId, const FGuid& CardInstanceId)
+{
+	return FName(*FString::Printf(
+		TEXT("%s%s_%s"),
+		DerivedStatusHandProjectionPrefix,
+		*StatusInstanceId.ToString(EGuidFormats::Digits),
+		*CardInstanceId.ToString(EGuidFormats::Digits)));
 }
 
 bool IsIncomingTeamHealthDamageProtectionApplicable(const FFinalBattleStatusInstance& StatusInstance)
@@ -107,6 +143,9 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 		NewInstance.bOnlyAffectAttackCards = StatusDefinition ? StatusDefinition->bOnlyAffectAttackCards : false;
 		NewInstance.IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition ? StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack : 0;
 		NewInstance.bConsumeOnPreventedTeamHealthDamage = StatusDefinition ? StatusDefinition->bConsumeOnPreventedTeamHealthDamage : false;
+		NewInstance.bProjectToOwnedHandCards = StatusDefinition ? StatusDefinition->bProjectToOwnedHandCards : false;
+		NewInstance.ProjectedCardTypeFilter = StatusDefinition ? StatusDefinition->ProjectedCardTypeFilter : EFinalCardType::Attack;
+		NewInstance.ProjectedOutgoingDamagePercentPerStack = StatusDefinition ? StatusDefinition->ProjectedOutgoingDamagePercentPerStack : 0;
 		return NewInstance.CurrentStacks;
 	}
 
@@ -127,6 +166,9 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 		ExistingInstance->bOnlyAffectAttackCards = StatusDefinition->bOnlyAffectAttackCards;
 		ExistingInstance->IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack;
 		ExistingInstance->bConsumeOnPreventedTeamHealthDamage = StatusDefinition->bConsumeOnPreventedTeamHealthDamage;
+		ExistingInstance->bProjectToOwnedHandCards = StatusDefinition->bProjectToOwnedHandCards;
+		ExistingInstance->ProjectedCardTypeFilter = StatusDefinition->ProjectedCardTypeFilter;
+		ExistingInstance->ProjectedOutgoingDamagePercentPerStack = StatusDefinition->ProjectedOutgoingDamagePercentPerStack;
 	}
 	if (BaseDuration > 0)
 	{
@@ -168,7 +210,8 @@ int32 FFinalBattleStatusService::ConsumeOutgoingDamageModifierStacks(
 		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
 		if (StatusInstance.OwnerUnitId != OwnerUnitId
 			|| !StatusInstance.bConsumeOnSuccessfulOwnerDamage
-			|| !IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage))
+			|| (!IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage)
+				&& !IsProjectedHandCardModifierApplicable(StatusInstance, bIsAttackCardDamage)))
 		{
 			continue;
 		}
@@ -182,6 +225,78 @@ int32 FFinalBattleStatusService::ConsumeOutgoingDamageModifierStacks(
 	}
 
 	return TotalRemovedStacks;
+}
+
+void FFinalBattleStatusService::ResyncProjectedHandCardModifiers(
+	FFinalBattleState& BattleState,
+	const FFinalBattleCardService& CardService,
+	const FName OwnerUnitId) const
+{
+	if (OwnerUnitId.IsNone())
+	{
+		return;
+	}
+
+	TArray<FGuid> CardInstanceIdsToReproject;
+	for (FFinalBattleCardInstance& CardInstance : BattleState.CardInstances)
+	{
+		if (CardInstance.RuntimeOwnerUnitId != OwnerUnitId)
+		{
+			continue;
+		}
+
+		const int32 RemovedModifierCount = CardInstance.ModifierRecords.RemoveAll(
+			[](const FFinalBattleCardModifierRecord& ModifierRecord)
+			{
+				return IsDerivedStatusHandProjectionModifier(ModifierRecord);
+			});
+		if (RemovedModifierCount > 0)
+		{
+			CardInstanceIdsToReproject.AddUnique(CardInstance.CardInstanceId);
+		}
+	}
+
+	for (const FFinalBattleStatusInstance& StatusInstance : BattleState.StatusInstances)
+	{
+		if (StatusInstance.OwnerUnitId != OwnerUnitId
+			|| StatusInstance.CurrentStacks <= 0
+			|| !StatusInstance.bProjectToOwnedHandCards
+			|| StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0)
+		{
+			continue;
+		}
+
+		for (const FGuid& HandCardInstanceId : BattleState.DeckState.HandCardInstanceIds)
+		{
+			FFinalBattleCardInstance* CardInstance = CardService.FindCardInstance(BattleState, HandCardInstanceId);
+			if (CardInstance == nullptr || CardInstance->RuntimeOwnerUnitId != OwnerUnitId)
+			{
+				continue;
+			}
+
+			const UFinalCardDefinition* EffectiveCardDefinition = CardInstance->ProjectedDefinition != nullptr
+				? CardInstance->ProjectedDefinition
+				: CardInstance->BaseDefinition;
+			if (EffectiveCardDefinition == nullptr || EffectiveCardDefinition->CardType != StatusInstance.ProjectedCardTypeFilter)
+			{
+				continue;
+			}
+
+			FFinalBattleCardModifierRecord ModifierRecord;
+			ModifierRecord.ModifierId = BuildDerivedStatusHandProjectionModifierId(StatusInstance.StatusInstanceId, CardInstance->CardInstanceId);
+			ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Status;
+			ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+			ModifierRecord.ApplyOrder = 1000;
+			ModifierRecord.OutgoingDamagePercentDelta = StatusInstance.CurrentStacks * StatusInstance.ProjectedOutgoingDamagePercentPerStack;
+			CardInstance->ModifierRecords.Add(MoveTemp(ModifierRecord));
+			CardInstanceIdsToReproject.AddUnique(CardInstance->CardInstanceId);
+		}
+	}
+
+	for (const FGuid& CardInstanceId : CardInstanceIdsToReproject)
+	{
+		CardService.ReprojectCardInstance(BattleState, CardInstanceId, BattleState.RuntimeProjectionOwner);
+	}
 }
 
 int32 FFinalBattleStatusService::GetIncomingTeamHealthDamageReductionPercent(const FFinalBattleState& BattleState) const

@@ -2,10 +2,15 @@
 
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
+#include "Battle/Conditions/FinalBattleConditionDefinition.h"
+#include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Resolver/FinalBattleResolver.h"
+#include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleState.h"
+#include "UObject/UObjectGlobals.h"
 #include "Systems/FinalBattleCardService.h"
 
 UFinalBattleSession::UFinalBattleSession()
@@ -28,6 +33,7 @@ void UFinalBattleSession::InitializeSession(UFinalBattleEncounterDefinition* InE
 	RuleConfig = InRuleConfig;
 	delete State;
 	State = new FFinalBattleState();
+	State->RuntimeProjectionOwner = this;
 
 	delete Resolver;
 	Resolver = new FFinalBattleResolver();
@@ -46,7 +52,32 @@ FFinalBattleEvent UFinalBattleSession::SubmitCommand(const FFinalBattleCommand& 
 		return Event;
 	}
 
-	return Resolver->ExecuteCommand(*State, Command, RuleConfig);
+	FFinalBattleEvent Event = Resolver->ExecuteCommand(*State, Command, RuleConfig);
+	static const FFinalBattleCardService CardService;
+	if (Event.RejectReason == EFinalBattleCommandRejectReason::None)
+	{
+		if (Command.CommandType == EFinalBattleCommandType::PlayCard && Command.CardInstanceId.IsValid())
+		{
+			if (FFinalBattleCardInstance* CardInstance = CardService.FindCardInstance(*State, Command.CardInstanceId))
+			{
+				const int32 RemovedCount = CardInstance->ModifierRecords.RemoveAll([](const FFinalBattleCardModifierRecord& ModifierRecord)
+				{
+					return ModifierRecord.DurationPolicy == EFinalBattleCardModifierDuration::UntilPlayed;
+				});
+				if (RemovedCount > 0)
+				{
+					CardService.ReprojectCardInstance(*State, Command.CardInstanceId, this);
+				}
+			}
+		}
+		else if (Command.CommandType == EFinalBattleCommandType::EndTurn)
+		{
+			CardService.ClearCardModifiersByDuration(*State, this, EFinalBattleCardModifierDuration::EndOfTurn);
+			CardService.ClearCardModifiersByDuration(*State, this, EFinalBattleCardModifierDuration::EndOfRound);
+		}
+	}
+
+	return Event;
 }
 
 FFinalBattleSnapshot UFinalBattleSession::GetSnapshot() const
@@ -112,6 +143,50 @@ int32 UFinalBattleSession::GetLatestGrowthFactBatchSequence() const
 	return State != nullptr ? State->LastGrowthFactBatchSequence : 0;
 }
 
+bool UFinalBattleSession::AddCardModifier(const FGuid& CardInstanceId, const FFinalBattleCardModifierRecord& ModifierRecord)
+{
+	if (State == nullptr || !CardInstanceId.IsValid())
+	{
+		return false;
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.AddCardModifier(*State, CardInstanceId, this, ModifierRecord);
+}
+
+bool UFinalBattleSession::RemoveCardModifier(const FGuid& CardInstanceId, const FName ModifierId)
+{
+	if (State == nullptr || !CardInstanceId.IsValid())
+	{
+		return false;
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.RemoveCardModifier(*State, CardInstanceId, this, ModifierId);
+}
+
+int32 UFinalBattleSession::ClearCardModifiersByDuration(const EFinalBattleCardModifierDuration DurationPolicy)
+{
+	if (State == nullptr)
+	{
+		return 0;
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.ClearCardModifiersByDuration(*State, this, DurationPolicy);
+}
+
+bool UFinalBattleSession::ReprojectCardInstance(const FGuid& CardInstanceId)
+{
+	if (State == nullptr || !CardInstanceId.IsValid())
+	{
+		return false;
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.ReprojectCardInstance(*State, CardInstanceId, this);
+}
+
 bool UFinalBattleSession::RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats)
 {
 	if (State == nullptr || !RuntimeStats.CharacterId.IsValid())
@@ -159,7 +234,18 @@ int32 UFinalBattleSession::RefreshCardsForRunCardInstance(const FFinalBattleCard
 	}
 
 	static const FFinalBattleCardService CardService;
-	return CardService.RefreshCardsForRunCardInstance(*State, RefreshRequest);
+	return CardService.RefreshCardsForRunCardInstance(*State, this, RefreshRequest);
+}
+
+FFinalBattleCardProjectionView UFinalBattleSession::GetCardProjectionView(const FGuid& CardInstanceId) const
+{
+	if (State == nullptr || !CardInstanceId.IsValid())
+	{
+		return FFinalBattleCardProjectionView{};
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.BuildProjectionView(*State, CardInstanceId);
 }
 
 void UFinalBattleSession::ResetSession()
@@ -176,4 +262,39 @@ void UFinalBattleSession::ResetSession()
 bool UFinalBattleSession::HasActiveBattle() const
 {
 	return State != nullptr;
+}
+
+void UFinalBattleSession::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	UFinalBattleSession* This = CastChecked<UFinalBattleSession>(InThis);
+	if (This->State == nullptr)
+	{
+		return;
+	}
+
+	for (FFinalBattleCardInstance& CardInstance : This->State->CardInstances)
+	{
+		Collector.AddReferencedObject(CardInstance.BaseDefinition);
+		Collector.AddReferencedObject(CardInstance.ProjectedDefinition);
+
+		for (FFinalBattleCardModifierRecord& ModifierRecord : CardInstance.ModifierRecords)
+		{
+			for (TObjectPtr<UFinalBattleEffectDefinition>& ReplacementEffect : ModifierRecord.ReplacementEffects)
+			{
+				Collector.AddReferencedObject(ReplacementEffect);
+			}
+
+			for (FFinalBattleCardEffectPatch& EffectPatch : ModifierRecord.EffectPatches)
+			{
+				Collector.AddReferencedObject(EffectPatch.EffectDefinition);
+			}
+
+			for (FFinalBattleCardConditionPatch& ConditionPatch : ModifierRecord.ConditionPatches)
+			{
+				Collector.AddReferencedObject(ConditionPatch.ConditionDefinition);
+			}
+		}
+	}
 }

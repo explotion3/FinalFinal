@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/FinalCoreTypes.h"
 #include "Ids/FinalIds.h"
 
 struct FFinalBattleStatusInstance
@@ -18,4 +19,7 @@ struct FFinalBattleStatusInstance
 	bool bOnlyAffectAttackCards = false;
 	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	bool bConsumeOnPreventedTeamHealthDamage = false;
+	bool bProjectToOwnedHandCards = false;
+	EFinalCardType ProjectedCardTypeFilter = EFinalCardType::Attack;
+	int32 ProjectedOutgoingDamagePercentPerStack = 0;
 };

@@ -264,6 +264,7 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - **流血**：当前只作用于敌方单位；在敌方单位行动后窗口结算。
 - **护体**：常驻修正状态，在受击时参与减伤计算。
 - **士气**：常驻修正状态，在造成伤害时参与攻击修正。
+- **锋锐**：当前已迁移为“状态驱动的 BattleCard modifier”；只把当前手牌中的攻击牌投影为伤害提高 20% 的临时卡修正。
 - **易伤**：常驻修正状态，在目标受到伤害时参与伤害放大。
 - **虚弱**：常驻修正状态，在目标造成伤害时参与伤害降低。
 - **破绽**：条件收益状态，在满足 Break、追击、处决等文本条件时参与判定。
@@ -508,9 +509,21 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 已经结算完成的历史效果不回滚。
 - 当前战斗中已进入弃牌堆、抽牌堆、消耗区或持续区的对应实例，也应同步刷新；实现上按同一 `BattleCardInstance` 原地更新，避免同一张实例同时存在两套规则真相。
 - 衍生牌、复制牌、生成牌、临时牌默认不联动这次刷新，因为它们不保留来源 `RunCardInstanceId`。
-- 当前首版刷新只重建基础定义字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / retain / consume / runtime behavior`；不承诺保留未来独立 temp modifier 层中的临时修正。
+- 当前战斗中的卡牌实例已采用 `base definition + modifier records + projected runtime` 三层口径：
+  - base 层承载 `CurrentCardId / SourceDefinition / SourceRunCardInstanceId / RuntimeOwnerUnitId`
+  - modifier 层承载 battle 内临时修正记录，并统一附带 `SourceType / DurationPolicy / ApplyOrder / PatchPayload`
+  - projection 层承载当前可读、可展示、可结算的运行时卡面与运行时图
+- 因此战斗中卡牌进化不再直接重建一组裸 runtime 字段，而是切换 base `CurrentCardId / SourceDefinition` 后重新投影；当前已支持保留 battle 内临时减费、临时关键词和 `retain / consume / recycle` 覆盖。
 
 当前首版已支持战斗中卡牌进化后的全牌区同步刷新，但作用范围只覆盖直接来源于目标 `RunCardInstance` 的 battle 实例。
+
+当前首版统一支持以下卡牌临时修正持续窗口：
+
+- `UntilPlayed`
+- `EndOfTurn`
+- `EndOfRound`
+- `EndOfBattle`
+- `ManualClear`
 
 ### 8.9 关键词运行规则
 
@@ -654,6 +667,14 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 这些投影值在战斗初始化时由 `FinalApp` 统一构造，再交给 `FinalBattle` 消费；`FinalBattle` 不直接读取 Run 状态。
 - 若玩家在 active battle 中选择属性成长，`FinalApp` 会在 `SelectGrowthChoice` 成功后立即把最新投影值回刷到当前 battle session。
 
+当前首版已落地的状态驱动卡牌投影口径：
+
+- `锋锐` 不再通过通用状态伤害修正直接参与 `GetOutgoingDamageModifierPercent()`。
+- `FinalBattle` 会根据 `锋锐` 的状态层数，把拥有者当前手牌中的攻击牌同步为 derived `BattleCard` modifiers。
+- 这些 derived modifiers 当前只作用于手牌，不投影到抽牌堆、弃牌堆、消耗区或持续区。
+- 新抽进手或战斗内生成进手的攻击牌，只要 `锋锐` 仍在，也会立即获得同样投影。
+- `士气` 继续保留在通用状态伤害修正路径，因此 `士气 + 锋锐` 当前是“状态伤害加成 + 卡牌局部加成”两条链路叠加，而不是重复计算同一来源。
+
 当前首版已落地的暴击规则：
 
 - 每个伤害 hit 独立判定一次暴击。
@@ -670,5 +691,5 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 特殊敌人、首领与多阶段战斗中的优先级例外。
 - 更完整的临界收益、临界牌和临界流派规则。
 - 复制牌、衍生牌、生成牌、临时牌是否需要继承并联动来源 `RunCardInstanceId`。
-- 独立 temp modifier 层建成后，战斗中进化对临时费用、临时关键词和临时数值的保留策略。
+- 更复杂的跨卡、跨系统 modifier 来源与投影冲突解决策略。
 - 特殊牌区、召唤物、场地效果的结算边界。

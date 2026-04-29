@@ -328,10 +328,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiStatus->SummaryText = FText::FromString(TEXT("下一张攻击牌伤害提高 20%，若本回合未触发则在回合结束时失效。"));
 	StarterShenFengRuiStatus->MaxStacks = 9;
 	StarterShenFengRuiStatus->DefaultDuration = 0;
-	StarterShenFengRuiStatus->OutgoingDamagePercentPerStack = 20;
+	StarterShenFengRuiStatus->OutgoingDamagePercentPerStack = 0;
 	StarterShenFengRuiStatus->bExpireAtPlayerTurnEnd = true;
 	StarterShenFengRuiStatus->bConsumeOnSuccessfulOwnerDamage = true;
 	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
+	StarterShenFengRuiStatus->bProjectToOwnedHandCards = true;
+	StarterShenFengRuiStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
+	StarterShenFengRuiStatus->ProjectedOutgoingDamagePercentPerStack = 20;
 	StarterShenFengRuiStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
 

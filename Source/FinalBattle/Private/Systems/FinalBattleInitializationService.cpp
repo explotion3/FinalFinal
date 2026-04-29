@@ -99,7 +99,9 @@ void FFinalBattleInitializationService::InitializeBattle(
 	const FFinalBattleUnitService& UnitService,
 	const FFinalEnemyIntentService& EnemyIntentService) const
 {
+	UObject* RuntimeProjectionOwner = State.RuntimeProjectionOwner;
 	State = FFinalBattleState{};
+	State.RuntimeProjectionOwner = RuntimeProjectionOwner;
 	State.BattleId = FGuid::NewGuid();
 	State.CurrentRound = 1;
 	ResourceService.InitializeBattleResources(State, RuleConfig);
@@ -171,7 +173,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 		? FMath::Min(InitContext.TeamCurrentHP, State.TeamMaxHP)
 		: State.TeamMaxHP;
 
-	CardService.InitializeDeckCards(State, InitContext.DeckCards, TemplateToRuntimeUnitMap);
+	CardService.InitializeDeckCards(State, InitContext.DeckCards, State.RuntimeProjectionOwner, TemplateToRuntimeUnitMap);
 	CardService.PrepareInitialDrawPile(State);
 
 	const int32 InitialHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : 0;

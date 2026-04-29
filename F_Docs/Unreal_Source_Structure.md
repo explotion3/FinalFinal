@@ -461,7 +461,8 @@ BuildBattleStartRequest()
 当前 hand / draw / discard / consume / ongoing 中直接来源于目标 RunCardInstanceId 的 BattleCardInstance 原地刷新
 已经完成的历史结算不回滚
 generated / temporary / copied cards 默认不联动
-刷新只重建基础定义字段，不承诺保留未来 temp modifiers
+刷新会更新 BattleCardInstance 的 base CardId / SourceDefinition
+并保留 battle 内 ModifierRecords 后重新投影 EffectiveCost / Keywords / Behavior / RuntimeGraph
 ```
 
 ---

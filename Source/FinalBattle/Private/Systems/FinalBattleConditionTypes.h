@@ -43,6 +43,7 @@ struct FFinalBattleEffectChainRecordContext
 struct FFinalBattleEffectTransientContext
 {
 	bool bAppliedSuccessfulEnemyHpDamage = false;
+	FGuid SourceCardInstanceId;
 };
 
 struct FFinalBattleEffectExecutionContext

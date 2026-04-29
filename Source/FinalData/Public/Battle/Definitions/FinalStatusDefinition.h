@@ -49,6 +49,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	bool bConsumeOnPreventedTeamHealthDamage = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	bool bProjectToOwnedHandCards = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	EFinalCardType ProjectedCardTypeFilter = EFinalCardType::Attack;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	int32 ProjectedOutgoingDamagePercentPerStack = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Status")
 	TArray<TObjectPtr<UFinalBattleEffectDefinition>> OnTickEffects;
 };
