@@ -157,6 +157,22 @@ bool UFinalBattleFlowSubsystem::RefreshCharacterRuntimeStats(const FFinalBattleC
 	return bRefreshed;
 }
 
+int32 UFinalBattleFlowSubsystem::RefreshCardsForRunCardInstance(const FFinalBattleCardRefreshRequest& RefreshRequest)
+{
+	if (ActiveBattleSession == nullptr)
+	{
+		return 0;
+	}
+
+	const int32 RefreshedCount = ActiveBattleSession->RefreshCardsForRunCardInstance(RefreshRequest);
+	if (RefreshedCount > 0)
+	{
+		BroadcastSnapshot();
+	}
+
+	return RefreshedCount;
+}
+
 void UFinalBattleFlowSubsystem::BroadcastPendingBattleEvents()
 {
 	if (ActiveBattleSession == nullptr)
@@ -232,17 +248,54 @@ bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest&
 		OutInitContext.PartyMembers.Add(InitData);
 	}
 
-	for (const FFinalCardId& CardId : StartRequest.DeckCardIds)
+	const bool bHasExplicitDeckEntries = StartRequest.DeckEntries.Num() > 0;
+	if (bHasExplicitDeckEntries)
 	{
-		UFinalCardDefinition* CardDefinition = DataRegistry->FindCardDefinition(CardId);
-		if (CardDefinition == nullptr)
+		for (const FFinalBattleStartDeckEntry& DeckEntry : StartRequest.DeckEntries)
 		{
-			LastFailureReason = FText::Format(NSLOCTEXT("FinalBattleFlow", "MissingCard", "Card {0} is not registered."), FText::FromName(CardId.Value));
-			return false;
-		}
+			if (!DeckEntry.EffectiveCardId.IsValid())
+			{
+				continue;
+			}
 
-		OutInitContext.DeckDefinitions.Add(CardDefinition);
+			UFinalCardDefinition* CardDefinition = DataRegistry->FindCardDefinition(DeckEntry.EffectiveCardId);
+			if (CardDefinition == nullptr)
+			{
+				LastFailureReason = FText::Format(NSLOCTEXT("FinalBattleFlow", "MissingDeckEntryCard", "Card {0} is not registered."), FText::FromName(DeckEntry.EffectiveCardId.Value));
+				return false;
+			}
+
+			FFinalBattleCardInitData CardInitData;
+			CardInitData.CardDefinition = CardDefinition;
+			CardInitData.CardId = DeckEntry.EffectiveCardId;
+			CardInitData.OwnerCharacterId = DeckEntry.OwnerCharacterId;
+			CardInitData.SourceRunCardInstanceId = DeckEntry.SourceRunCardInstanceId;
+			OutInitContext.DeckCards.Add(MoveTemp(CardInitData));
+			OutInitContext.DeckDefinitions.Add(CardDefinition);
+		}
+	}
+	else
+	{
+		for (const FFinalCardId& CardId : StartRequest.DeckCardIds)
+		{
+			UFinalCardDefinition* CardDefinition = DataRegistry->FindCardDefinition(CardId);
+			if (CardDefinition == nullptr)
+			{
+				LastFailureReason = FText::Format(NSLOCTEXT("FinalBattleFlow", "MissingCard", "Card {0} is not registered."), FText::FromName(CardId.Value));
+				return false;
+			}
+
+			FFinalBattleCardInitData CardInitData;
+			CardInitData.CardDefinition = CardDefinition;
+			CardInitData.CardId = CardId;
+			if (!CardDefinition->OwnerUnitId.IsNone())
+			{
+				CardInitData.OwnerCharacterId = FFinalCharacterId(CardDefinition->OwnerUnitId);
+			}
+			OutInitContext.DeckCards.Add(MoveTemp(CardInitData));
+			OutInitContext.DeckDefinitions.Add(CardDefinition);
+		}
 	}
 
-	return OutInitContext.PartyMembers.Num() > 0 && OutInitContext.DeckDefinitions.Num() > 0;
+	return OutInitContext.PartyMembers.Num() > 0 && OutInitContext.DeckCards.Num() > 0;
 }

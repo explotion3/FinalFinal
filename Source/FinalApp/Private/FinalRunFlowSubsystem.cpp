@@ -293,6 +293,7 @@ bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType Command
 	}
 
 	FFinalCharacterId GrowthRefreshCharacterId;
+	FName GrowthRefreshRunCardInstanceId = NAME_None;
 	if (CommandType == EFinalRunCommandType::SelectGrowthChoice)
 	{
 		const FFinalRunPendingGrowthChoice& PendingGrowthChoice = RunSession->GetPendingGrowthChoice();
@@ -307,6 +308,10 @@ bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType Command
 				{
 					GrowthRefreshCharacterId = SelectedChoice->CharacterId;
 				}
+				else if (SelectedChoice->ChoiceType == EFinalGrowthChoiceType::CardEvolution)
+				{
+					GrowthRefreshRunCardInstanceId = SelectedChoice->TargetRunCardInstanceId;
+				}
 			}
 		}
 	}
@@ -318,12 +323,19 @@ bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType Command
 	const bool bAccepted = RunSession->SubmitRunCommand(Command);
 	RefreshRunFlow(true);
 	if (bAccepted
-		&& CommandType == EFinalRunCommandType::SelectGrowthChoice
-		&& GrowthRefreshCharacterId.IsValid())
+		&& CommandType == EFinalRunCommandType::SelectGrowthChoice)
 	{
 		if (UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
 		{
-			GameFlowSubsystem->TryRefreshActiveBattleCharacterFromRunState(GrowthRefreshCharacterId);
+			if (GrowthRefreshCharacterId.IsValid())
+			{
+				GameFlowSubsystem->TryRefreshActiveBattleCharacterFromRunState(GrowthRefreshCharacterId);
+			}
+
+			if (!GrowthRefreshRunCardInstanceId.IsNone())
+			{
+				GameFlowSubsystem->TryRefreshActiveBattleCardFromRunState(GrowthRefreshRunCardInstanceId);
+			}
 		}
 	}
 

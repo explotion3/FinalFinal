@@ -47,6 +47,7 @@ public:
 	int32 GetLatestGrowthFactBatchSequence() const;
 
 	bool RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats);
+	int32 RefreshCardsForRunCardInstance(const FFinalBattleCardRefreshRequest& RefreshRequest);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();

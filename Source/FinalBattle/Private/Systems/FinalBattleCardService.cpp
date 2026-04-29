@@ -2,6 +2,7 @@
 
 #include "Algo/RandomShuffle.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
@@ -202,24 +203,29 @@ void FFinalBattleCardService::InitializeDeckState(FFinalTeamDeckState& DeckState
 
 void FFinalBattleCardService::InitializeDeckCards(
 	FFinalBattleState& BattleState,
-	const TArray<UFinalCardDefinition*>& DeckDefinitions,
+	const TArray<FFinalBattleCardInitData>& DeckCards,
 	const TMap<FName, FName>& TemplateToRuntimeUnitMap) const
 {
-	for (UFinalCardDefinition* CardDefinition : DeckDefinitions)
+	for (const FFinalBattleCardInitData& DeckCard : DeckCards)
 	{
+		UFinalCardDefinition* CardDefinition = DeckCard.CardDefinition;
 		if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
 		{
 			continue;
 		}
 
-		const FName* RuntimeOwnerUnitIdPtr = TemplateToRuntimeUnitMap.Find(CardDefinition->OwnerUnitId);
+		const FName OwnerTemplateUnitId = DeckCard.OwnerCharacterId.IsValid()
+			? DeckCard.OwnerCharacterId.Value
+			: CardDefinition->OwnerUnitId;
+		const FName* RuntimeOwnerUnitIdPtr = TemplateToRuntimeUnitMap.Find(OwnerTemplateUnitId);
 		const FName RuntimeOwnerUnitId = RuntimeOwnerUnitIdPtr != nullptr
 			? *RuntimeOwnerUnitIdPtr
-			: CardDefinition->OwnerUnitId;
+			: OwnerTemplateUnitId;
 		const FGuid CardInstanceId = CreateCardInstance(
 			BattleState,
 			CardDefinition,
 			RuntimeOwnerUnitId,
+			DeckCard.SourceRunCardInstanceId,
 			false,
 			false);
 		if (CardInstanceId.IsValid())
@@ -343,6 +349,7 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 	FFinalBattleState& BattleState,
 	UFinalCardDefinition* CardDefinition,
 	const FName RuntimeOwnerUnitId,
+	const FName SourceRunCardInstanceId,
 	const bool bGeneratedCard,
 	const bool bTemporaryCard) const
 {
@@ -353,18 +360,39 @@ FGuid FFinalBattleCardService::CreateCardInstance(
 
 	FFinalBattleCardInstance CardInstance;
 	CardInstance.CardInstanceId = FGuid::NewGuid();
-	CardInstance.CardId = CardDefinition->CardId;
+	CardInstance.SourceRunCardInstanceId = SourceRunCardInstanceId;
 	CardInstance.RuntimeOwnerUnitId = RuntimeOwnerUnitId;
-	CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
-	CardInstance.RuntimeKeywords = CardDefinition->Keywords;
-	CardInstance.SourceDefinition = CardDefinition;
 	CardInstance.bGeneratedCard = bGeneratedCard;
 	CardInstance.bTemporaryCard = bTemporaryCard;
-	InitializeRuntimeKeywordState(CardInstance);
+	ApplyCardDefinitionToInstance(CardInstance, CardDefinition);
 
 	BattleState.CardInstances.Add(CardInstance);
 	BattleState.CardInstanceIndexById.Add(CardInstance.CardInstanceId, BattleState.CardInstances.Num() - 1);
 	return CardInstance.CardInstanceId;
+}
+
+int32 FFinalBattleCardService::RefreshCardsForRunCardInstance(
+	FFinalBattleState& BattleState,
+	const FFinalBattleCardRefreshRequest& RefreshRequest) const
+{
+	if (RefreshRequest.SourceRunCardInstanceId.IsNone() || RefreshRequest.NewDefinition == nullptr || !RefreshRequest.NewCardId.IsValid())
+	{
+		return 0;
+	}
+
+	int32 RefreshedCount = 0;
+	for (FFinalBattleCardInstance& CardInstance : BattleState.CardInstances)
+	{
+		if (CardInstance.SourceRunCardInstanceId != RefreshRequest.SourceRunCardInstanceId)
+		{
+			continue;
+		}
+
+		ApplyCardDefinitionToInstance(CardInstance, RefreshRequest.NewDefinition);
+		++RefreshedCount;
+	}
+
+	return RefreshedCount;
 }
 
 bool FFinalBattleCardService::MoveCardInstanceToZone(
@@ -498,6 +526,7 @@ void FFinalBattleCardService::BuildHandCardViews(
 
 		FFinalBattleCardViewData CardView;
 		CardView.CardInstanceId = CardInstance->CardInstanceId;
+		CardView.SourceRunCardInstanceId = CardInstance->SourceRunCardInstanceId;
 		CardView.CardId = CardInstance->CardId;
 		CardView.RuntimeOwnerUnitId = CardInstance->RuntimeOwnerUnitId;
 		CardView.DisplayName = CardInstance->SourceDefinition != nullptr
@@ -516,6 +545,20 @@ void FFinalBattleCardService::BuildHandCardViews(
 
 		OutViews.Add(MoveTemp(CardView));
 	}
+}
+
+void FFinalBattleCardService::ApplyCardDefinitionToInstance(FFinalBattleCardInstance& CardInstance, UFinalCardDefinition* CardDefinition) const
+{
+	if (CardDefinition == nullptr || !CardDefinition->CardId.IsValid())
+	{
+		return;
+	}
+
+	CardInstance.CardId = CardDefinition->CardId;
+	CardInstance.RuntimeCostAP = CardDefinition->BaseCostAP;
+	CardInstance.RuntimeKeywords = CardDefinition->Keywords;
+	CardInstance.SourceDefinition = CardDefinition;
+	InitializeRuntimeKeywordState(CardInstance);
 }
 
 bool FFinalBattleCardService::RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const

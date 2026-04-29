@@ -116,7 +116,7 @@
 - 处理抽牌、弃牌、生成、复制、回收、消耗
 - 统一解释卡牌关键词对牌区去向的改写
 - 维护 `BattleCardInstance` 与其来源 `RunCardInstanceId` 的关联
-- 当 Run 层确认某张卡牌实例进化时，支持刷新对应战斗手牌展示与后续结算定义
+- 当 Run 层确认某张卡牌实例进化时，支持刷新当前 battle 中直接来源于该 `RunCardInstanceId` 的 card instance，并同步更新后续结算定义
 
 优先级：`P0`
 
@@ -607,7 +607,8 @@
 13. UI 展示成长三选一
 14. 玩家选择属性成长或卡牌进化
 15. 如果选择卡牌进化，`RunCardInstance.CurrentCardId` 被替换
-16. 下一场战斗使用进化后的卡牌定义
+16. 若当前存在 active battle，则按 `RunCardInstanceId` 立即刷新 hand / draw / discard / consume / ongoing 中的直接来源实例
+17. 下一场战斗也继续使用进化后的卡牌定义
 
 ---
 

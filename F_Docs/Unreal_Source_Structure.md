@@ -441,22 +441,27 @@ CurrentCardId = 当前规则版本
 
 ```text
 FinalRun 更新 RunCardInstance.CurrentCardId
-FinalApp 通知相关 UI 刷新
-FinalBattle 在下次建立 BattleCardInstance 时读取新的 CurrentCardId
+FinalApp 作为桥接层定位目标 RunCardInstanceId
+若当前存在 active battle，则通知 FinalBattle 原地刷新直接来源 BattleCardInstance
+若当前没有 active battle，则下次建立 BattleCardInstance 时读取新的 CurrentCardId
 ```
 
 当前首版兼容桥接仍保留：
 
 ```text
 BuildBattleStartRequest()
--> 从 RunDeck 中每张实例的 CurrentCardId 派生 DeckCardIds
+-> 从 RunDeck 中每张实例派生 DeckEntries
+-> DeckEntries 至少包含 SourceRunCardInstanceId / EffectiveCardId / OwnerCharacterId
+-> 同时继续兼容派生 DeckCardIds
 ```
 
-如果未来支持战斗中进化：
+当前首版战斗中进化已支持：
 
 ```text
-当前手牌中的 BattleCardInstance 应刷新展示与后续结算规则
+当前 hand / draw / discard / consume / ongoing 中直接来源于目标 RunCardInstanceId 的 BattleCardInstance 原地刷新
 已经完成的历史结算不回滚
+generated / temporary / copied cards 默认不联动
+刷新只重建基础定义字段，不承诺保留未来 temp modifiers
 ```
 
 ---

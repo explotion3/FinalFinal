@@ -55,6 +55,7 @@ public:
 	int32 GetLatestBattleEventSequence() const;
 
 	bool RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats);
+	int32 RefreshCardsForRunCardInstance(const FFinalBattleCardRefreshRequest& RefreshRequest);
 
 	UPROPERTY(BlueprintAssignable, Category = "Final|Battle")
 	FFinalBattleSnapshotChangedSignature OnBattleSnapshotChanged;

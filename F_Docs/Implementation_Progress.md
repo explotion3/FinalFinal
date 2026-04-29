@@ -81,3 +81,12 @@
 - `FinalBattle` 当前已把 crit 正式纳入权威结算：每个伤害 hit 独立判定暴击，暴击时按 `RuntimeCritDamage` 放大伤害。
 - 当前在 active battle 中成功选择属性成长后，`FinalRunFlowSubsystem -> FinalGameFlowSubsystem -> FinalBattleFlowSubsystem` 会立即把最新 runtime 投影回刷到当前 battle session，而不是只等到下一场战斗。
 - 本步骤仍然没有处理“战中卡牌进化刷新当前 hand / draw / discard / consume 实例”；这条链路仍留给后续单独收口。
+
+## 2026-04-29 Step 10：战中卡牌进化刷新当前 battle card instance
+
+- `FFinalBattleStartRequest` 当前已补显式 `DeckEntries`，至少承载 `SourceRunCardInstanceId / EffectiveCardId / OwnerCharacterId`，并继续兼容旧的 `DeckCardIds`。
+- `FinalBattle` 当前已把 `SourceRunCardInstanceId` 写入直接来源的 `BattleCardInstance`，供 active battle 中按来源实例定位刷新。
+- 选择卡牌进化候选成功后，`FinalRunFlowSubsystem -> FinalGameFlowSubsystem -> FinalBattleFlowSubsystem` 会立即桥接一次 active battle card refresh；`FinalBattle` 不直接读取 `RunState`。
+- 当前首版刷新范围只覆盖直接来源于目标 `RunCardInstance` 的 battle 实例，因此 hand / draw / discard / consume / ongoing 中的同一实例都会原地更新。
+- 当前首版刷新会重建基础定义字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / RuntimeBehavior / retain / consume`；历史结算不回滚，也不承诺保留未来 temp modifier 层中的临时修正。
+- generated / temporary / copied cards 当前默认不联动，因为它们不保留来源 `RunCardInstanceId`。

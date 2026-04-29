@@ -584,6 +584,7 @@ bool ExecuteGenerateCardEffect(
 			State,
 			SelectedCardDefinition,
 			SourceOwnerUnitId,
+			NAME_None,
 			GenerateCardEffect->bGeneratedCard,
 			GenerateCardEffect->bTemporaryCard);
 		if (GeneratedCardInstanceId.IsValid())

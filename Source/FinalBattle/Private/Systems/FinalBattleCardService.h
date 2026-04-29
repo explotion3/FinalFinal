@@ -9,6 +9,8 @@
 class UFinalCardDefinition;
 class FFinalBattleUnitService;
 struct FFinalBattleCardInstance;
+struct FFinalBattleCardInitData;
+struct FFinalBattleCardRefreshRequest;
 struct FFinalBattleCardViewData;
 struct FFinalBattleState;
 struct FFinalTeamDeckState;
@@ -32,7 +34,7 @@ public:
 	// 基于构筑定义创建战斗内卡牌实例，并放入初始抽牌堆。
 	void InitializeDeckCards(
 		FFinalBattleState& BattleState,
-		const TArray<UFinalCardDefinition*>& DeckDefinitions,
+		const TArray<FFinalBattleCardInitData>& DeckCards,
 		const TMap<FName, FName>& TemplateToRuntimeUnitMap) const;
 
 	// 开战前整理初始抽牌堆：先洗牌，再把带“开战”关键词的牌置顶。
@@ -79,8 +81,13 @@ public:
 		FFinalBattleState& BattleState,
 		UFinalCardDefinition* CardDefinition,
 		FName RuntimeOwnerUnitId,
+		FName SourceRunCardInstanceId = NAME_None,
 		bool bGeneratedCard = false,
 		bool bTemporaryCard = false) const;
+
+	int32 RefreshCardsForRunCardInstance(
+		FFinalBattleState& BattleState,
+		const FFinalBattleCardRefreshRequest& RefreshRequest) const;
 
 	// 把现有卡牌实例移动到指定牌区；进入目标牌区前会先脱离所有旧牌区。
 	bool MoveCardInstanceToZone(
@@ -115,6 +122,8 @@ public:
 private:
 	// 抽牌堆为空时，把弃牌堆洗回抽牌堆。
 	bool RefillDrawPileFromDiscard(FFinalBattleState& BattleState) const;
+
+	void ApplyCardDefinitionToInstance(FFinalBattleCardInstance& CardInstance, UFinalCardDefinition* CardDefinition) const;
 
 	// 从指定牌区收集满足条件的卡牌实例 Id，不做实际迁移。
 	void CollectMatchingCardInstanceIdsInZone(

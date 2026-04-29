@@ -9,12 +9,15 @@
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "GameplayTagContainer.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Requests/FinalBattleResult.h"
+#include "Run/Definitions/FinalCardEvolutionDefinition.h"
 #include "Run/Definitions/FinalCharacterGrowthConfig.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
@@ -77,6 +80,30 @@ namespace FinalRunFlowGrowthUITests
 		return Snapshot.Enemies.FindByPredicate([&RuntimeUnitId](const FFinalBattleEnemyViewData& EnemyView)
 		{
 			return EnemyView.RuntimeUnitId == RuntimeUnitId;
+		});
+	}
+
+	const FFinalBattleCardViewData* FindHandCardViewByRunCardInstanceId(const FFinalBattleSnapshot& Snapshot, const FName SourceRunCardInstanceId)
+	{
+		return Snapshot.HandCards.FindByPredicate([&SourceRunCardInstanceId](const FFinalBattleCardViewData& CardView)
+		{
+			return CardView.SourceRunCardInstanceId == SourceRunCardInstanceId;
+		});
+	}
+
+	const FFinalRunGrowthChoiceInstance* FindEvolutionChoiceForRunCardInstance(
+		const FFinalRunSnapshot& Snapshot,
+		const FName TargetRunCardInstanceId)
+	{
+		if (!Snapshot.PendingGrowthChoice.bHasPendingChoice)
+		{
+			return nullptr;
+		}
+
+		return Snapshot.PendingGrowthChoice.Choices.FindByPredicate([&TargetRunCardInstanceId](const FFinalRunGrowthChoiceInstance& Choice)
+		{
+			return Choice.ChoiceType == EFinalGrowthChoiceType::CardEvolution
+				&& Choice.TargetRunCardInstanceId == TargetRunCardInstanceId;
 		});
 	}
 
@@ -287,6 +314,57 @@ namespace FinalRunFlowGrowthUITests
 			DamageEffect->Scalar.BaseValue = 1.0f;
 			CardDefinition->Effects.Add(DamageEffect);
 			return CardDefinition;
+		}
+
+		UFinalCardDefinition* RegisterConfigurableDamageCard(
+			const FFinalCardId& CardId,
+			const FFinalCharacterId& OwnerCharacterId,
+			const FString& DisplayName,
+			const EFinalCardType CardType,
+			const int32 BaseCostAP,
+			const float AttackScalar,
+			const bool bConsumeOnPlay = false) const
+		{
+			UFinalCardDefinition* CardDefinition = RegisterCardDefinition(CardId, OwnerCharacterId, DisplayName);
+			CardDefinition->BaseCostAP = BaseCostAP;
+			CardDefinition->CardType = CardType;
+			CardDefinition->Effects.Reset();
+			CardDefinition->Keywords.Reset();
+			if (bConsumeOnPlay)
+			{
+				CardDefinition->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Expend")));
+			}
+
+			UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+			DamageEffect->EffectId = *FString::Printf(TEXT("effect.test.damage.%s"), *CardId.Value.ToString());
+			DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+			DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+			DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+			DamageEffect->Scalar.BaseValue = AttackScalar;
+			CardDefinition->Effects.Add(DamageEffect);
+			return CardDefinition;
+		}
+
+		UFinalCardEvolutionDefinition* RegisterEvolutionDefinition(
+			const FFinalCardEvolutionId& EvolutionId,
+			const FFinalCardId& FromCardId,
+			const FFinalCardId& ToCardId,
+			const FFinalCharacterId& OwnerCharacterId,
+			const FString& DisplayName,
+			const FString& Description = TEXT("")) const
+		{
+			UFinalCardEvolutionDefinition* EvolutionDefinition = NewObject<UFinalCardEvolutionDefinition>(GameInstance.Get());
+			EvolutionDefinition->EvolutionId = EvolutionId;
+			EvolutionDefinition->FromCardId = FromCardId;
+			EvolutionDefinition->ToCardId = ToCardId;
+			EvolutionDefinition->RequiredOwnerCharacterId = OwnerCharacterId;
+			EvolutionDefinition->FromStage = EFinalCardEvolutionStage::Base;
+			EvolutionDefinition->ToStage = EFinalCardEvolutionStage::Evolved;
+			EvolutionDefinition->bAllowAsLevelUpCandidate = true;
+			EvolutionDefinition->DisplayName = FText::FromString(DisplayName);
+			EvolutionDefinition->Description = FText::FromString(Description);
+			DataRegistry->RegisterCardEvolutionDefinition(EvolutionDefinition);
+			return EvolutionDefinition;
 		}
 
 		UFinalRunSession* CreateRunSessionWithSingleCharacter(
@@ -867,6 +945,468 @@ bool FFinalBattleGrowthKillingIntentDamageAndCritTest::RunTest(const FString& Pa
 	}
 
 	TestEqual(TEXT("Killing Intent should increase RuntimeAttack and force crits when crit chance reaches 1."), EnemyHpBeforeCriticalAttack - EnemyView->CurrentHP, 18);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionRefreshesHandCardTest,
+	"Final.Editor.RunFlow.GrowthEvolutionRefreshesHandCardInstance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionRefreshesHandCardTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionRefreshesHandCardTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_hand")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_hand")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_hand.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_hand.evolved")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_hand")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_hand")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_hand")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_hand")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Hand Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Evolution Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterConfigurableDamageCard(BaseCardId, CharacterId, TEXT("Base Slash"), EFinalCardType::Attack, 1, 1.0f);
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Evolved Slash"), EFinalCardType::Skill, 2, 2.0f);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Base Slash"), TEXT("Refresh the active hand instance."));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, BaseCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for hand evolution refresh test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for hand evolution refresh test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[0].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Active hand should expose the source run card instance id before evolution."), HandCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Pre-evolution hand card should still use the base card id."), HandCard->CardId.Value, BaseCardId.Value);
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the hand refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunSnapshot PendingSnapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(PendingSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the in-hand run card instance."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the in-hand evolution choice should succeed through RunFlowSubsystem."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	HandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("The refreshed hand should still expose the evolved run card instance."), HandCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Hand refresh should swap the visible card id to the evolved definition."), HandCard->CardId.Value, EvolvedCardId.Value);
+	TestEqual(TEXT("Hand refresh should update the visible card type."), HandCard->CardType, EFinalCardType::Skill);
+	TestEqual(TEXT("Hand refresh should update the visible runtime AP cost."), HandCard->RuntimeCostAP, 2);
+	TestTrue(TEXT("Hand refresh should update the visible display name from the evolved definition."), HandCard->DisplayName.ToString().Contains(TEXT("Evolved")));
+
+	const FName TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone()
+		? BattleSnapshot.Enemies[0].RuntimeUnitId
+		: BattleSnapshot.CurrentTargetUnitId;
+	const FFinalBattleEnemyViewData* EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("The battle snapshot should expose a live enemy target after hand refresh."), EnemyView))
+	{
+		return false;
+	}
+
+	const int32 EnemyHpBeforeEvolvedAttack = EnemyView->CurrentHP;
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = HandCard->CardInstanceId;
+	Command.TargetUnitId = TargetUnitId;
+	TestTrue(TEXT("Playing the evolved in-hand card should succeed."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("Enemy should still exist after the evolved hand card resolves."), EnemyView))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("The evolved hand card should resolve using the evolved card definition."), EnemyHpBeforeEvolvedAttack - EnemyView->CurrentHP, 10);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionRefreshesDrawPileCardTest,
+	"Final.Editor.RunFlow.GrowthEvolutionRefreshesDrawPileCardInstance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionRefreshesDrawPileCardTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionRefreshesDrawPileCardTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_draw")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_draw")));
+	const FFinalCardId OpeningCardId(FName(TEXT("card.test.evo_draw.opening")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_draw.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_draw.evolved")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_draw")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_draw")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_draw")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_draw")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Draw Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Draw Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	UFinalCardDefinition* OpeningCardDefinition = Context.RegisterConfigurableDamageCard(OpeningCardId, CharacterId, TEXT("Opening Slash"), EFinalCardType::Attack, 1, 1.0f);
+	OpeningCardDefinition->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	Context.RegisterConfigurableDamageCard(BaseCardId, CharacterId, TEXT("Draw Base Slash"), EFinalCardType::Attack, 1, 1.0f);
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Draw Evolved Slash"), EFinalCardType::Skill, 2, 2.0f);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Draw Base Slash"));
+
+	FFinalRunPersistentCharacterState CharacterState;
+	CharacterState.CharacterId = CharacterId;
+	CharacterState.Level = 1;
+	CharacterState.BreakthroughRequiredValue = 100;
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithCharacterState(
+		CharacterState,
+		{ OpeningCardId, BaseCardId },
+		EncounterId,
+		RuleConfigId,
+		20);
+	if (!TestNotNull(TEXT("RunSession should be created for draw-pile evolution refresh test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for draw-pile evolution refresh test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[1].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	TestNull(TEXT("The evolvable target card should still be in the draw pile before refresh."), FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId));
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the draw-pile refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(Context.RunFlowSubsystem->GetCurrentRunSnapshot(), TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the draw-pile run card instance."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the draw-pile evolution choice should succeed."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestTrue(TEXT("Ending the turn should advance battle flow so the refreshed draw-pile card can be drawn."), Context.BattleFlowSubsystem->SubmitBattleCommand(EndTurnCommand));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* DrawnEvolvedCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("The previously draw-pile card should become visible in hand after it is drawn."), DrawnEvolvedCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("A draw-pile refreshed card should draw into hand using the evolved card id."), DrawnEvolvedCard->CardId.Value, EvolvedCardId.Value);
+	TestEqual(TEXT("A draw-pile refreshed card should draw into hand using the evolved runtime AP cost."), DrawnEvolvedCard->RuntimeCostAP, 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionRefreshesDiscardPileCardTest,
+	"Final.Editor.RunFlow.GrowthEvolutionRefreshesDiscardPileCardInstance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionRefreshesDiscardPileCardTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionRefreshesDiscardPileCardTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_discard")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_discard")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_discard.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_discard.evolved")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_discard")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_discard")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_discard")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_discard")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Discard Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Discard Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterConfigurableDamageCard(BaseCardId, CharacterId, TEXT("Discard Base Slash"), EFinalCardType::Attack, 1, 1.0f);
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Discard Evolved Slash"), EFinalCardType::Skill, 2, 2.0f);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Discard Base Slash"));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, BaseCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for discard-pile evolution refresh test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for discard-pile evolution refresh test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[0].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* StartingHandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Discard-pile refresh test should begin with the target card in hand."), StartingHandCard))
+	{
+		return false;
+	}
+
+	const FName TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone()
+		? BattleSnapshot.Enemies[0].RuntimeUnitId
+		: BattleSnapshot.CurrentTargetUnitId;
+	FFinalBattleCommand PlayCardCommand;
+	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
+	PlayCardCommand.TargetUnitId = TargetUnitId;
+	TestTrue(TEXT("Playing the base card should move it into discard before evolution."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the discard refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(Context.RunFlowSubsystem->GetCurrentRunSnapshot(), TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the discard-pile run card instance."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the discard-pile evolution choice should succeed."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestTrue(TEXT("Ending the turn should reshuffle discard into draw and redraw the evolved card."), Context.BattleFlowSubsystem->SubmitBattleCommand(EndTurnCommand));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* RedrawnEvolvedCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("The evolved discard-pile card should be redrawn into hand on the next turn."), RedrawnEvolvedCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("A discard-pile refreshed card should redraw using the evolved card id."), RedrawnEvolvedCard->CardId.Value, EvolvedCardId.Value);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionRefreshesConsumePileCardTest,
+	"Final.Editor.RunFlow.GrowthEvolutionRefreshesConsumePileCardInstance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionRefreshesConsumePileCardTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionRefreshesConsumePileCardTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_consume")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_consume")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_consume.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_consume.evolved")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_consume")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_consume")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_consume")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_consume")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Consume Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Consume Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterConfigurableDamageCard(BaseCardId, CharacterId, TEXT("Consume Base Slash"), EFinalCardType::Attack, 1, 1.0f, true);
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Consume Evolved Slash"), EFinalCardType::Skill, 2, 2.0f, true);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Consume Base Slash"));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, BaseCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for consume-pile evolution refresh test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for consume-pile evolution refresh test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[0].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* StartingHandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Consume-pile refresh test should begin with the target card in hand."), StartingHandCard))
+	{
+		return false;
+	}
+
+	const FName TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone()
+		? BattleSnapshot.Enemies[0].RuntimeUnitId
+		: BattleSnapshot.CurrentTargetUnitId;
+	FFinalBattleCommand PlayCardCommand;
+	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
+	PlayCardCommand.TargetUnitId = TargetUnitId;
+	TestTrue(TEXT("Playing the consume card should move it into the consume pile before evolution."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the consume refresh test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(Context.RunFlowSubsystem->GetCurrentRunSnapshot(), TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the consume-pile run card instance."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the consume-pile evolution choice should succeed."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+	TestEqual(TEXT("Reissuing the explicit battle-card refresh bridge should still locate the consumed battle instance."), Context.GameFlowSubsystem->TryRefreshActiveBattleCardFromRunState(TargetRunCardInstanceId), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthEvolutionDoesNotRefreshGeneratedCardTest,
+	"Final.Editor.RunFlow.GrowthEvolutionDoesNotRefreshGeneratedCardInstance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthEvolutionDoesNotRefreshGeneratedCardTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthEvolutionDoesNotRefreshGeneratedCardTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.evo_generated")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.evo_generated")));
+	const FFinalCardId BaseCardId(FName(TEXT("card.test.evo_generated.base")));
+	const FFinalCardId EvolvedCardId(FName(TEXT("card.test.evo_generated.evolved")));
+	const FFinalCardId GeneratedCardId(FName(TEXT("card.test.evo_generated.temp")));
+	const FFinalCardEvolutionId EvolutionId(FName(TEXT("evo.test.evo_generated")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.evo_generated")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.evo_generated")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.evo_generated")));
+
+	Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Evolution Generated Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Generated Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+
+	UFinalCardDefinition* GeneratedCardDefinition = Context.RegisterConfigurableDamageCard(GeneratedCardId, CharacterId, TEXT("Generated Temp Slash"), EFinalCardType::Skill, 0, 1.0f);
+	UFinalCardDefinition* BaseCardDefinition = Context.RegisterCardDefinition(BaseCardId, CharacterId, TEXT("Generator Base Slash"));
+	BaseCardDefinition->BaseCostAP = 1;
+	BaseCardDefinition->CardType = EFinalCardType::Skill;
+	BaseCardDefinition->Effects.Reset();
+	UFinalBattleEffectGenerateCard* GenerateCardEffect = NewObject<UFinalBattleEffectGenerateCard>(BaseCardDefinition);
+	GenerateCardEffect->EffectId = TEXT("effect.test.generate_temp_card");
+	GenerateCardEffect->GenerateCount = 1;
+	GenerateCardEffect->GeneratedCardDefinition = GeneratedCardDefinition;
+	GenerateCardEffect->bGeneratedCard = true;
+	GenerateCardEffect->bTemporaryCard = true;
+	BaseCardDefinition->Effects.Add(GenerateCardEffect);
+
+	Context.RegisterConfigurableDamageCard(EvolvedCardId, CharacterId, TEXT("Generator Evolved Slash"), EFinalCardType::Attack, 2, 2.0f);
+	Context.RegisterEvolutionDefinition(EvolutionId, BaseCardId, EvolvedCardId, CharacterId, TEXT("Evolve Generator Base Slash"));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, BaseCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for generated-card exclusion test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for generated-card exclusion test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	const FFinalRunState InitialRunState = RunSession->GetRunState();
+	const FName TargetRunCardInstanceId = InitialRunState.RunDeck[0].InstanceId;
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCardViewData* StartingHandCard = FindHandCardViewByRunCardInstanceId(BattleSnapshot, TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Generated-card exclusion test should begin with the generator card in hand."), StartingHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand PlayCardCommand;
+	PlayCardCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	PlayCardCommand.CardInstanceId = StartingHandCard->CardInstanceId;
+	PlayCardCommand.TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone() ? BattleSnapshot.Enemies[0].RuntimeUnitId : BattleSnapshot.CurrentTargetUnitId;
+	TestTrue(TEXT("Playing the generator card should create a generated temporary card."), Context.BattleFlowSubsystem->SubmitBattleCommand(PlayCardCommand));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	if (!TestEqual(TEXT("After the generator resolves, the temporary generated card should be the only hand card."), BattleSnapshot.HandCards.Num(), 1))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardViewData& GeneratedHandCard = BattleSnapshot.HandCards[0];
+	TestTrue(TEXT("Generated temporary cards should not inherit SourceRunCardInstanceId by default."), GeneratedHandCard.SourceRunCardInstanceId.IsNone());
+	TestEqual(TEXT("Generated temporary card should initially use its generated card id."), GeneratedHandCard.CardId.Value, GeneratedCardId.Value);
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice for the generated-card exclusion test."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunGrowthChoiceInstance* EvolutionChoice = FindEvolutionChoiceForRunCardInstance(Context.RunFlowSubsystem->GetCurrentRunSnapshot(), TargetRunCardInstanceId);
+	if (!TestNotNull(TEXT("Pending growth choices should include the evolution choice for the original generator run card instance."), EvolutionChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting the evolution choice should not fail when a generated card is currently in hand."), Context.RunFlowSubsystem->SelectGrowthChoice(EvolutionChoice->ChoiceInstanceId));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	if (!TestEqual(TEXT("The generated temporary hand card should remain in hand after the original run card evolves."), BattleSnapshot.HandCards.Num(), 1))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("The generated temporary hand card should still have no SourceRunCardInstanceId after evolution refresh."), BattleSnapshot.HandCards[0].SourceRunCardInstanceId.IsNone());
+	TestEqual(TEXT("Generated temporary cards should not be refreshed to the evolved run card definition."), BattleSnapshot.HandCards[0].CardId.Value, GeneratedCardId.Value);
 	return true;
 }
 

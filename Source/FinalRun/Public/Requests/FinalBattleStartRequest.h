@@ -7,6 +7,21 @@
 #include "FinalBattleStartRequest.generated.h"
 
 USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalBattleStartDeckEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName SourceRunCardInstanceId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCardId EffectiveCardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCharacterId OwnerCharacterId;
+};
+
+USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalBattleStartRequest
 {
 	GENERATED_BODY()
@@ -25,6 +40,9 @@ struct FINALRUN_API FFinalBattleStartRequest
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunPersistentCharacterState> PartyStates;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalBattleStartDeckEntry> DeckEntries;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalCardId> DeckCardIds;

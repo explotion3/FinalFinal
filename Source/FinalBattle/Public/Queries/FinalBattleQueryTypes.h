@@ -117,6 +117,9 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 	FGuid CardInstanceId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName SourceRunCardInstanceId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FFinalCardId CardId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")

@@ -504,11 +504,13 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 当 `RunCardInstance.CurrentCardId` 发生变化时：
 
 - 尚未进入战斗的牌，下次建立牌组时读取新的 `CurrentCardId`。
-- 当前战斗手牌中的对应实例，需要刷新展示和后续结算规则。
+- 当前战斗中直接来源于该 `RunCardInstance` 的对应实例，需要原地刷新展示和后续结算规则。
 - 已经结算完成的历史效果不回滚。
-- 当前战斗中已进入弃牌堆、抽牌堆、消耗区或持续区的对应实例，是否立即刷新由具体实现决定，但必须避免同一张实例同时存在两套规则真相。
+- 当前战斗中已进入弃牌堆、抽牌堆、消耗区或持续区的对应实例，也应同步刷新；实现上按同一 `BattleCardInstance` 原地更新，避免同一张实例同时存在两套规则真相。
+- 衍生牌、复制牌、生成牌、临时牌默认不联动这次刷新，因为它们不保留来源 `RunCardInstanceId`。
+- 当前首版刷新只重建基础定义字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / retain / consume / runtime behavior`；不承诺保留未来独立 temp modifier 层中的临时修正。
 
-首版重点支持战斗间进化后的刷新；若后续支持战斗中进化，再补充更细的牌区同步规则。
+当前首版已支持战斗中卡牌进化后的全牌区同步刷新，但作用范围只覆盖直接来源于目标 `RunCardInstance` 的 battle 实例。
 
 ### 8.9 关键词运行规则
 
@@ -637,7 +639,7 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 是否应用属性成长。
 - 是否应用卡牌进化结果。
 
-`FinalBattle` 可以响应 Run 层已经确认的结果，例如刷新手牌中的 `CurrentCardId`，但不应自己生成或选择成长结果。
+`FinalBattle` 可以响应 Run 层已经确认的结果，例如刷新当前战斗中直接来源于目标 `RunCardInstance` 的 battle card instance，但不应自己生成或选择成长结果。
 
 即时弹出规则也不在 `FinalBattle` 中决定：
 
@@ -667,5 +669,6 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 
 - 特殊敌人、首领与多阶段战斗中的优先级例外。
 - 更完整的临界收益、临界牌和临界流派规则。
-- 战斗中进化时的全牌区刷新规则。
+- 复制牌、衍生牌、生成牌、临时牌是否需要继承并联动来源 `RunCardInstanceId`。
+- 独立 temp modifier 层建成后，战斗中进化对临时费用、临时关键词和临时数值的保留策略。
 - 特殊牌区、召唤物、场地效果的结算边界。

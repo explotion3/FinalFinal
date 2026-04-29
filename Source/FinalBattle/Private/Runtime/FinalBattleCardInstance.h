@@ -17,6 +17,7 @@ struct FFinalBattleCardInstance
 {
 	FGuid CardInstanceId;
 	FFinalCardId CardId;
+	FName SourceRunCardInstanceId = NAME_None;
 	FName RuntimeOwnerUnitId = NAME_None;
 	int32 RuntimeCostAP = 0;
 	FGameplayTagContainer RuntimeKeywords;

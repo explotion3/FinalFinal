@@ -6,6 +6,7 @@
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Resolver/FinalBattleResolver.h"
 #include "Runtime/FinalBattleState.h"
+#include "Systems/FinalBattleCardService.h"
 
 UFinalBattleSession::UFinalBattleSession()
 {
@@ -148,6 +149,17 @@ bool UFinalBattleSession::RefreshCharacterRuntimeStats(const FFinalBattleCharact
 	State->TeamMaxHP = FMath::Max(UpdatedTeamMaxHP, 0);
 	State->TeamCurrentHP = FMath::Min(State->TeamCurrentHP, State->TeamMaxHP);
 	return true;
+}
+
+int32 UFinalBattleSession::RefreshCardsForRunCardInstance(const FFinalBattleCardRefreshRequest& RefreshRequest)
+{
+	if (State == nullptr)
+	{
+		return 0;
+	}
+
+	static const FFinalBattleCardService CardService;
+	return CardService.RefreshCardsForRunCardInstance(*State, RefreshRequest);
 }
 
 void UFinalBattleSession::ResetSession()

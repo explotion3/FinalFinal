@@ -52,6 +52,7 @@ public:
 	FText GetLastBattleFailureReason() const;
 
 	void TryRefreshActiveBattleCharacterFromRunState(const FFinalCharacterId& CharacterId);
+	int32 TryRefreshActiveBattleCardFromRunState(FName RunCardInstanceId);
 
 private:
 	bool BuildResolvedBattleResult(FFinalBattleResult& OutResult);

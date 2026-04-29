@@ -37,10 +37,26 @@ struct FINALBATTLE_API FFinalBattleCharacterInitData
 	float RuntimeCritDamage = 1.5f;
 };
 
+struct FINALBATTLE_API FFinalBattleCardInitData
+{
+	UFinalCardDefinition* CardDefinition = nullptr;
+	FFinalCardId CardId;
+	FFinalCharacterId OwnerCharacterId;
+	FName SourceRunCardInstanceId = NAME_None;
+};
+
+struct FINALBATTLE_API FFinalBattleCardRefreshRequest
+{
+	FName SourceRunCardInstanceId = NAME_None;
+	FFinalCardId NewCardId;
+	UFinalCardDefinition* NewDefinition = nullptr;
+};
+
 struct FINALBATTLE_API FFinalBattleInitContext
 {
 	int32 TeamCurrentHP = 0;
 	TArray<FFinalBattleCharacterInitData> PartyMembers;
+	TArray<FFinalBattleCardInitData> DeckCards;
 	TArray<UFinalCardDefinition*> DeckDefinitions;
 	TArray<FFinalBattleStartRelicInput> BattleStartRelics;
 };

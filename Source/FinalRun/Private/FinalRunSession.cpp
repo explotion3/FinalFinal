@@ -989,6 +989,8 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 	Request.EncounterId = CurrentState.CurrentEncounterId;
 	Request.RuleConfigId = CurrentState.CurrentRuleConfigId;
 	Request.TeamCurrentHP = CurrentState.TeamCurrentHP;
+	Request.DeckEntries.Reset();
+	Request.DeckEntries.Reserve(CurrentState.RunDeck.Num());
 	Request.DeckCardIds.Reset();
 	Request.DeckCardIds.Reserve(CurrentState.RunDeck.Num());
 	for (const FFinalRunCardInstance& CardInstance : CurrentState.RunDeck)
@@ -996,6 +998,11 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 		const FFinalCardId EffectiveCardId = CardInstance.GetEffectiveCardId();
 		if (EffectiveCardId.IsValid())
 		{
+			FFinalBattleStartDeckEntry DeckEntry;
+			DeckEntry.SourceRunCardInstanceId = CardInstance.InstanceId;
+			DeckEntry.EffectiveCardId = EffectiveCardId;
+			DeckEntry.OwnerCharacterId = CardInstance.OwnerCharacterId;
+			Request.DeckEntries.Add(MoveTemp(DeckEntry));
 			Request.DeckCardIds.Add(EffectiveCardId);
 		}
 	}

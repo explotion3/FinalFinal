@@ -565,8 +565,8 @@ EvolutionStage: Evolved
 - `BaseCardId` 用于保留这张牌的原始身份。
 - `CurrentCardId` 用于决定当前展示和结算模板。
 - 第一版卡牌进化只要求替换 `CurrentCardId` 和 `EvolutionStage`。
-- 当前 `RunDeck` 已是 Run 内唯一牌组真相源；战斗起始请求仍从每张实例的 `CurrentCardId` 派生 `DeckCardIds`。
-- 如果这张卡当前也存在于手牌中，进化后需要同步刷新对应 `BattleCardInstance` 的展示与结算引用。
+- 当前 `RunDeck` 已是 Run 内唯一牌组真相源；战斗起始请求首版仍兼容 `DeckCardIds`，但已补显式 `DeckEntries`，其中至少包含 `SourceRunCardInstanceId / EffectiveCardId / OwnerCharacterId`。
+- 如果这张卡当前也存在于 active battle，进化后会按 `SourceRunCardInstanceId` 同步刷新对应 `BattleCardInstance` 的展示与结算引用；当前覆盖范围包含 hand / draw / discard / consume / ongoing 中的直接来源实例。
 
 ### 6.4 PendingGrowthChoiceState
 
@@ -735,8 +735,10 @@ EvolutionStage: Evolved
 
 - 战斗开始时由 `RunCardInstance` 生成基础战斗实例。
 - 衍生牌、复制牌、敌方塞入牌可以没有 `RunCardInstanceId`。
-- 若 Run 内卡牌进化发生在战斗中，手牌中的对应 `BattleCardInstance` 应同步刷新 `CurrentCardId`。
+- 若 Run 内卡牌进化发生在战斗中，当前 battle 中直接来源于目标 `RunCardInstanceId` 的对应实例都会同步刷新 `CurrentCardId` 与基础定义字段。
+- 当前首版刷新会重建基础 runtime 字段：`CurrentCardId / SourceDefinition / RuntimeCostAP / RuntimeKeywords / RuntimeBehavior / bRetained / bConsumeOnPlay`。
 - 临时费用、临时关键词、临时数值只写入 `BattleCardInstance` 或 `TempModifiers`，不回写 Run。
+- 当前首版不承诺保留未来独立 temp modifier 层中的临时修正；生成牌、复制牌、衍生牌、临时牌也不联动这次刷新。
 
 ### 7.6 BattleStatusInstance
 
@@ -840,7 +842,8 @@ GrowthChoiceInstance
 -> CardEvolutionDefinition
 -> RunCardInstance.CurrentCardId = ToCardId
 -> RunCardInstance.EvolutionStage = ToStage
--> 如果该实例在当前手牌中，同步刷新 BattleCardInstance
+-> FinalApp 桥接 active battle refresh
+-> 按 SourceRunCardInstanceId 刷新当前 battle 中的直接来源 BattleCardInstance
 ```
 
 必须保持：
@@ -848,6 +851,7 @@ GrowthChoiceInstance
 ```text
 BaseCardId 不变
 CurrentCardId 改变
+BattleCardInstance 只重建基础定义字段，不回滚历史结算
 ```
 
 ### 8.4 压力临界

@@ -171,7 +171,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 		? FMath::Min(InitContext.TeamCurrentHP, State.TeamMaxHP)
 		: State.TeamMaxHP;
 
-	CardService.InitializeDeckCards(State, InitContext.DeckDefinitions, TemplateToRuntimeUnitMap);
+	CardService.InitializeDeckCards(State, InitContext.DeckCards, TemplateToRuntimeUnitMap);
 	CardService.PrepareInitialDrawPile(State);
 
 	const int32 InitialHandSize = RuleConfig ? FMath::Max(RuleConfig->InitialHandSize, 0) : 0;

@@ -264,6 +264,54 @@ void UFinalGameFlowSubsystem::TryRefreshActiveBattleCharacterFromRunState(const 
 	BattleFlowSubsystem->RefreshCharacterRuntimeStats(RuntimeStats);
 }
 
+int32 UFinalGameFlowSubsystem::TryRefreshActiveBattleCardFromRunState(const FName RunCardInstanceId)
+{
+	if (RunCardInstanceId.IsNone())
+	{
+		return 0;
+	}
+
+	UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
+	if (RunSession == nullptr || BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
+	{
+		return 0;
+	}
+
+	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
+	if (DataRegistry == nullptr)
+	{
+		return 0;
+	}
+
+	const FFinalRunState RunState = RunSession->GetRunState();
+	const FFinalRunCardInstance* RunCardInstance = RunState.RunDeck.FindByPredicate([&RunCardInstanceId](const FFinalRunCardInstance& Candidate)
+	{
+		return Candidate.InstanceId == RunCardInstanceId;
+	});
+	if (RunCardInstance == nullptr)
+	{
+		return 0;
+	}
+
+	const FFinalCardId EffectiveCardId = RunCardInstance->GetEffectiveCardId();
+	if (!EffectiveCardId.IsValid())
+	{
+		return 0;
+	}
+
+	UFinalCardDefinition* CardDefinition = DataRegistry->FindCardDefinition(EffectiveCardId);
+	if (CardDefinition == nullptr)
+	{
+		return 0;
+	}
+
+	FFinalBattleCardRefreshRequest RefreshRequest;
+	RefreshRequest.SourceRunCardInstanceId = RunCardInstanceId;
+	RefreshRequest.NewCardId = EffectiveCardId;
+	RefreshRequest.NewDefinition = CardDefinition;
+	return BattleFlowSubsystem->RefreshCardsForRunCardInstance(RefreshRequest);
+}
+
 bool UFinalGameFlowSubsystem::BuildResolvedBattleResult(FFinalBattleResult& OutResult)
 {
 	if (RunSession == nullptr)
