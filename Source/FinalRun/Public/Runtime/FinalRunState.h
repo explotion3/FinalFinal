@@ -5,19 +5,8 @@
 #include "Requests/FinalBattleResult.h"
 #include "Runtime/FinalRunPersistentCharacterState.h"
 #include "Runtime/FinalRunCardInstance.h"
+#include "Runtime/FinalRunGrowthChoice.h"
 #include "FinalRunState.generated.h"
-
-USTRUCT(BlueprintType)
-struct FINALRUN_API FFinalRunPendingGrowthChoice
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
-    FFinalCharacterId CharacterId;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Final|Run|Growth")
-    bool bIsValid = false;
-};
 USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunState
 {
