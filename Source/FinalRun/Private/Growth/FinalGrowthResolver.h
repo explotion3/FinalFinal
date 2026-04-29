@@ -7,9 +7,17 @@
 #include "Runtime/FinalRunState.h"
 
 class UFinalDataRegistry;
+class UFinalCardEvolutionDefinition;
 
 struct FFinalGrowthResolver
 {
+	static bool ValidateAndApplyGrowthChoice(
+		const FFinalRunGrowthChoiceInstance& GrowthChoice,
+		FFinalRunState& RunState,
+		const UFinalDataRegistry* DataRegistry,
+		EFinalRunCommandRejectReason& OutRejectReason,
+		FText& OutFailureMessage);
+
 	static bool ValidateGrowthReward(
 		const FFinalRunRewardEntry& RewardEntry,
 		const FFinalRunState& RunState,
@@ -24,6 +32,11 @@ struct FFinalGrowthResolver
 
 	static TArray<FFinalRunCharacterViewData> BuildAffectedCharacterResults(
 		const TArray<FFinalRunRewardEntry>& AppliedRewardEntries,
+		const FFinalRunState& RunState,
+		const UFinalDataRegistry* DataRegistry);
+
+	static TArray<FFinalRunCharacterViewData> BuildAffectedCharacterResults(
+		const TArray<FFinalCharacterId>& AffectedCharacterIds,
 		const FFinalRunState& RunState,
 		const UFinalDataRegistry* DataRegistry);
 };

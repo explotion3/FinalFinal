@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Events/FinalRunEventResolver.h"
+#include "Growth/FinalGrowthResolver.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Rewards/FinalRewardResolver.h"
 #include "Run/Bridge/FinalBattleRelicPayload.h"
@@ -54,6 +55,13 @@ FFinalRunCharacterViewData MakeCharacterView(const FFinalRunPersistentCharacterS
 	View.CharacterId = CharacterState.CharacterId;
 	View.DisplayName = ResolveRunCharacterDisplayName(CharacterState.CharacterId, DataRegistry);
 	View.IconId = ResolveRunCharacterIconId(CharacterState.CharacterId);
+	View.Level = CharacterState.Level;
+	View.BreakthroughValue = CharacterState.BreakthroughValue;
+	View.BreakthroughRequiredValue = CharacterState.BreakthroughRequiredValue;
+	View.RootBone = CharacterState.RootBone;
+	View.Insight = CharacterState.Insight;
+	View.KillingIntent = CharacterState.KillingIntent;
+	View.bHasPendingGrowthChoice = CharacterState.bHasPendingGrowthChoice;
 	View.CurrentStress = CharacterState.CurrentStress;
 	View.bCollapsed = CharacterState.bCollapsed;
 	View.CurrentAwakenCount = CharacterState.CurrentAwakenCount;
@@ -922,6 +930,10 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 		bAccepted = TryExecuteResolveShopNode(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
 		break;
 
+	case EFinalRunCommandType::SelectGrowthChoice:
+		bAccepted = TryExecuteSelectGrowthChoice(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
+		break;
+
 	default:
 		RejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
 		FailureMessage = FText::FromString(TEXT("Unknown run command."));
@@ -1159,6 +1171,9 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 		&& UnlockedNextNodeCount > 0;
 
 	Snapshot.CurrentBuild = BuildCurrentBuildViewData(CurrentState, DataRegistry);
+	Snapshot.PendingGrowthChoice.bHasPendingChoice = CurrentState.PendingGrowthChoice.bIsValid;
+	Snapshot.PendingGrowthChoice.CharacterId = CurrentState.PendingGrowthChoice.CharacterId;
+	Snapshot.PendingGrowthChoice.Choices = CurrentState.PendingGrowthChoice.Choices;
 	Snapshot.Gold = CurrentState.Gold;
 	Snapshot.RelicCount = CurrentState.Relics.Num();
 	Snapshot.DeckCount = CurrentState.RunDeck.Num();
@@ -1602,6 +1617,77 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 			NSLOCTEXT("FinalRunSession", "ShopOfferPurchased", "Purchased shop offer {0}."),
 			ResolvedOffer.OfferDefinition->DisplayName.IsEmpty() ? FText::FromName(OfferId) : ResolvedOffer.OfferDefinition->DisplayName)
 		: ResolvedOffer.OfferDefinition->Description;
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteSelectGrowthChoice(const FName& ChoiceInstanceId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
+	if (!CurrentState.PendingGrowthChoice.bIsValid)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPendingGrowthChoice;
+		OutFailureMessage = FText::FromString(TEXT("SelectGrowthChoice requires a pending growth choice."));
+		return false;
+	}
+
+	if (ChoiceInstanceId.IsNone())
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingPayloadId;
+		OutFailureMessage = FText::FromString(TEXT("SelectGrowthChoice requires a choice instance id payload."));
+		return false;
+	}
+
+	const FFinalRunGrowthChoiceInstance* SelectedChoice = CurrentState.PendingGrowthChoice.Choices.FindByPredicate([&ChoiceInstanceId](const FFinalRunGrowthChoiceInstance& Choice)
+	{
+		return Choice.ChoiceInstanceId == ChoiceInstanceId;
+	});
+	if (SelectedChoice == nullptr)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnknownGrowthChoice;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "UnknownGrowthChoice", "Growth choice {0} is not present in the current pending choice set."),
+			FText::FromName(ChoiceInstanceId));
+		return false;
+	}
+
+	if (SelectedChoice->CharacterId != CurrentState.PendingGrowthChoice.CharacterId)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnknownGrowthTargetCharacter;
+		OutFailureMessage = FText::Format(
+			NSLOCTEXT("FinalRunSession", "GrowthChoiceCharacterMismatch", "Growth choice {0} does not belong to the current pending character."),
+			FText::FromName(ChoiceInstanceId));
+		return false;
+	}
+
+	const FFinalRunGrowthChoiceInstance AppliedChoice = *SelectedChoice;
+	if (!FFinalGrowthResolver::ValidateAndApplyGrowthChoice(AppliedChoice, CurrentState, DataRegistry, OutRejectReason, OutFailureMessage))
+	{
+		return false;
+	}
+
+	if (FFinalRunPersistentCharacterState* CharacterState = FindMutableCharacterState(AppliedChoice.CharacterId))
+	{
+		CharacterState->bHasPendingGrowthChoice = false;
+	}
+
+	CurrentState.PendingGrowthChoice.Reset();
+
+	OutDetailEvent.EventType = EFinalRunEventType::GrowthChoiceApplied;
+	OutDetailEvent.PayloadId = ChoiceInstanceId;
+	OutDetailEvent.TargetCharacterId = AppliedChoice.CharacterId;
+	TArray<FFinalCharacterId> AffectedCharacterIds;
+	AffectedCharacterIds.Add(AppliedChoice.CharacterId);
+	OutDetailEvent.AffectedCharacterResults = FFinalGrowthResolver::BuildAffectedCharacterResults(
+		AffectedCharacterIds,
+		CurrentState,
+		DataRegistry);
+	OutDetailEvent.Message = AppliedChoice.DisplayName.IsEmpty()
+		? FText::Format(
+			NSLOCTEXT("FinalRunSession", "GrowthChoiceApplied", "Applied growth choice {0}."),
+			FText::FromName(ChoiceInstanceId))
+		: FText::Format(
+			NSLOCTEXT("FinalRunSession", "GrowthChoiceAppliedDisplayName", "Applied growth choice: {0}."),
+			AppliedChoice.DisplayName);
 	return true;
 }
 

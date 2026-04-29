@@ -382,10 +382,25 @@ AddBreakthroughValue()
 这一步仍未接入：
 
 ```text
-ApplyGrowthChoice
 RunCommand
 RunEvent
 UI 提交
+```
+
+Step 5 当前已补：
+
+```text
+SelectGrowthChoice (RunCommand)
+-> 通过 ChoiceInstanceId 选择 pending growth
+-> 应用属性成长或 RunCardInstance 进化
+-> 清空 PendingGrowthChoice
+-> 输出 GrowthChoiceApplied 事件
+```
+
+当前仍保持：
+
+```text
+不会因为剩余突破值足够而自动连锁生成下一组候选
 ```
 
 成长候选类型：

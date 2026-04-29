@@ -32,6 +32,9 @@ struct FINALRUN_API FFinalRunSnapshot
 	FFinalRunCurrentBuildViewData CurrentBuild;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunPendingGrowthChoiceViewData PendingGrowthChoice;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 Gold = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")

@@ -308,7 +308,8 @@
 - Step 4 已落地“突破值累积 -> 升级触发 -> 候选生成 -> 写入 `PendingGrowthChoice`”。
 - 当前同一时刻只允许一个 `PendingGrowthChoice`；若已有待处理候选，新的突破值仍会累计，但不会再次触发升级。
 - 当前候选生成是 deterministic：默认 `RootBone +1`、`Insight +1`，第 3 个候选在“可进化卡牌”和 `KillingIntent +1` 之间二选一。
-- 玩家选择后的属性实际增加、`RunCardInstance.CurrentCardId` 修改、UI 提交与 RunCommand 接入仍属于下一步。
+- Step 5 已落地 `SelectGrowthChoice` RunCommand：选择成功后会应用属性成长或卡牌进化，并清空当前 `PendingGrowthChoice`。
+- 当前不会在应用成长选择后自动连锁触发下一次升级；剩余突破值会保留到后续再次显式触发成长入口时再处理。
 
 优先级：`P0`
 

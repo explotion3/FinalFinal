@@ -12,7 +12,8 @@ enum class EFinalRunCommandType : uint8
 	SkipPendingBattleReward,
 	ResolveReward,
 	ResolveEvent,
-	ResolveShop
+	ResolveShop,
+	SelectGrowthChoice
 };
 
 USTRUCT(BlueprintType)

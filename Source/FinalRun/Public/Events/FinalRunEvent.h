@@ -17,6 +17,7 @@ enum class EFinalRunEventType : uint8
 	BattleStartConfigured,
 	RunCommandAccepted,
 	RunCommandRejected,
+	GrowthChoiceApplied,
 	BattleResultApplied,
 	PendingBattleRewardGenerated,
 	PendingBattleRewardClaimed,
@@ -51,6 +52,13 @@ enum class EFinalRunCommandRejectReason : uint8
 	UnknownShopOffer,
 	ShopOfferUnavailable,
 	InsufficientGold,
+	MissingPendingGrowthChoice,
+	UnknownGrowthChoice,
+	UnsupportedGrowthChoiceType,
+	UnsupportedGrowthAttributeType,
+	MissingGrowthTargetRunCardInstance,
+	MissingGrowthCardEvolutionDefinition,
+	GrowthEvolutionTargetMismatch,
 	MissingGrantedCardId,
 	MissingGrantedRelicId,
 	MissingRemovedCardId,
@@ -119,6 +127,9 @@ struct FINALRUN_API FFinalRunEvent
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	EFinalBattleOutcome BattleOutcome = EFinalBattleOutcome::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCharacterId TargetCharacterId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 TeamCurrentHP = 0;

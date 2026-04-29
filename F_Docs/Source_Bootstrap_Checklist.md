@@ -436,7 +436,7 @@
 * `FinalBattleWidgetController` 当前仍是 BattleFlow 的唯一订阅点，并把缓存的 `Snapshot / BattleEvents / SelectedEnemy / LastInteractionFeedback` 分发给 panel controllers；panel controllers 只做局部展示组装和命令委托，不各自直接订阅 subsystem
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * 本轮启动性能验证命令：`Build.bat FinalFinalEditor Win64 Development`、`UnrealEditor-Cmd.exe -run=FinalPrototypeContentBootstrap`、`UnrealEditor-Cmd.exe -run=DataValidation -ProjectOnly`、`Automation RunTests Final.Editor.PrototypeSmoke`
-* 当前已补 `Final.Editor.RunGrowth.*` 自动化测试，覆盖“无可进化卡时生成 3 个属性候选”和“有可进化卡时生成进化候选，并在 pending 期间继续累计突破值”
+* 当前已补 `Final.Editor.RunGrowth.*` 自动化测试，覆盖“无可进化卡时生成 3 个属性候选”“有可进化卡时生成进化候选并在 pending 期间继续累计突破值”“无 pending 时拒绝选择成长”“选择未知候选时拒绝”“应用属性候选后清空 pending”“应用进化候选后修改 `RunDeck.CurrentCardId` 且不自动连锁升级”
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层展示傀儡
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，生成/复用 `FinalBattlePresentationActor` 并在事件到来时下发攻击 / 受击 / 选中 / 死亡表现
 * `FinalBattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用，不持有 Battle 真相

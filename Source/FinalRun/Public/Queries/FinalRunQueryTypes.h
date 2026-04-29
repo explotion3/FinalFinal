@@ -6,6 +6,7 @@
 #include "Requests/FinalBattleResult.h"
 #include "Run/Definitions/FinalRunNodeDefinition.h"
 #include "Run/Rewards/FinalRunRewardTypes.h"
+#include "Runtime/FinalRunGrowthChoice.h"
 #include "FinalRunQueryTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -71,6 +72,27 @@ struct FINALRUN_API FFinalRunCharacterViewData
 	FName IconId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 Level = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 BreakthroughValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 BreakthroughRequiredValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 RootBone = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 Insight = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 KillingIntent = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bHasPendingGrowthChoice = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	int32 CurrentStress = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
@@ -129,6 +151,21 @@ struct FINALRUN_API FFinalRunCurrentBuildViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRunRelicEntryViewData> RelicEntries;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunPendingGrowthChoiceViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bHasPendingChoice = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalCharacterId CharacterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunGrowthChoiceInstance> Choices;
 };
 
 USTRUCT(BlueprintType)
