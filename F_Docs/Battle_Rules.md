@@ -612,7 +612,24 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 
 ### 10.3 成长结算边界
 
-战斗结束或关键窗口后，`FinalRun` 根据战斗事实处理：
+`FinalBattle` 不直接发放突破值，也不直接决定升级或成长候选。
+
+战斗内只负责产出结构化增长事实，当前首版协议为：
+
+- `OwnedCardResolved`
+- `BreakDamageDealt`
+- `EffectiveHealingDone`
+- `EnemyKilled`
+- `BattleVictoryBaseReward`
+
+这些 facts 只描述：
+
+- 哪个角色触发了事实
+- 事实类型是什么
+- 相关强度或数量是多少
+- 是否由玩家命令直接导致
+
+战斗结束或关键窗口后，由 `FinalApp` 内的桥接层把这些事实转给 `FinalRun`，再由 `FinalRun` 根据成长配置处理：
 
 - 角色突破值或经验增长。
 - 是否触发角色升级。
@@ -621,6 +638,11 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 是否应用卡牌进化结果。
 
 `FinalBattle` 可以响应 Run 层已经确认的结果，例如刷新手牌中的 `CurrentCardId`，但不应自己生成或选择成长结果。
+
+即时弹出规则也不在 `FinalBattle` 中决定：
+
+- 只有玩家主动命令完整结算后首次满槽，才立即弹出 Growth overlay
+- 敌方阶段、被动链或战斗胜利导致的满槽，由外层流程在安全窗口展示
 
 ---
 

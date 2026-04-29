@@ -246,6 +246,39 @@ GemTier:      1 / 2 / 3 / 4
 - 珠级提升不改变珠阶。
 - 第一版不要求实现强化珠背包、拆卸、合成树。
 
+### 4.11 BattleGrowthFact Bridge
+
+用于承载 `FinalBattle -> FinalApp -> FinalRun` 的突破值桥接协议。
+
+当前首版事实类型：
+
+```text
+OwnedCardResolved
+BreakDamageDealt
+EffectiveHealingDone
+EnemyKilled
+BattleVictoryBaseReward
+```
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `CharacterId` | 触发该事实的角色 |
+| `FactType` | 事实类型 |
+| `Magnitude` | 强度或数量 |
+| `SourceCardId` | 来源卡牌，可为空 |
+| `Round` | 发生回合 |
+| `bCausedByPlayerCommand` | 是否由玩家主动命令直接导致 |
+| `SourceBattleCommandType` | 来源命令类型或窗口 |
+
+说明：
+
+- 这是薄协议，不是第二套成长真相。
+- `FinalBattle` 只产出 facts，不直接给角色加突破值。
+- `FinalApp` 负责消费 facts 并调用 `FinalRun::AddBreakthroughValue()`。
+- `FinalRun` 仍是突破值、升级与成长候选的唯一真相源。
+
 ## 5. 静态定义
 
 ### 5.1 BattleRuleConfig
@@ -541,7 +574,7 @@ EvolutionStage: Evolved
 - 当前首版运行时同一时刻只维护一个 `PendingGrowthChoice`。
 - Step 4 已落地的最小结构只保存 `bIsValid / CharacterId / Choices`。
 - `PendingChoiceId / GeneratedAtNodeId / bResolved` 这类审计字段可以在接入 UI、命令与事件后再补。
-- 当前 starter bootstrap 允许在 run 初始化后立刻触发一次 `PendingGrowthChoice`，用于手工验收成长 UI 与命令链。
+- 当前 starter 首章不再使用“开局即 pending growth”；默认改为霍断岳以 `80 / 100` 突破值进入首战，在战斗中自然触发第一次成长选择。
 
 ### 6.5 GrowthChoiceInstance
 
@@ -760,7 +793,7 @@ RunState
 ### 8.2 角色升级成长三选一
 
 ```text
-战斗行为 / 节点奖励
+BattleGrowthFact / 节点奖励
 -> 增加 BreakthroughValue
 -> 达到阈值
 -> FinalRun 生成 PendingGrowthChoiceState
@@ -771,7 +804,8 @@ RunState
 说明：
 
 - `FinalBattle` 不直接生成成长候选。
-- `FinalBattle` 只记录战斗事实。
+- `FinalBattle` 只产出结构化 `BattleGrowthFactBatch`。
+- `FinalApp` 桥接层根据角色 `CharacterGrowthConfig` 把 facts 转成突破值，并调用 `FinalRun::AddBreakthroughValue()`。
 - `FinalRun` 根据规则处理突破值、升级和候选应用。
 - 当前 Step 4 已落地的最小规则还包括：
   - 同一时刻只允许一个 `PendingGrowthChoice`
@@ -780,6 +814,9 @@ RunState
   - 选择成功后立即应用属性成长或卡牌进化
   - 应用后立即清空 `PendingGrowthChoice`
   - 当前不会因为剩余突破值足够而自动继续生成下一组候选
+- 当前 Step 8 已补安全窗口口径：
+  - 只有玩家命令完整结算后首次满槽，才立即弹出 Growth overlay
+  - 敌方阶段、被动链或战斗胜利导致的满槽，会延后到下一个安全窗口展示
 
 ### 8.3 卡牌进化
 

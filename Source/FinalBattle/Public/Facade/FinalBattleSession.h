@@ -5,6 +5,7 @@
 #include "Events/FinalBattleEvent.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleSnapshot.h"
+#include "Run/Bridge/FinalBattleGrowthFact.h"
 #include "UObject/Object.h"
 #include "FinalBattleSession.generated.h"
 
@@ -38,6 +39,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	int32 GetLatestBattleEventSequence() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	TArray<FFinalBattleGrowthFactBatch> GetGrowthFactBatchesSince(int32 LastSeenBatchSequence) const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle")
+	int32 GetLatestGrowthFactBatchSequence() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();

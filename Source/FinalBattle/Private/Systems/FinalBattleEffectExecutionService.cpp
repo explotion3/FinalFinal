@@ -437,8 +437,11 @@ int32 ApplyDamageToEnemy(
 	FFinalBattleState& State,
 	FFinalBattleEnemyState& EnemyState,
 	const int32 DamageAmount,
-	const FFinalBattleUnitService& UnitService)
+	const FFinalBattleUnitService& UnitService,
+	int32& OutDefeatCount)
 {
+	OutDefeatCount = 0;
+	const bool bWasAlive = EnemyState.CurrentHP > 0;
 	const int32 ShieldAbsorbed = FMath::Min(EnemyState.CurrentShield, FMath::Max(DamageAmount, 0));
 	EnemyState.CurrentShield -= ShieldAbsorbed;
 	const int32 HpDamage = FMath::Max(DamageAmount - ShieldAbsorbed, 0);
@@ -447,6 +450,10 @@ int32 ApplyDamageToEnemy(
 
 	if (EnemyState.CurrentHP <= 0)
 	{
+		if (bWasAlive)
+		{
+			OutDefeatCount = 1;
+		}
 		EnemyState.CurrentIntentText = FText::FromString(TEXT("Defeated"));
 		if (State.CurrentTargetUnitId == EnemyState.RuntimeUnitId)
 		{
@@ -1004,9 +1011,11 @@ bool ExecuteDamageEffect(
 
 			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 			{
-				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit, UnitService);
+				int32 DefeatCount = 0;
+				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit, UnitService, DefeatCount);
 				ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 				Summary.TotalDamageToEnemies += DamagePerHit;
+				Summary.TotalEnemiesDefeated += DefeatCount;
 				bAppliedDamageToAnyEnemy = true;
 			}
 		}
@@ -1044,9 +1053,11 @@ bool ExecuteDamageEffect(
 
 	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 	{
-		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit, UnitService);
+		int32 DefeatCount = 0;
+		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit, UnitService, DefeatCount);
 		ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 		Summary.TotalDamageToEnemies += DamagePerHit;
+		Summary.TotalEnemiesDefeated += DefeatCount;
 	}
 
 	++Summary.ResolvedEffectCount;

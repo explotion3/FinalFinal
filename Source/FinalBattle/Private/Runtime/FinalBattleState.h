@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Events/FinalBattleEvent.h"
 #include "Ids/FinalIds.h"
+#include "Run/Bridge/FinalBattleGrowthFact.h"
 #include "Run/Bridge/FinalBattleRelicPayload.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
@@ -28,6 +29,7 @@ struct FFinalBattleState
 	bool bPlayerVictory = false;
 	FName CurrentTargetUnitId = NAME_None;
 	int32 LastEventSequence = 0;
+	int32 LastGrowthFactBatchSequence = 0;
 	TArray<FFinalBattleCharacterState> Characters;
 	TArray<FFinalBattleStartRelicInput> ActiveRelics;
 	TArray<FFinalBattleRelicRuntimeState> RelicRuntimeStates;
@@ -37,4 +39,5 @@ struct FFinalBattleState
 	TArray<FFinalBattleStatusInstance> StatusInstances;
 	FFinalTeamDeckState DeckState;
 	TArray<FFinalBattleEvent> BattleLogEntries;
+	TArray<FFinalBattleGrowthFactBatch> GrowthFactBatches;
 };

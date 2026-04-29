@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Ids/FinalIds.h"
+#include "Run/Bridge/FinalBattleGrowthFact.h"
 #include "FinalCharacterGrowthConfig.generated.h"
 
 UCLASS(BlueprintType)
@@ -16,6 +17,21 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth", meta = (ClampMin = "1"))
     int32 BaseBreakthroughRequiredValue = 100;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|Breakthrough")
+    TArray<EFinalBattleGrowthFactType> PreferredBreakthroughFactTypes;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|Breakthrough")
+    TMap<EFinalBattleGrowthFactType, float> BreakthroughGainScalarByFactType;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|Breakthrough", meta = (ClampMin = "0"))
+    int32 NormalBattleVictoryBreakthroughReward = 8;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|Breakthrough", meta = (ClampMin = "0"))
+    int32 EliteBattleVictoryBreakthroughReward = 18;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|Breakthrough", meta = (ClampMin = "0"))
+    int32 BossBattleVictoryBreakthroughReward = 30;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Growth|RootBone")
     int32 RootBoneVitalSharePerPoint = 6;

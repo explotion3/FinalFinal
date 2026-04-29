@@ -564,6 +564,19 @@ void UFinalBattleCharacterPanelController::RefreshFromCoordinatorData(const FFin
 			if (RunCharacterView)
 			{
 				Entry.IconId = RunCharacterView->IconId;
+				Entry.Level = RunCharacterView->Level;
+				Entry.BreakthroughValue = RunCharacterView->BreakthroughValue;
+				Entry.BreakthroughRequiredValue = RunCharacterView->BreakthroughRequiredValue;
+				Entry.BreakthroughFillNormalized =
+					RunCharacterView->BreakthroughRequiredValue > 0
+						? FMath::Clamp(
+							static_cast<float>(RunCharacterView->BreakthroughValue) / static_cast<float>(RunCharacterView->BreakthroughRequiredValue),
+							0.0f,
+							1.0f)
+						: 0.0f;
+				Entry.bBreakthroughReady =
+					RunCharacterView->BreakthroughRequiredValue > 0
+					&& RunCharacterView->BreakthroughValue >= RunCharacterView->BreakthroughRequiredValue;
 			}
 		}
 		Entry.ArtId = CharacterView.CharacterId.Value;

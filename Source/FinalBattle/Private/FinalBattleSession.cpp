@@ -87,6 +87,30 @@ int32 UFinalBattleSession::GetLatestBattleEventSequence() const
 	return State != nullptr ? State->LastEventSequence : 0;
 }
 
+TArray<FFinalBattleGrowthFactBatch> UFinalBattleSession::GetGrowthFactBatchesSince(const int32 LastSeenBatchSequence) const
+{
+	if (State == nullptr)
+	{
+		return {};
+	}
+
+	TArray<FFinalBattleGrowthFactBatch> Batches;
+	for (const FFinalBattleGrowthFactBatch& Batch : State->GrowthFactBatches)
+	{
+		if (Batch.BatchSequence > LastSeenBatchSequence)
+		{
+			Batches.Add(Batch);
+		}
+	}
+
+	return Batches;
+}
+
+int32 UFinalBattleSession::GetLatestGrowthFactBatchSequence() const
+{
+	return State != nullptr ? State->LastGrowthFactBatchSequence : 0;
+}
+
 void UFinalBattleSession::ResetSession()
 {
 	delete State;

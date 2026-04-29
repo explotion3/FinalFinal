@@ -2,8 +2,12 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Battle/Definitions/FinalBattleEncounterDefinition.h"
+#include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Commands/FinalBattleCommand.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Facade/FinalRunSession.h"
@@ -20,6 +24,8 @@
 namespace FinalRunFlowGrowthUITests
 {
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
+	const FName StarterEncounterId(TEXT("encounter.starter.chapter1.roadblock"));
+	const FName StarterRuleConfigId(TEXT("rule.starter.chapter1"));
 
 	FFinalRunPersistentCharacterState BuildInitialRunCharacterState(
 		const FFinalPrototypeBootstrapCharacterState& BootstrapCharacterState,
@@ -142,6 +148,57 @@ namespace FinalRunFlowGrowthUITests
 			return CardDefinition;
 		}
 
+		UFinalCharacterGrowthConfig* RegisterGrowthConfig(
+			const FFinalCharacterGrowthConfigId& GrowthConfigId,
+			const TArray<EFinalBattleGrowthFactType>& PreferredFactTypes,
+			const TMap<EFinalBattleGrowthFactType, float>& Scalars) const
+		{
+			UFinalCharacterGrowthConfig* GrowthConfig = NewObject<UFinalCharacterGrowthConfig>(GameInstance.Get());
+			GrowthConfig->GrowthConfigId = GrowthConfigId;
+			GrowthConfig->BaseBreakthroughRequiredValue = 100;
+			GrowthConfig->PreferredBreakthroughFactTypes = PreferredFactTypes;
+			GrowthConfig->BreakthroughGainScalarByFactType = Scalars;
+			DataRegistry->RegisterCharacterGrowthConfig(GrowthConfig);
+			return GrowthConfig;
+		}
+
+		UFinalCharacterDefinition* RegisterCharacterDefinition(
+			const FFinalCharacterId& CharacterId,
+			const FFinalCharacterGrowthConfigId& GrowthConfigId,
+			const FString& DisplayName) const
+		{
+			UFinalCharacterDefinition* CharacterDefinition = NewObject<UFinalCharacterDefinition>(GameInstance.Get());
+			CharacterDefinition->CharacterId = CharacterId;
+			CharacterDefinition->DisplayName = FText::FromString(DisplayName);
+			CharacterDefinition->GrowthConfigId = GrowthConfigId;
+			CharacterDefinition->BaseVitalShare = 20;
+			CharacterDefinition->BaseStressCap = 12;
+			CharacterDefinition->BaseAttack = 5;
+			CharacterDefinition->BaseDefense = 2;
+			CharacterDefinition->BaseBreakRate = 1.0f;
+			DataRegistry->RegisterCharacterDefinition(CharacterDefinition);
+			return CharacterDefinition;
+		}
+
+		UFinalCardDefinition* RegisterBreakthroughTestCard(
+			const FFinalCardId& CardId,
+			const FFinalCharacterId& OwnerCharacterId,
+			const FString& DisplayName) const
+		{
+			UFinalCardDefinition* CardDefinition = RegisterCardDefinition(CardId, OwnerCharacterId, DisplayName);
+			CardDefinition->BaseCostAP = 1;
+			CardDefinition->CardType = EFinalCardType::Attack;
+			CardDefinition->Effects.Reset();
+
+			UFinalBattleEffectBonusBreak* BonusBreakEffect = NewObject<UFinalBattleEffectBonusBreak>(CardDefinition);
+			BonusBreakEffect->EffectId = TEXT("effect.test.breakthrough.break");
+			BonusBreakEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+			BonusBreakEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+			BonusBreakEffect->Scalar.BaseValue = 2.0f;
+			CardDefinition->Effects.Add(BonusBreakEffect);
+			return CardDefinition;
+		}
+
 		UFinalRunSession* CreateRunSessionWithSingleCharacter(
 			const FFinalCharacterId& CharacterId,
 			const FFinalCardId& StarterCardId) const
@@ -165,8 +222,8 @@ namespace FinalRunFlowGrowthUITests
 			StarterDeck.Add(StarterCardId);
 
 			RunSession->ConfigureBattleStartState(
-				FFinalEncounterId(FName(TEXT("encounter.test"))),
-				FFinalRuleConfigId(FName(TEXT("rules.test"))),
+				FFinalEncounterId(StarterEncounterId),
+				FFinalRuleConfigId(StarterRuleConfigId),
 				PartyStates,
 				StarterDeck,
 				20);
@@ -246,7 +303,7 @@ namespace FinalRunFlowGrowthUITests
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalStarterBootstrapInitialGrowthOverlayTest,
-	"Final.Editor.RunFlow.GrowthStarterBootstrapShowsInitialOverlay",
+	"Final.Editor.RunFlow.GrowthStarterBootstrapDefersUntilBattle",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FFinalStarterBootstrapInitialGrowthOverlayTest::RunTest(const FString& Parameters)
@@ -270,9 +327,80 @@ bool FFinalStarterBootstrapInitialGrowthOverlayTest::RunTest(const FString& Para
 	Context.RunFlowSubsystem->RefreshRunFlow(true);
 
 	const FFinalRunSnapshot Snapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
-	TestTrue(TEXT("Starter bootstrap should now create an initial pending growth choice."), Snapshot.PendingGrowthChoice.bHasPendingChoice);
-	TestEqual(TEXT("Starter bootstrap should present GrowthChoice before the prepared battle auto-starts."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
-	TestEqual(TEXT("Starter bootstrap initial growth choice should target the first configured starter character."), Snapshot.PendingGrowthChoice.CharacterId, CharacterId);
+	TestFalse(TEXT("Starter bootstrap should no longer create an initial pending growth choice before battle."), Snapshot.PendingGrowthChoice.bHasPendingChoice);
+	TestFalse(TEXT("Starter bootstrap should not present GrowthChoice before the first battle naturally triggers growth."), Context.RunFlowSubsystem->GetPresentedOverlay() == EFinalRunPresentedOverlay::GrowthChoice);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalRunFlowBattleGrowthBridgePresentationTest,
+	"Final.Editor.RunFlow.GrowthBattleBridgeCreatesImmediateOverlay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalRunFlowBattleGrowthBridgePresentationTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalRunFlowBattleGrowthBridgePresentationTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.bridge_huo")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.bridge_huo")));
+	const FFinalCardId StarterCardId(FName(TEXT("card.test.bridge_huo")));
+	Context.RegisterGrowthConfig(
+		GrowthConfigId,
+		{ EFinalBattleGrowthFactType::OwnedCardResolved, EFinalBattleGrowthFactType::BattleVictoryBaseReward },
+		{
+			{ EFinalBattleGrowthFactType::OwnedCardResolved, 5.0f },
+			{ EFinalBattleGrowthFactType::BattleVictoryBaseReward, 1.0f }
+		});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Bridge Huo"));
+	Context.RegisterBreakthroughTestCard(StarterCardId, CharacterId, TEXT("Bridge Slash"));
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithSingleCharacter(CharacterId, StarterCardId);
+	if (!TestNotNull(TEXT("RunSession should be created for battle growth bridge test."), RunSession))
+	{
+		return false;
+	}
+
+	FFinalRunState SeedState = RunSession->GetRunState();
+	SeedState.Characters[0].BreakthroughValue = 95;
+	RunSession->ConfigureBattleStartState(
+		FFinalEncounterId(StarterEncounterId),
+		FFinalRuleConfigId(StarterRuleConfigId),
+		SeedState.Characters,
+		{ StarterCardId },
+		20);
+
+	UFinalBattleSession* BattleSession = Context.GameFlowSubsystem->StartBattleFromRunSession();
+	if (!TestNotNull(TEXT("Battle session should start from the custom breakthrough bridge run."), BattleSession))
+	{
+		return false;
+	}
+
+	const FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	if (!TestTrue(TEXT("Custom breakthrough bridge battle should draw the only deck card into hand."), BattleSnapshot.HandCards.Num() == 1))
+	{
+		return false;
+	}
+
+	const FName TargetUnitId = !BattleSnapshot.CurrentTargetUnitId.IsNone()
+		? BattleSnapshot.CurrentTargetUnitId
+		: (BattleSnapshot.Enemies.Num() > 0 ? BattleSnapshot.Enemies[0].RuntimeUnitId : NAME_None);
+	TestFalse(TEXT("Custom breakthrough bridge battle should expose a valid enemy target."), TargetUnitId.IsNone());
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
+	Command.TargetUnitId = TargetUnitId;
+	TestTrue(TEXT("Playing the deterministic bridge card should succeed."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+
+	const FFinalRunSnapshot RunSnapshot = RunSession->GetSnapshot();
+	TestTrue(TEXT("Player-command growth bridge should create a pending growth choice immediately after the command resolves."), RunSnapshot.PendingGrowthChoice.bHasPendingChoice);
+	TestEqual(TEXT("Growth overlay should immediately take over run flow presentation after the bridge creates pending growth."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
 	return true;
 }
 
@@ -297,8 +425,6 @@ bool FFinalRunFlowGrowthOverlayPriorityTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-
-	TestTrue(TEXT("Starter bootstrap initial pending growth choice should be resolvable before starting battle."), ResolvePendingGrowthChoiceIfPresent(*RunSession));
 
 	if (!TestNotNull(TEXT("Starter run should start a battle from the configured route entry."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
 	{

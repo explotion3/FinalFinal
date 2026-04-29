@@ -276,10 +276,12 @@
 
 说明：
 
-- 战斗事实可以包括出牌、Break、击杀、承压、进入临界等记录
-- 第一版可以先用简单规则增加成长进度，后续再细化来源权重
+- `FinalBattle` 当前不直接发放突破值，而是产出结构化 `BattleGrowthFactBatch`
+- `FinalApp` 内的 `FinalGameFlowSubsystem` 负责桥接 battle growth facts，并根据 `CharacterGrowthConfig` 调用 `RunSession.AddBreakthroughValue()`
+- 第一版稳定来源限定为：所属牌结算、有效削韧、有效治疗、击杀、战斗胜利基础奖励
 - 当前 Step 4 运行时已提供 `UFinalRunSession::AddBreakthroughValue()` 作为最小成长入口；它会先累计突破值，再在没有待处理成长选择时尝试触发一次升级
 - 当前 run 初始化还会合并 `PrototypeBootstrap.InitialCharacterStates` 与角色默认 `CharacterGrowthConfig`，在进入首场战斗前就构造完整 `RunPersistentCharacterState`
+- battle result 回写当前按 `CharacterId` 合并，只更新 battle-owned 字段，避免覆盖 Run 内成长字段
 
 优先级：`P0`
 
@@ -311,7 +313,8 @@
 - 当前候选生成是 deterministic：默认 `RootBone +1`、`Insight +1`，第 3 个候选在“可进化卡牌”和 `KillingIntent +1` 之间二选一。
 - Step 5 已落地 `SelectGrowthChoice` RunCommand：选择成功后会应用属性成长或卡牌进化，并清空当前 `PendingGrowthChoice`。
 - 当前不会在应用成长选择后自动连锁触发下一次升级；剩余突破值会保留到后续再次显式触发成长入口时再处理。
-- starter 首章当前允许“开局即 pending growth”作为验收入口：若 bootstrap 初值已经达到阈值，则先处理成长选择，再进入首场 battle。
+- Step 8 已落地安全窗口口径：只有玩家主动命令完整结算后首次满槽，才立即展示 Growth overlay；敌方阶段、被动链或战斗胜利导致的满槽会延后到下一个安全窗口。
+- starter 首章当前不再“开局即 pending growth”；默认由霍断岳以 `80 / 100` 突破值进入首战，在战斗中自然触发第一次成长选择。
 
 优先级：`P0`
 
@@ -449,6 +452,7 @@
 当前阶段补充：
 
 - `FinalRunFlowSubsystem` 仍是 `FinalApp` 内唯一的 Run 外层流程桥接入口
+- `FinalGameFlowSubsystem` 当前是 BattleGrowthFact -> Run 突破值桥接层，同时负责“立即弹 / 延后弹”的安全窗口判断
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
 - Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相
 - `SelectGrowthChoice` 仍然只通过 `RunFlowSubsystem -> RunSession.SubmitRunCommand()` 提交，不新增 UI 直写规则入口

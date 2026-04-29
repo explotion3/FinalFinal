@@ -531,16 +531,46 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	UFinalCharacterGrowthConfig* StarterHuoGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterHuoGrowthConfigPath, bCreatedAsset);
 	StarterHuoGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterHuoGrowthConfigId);
 	StarterHuoGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	StarterHuoGrowthConfig->PreferredBreakthroughFactTypes = {
+		EFinalBattleGrowthFactType::OwnedCardResolved,
+		EFinalBattleGrowthFactType::BreakDamageDealt,
+		EFinalBattleGrowthFactType::EnemyKilled,
+		EFinalBattleGrowthFactType::BattleVictoryBaseReward
+	};
+	StarterHuoGrowthConfig->BreakthroughGainScalarByFactType = {
+		{ EFinalBattleGrowthFactType::OwnedCardResolved, 8.0f },
+		{ EFinalBattleGrowthFactType::BreakDamageDealt, 2.0f },
+		{ EFinalBattleGrowthFactType::EnemyKilled, 6.0f },
+		{ EFinalBattleGrowthFactType::BattleVictoryBaseReward, 1.0f }
+	};
 	TrackPackage(StarterHuoGrowthConfig, PackagesToSave);
 
 	UFinalCharacterGrowthConfig* StarterYeGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterYeGrowthConfigPath, bCreatedAsset);
 	StarterYeGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterYeGrowthConfigId);
 	StarterYeGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	StarterYeGrowthConfig->PreferredBreakthroughFactTypes = {
+		EFinalBattleGrowthFactType::OwnedCardResolved,
+		EFinalBattleGrowthFactType::EffectiveHealingDone,
+		EFinalBattleGrowthFactType::BattleVictoryBaseReward
+	};
+	StarterYeGrowthConfig->BreakthroughGainScalarByFactType = {
+		{ EFinalBattleGrowthFactType::OwnedCardResolved, 4.0f },
+		{ EFinalBattleGrowthFactType::EffectiveHealingDone, 1.5f },
+		{ EFinalBattleGrowthFactType::BattleVictoryBaseReward, 1.0f }
+	};
 	TrackPackage(StarterYeGrowthConfig, PackagesToSave);
 
 	UFinalCharacterGrowthConfig* StarterShenGrowthConfig = LoadOrCreateAsset<UFinalCharacterGrowthConfig>(StarterShenGrowthConfigPath, bCreatedAsset);
 	StarterShenGrowthConfig->GrowthConfigId = FFinalCharacterGrowthConfigId(StarterShenGrowthConfigId);
 	StarterShenGrowthConfig->BaseBreakthroughRequiredValue = 100;
+	StarterShenGrowthConfig->PreferredBreakthroughFactTypes = {
+		EFinalBattleGrowthFactType::OwnedCardResolved,
+		EFinalBattleGrowthFactType::BattleVictoryBaseReward
+	};
+	StarterShenGrowthConfig->BreakthroughGainScalarByFactType = {
+		{ EFinalBattleGrowthFactType::OwnedCardResolved, 5.0f },
+		{ EFinalBattleGrowthFactType::BattleVictoryBaseReward, 1.0f }
+	};
 	TrackPackage(StarterShenGrowthConfig, PackagesToSave);
 
 	StarterHuoCharacter->CharacterId = FFinalCharacterId(StarterHuoCharacterId);
@@ -2044,9 +2074,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterShenCharacter->CharacterId
 	};
 	StarterBootstrap->InitialCharacterStates = {
-		MakeBootstrapCharacterState(StarterHuoCharacter->CharacterId, 0, 1, 100, 100, 0, 0, 0),
-		MakeBootstrapCharacterState(StarterYeCharacter->CharacterId, 0, 1, 0, 0, 0, 0, 0),
-		MakeBootstrapCharacterState(StarterShenCharacter->CharacterId, 0, 1, 0, 0, 0, 0, 0)
+		MakeBootstrapCharacterState(StarterHuoCharacter->CharacterId, 0, 1, 80, 100, 0, 0, 0),
+		MakeBootstrapCharacterState(StarterYeCharacter->CharacterId, 0, 1, 0, 100, 0, 0, 0),
+		MakeBootstrapCharacterState(StarterShenCharacter->CharacterId, 0, 1, 0, 100, 0, 0, 0)
 	};
 	StarterBootstrap->StarterDeckCardIds = {
 		StarterHuoLieFengCard->CardId,

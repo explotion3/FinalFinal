@@ -1035,7 +1035,20 @@ void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
 
 	if (Result.UpdatedCharacterStates.Num() > 0)
 	{
-		CurrentState.Characters = Result.UpdatedCharacterStates;
+		for (const FFinalRunPersistentCharacterState& UpdatedCharacterState : Result.UpdatedCharacterStates)
+		{
+			FFinalRunPersistentCharacterState* ExistingCharacterState = FindMutableCharacterState(UpdatedCharacterState.CharacterId);
+			if (ExistingCharacterState == nullptr)
+			{
+				CurrentState.Characters.Add(UpdatedCharacterState);
+				continue;
+			}
+
+			ExistingCharacterState->CurrentStress = UpdatedCharacterState.CurrentStress;
+			ExistingCharacterState->bCollapsed = UpdatedCharacterState.bCollapsed;
+			ExistingCharacterState->CurrentAwakenCount = UpdatedCharacterState.CurrentAwakenCount;
+			ExistingCharacterState->CollapseCount = UpdatedCharacterState.CollapseCount;
+		}
 	}
 
 	if (Result.Outcome == EFinalBattleOutcome::Victory)

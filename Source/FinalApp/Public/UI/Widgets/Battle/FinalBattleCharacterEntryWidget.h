@@ -5,7 +5,9 @@
 #include "FinalBattleCharacterEntryWidget.generated.h"
 
 class UBorder;
+class UProgressBar;
 class UTextBlock;
+class UVerticalBox;
 struct FFinalBattleHUDCharacterEntry;
 
 UCLASS(BlueprintType, Blueprintable)
@@ -22,10 +24,18 @@ private:
 	void RebuildVisual();
 
 	FText CachedLabel;
+	float CachedBreakthroughFill = 0.0f;
+	bool bCachedBreakthroughReady = false;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UBorder> RootBorder;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> LabelText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UProgressBar> BreakthroughProgressBar;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UVerticalBox> ContentBox;
 };

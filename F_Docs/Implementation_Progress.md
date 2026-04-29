@@ -57,5 +57,15 @@
 - `CharacterDefinition` 当前已可选指向 `CharacterGrowthConfig`；`CharacterGrowthConfig` 也已补默认突破阈值字段，用于 run 初始化时提供角色默认成长配置。
 - `FinalGameInstance` 当前会在启动 prototype run 时合并 `InitialCharacterStates + CharacterGrowthConfig`，生成完整 `FFinalRunPersistentCharacterState`，不再只传压力相关字段。
 - `UFinalRunSession::ConfigureBattleStartState()` 当前会在装配完角色与牌组后预热一次初始成长：若某角色初始突破值已达到阈值，则立刻生成一个 `PendingGrowthChoice`，但仍只保留同一时刻一个 pending choice。
-- `FinalGameFlowSubsystem` 当前不会在存在 pending growth 时跳过成长直接自动开战；starter 首章默认会先让霍断岳进入一次成长选择，再回到首场 battle。
+- `FinalGameFlowSubsystem` 当前不会在存在 pending growth 时跳过成长直接自动开战；这一阶段曾用于验证“开局即成长选择”的最小链路。
 - starter bundle 当前已补三份 `CharacterGrowthConfig`，并新增霍断岳 `断岳斩 -> 断岳斩·破阵` 的最小真实进化内容链，便于直接手工验收属性成长与卡牌进化两条路径。
+
+## 2026-04-29 Step 8：BattleFact 驱动战中突破值增长、HUD 突破槽显示与安全窗口 Growth overlay
+
+- `FinalBattle` 当前已新增结构化 `BattleGrowthFact` 协议，并在卡牌 / 奥义结算与战斗胜利时产出 `OwnedCardResolved / BreakDamageDealt / EffectiveHealingDone / EnemyKilled / BattleVictoryBaseReward`。
+- `FinalGameFlowSubsystem` 当前负责消费 battle growth fact batches，按 `CharacterGrowthConfig` 把 facts 转成突破值，并统一调用 `RunSession.AddBreakthroughValue()`；`FinalBattle` 不直接升级角色。
+- 当前第一版采用稳定型来源：只处理高信号事实，不把抽牌、受击、暴击等高频细碎行为直接转成突破值。
+- 当前 Growth overlay 立即弹出规则已收口：只有玩家主动命令完整结算后首次满槽，才立即展示成长页；敌方阶段、被动链或战斗胜利导致的 pending growth 会延后到安全窗口。
+- Battle HUD 当前已直接从 `RunSnapshot.Characters` 投影角色等级与突破槽，并在满槽时做高亮；HUD 不新增第二套成长真相缓存，也不把突破值写进 `BattleSnapshot`。
+- `RunSession::ApplyBattleResult()` 当前已改为按 `CharacterId` 合并 battle-owned 字段，保留 `Level / BreakthroughValue / BreakthroughRequiredValue / RootBone / Insight / KillingIntent / bHasPendingGrowthChoice` 等 run-owned 成长状态。
+- starter 首章默认已从“开局即 pending growth”调整为“霍断岳 80 / 100 接近突破进入首战”，用于手工验收战中突破、即时 Growth overlay 与卡牌进化路径。

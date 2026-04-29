@@ -4,10 +4,14 @@
 #include "Facade/FinalBattleSession.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalBattleSnapshot.h"
+#include "Run/Bridge/FinalBattleGrowthFact.h"
 #include "Requests/FinalBattleResult.h"
 #include "Save/FinalRunSaveData.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "FinalGameFlowSubsystem.generated.h"
+
+class UFinalCharacterGrowthConfig;
+class UFinalBattleFlowSubsystem;
 
 UCLASS()
 class FINALAPP_API UFinalGameFlowSubsystem : public UGameInstanceSubsystem
@@ -16,6 +20,7 @@ class FINALAPP_API UFinalGameFlowSubsystem : public UGameInstanceSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Flow")
 	UFinalRunSession* BootstrapNewRun();
@@ -48,6 +53,14 @@ public:
 
 private:
 	bool BuildResolvedBattleResult(FFinalBattleResult& OutResult);
+	UFUNCTION()
+	void HandleBattleSnapshotChanged(const FFinalBattleSnapshot& Snapshot);
+	void ProcessPendingBattleGrowthFacts(const FFinalBattleSnapshot& Snapshot);
+	bool TryPresentPendingGrowthChoiceAtSafeWindow(const FFinalBattleSnapshot& Snapshot, bool bPendingCreatedThisTick);
+	int32 ResolveBreakthroughGainFromFact(const FFinalBattleGrowthFact& Fact, const FFinalRunPersistentCharacterState& CharacterState) const;
+	int32 ResolveBattleVictoryRewardForNode(EFinalRunNodeType NodeType, const UFinalCharacterGrowthConfig& GrowthConfig) const;
+	void BindToBattleFlowSubsystem(UFinalBattleFlowSubsystem* BattleFlowSubsystem);
+	void UnbindFromBattleFlowSubsystem(UFinalBattleFlowSubsystem* BattleFlowSubsystem);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalRunSession> RunSession;
@@ -56,4 +69,6 @@ private:
 	FText LastFlowFailureReason;
 
 	bool bAutoStartingPreparedBattle = false;
+	int32 LastProcessedGrowthFactBatchSequence = 0;
+	bool bPendingGrowthChoiceDeferredFromEnemyPhase = false;
 };

@@ -16,6 +16,12 @@
   * `1~6` 快捷出牌
   * 点击 / `Enter / Space` 结束回合
 * 当前 Battle HUD 已开始消费 Battle / Run 公开查询字段，但仍只做只读展示与命令转发，不承载规则结算
+* 当前 Battle HUD 已新增角色突破槽投影，直接从 `RunSnapshot.Characters` 读取：
+  * `Level`
+  * `BreakthroughValue / BreakthroughRequiredValue`
+  * `BreakthroughFillNormalized`
+  * `bBreakthroughReady`
+  * 满槽时允许 Blueprint 或 C++ fallback 做高亮、描边和轻量动效
 * 当前 Battle HUD 已进入第一版水墨 16:9 桌面重构：
   * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 HUD screen、panel、entry widget 的 `TSoftClassPtr`
   * `UFinalUISubsystem` 创建 Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
@@ -45,6 +51,12 @@
   * 其他外层阶段仍由统一 `FinalRunFlowOverlayScreen` 承接战后奖励、节点推进、奖励节点、事件节点、商店节点与本局结束
   * 对 `PendingBattleRewardGenerated / PendingBattleRewardClaimed / PendingBattleRewardSkipped / BattleResultApplied / RewardNodeResolved / EventNodeResolved / ShopOfferPurchased` 这类奖励结果事件，当前反馈主路径优先直接消费 `RunEvent.RewardEntryViews`，raw `RewardEntries` 只作回退
   * 当 `RunEvent` 带有 `AffectedCharacterResults` 时，当前反馈主路径与 prototype debug 会直接消费这些角色结果 view data，而不再根据 Growth reward 自行推断角色变化
+* 当前 `FinalGameFlowSubsystem` 已承担 BattleGrowthFact 桥接职责：
+  * 监听 battle snapshot 更新并拉取新增 `BattleGrowthFactBatch`
+  * 使用 `CharacterGrowthConfig` 把 facts 转成突破值
+  * 调用 `RunSession.AddBreakthroughValue()`
+  * 仅在玩家主动命令结算后首次满槽时，立即刷新并展示 Growth overlay
+  * 敌方阶段、被动链或战斗胜利导致的 pending growth 则延后到安全窗口展示
 * 当前 `FinalGameInstance::PrepareTestBattleRun()` 已不再只配置裸 `BattleStartState`：
   * 会构建一个瞬时原型 Run 节点图，串起 `Battle -> Reward -> Event -> Shop -> Battle`
   * 便于在同一套测试 bootstrap 里实际走通 Run 外层页
@@ -63,7 +75,7 @@
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` + Blueprint 外观层阶段，由根界面统一承载主 HUD 与覆盖面板；C++ fallback HUD 继续作为未配置 Blueprint 时的兜底
 * 当前主验收布局固定为 16:9 桌面：
-  * 左侧：我方队伍三名角色状态、压力、生命份额、状态摘要与奥义入口
+  * 左侧：我方队伍三名角色状态、等级、突破槽、压力、生命份额、状态摘要与奥义入口
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
   * 右上：目标、当前目标、团队状态、遗物摘要与战斗进度信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
@@ -143,6 +155,7 @@
 
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
+* `FinalGameFlowSubsystem` 是当前战斗内增长桥接与安全窗口判断入口
 * Battle 结果回写到 `RunSession` 后，`RunFlowSubsystem` 会按最新 `RunSnapshot / RunEvent` 自动决定：
   * 若存在 `PendingGrowthChoice`，优先打开独立 Growth overlay
   * 进入 `PendingBattleReward` 时打开统一 RunFlow 页，并显示战后卡牌候选与跳过按钮
@@ -160,6 +173,7 @@
 * `RunFlowSubsystem.RefreshRunFlow(true)` 是当前自动流程主入口；它会根据最新 snapshot 决定打开 Growth overlay 还是普通 RunFlow overlay
 * `FinalRunFlowOverlayScreen` 的关闭按钮只关闭 overlay 显示，不修改 `RunSession`、奖励候选、当前节点或流程阶段；后续 `RefreshRunFlow(true)` 或流程阶段变化仍可按 `RunSnapshot` 重新打开统一页
 * `FinalRunGrowthChoiceOverlayScreen` 当前是独立 screen，只消费 `RunSnapshot.PendingGrowthChoice` 与角色 view data；它不保存成长真相，只负责选择并转发 `SelectGrowthChoice`
+* 若突破值在玩家命令结算后首次达到阈值，Growth overlay 会立即成为当前外层页；若来自敌方阶段、被动链或战斗胜利，则等下一个安全窗口再展示
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于成长选择、战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只触发 `RunFlowSubsystem.RefreshRunFlow(true)`，不直接执行任何 RunCommand
 * `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`；节点显示优先使用 `DisplayName`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback
 * `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass` 与 `RunFlowOptionButtonClass`；未配置时继续使用 C++ fallback
@@ -277,6 +291,7 @@
 * 奥义“本战已释放”来自 `FFinalBattleUltimateViewData.bUsedThisBattle`
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
 * AP、HP、Stress、Break、Initiative、Deck counts 仍来自现有 Snapshot；水墨 HUD 不新增 Battle 规则字段
+* 角色突破槽来自 `RunSnapshot.Characters[*].BreakthroughValue / BreakthroughRequiredValue / Level` 的只读投影，不扩展 `BattleSnapshot` 保存成长真相
 
 ### 4.2 Run 外层流程页
 当前 `FinalApp` 已经具备承接战后奖励 / 节点推进 / 奖励节点 / 事件节点 / 商店节点 / RunEnded 的统一 `RunFlowOverlay` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。

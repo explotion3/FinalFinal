@@ -526,6 +526,19 @@ bool FFinalPrototypeBattleWritebackAndSaveRestoreTest::RunTest(const FString& Pa
 		return false;
 	}
 
+	FFinalRunState SeedRunState = RunSession->GetRunState();
+	if (SeedRunState.Characters.Num() > 0)
+	{
+		SeedRunState.Characters[0].BreakthroughValue += 7;
+		RunSession->ConfigureBattleStartState(
+			BootstrapDefinition->EncounterId,
+			BootstrapDefinition->RuleConfigId,
+			SeedRunState.Characters,
+			BootstrapDefinition->StarterDeckCardIds,
+			BootstrapDefinition->InitialTeamCurrentHP);
+		RunSession->ConfigureRunRouteById(BootstrapDefinition->RunRouteId);
+	}
+
 	if (Context.StartBattleFromRun(*this) == nullptr)
 	{
 		return false;
@@ -536,6 +549,11 @@ bool FFinalPrototypeBattleWritebackAndSaveRestoreTest::RunTest(const FString& Pa
 	TestNull(TEXT("Active battle session should be cleared after battle result write-back."), Context.GameFlowSubsystem->GetActiveBattleSession());
 
 	const FFinalRunSnapshot SnapshotAfterBattle = RunSession->GetSnapshot();
+	if (SnapshotAfterBattle.Characters.Num() > 0)
+	{
+		TestEqual(TEXT("Battle result write-back should preserve run-owned breakthrough progress."), SnapshotAfterBattle.Characters[0].BreakthroughValue, SeedRunState.Characters[0].BreakthroughValue);
+		TestEqual(TEXT("Battle result write-back should preserve run-owned level."), SnapshotAfterBattle.Characters[0].Level, SeedRunState.Characters[0].Level);
+	}
 	TestTrue(
 		TEXT("Battle result write-back should return the run to a post-battle stage."),
 		SnapshotAfterBattle.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward
@@ -622,7 +640,7 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 		return false;
 	}
 
-	TestTrue(TEXT("Starter bootstrap initial pending growth choice should be resolvable before entering the first battle."), ResolvePendingGrowthChoiceIfPresent(*RunSession));
+	TestFalse(TEXT("Starter bootstrap should no longer begin with an already-pending growth choice."), RunSession->HasPendingGrowthChoice());
 
 	if (Context.StartBattleFromRun(*this) == nullptr)
 	{

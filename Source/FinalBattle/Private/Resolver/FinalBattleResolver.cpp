@@ -84,6 +84,92 @@ void MarkBattleResolved(FFinalBattleState& State, const bool bPlayerVictory)
 	State.bPlayerVictory = bPlayerVictory;
 }
 
+void AppendGrowthFactBatch(
+	FFinalBattleState& State,
+	const FFinalBattleEffectExecutionSummary& Summary,
+	const TArray<FFinalBattleGrowthFact>& Facts)
+{
+	if (Facts.IsEmpty())
+	{
+		return;
+	}
+
+	FFinalBattleGrowthFactBatch Batch;
+	Batch.BatchSequence = ++State.LastGrowthFactBatchSequence;
+	Batch.Round = State.CurrentRound;
+	Batch.bCausedByPlayerCommand = Summary.bCausedByPlayerCommand;
+	Batch.CommandSource = Summary.CommandSource;
+	Batch.Facts = Facts;
+	State.GrowthFactBatches.Add(MoveTemp(Batch));
+}
+
+void EmitGrowthFactsFromSummary(FFinalBattleState& State, const FFinalBattleEffectExecutionSummary& Summary)
+{
+	if (!Summary.SourceCharacterId.IsValid())
+	{
+		return;
+	}
+
+	TArray<FFinalBattleGrowthFact> Facts;
+	auto AddFact = [&Facts, &State, &Summary](const EFinalBattleGrowthFactType FactType, const int32 Magnitude)
+	{
+		if (Magnitude <= 0)
+		{
+			return;
+		}
+
+		FFinalBattleGrowthFact Fact;
+		Fact.CharacterId = Summary.SourceCharacterId;
+		Fact.FactType = FactType;
+		Fact.Magnitude = Magnitude;
+		Fact.SourceCardId = Summary.SourceCardId;
+		Fact.Round = State.CurrentRound;
+		Fact.bCausedByPlayerCommand = Summary.bCausedByPlayerCommand;
+		Fact.CommandSource = Summary.CommandSource;
+		Facts.Add(MoveTemp(Fact));
+	};
+
+	AddFact(EFinalBattleGrowthFactType::OwnedCardResolved, Summary.CommandSource == EFinalBattleGrowthCommandSource::PlayCard ? 1 : 0);
+	AddFact(EFinalBattleGrowthFactType::BreakDamageDealt, Summary.TotalBreakDamageToEnemies);
+	AddFact(EFinalBattleGrowthFactType::EffectiveHealingDone, Summary.TotalHealingToTeam);
+	AddFact(EFinalBattleGrowthFactType::EnemyKilled, Summary.TotalEnemiesDefeated);
+	AppendGrowthFactBatch(State, Summary, Facts);
+}
+
+void EmitBattleVictoryGrowthFacts(FFinalBattleState& State)
+{
+	TArray<FFinalBattleGrowthFact> Facts;
+	for (const FFinalBattleCharacterState& CharacterState : State.Characters)
+	{
+		if (!CharacterState.CharacterId.IsValid())
+		{
+			continue;
+		}
+
+		FFinalBattleGrowthFact Fact;
+		Fact.CharacterId = CharacterState.CharacterId;
+		Fact.FactType = EFinalBattleGrowthFactType::BattleVictoryBaseReward;
+		Fact.Magnitude = 1;
+		Fact.Round = State.CurrentRound;
+		Fact.bCausedByPlayerCommand = false;
+		Fact.CommandSource = EFinalBattleGrowthCommandSource::EnemyPhase;
+		Facts.Add(MoveTemp(Fact));
+	}
+
+	if (Facts.IsEmpty())
+	{
+		return;
+	}
+
+	FFinalBattleGrowthFactBatch Batch;
+	Batch.BatchSequence = ++State.LastGrowthFactBatchSequence;
+	Batch.Round = State.CurrentRound;
+	Batch.bCausedByPlayerCommand = false;
+	Batch.CommandSource = EFinalBattleGrowthCommandSource::EnemyPhase;
+	Batch.Facts = MoveTemp(Facts);
+	State.GrowthFactBatches.Add(MoveTemp(Batch));
+}
+
 const FFinalEnemyIntentService& GetEnemyIntentService()
 {
 	static const FFinalEnemyIntentService IntentService;
@@ -265,7 +351,12 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	GetCardService().MoveHandCardAfterPlay(State, Command.CardInstanceId);
 
 	FFinalBattleEffectExecutionSummary Summary;
+	Summary.SourceCharacterId = CardInstance->SourceDefinition != nullptr && OwnerCharacterState != nullptr ? OwnerCharacterState->CharacterId : FFinalCharacterId{};
+	Summary.SourceCardId = ResolvedCardId;
+	Summary.CommandSource = EFinalBattleGrowthCommandSource::PlayCard;
+	Summary.bCausedByPlayerCommand = true;
 	GetEffectExecutionService().ExecuteEffectList(State, SourceCardDefinition->Effects, &Command, SourceCardDefinition, OwnerCharacterState, nullptr, GetUnitService(), Summary);
+	EmitGrowthFactsFromSummary(State, Summary);
 
 	TArray<FFinalBattleEvent> RelicEvents;
 	GetTriggerService().HandlePlayerCardResolved(State, RelicCardContext, GetConditionService(), GetEffectExecutionService(), GetUnitService(), RelicEvents);
@@ -285,6 +376,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 	if (AreAllEnemiesDefeated(State))
 	{
 		MarkBattleResolved(State, true);
+		EmitBattleVictoryGrowthFacts(State);
 		Event.Message = FText::Format(
 			NSLOCTEXT("FinalBattleResolver", "CardPlayVictory", "Resolved {0} effects. Damage {1}, Break {2}, Heal {3}, Shield {4}, Draw {5}, AP {6}. Battle won."),
 			FText::AsNumber(Summary.ResolvedEffectCount),
@@ -368,7 +460,11 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 	GetResourceService().SpendEP(State, OwnerCharacterState->UltimateCostEP);
 
 	FFinalBattleEffectExecutionSummary Summary;
+	Summary.SourceCharacterId = OwnerCharacterState->CharacterId;
+	Summary.CommandSource = EFinalBattleGrowthCommandSource::PlayUltimate;
+	Summary.bCausedByPlayerCommand = true;
 	GetEffectExecutionService().ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, nullptr, OwnerCharacterState, nullptr, GetUnitService(), Summary);
+	EmitGrowthFactsFromSummary(State, Summary);
 
 	Event.EventType = EFinalBattleEventType::UltimateResolved;
 	Event.TargetUnitId = GetUnitService().ResolveCommandTargetUnitId(State, Command);
@@ -382,6 +478,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 	if (AreAllEnemiesDefeated(State))
 	{
 		MarkBattleResolved(State, true);
+		EmitBattleVictoryGrowthFacts(State);
 		Event.Message = FText::Format(
 			NSLOCTEXT("FinalBattleResolver", "UltimateVictory", "Ultimate resolved. Damage {0}, Break {1}, Heal {2}, Shield {3}, AP {4}. Battle won."),
 			FText::AsNumber(Summary.TotalDamageToEnemies),
