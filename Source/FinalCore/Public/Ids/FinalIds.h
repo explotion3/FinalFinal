@@ -183,6 +183,81 @@ struct FINALCORE_API FFinalUltimateId
 	friend uint32 GetTypeHash(const FFinalUltimateId& Id) { return GetTypeHash(Id.Value); }
 };
 
+
+USTRUCT(BlueprintType)
+struct FINALCORE_API FFinalCharacterGrowthConfigId
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Ids")
+    FName Value = NAME_None;
+
+    FFinalCharacterGrowthConfigId() = default;
+
+    explicit FFinalCharacterGrowthConfigId(const FName InValue)
+        : Value(InValue)
+    {
+    }
+
+    bool IsValid() const { return !Value.IsNone(); }
+    FString ToString() const { return Value.ToString(); }
+    bool operator==(const FFinalCharacterGrowthConfigId& Other) const { return Value == Other.Value; }
+
+    friend uint32 GetTypeHash(const FFinalCharacterGrowthConfigId& Id)
+    {
+        return GetTypeHash(Id.Value);
+    }
+};
+
+USTRUCT(BlueprintType)
+struct FINALCORE_API FFinalGrowthChoiceId
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Ids")
+    FName Value = NAME_None;
+
+    FFinalGrowthChoiceId() = default;
+
+    explicit FFinalGrowthChoiceId(const FName InValue)
+        : Value(InValue)
+    {
+    }
+
+    bool IsValid() const { return !Value.IsNone(); }
+    FString ToString() const { return Value.ToString(); }
+    bool operator==(const FFinalGrowthChoiceId& Other) const { return Value == Other.Value; }
+
+    friend uint32 GetTypeHash(const FFinalGrowthChoiceId& Id)
+    {
+        return GetTypeHash(Id.Value);
+    }
+};
+
+USTRUCT(BlueprintType)
+struct FINALCORE_API FFinalCardEvolutionId
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Ids")
+    FName Value = NAME_None;
+
+    FFinalCardEvolutionId() = default;
+
+    explicit FFinalCardEvolutionId(const FName InValue)
+        : Value(InValue)
+    {
+    }
+
+    bool IsValid() const { return !Value.IsNone(); }
+    FString ToString() const { return Value.ToString(); }
+    bool operator==(const FFinalCardEvolutionId& Other) const { return Value == Other.Value; }
+
+    friend uint32 GetTypeHash(const FFinalCardEvolutionId& Id)
+    {
+        return GetTypeHash(Id.Value);
+    }
+};
 USTRUCT(BlueprintType)
 struct FINALCORE_API FFinalRuleConfigId
 {

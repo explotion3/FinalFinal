@@ -10,6 +10,9 @@
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Modules/ModuleManager.h"
+#include "Run/Definitions/FinalCardEvolutionDefinition.h"
+#include "Run/Definitions/FinalCharacterGrowthConfig.h"
+#include "Run/Definitions/FinalGrowthChoiceDefinition.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
@@ -203,6 +206,9 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	RelicDefinitions.Reset();
 	RunRouteDefinitions.Reset();
 	RuleConfigs.Reset();
+	CharacterGrowthConfigs.Reset();
+	GrowthChoiceDefinitions.Reset();
+	CardEvolutionDefinitions.Reset();
 	StatusDefinitions.Reset();
 	UltimateDefinitions.Reset();
 
@@ -226,6 +232,9 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	const FFinalDataRegistryIndexStats RelicStats = IndexDefinitionAssets<UFinalRelicDefinition>(AssetRegistry, TEXT("RelicId"), RelicDefinitions, TEXT("RelicDefinition"));
 	const FFinalDataRegistryIndexStats RunRouteStats = IndexDefinitionAssets<UFinalRunRouteDefinition>(AssetRegistry, TEXT("RouteId"), RunRouteDefinitions, TEXT("RunRouteDefinition"));
 	const FFinalDataRegistryIndexStats RuleConfigStats = IndexDefinitionAssets<UFinalBattleRuleConfig>(AssetRegistry, TEXT("RuleConfigId"), RuleConfigs, TEXT("BattleRuleConfig"));
+	const FFinalDataRegistryIndexStats CharacterGrowthConfigStats = IndexDefinitionAssets<UFinalCharacterGrowthConfig>(AssetRegistry, TEXT("GrowthConfigId"), CharacterGrowthConfigs, TEXT("CharacterGrowthConfig"));
+	const FFinalDataRegistryIndexStats GrowthChoiceStats = IndexDefinitionAssets<UFinalGrowthChoiceDefinition>(AssetRegistry, TEXT("GrowthChoiceId"), GrowthChoiceDefinitions, TEXT("GrowthChoiceDefinition"));
+	const FFinalDataRegistryIndexStats CardEvolutionStats = IndexDefinitionAssets<UFinalCardEvolutionDefinition>(AssetRegistry, TEXT("EvolutionId"), CardEvolutionDefinitions, TEXT("CardEvolutionDefinition"));
 	const FFinalDataRegistryIndexStats StatusStats = IndexDefinitionAssets<UFinalStatusDefinition>(AssetRegistry, TEXT("StatusId"), StatusDefinitions, TEXT("StatusDefinition"));
 	const FFinalDataRegistryIndexStats UltimateStats = IndexDefinitionAssets<UFinalUltimateDefinition>(AssetRegistry, TEXT("UltimateId"), UltimateDefinitions, TEXT("UltimateDefinition"));
 
@@ -240,13 +249,16 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 		+ RelicStats.MissingStableIdTagCount
 		+ RunRouteStats.MissingStableIdTagCount
 		+ RuleConfigStats.MissingStableIdTagCount
+		+ CharacterGrowthConfigStats.MissingStableIdTagCount
+		+ GrowthChoiceStats.MissingStableIdTagCount
+		+ CardEvolutionStats.MissingStableIdTagCount
 		+ StatusStats.MissingStableIdTagCount
 		+ UltimateStats.MissingStableIdTagCount;
 
 	UE_LOG(
 		LogFinalDataRegistry,
 		Log,
-		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d MissingStableIdTags=%d"),
+		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d CharacterGrowthConfigs=%d GrowthChoices=%d CardEvolutions=%d MissingStableIdTags=%d"),
 		ElapsedMilliseconds,
 		RuleConfigStats.IndexedCount,
 		CharacterStats.IndexedCount,
@@ -259,6 +271,9 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 		PrototypeBootstrapStats.IndexedCount,
 		RelicStats.IndexedCount,
 		RunRouteStats.IndexedCount,
+		CharacterGrowthConfigStats.IndexedCount,
+		GrowthChoiceStats.IndexedCount,
+		CardEvolutionStats.IndexedCount,
 		MissingTagCount);
 }
 
@@ -411,6 +426,36 @@ void UFinalDataRegistry::RegisterRuleConfig(UFinalBattleRuleConfig* Definition)
 	RegisterLoadedDefinition(RuleConfigs, Definition->RuleConfigId.Value, Definition);
 }
 
+void UFinalDataRegistry::RegisterCharacterGrowthConfig(UFinalCharacterGrowthConfig* Definition)
+{
+	if (!IsValid(Definition) || !Definition->GrowthConfigId.IsValid())
+	{
+		return;
+	}
+
+	RegisterLoadedDefinition(CharacterGrowthConfigs, Definition->GrowthConfigId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterGrowthChoiceDefinition(UFinalGrowthChoiceDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->GrowthChoiceId.IsValid())
+	{
+		return;
+	}
+
+	RegisterLoadedDefinition(GrowthChoiceDefinitions, Definition->GrowthChoiceId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterCardEvolutionDefinition(UFinalCardEvolutionDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->EvolutionId.IsValid())
+	{
+		return;
+	}
+
+	RegisterLoadedDefinition(CardEvolutionDefinitions, Definition->EvolutionId.Value, Definition);
+}
+
 void UFinalDataRegistry::RegisterStatusDefinition(UFinalStatusDefinition* Definition)
 {
 	if (!IsValid(Definition) || !Definition->StatusId.IsValid())
@@ -483,6 +528,24 @@ UFinalBattleRuleConfig* UFinalDataRegistry::FindRuleConfig(const FFinalRuleConfi
 {
 	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
 	return MutableThis->FindLoadedDefinition<UFinalBattleRuleConfig>(MutableThis->RuleConfigs, RuleConfigId.Value, TEXT("BattleRuleConfig"));
+}
+
+UFinalCharacterGrowthConfig* UFinalDataRegistry::FindCharacterGrowthConfig(const FFinalCharacterGrowthConfigId& GrowthConfigId) const
+{
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	return MutableThis->FindLoadedDefinition<UFinalCharacterGrowthConfig>(MutableThis->CharacterGrowthConfigs, GrowthConfigId.Value, TEXT("CharacterGrowthConfig"));
+}
+
+UFinalGrowthChoiceDefinition* UFinalDataRegistry::FindGrowthChoiceDefinition(const FFinalGrowthChoiceId& GrowthChoiceId) const
+{
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	return MutableThis->FindLoadedDefinition<UFinalGrowthChoiceDefinition>(MutableThis->GrowthChoiceDefinitions, GrowthChoiceId.Value, TEXT("GrowthChoiceDefinition"));
+}
+
+UFinalCardEvolutionDefinition* UFinalDataRegistry::FindCardEvolutionDefinition(const FFinalCardEvolutionId& EvolutionId) const
+{
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	return MutableThis->FindLoadedDefinition<UFinalCardEvolutionDefinition>(MutableThis->CardEvolutionDefinitions, EvolutionId.Value, TEXT("CardEvolutionDefinition"));
 }
 
 UFinalStatusDefinition* UFinalDataRegistry::FindStatusDefinition(const FFinalStatusId& StatusId) const

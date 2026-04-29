@@ -938,8 +938,9 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 			return;
 		}
 
+		UClass* ResolvedOptionButtonClass = OptionButtonClass.Get() ? OptionButtonClass.Get() : UFinalRunFlowOptionButton::StaticClass();
 		UFinalRunFlowOptionButton* OptionWidget = WidgetTree->ConstructWidget<UFinalRunFlowOptionButton>(
-			OptionButtonClass ? OptionButtonClass : UFinalRunFlowOptionButton::StaticClass(),
+			ResolvedOptionButtonClass,
 			*FString::Printf(TEXT("RunFlowOption_%d_%s"), static_cast<int32>(OptionData.Kind), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
 		if (OptionWidget == nullptr)
 		{

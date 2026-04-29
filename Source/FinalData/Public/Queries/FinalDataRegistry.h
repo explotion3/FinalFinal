@@ -8,6 +8,9 @@
 
 class UFinalBattleEncounterDefinition;
 class UFinalBattleRuleConfig;
+class UFinalCardEvolutionDefinition;
+class UFinalCharacterGrowthConfig;
+class UFinalGrowthChoiceDefinition;
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 class UFinalEnemyDefinition;
@@ -46,6 +49,9 @@ public:
 	void RegisterRelicDefinition(UFinalRelicDefinition* Definition);
 	void RegisterRunRouteDefinition(UFinalRunRouteDefinition* Definition);
 	void RegisterRuleConfig(UFinalBattleRuleConfig* Definition);
+	void RegisterCharacterGrowthConfig(UFinalCharacterGrowthConfig* Definition);
+	void RegisterGrowthChoiceDefinition(UFinalGrowthChoiceDefinition* Definition);
+	void RegisterCardEvolutionDefinition(UFinalCardEvolutionDefinition* Definition);
 	void RegisterStatusDefinition(UFinalStatusDefinition* Definition);
 	void RegisterUltimateDefinition(UFinalUltimateDefinition* Definition);
 
@@ -58,6 +64,9 @@ public:
 	UFinalRelicDefinition* FindRelicDefinition(const FFinalRelicId& RelicId) const;
 	UFinalRunRouteDefinition* FindRunRouteDefinition(const FName& RouteId) const;
 	UFinalBattleRuleConfig* FindRuleConfig(const FFinalRuleConfigId& RuleConfigId) const;
+	UFinalCharacterGrowthConfig* FindCharacterGrowthConfig(const FFinalCharacterGrowthConfigId& GrowthConfigId) const;
+	UFinalGrowthChoiceDefinition* FindGrowthChoiceDefinition(const FFinalGrowthChoiceId& GrowthChoiceId) const;
+	UFinalCardEvolutionDefinition* FindCardEvolutionDefinition(const FFinalCardEvolutionId& EvolutionId) const;
 	UFinalStatusDefinition* FindStatusDefinition(const FFinalStatusId& StatusId) const;
 	UFinalUltimateDefinition* FindUltimateDefinition(const FFinalUltimateId& UltimateId) const;
 
@@ -96,6 +105,15 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> RuleConfigs;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> CharacterGrowthConfigs;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> GrowthChoiceDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> CardEvolutionDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> StatusDefinitions;

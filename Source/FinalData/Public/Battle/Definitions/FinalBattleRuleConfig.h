@@ -76,6 +76,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")
 	int32 StressRandomProtectionCount = 2;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules|Stress", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float CriticalStressThresholdRatio = 0.9f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules|Stress")
+    bool bProtectFirstCriticalCrossing = true;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules|Stress")
+    bool bCollapseOnStressGainWhileCritical = true;
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Rules")
 	int32 DamageToBreakCap = 6;
