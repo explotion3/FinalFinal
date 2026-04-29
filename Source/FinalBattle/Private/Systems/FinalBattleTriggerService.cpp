@@ -3,6 +3,7 @@
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
+#include "Runtime/FinalBattlePassiveInstance.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
@@ -297,6 +298,27 @@ bool ExecuteRuntimeTriggerEffects(
 		UnitService,
 		OutSummary);
 }
+
+void AccumulateExecutionSummary(
+	FFinalBattleEffectExecutionSummary& InOutSummary,
+	const FFinalBattleEffectExecutionSummary& TriggerSummary)
+{
+	InOutSummary.TotalDamageToEnemies += TriggerSummary.TotalDamageToEnemies;
+	InOutSummary.TotalDamageToTeam += TriggerSummary.TotalDamageToTeam;
+	InOutSummary.TotalBreakDamageToEnemies += TriggerSummary.TotalBreakDamageToEnemies;
+	InOutSummary.TotalHealingToTeam += TriggerSummary.TotalHealingToTeam;
+	InOutSummary.TotalEnemiesDefeated += TriggerSummary.TotalEnemiesDefeated;
+	InOutSummary.TotalCriticalHits += TriggerSummary.TotalCriticalHits;
+	InOutSummary.TotalCriticalBonusDamage += TriggerSummary.TotalCriticalBonusDamage;
+	InOutSummary.TotalTeamShieldGained += TriggerSummary.TotalTeamShieldGained;
+	InOutSummary.TotalEnemyShieldGained += TriggerSummary.TotalEnemyShieldGained;
+	InOutSummary.TotalStatusStacksApplied += TriggerSummary.TotalStatusStacksApplied;
+	InOutSummary.TotalStatusStacksRemoved += TriggerSummary.TotalStatusStacksRemoved;
+	InOutSummary.TotalCardsDrawn += TriggerSummary.TotalCardsDrawn;
+	InOutSummary.DrawnCardInstanceIds.Append(TriggerSummary.DrawnCardInstanceIds);
+	InOutSummary.TotalAPGained += TriggerSummary.TotalAPGained;
+	InOutSummary.ResolvedEffectCount += TriggerSummary.ResolvedEffectCount;
+}
 }
 
 void FFinalBattleTriggerService::HandleBattlePhaseRuntimeTriggers(
@@ -351,14 +373,20 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 	const FFinalBattleEffectExecutionService& EffectExecutionService,
 	FFinalBattleEffectExecutionSummary& InOutSummary) const
 {
-	for (FFinalBattleCharacterState& CharacterState : BattleState.Characters)
+	for (FFinalBattlePassiveInstance& PassiveInstance : BattleState.PassiveInstances)
 	{
-		if (CharacterState.bCollapsed)
+		if (PassiveInstance.CurrentStacks <= 0)
 		{
 			continue;
 		}
 
-		for (FFinalBattleRuntimeTriggerState& TriggerState : CharacterState.TriggerStates)
+		const FFinalBattleCharacterState* OwnerCharacterState = UnitService.FindCharacterState(BattleState, PassiveInstance.OwnerUnitId);
+		if (OwnerCharacterState == nullptr || OwnerCharacterState->bCollapsed)
+		{
+			continue;
+		}
+
+		for (FFinalBattleRuntimeTriggerState& TriggerState : PassiveInstance.TriggerStates)
 		{
 			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
 			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::OwnerTookHealthDamage
@@ -372,7 +400,7 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 			if (!ExecuteRuntimeTriggerEffects(
 				BattleState,
 				TriggerDefinition,
-				&CharacterState,
+				OwnerCharacterState,
 				nullptr,
 				ConditionService,
 				EffectExecutionService,
@@ -383,18 +411,7 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 			}
 
 			MarkTriggered(TriggerState);
-			InOutSummary.TotalDamageToEnemies += TriggerSummary.TotalDamageToEnemies;
-			InOutSummary.TotalDamageToTeam += TriggerSummary.TotalDamageToTeam;
-			InOutSummary.TotalBreakDamageToEnemies += TriggerSummary.TotalBreakDamageToEnemies;
-			InOutSummary.TotalHealingToTeam += TriggerSummary.TotalHealingToTeam;
-			InOutSummary.TotalTeamShieldGained += TriggerSummary.TotalTeamShieldGained;
-			InOutSummary.TotalEnemyShieldGained += TriggerSummary.TotalEnemyShieldGained;
-			InOutSummary.TotalStatusStacksApplied += TriggerSummary.TotalStatusStacksApplied;
-			InOutSummary.TotalStatusStacksRemoved += TriggerSummary.TotalStatusStacksRemoved;
-			InOutSummary.TotalCardsDrawn += TriggerSummary.TotalCardsDrawn;
-			InOutSummary.DrawnCardInstanceIds.Append(TriggerSummary.DrawnCardInstanceIds);
-			InOutSummary.TotalAPGained += TriggerSummary.TotalAPGained;
-			InOutSummary.ResolvedEffectCount += TriggerSummary.ResolvedEffectCount;
+			AccumulateExecutionSummary(InOutSummary, TriggerSummary);
 		}
 	}
 }
@@ -509,6 +526,47 @@ void FFinalBattleTriggerService::HandlePlayerCardResolved(
 				BuildRelicTriggerMessage(
 					RuntimeState.DisplayName.IsEmpty() ? FText::FromName(RuntimeState.DisplayId) : RuntimeState.DisplayName,
 					TriggerDefinition.Window)));
+		}
+	}
+
+	for (FFinalBattlePassiveInstance& PassiveInstance : BattleState.PassiveInstances)
+	{
+		if (PassiveInstance.CurrentStacks <= 0)
+		{
+			continue;
+		}
+
+		const FFinalBattleCharacterState* SourceCharacterState = UnitService.FindCharacterState(BattleState, PassiveInstance.OwnerUnitId);
+		if (SourceCharacterState == nullptr || SourceCharacterState->bCollapsed)
+		{
+			continue;
+		}
+
+		for (FFinalBattleRuntimeTriggerState& TriggerState : PassiveInstance.TriggerStates)
+		{
+			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::PlayerCardResolved
+				|| !IsValidBattleRuntimeTrigger(TriggerDefinition)
+				|| !CanTrigger(TriggerState))
+			{
+				continue;
+			}
+
+			FFinalBattleEffectExecutionSummary TriggerSummary;
+			if (!ExecuteRuntimeTriggerEffects(
+				BattleState,
+				TriggerDefinition,
+				SourceCharacterState,
+				&CardContext,
+				ConditionService,
+				EffectExecutionService,
+				UnitService,
+				TriggerSummary))
+			{
+				continue;
+			}
+
+			MarkTriggered(TriggerState);
 		}
 	}
 }

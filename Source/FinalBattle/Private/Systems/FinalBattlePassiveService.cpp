@@ -2,39 +2,11 @@
 
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Queries/FinalBattleQueryTypes.h"
-#include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattlePassiveInstance.h"
 #include "Runtime/FinalBattleState.h"
-#include "Systems/FinalBattleConditionService.h"
-#include "Systems/FinalBattleConditionTypes.h"
-#include "Systems/FinalBattleEffectExecutionService.h"
-#include "Systems/FinalBattleEffectExecutionTypes.h"
-#include "Systems/FinalBattleUnitService.h"
 
 namespace
 {
-bool CanTrigger(const FFinalBattleRuntimeTriggerState& TriggerState)
-{
-	switch (TriggerState.TriggerDefinition.Limit)
-	{
-	case EFinalRuntimeTriggerLimit::OncePerPlayerTurn:
-		return TriggerState.TriggeredCountThisPlayerTurn <= 0;
-
-	case EFinalRuntimeTriggerLimit::OncePerBattle:
-		return TriggerState.TriggeredCountThisBattle <= 0;
-
-	case EFinalRuntimeTriggerLimit::None:
-	default:
-		return true;
-	}
-}
-
-void MarkTriggered(FFinalBattleRuntimeTriggerState& TriggerState)
-{
-	++TriggerState.TriggeredCountThisPlayerTurn;
-	++TriggerState.TriggeredCountThisBattle;
-}
-
 int32 ResolveInitialRemainingDuration(
 	const UFinalPassiveDefinition* PassiveDefinition,
 	const int32 DurationOverride)
@@ -52,24 +24,6 @@ int32 ResolveInitialRemainingDuration(
 	return DurationOverride > 0 ? DurationOverride : 1;
 }
 
-void AccumulateSummary(FFinalBattleEffectExecutionSummary& InOutSummary, const FFinalBattleEffectExecutionSummary& TriggerSummary)
-{
-	InOutSummary.TotalDamageToEnemies += TriggerSummary.TotalDamageToEnemies;
-	InOutSummary.TotalDamageToTeam += TriggerSummary.TotalDamageToTeam;
-	InOutSummary.TotalBreakDamageToEnemies += TriggerSummary.TotalBreakDamageToEnemies;
-	InOutSummary.TotalHealingToTeam += TriggerSummary.TotalHealingToTeam;
-	InOutSummary.TotalEnemiesDefeated += TriggerSummary.TotalEnemiesDefeated;
-	InOutSummary.TotalCriticalHits += TriggerSummary.TotalCriticalHits;
-	InOutSummary.TotalCriticalBonusDamage += TriggerSummary.TotalCriticalBonusDamage;
-	InOutSummary.TotalTeamShieldGained += TriggerSummary.TotalTeamShieldGained;
-	InOutSummary.TotalEnemyShieldGained += TriggerSummary.TotalEnemyShieldGained;
-	InOutSummary.TotalStatusStacksApplied += TriggerSummary.TotalStatusStacksApplied;
-	InOutSummary.TotalStatusStacksRemoved += TriggerSummary.TotalStatusStacksRemoved;
-	InOutSummary.TotalCardsDrawn += TriggerSummary.TotalCardsDrawn;
-	InOutSummary.DrawnCardInstanceIds.Append(TriggerSummary.DrawnCardInstanceIds);
-	InOutSummary.TotalAPGained += TriggerSummary.TotalAPGained;
-	InOutSummary.ResolvedEffectCount += TriggerSummary.ResolvedEffectCount;
-}
 }
 
 int32 FFinalBattlePassiveService::ApplyPassive(
@@ -130,63 +84,6 @@ int32 FFinalBattlePassiveService::ApplyPassive(
 	}
 
 	return PassiveInstance.CurrentStacks;
-}
-
-void FFinalBattlePassiveService::ResolveOwnerTookHealthDamagePassives(
-	FFinalBattleState& BattleState,
-	const FFinalBattleUnitService& UnitService,
-	const FFinalBattleConditionService& ConditionService,
-	const FFinalBattleEffectExecutionService& EffectExecutionService,
-	FFinalBattleEffectExecutionSummary& InOutSummary) const
-{
-	for (FFinalBattlePassiveInstance& PassiveInstance : BattleState.PassiveInstances)
-	{
-		if (PassiveInstance.CurrentStacks <= 0)
-		{
-			continue;
-		}
-
-		const FFinalBattleCharacterState* OwnerCharacterState = UnitService.FindCharacterState(BattleState, PassiveInstance.OwnerUnitId);
-		if (OwnerCharacterState == nullptr)
-		{
-			continue;
-		}
-
-		for (FFinalBattleRuntimeTriggerState& TriggerState : PassiveInstance.TriggerStates)
-		{
-			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
-			if (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::OwnerTookHealthDamage
-				|| !CanTrigger(TriggerState))
-			{
-				continue;
-			}
-
-			FFinalBattleConditionEvaluationContext ConditionContext;
-			ConditionContext.BattleState = &BattleState;
-			ConditionContext.SourceOwnerUnitId = OwnerCharacterState->RuntimeUnitId;
-			if (!ConditionService.SatisfiesConditions(TriggerDefinition.Conditions, ConditionContext))
-			{
-				continue;
-			}
-
-			FFinalBattleEffectExecutionSummary TriggerSummary;
-			if (!EffectExecutionService.ExecuteEffectList(
-				BattleState,
-				TriggerDefinition.Effects,
-				nullptr,
-				nullptr,
-				OwnerCharacterState,
-				nullptr,
-				UnitService,
-				TriggerSummary))
-			{
-				continue;
-			}
-
-			MarkTriggered(TriggerState);
-			AccumulateSummary(InOutSummary, TriggerSummary);
-		}
-	}
 }
 
 void FFinalBattlePassiveService::ResetPlayerTurnTriggerCounts(FFinalBattleState& BattleState) const

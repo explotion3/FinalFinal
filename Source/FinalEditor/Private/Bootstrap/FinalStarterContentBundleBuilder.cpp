@@ -122,6 +122,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
 	const FString StarterTokenZeroDrawRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_TokenZeroDraw");
 	const FString StarterHuoTookDamageDaoShiPassivePath = StarterRootPath / TEXT("Passives/DA_Passive_Starter_HuoTookDamageDaoShi");
+	const FString StarterHuoFirstAttackDaoShiPassivePath = StarterRootPath / TEXT("Passives/DA_Passive_Starter_HuoFirstAttackGainDaoShi");
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
 	const FName StarterRuleConfigId(TEXT("rule.starter.chapter1"));
 	const FName StarterNormalEncounterId(TEXT("encounter.starter.chapter1.roadblock"));
@@ -181,6 +182,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
 	const FName StarterTokenZeroDrawRelicId(TEXT("relic_token_zero_draw"));
 	const FName StarterHuoTookDamageDaoShiPassiveId(TEXT("passive.starter.huo.took_damage_gain_daoshi"));
+	const FName StarterHuoFirstAttackDaoShiPassiveId(TEXT("passive.starter.huo.first_attack_gain_daoshi"));
 	const FName StarterOpeningBattleNodeId(TEXT("run.starter.node.battle.roadblock"));
 	const FName StarterRewardNodeId(TEXT("run.starter.node.reward.spoils"));
 	const FName StarterEventNodeId(TEXT("run.starter.node.event.cliff_notice"));
@@ -296,6 +298,37 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 			FText::FromString(TEXT("受压得刀势：承受共享生命伤害后，霍断岳获得 1 层刀势。")));
 	}
 	TrackPackage(StarterHuoTookDamageDaoShiPassive, PackagesToSave);
+
+	UFinalPassiveDefinition* StarterHuoFirstAttackDaoShiPassive = LoadOrCreateAsset<UFinalPassiveDefinition>(StarterHuoFirstAttackDaoShiPassivePath, bCreatedAsset);
+	StarterHuoFirstAttackDaoShiPassive->PassiveId = FFinalPassiveId(StarterHuoFirstAttackDaoShiPassiveId);
+	StarterHuoFirstAttackDaoShiPassive->DisplayId = StarterHuoFirstAttackDaoShiPassiveId;
+	StarterHuoFirstAttackDaoShiPassive->DisplayName = FText::FromString(TEXT("压势追刀"));
+	StarterHuoFirstAttackDaoShiPassive->SummaryText = FText::FromString(TEXT("本场战斗中，每回合第一次打出攻击牌后，获得 1 层刀势。"));
+	StarterHuoFirstAttackDaoShiPassive->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
+	StarterHuoFirstAttackDaoShiPassive->DurationType = EFinalPassiveDurationType::Battle;
+	StarterHuoFirstAttackDaoShiPassive->MaxStacks = 1;
+	StarterHuoFirstAttackDaoShiPassive->RuntimeTriggers.Reset();
+	{
+		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterHuoFirstAttackDaoShiPassive->RuntimeTriggers.AddDefaulted_GetRef();
+		TriggerDefinition.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TriggerDefinition.Window = EFinalRuntimeTriggerWindow::PlayerCardResolved;
+		TriggerDefinition.Limit = EFinalRuntimeTriggerLimit::OncePerPlayerTurn;
+
+		FFinalBattleResolvedCardRequirement ResolvedCardRequirement;
+		ResolvedCardRequirement.bRequireCardType = true;
+		ResolvedCardRequirement.RequiredCardType = EFinalCardType::Attack;
+		AddResolvedCardCondition(StarterHuoFirstAttackDaoShiPassive, TriggerDefinition.Conditions, ResolvedCardRequirement);
+
+		AddApplyStatusEffect(
+			StarterHuoFirstAttackDaoShiPassive,
+			TriggerDefinition.Effects,
+			TEXT("effect.starter.huo.passive.first_attack.daoshi"),
+			EFinalBattleUnitTargetRule::Self,
+			StarterHuoStatus,
+			1,
+			FText::FromString(TEXT("每回合第一次打出攻击牌后，获得 1 层刀势。")));
+	}
+	TrackPackage(StarterHuoFirstAttackDaoShiPassive, PackagesToSave);
 
 	UFinalStatusDefinition* StarterYeStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterYeStatusPath, bCreatedAsset);
 	StarterYeStatus->StatusId = FFinalStatusId(StarterYeStatusId);
@@ -625,20 +658,12 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoCharacter->GrowthConfigId = StarterHuoGrowthConfig->GrowthConfigId;
 	StarterHuoCharacter->UltimateId = StarterHuoUltimate->UltimateId;
 	StarterHuoCharacter->SignatureStatusId = StarterHuoStatus->StatusId;
-	StarterHuoCharacter->BattleTriggers.Reset();
+	StarterHuoCharacter->InitialPassiveGrants.Reset();
 	{
-		FFinalRuntimeTriggerDefinition& TookDamageTrigger = StarterHuoCharacter->BattleTriggers.AddDefaulted_GetRef();
-		TookDamageTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
-		TookDamageTrigger.Window = EFinalRuntimeTriggerWindow::OwnerTookHealthDamage;
-		TookDamageTrigger.Limit = EFinalRuntimeTriggerLimit::None;
-		AddApplyStatusEffect(
-			StarterHuoCharacter,
-			TookDamageTrigger.Effects,
-			TEXT("effect.starter.huo.trigger.took_damage.daoshi"),
-			EFinalBattleUnitTargetRule::Self,
-			StarterHuoStatus,
-			1,
-			FText::FromString(TEXT("受压得刀势：霍断岳所属队伍生命受损时，霍断岳获得 1 层刀势。")));
+		FFinalInitialPassiveGrantDefinition& PassiveGrant = StarterHuoCharacter->InitialPassiveGrants.AddDefaulted_GetRef();
+		PassiveGrant.PassiveId = StarterHuoTookDamageDaoShiPassive->PassiveId;
+		PassiveGrant.InitialStacks = 1;
+		PassiveGrant.DurationOverride = 0;
 	}
 	TrackPackage(StarterHuoCharacter, PackagesToSave);
 
@@ -858,17 +883,17 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoShouYaXuShiCard->CardType = EFinalCardType::Ability;
 	StarterHuoShouYaXuShiCard->Rarity = EFinalRarity::Common;
 	StarterHuoShouYaXuShiCard->BaseCostAP = 1;
-	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“受压得刀势”。本场战斗中，承受共享生命伤害后获得 1 层刀势。"));
+	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“压势追刀”。本场战斗中，每回合第一次打出攻击牌后，获得 1 层刀势。"));
 	StarterHuoShouYaXuShiCard->Effects.Reset();
 	AddApplyPassiveEffect(
 		StarterHuoShouYaXuShiCard,
 		StarterHuoShouYaXuShiCard->Effects,
 		TEXT("effect.starter.huo.shouyaxushi.apply_passive"),
 		EFinalBattleUnitTargetRule::Self,
-		StarterHuoTookDamageDaoShiPassive,
+		StarterHuoFirstAttackDaoShiPassive,
 		1,
 		0,
-		FText::FromString(TEXT("赋予自己“受压得刀势”。")));
+		FText::FromString(TEXT("赋予自己“压势追刀”。")));
 	TrackPackage(StarterHuoShouYaXuShiCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeXingZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeXingZhenCardPath, bCreatedAsset);

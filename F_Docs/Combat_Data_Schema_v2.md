@@ -334,7 +334,7 @@ BattleVictoryBaseReward
 | `RoleTags` | 角色定位标签 |
 | `ContentTags` | 内容主题标签 |
 | `GrowthConfigId` | 角色默认成长配置，可为空 |
-| `BattleTriggers` | 旧角色触发 authoring，当前仍处于过渡保留状态 |
+| `InitialPassiveGrants` | 角色开战时挂载的初始被动列表 |
 
 第一版角色成长属性不直接写进 `CharacterDefinition`，而是写入 `RunPersistentCharacterState`。  
 当前 `CharacterDefinition` 只允许通过 `GrowthConfigId` 指向角色默认成长配置，用于提供诸如默认突破阈值这类“角色成长口径”，不承担本局初始成长状态真相。
@@ -342,7 +342,7 @@ BattleVictoryBaseReward
 补充说明：
 
 - 当前 battle 内已经建立正式 `PassiveDefinition / BattlePassiveInstance` 框架。
-- `CharacterDefinition.BattleTriggers` 这一轮仍然保留，只用于兼容旧角色触发内容；它不是长期承载被动规则的目标结构。
+- 角色自带被动的正式 authoring 入口为 `CharacterDefinition.InitialPassiveGrants`。
 - 新的“能力牌赋予被动”链路统一通过 `ApplyPassive -> PassiveDefinition -> BattlePassiveInstance -> RuntimeTriggers` 落地。
 
 ### 5.3 CardDefinition
@@ -431,8 +431,10 @@ ApplyPassive
 说明：
 
 - 被动本身不发明第三套 trigger schema，直接复用 `RuntimeTriggerDefinition`。
-- 当前首条验证内容为霍断岳能力牌“受压蓄势”：打出后 `ApplyPassive(Self)`，并通过被动触发 `OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`。
-- 本轮还没有把霍断岳旧 `BattleTriggers` 自动迁到 passive；旧链路与新被动链路暂时并存。
+- 当前 starter 已有两条正式被动链：
+  - 霍断岳 innate passive：`OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`
+  - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> ApplyStatus(刀势 +1)`。
+- `CharacterDefinition.BattleTriggers` 已从当前代码真相中移除；角色 battle 规则统一由 `InitialPassiveGrants` 与 `PassiveDefinition.RuntimeTriggers` 承载。
 
 ### 5.5 CardEvolutionDefinition
 

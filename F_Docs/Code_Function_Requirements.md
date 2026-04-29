@@ -183,7 +183,8 @@
 - 不允许遗物或角色触发绕过命令与规则结算层直接改状态
 - battle 内正式被动当前由 `PassiveDefinition + BattlePassiveInstance + FinalBattlePassiveService` 承载
 - `ApplyPassive` 当前已接入 `FinalBattleEffectExecutionService`，能力牌可以把被动挂到目标单位
-- `CharacterDefinition.BattleTriggers` 当前仍保留为过渡兼容链路，但不是长期被动 authoring 目标
+- 角色自带被动当前通过 `CharacterDefinition.InitialPassiveGrants` 在 battle 初始化时创建 `PassiveInstance`
+- `FinalBattleTriggerService` 是被动与遗物共享的唯一 trigger 执行器；`FinalBattlePassiveService` 只负责被动实例生命周期与查询投影
 
 优先级：`P1`
 

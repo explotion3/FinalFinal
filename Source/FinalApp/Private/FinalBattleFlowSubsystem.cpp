@@ -4,6 +4,7 @@
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "BattleBridge/FinalBattleGrowthStatProjection.h"
 #include "Facade/FinalBattleSession.h"
 #include "Queries/FinalDataRegistry.h"
@@ -229,6 +230,28 @@ bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest&
 		InitData.UltimateDefinition = CharacterDefinition->UltimateId.IsValid()
 			? DataRegistry->FindUltimateDefinition(CharacterDefinition->UltimateId)
 			: nullptr;
+		for (const FFinalInitialPassiveGrantDefinition& InitialPassiveGrant : CharacterDefinition->InitialPassiveGrants)
+		{
+			if (!InitialPassiveGrant.PassiveId.IsValid())
+			{
+				continue;
+			}
+
+			UFinalPassiveDefinition* PassiveDefinition = DataRegistry->FindPassiveDefinition(InitialPassiveGrant.PassiveId);
+			if (PassiveDefinition == nullptr)
+			{
+				LastFailureReason = FText::Format(
+					NSLOCTEXT("FinalBattleFlow", "MissingPassive", "Passive {0} is not registered."),
+					FText::FromName(InitialPassiveGrant.PassiveId.Value));
+				return false;
+			}
+
+			FFinalBattleInitialPassiveGrantData& PassiveGrantData = InitData.InitialPassiveGrants.AddDefaulted_GetRef();
+			PassiveGrantData.PassiveId = InitialPassiveGrant.PassiveId;
+			PassiveGrantData.PassiveDefinition = PassiveDefinition;
+			PassiveGrantData.InitialStacks = FMath::Max(InitialPassiveGrant.InitialStacks, 1);
+			PassiveGrantData.DurationOverride = FMath::Max(InitialPassiveGrant.DurationOverride, 0);
+		}
 		InitData.CurrentStress = PartyState.CurrentStress;
 		InitData.bCollapsed = PartyState.bCollapsed;
 		InitData.CurrentAwakenCount = PartyState.CurrentAwakenCount;

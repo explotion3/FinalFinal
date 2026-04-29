@@ -562,7 +562,6 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 		}
 
 		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
-		GetPassiveService().ResolveOwnerTookHealthDamagePassives(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
 	}
 	return HpDamage;
 }

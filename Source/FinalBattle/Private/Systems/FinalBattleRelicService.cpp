@@ -1,6 +1,5 @@
 #include "Systems/FinalBattleRelicService.h"
 
-#include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleConditionService.h"
@@ -133,14 +132,4 @@ void FFinalBattleRelicService::ResetPlayerTurnTriggerCounts(FFinalBattleState& B
 		}
 	}
 
-	for (FFinalBattleCharacterState& CharacterState : BattleState.Characters)
-	{
-		for (FFinalBattleRuntimeTriggerState& TriggerState : CharacterState.TriggerStates)
-		{
-			if (TriggerState.TriggerDefinition.Limit == EFinalRuntimeTriggerLimit::OncePerPlayerTurn)
-			{
-				TriggerState.TriggeredCountThisPlayerTurn = 0;
-			}
-		}
-	}
 }

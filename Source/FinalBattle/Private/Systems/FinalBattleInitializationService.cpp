@@ -5,6 +5,7 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Events/FinalBattleEvent.h"
 #include "Facade/FinalBattleSessionTypes.h"
@@ -15,6 +16,7 @@
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
+#include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleTriggerService.h"
@@ -88,6 +90,12 @@ void RefreshEnemyIntentState(
 {
 	EnemyIntentService.RefreshIntent(EnemyState, PreviewRound);
 }
+
+const FFinalBattlePassiveService& GetPassiveService()
+{
+	static const FFinalBattlePassiveService PassiveService;
+	return PassiveService;
+}
 }
 
 void FFinalBattleInitializationService::InitializeBattle(
@@ -153,12 +161,6 @@ void FFinalBattleInitializationService::InitializeBattle(
 		CharacterState.RuntimeCritChance = PartyEntry.RuntimeCritChance;
 		CharacterState.RuntimeCritDamage = PartyEntry.RuntimeCritDamage;
 		CharacterState.UltimateId = PartyEntry.CharacterDefinition->UltimateId;
-		for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : PartyEntry.CharacterDefinition->BattleTriggers)
-		{
-			FFinalBattleRuntimeTriggerState& TriggerState = CharacterState.TriggerStates.AddDefaulted_GetRef();
-			TriggerState.TriggerDefinition = TriggerDefinition;
-		}
-
 		if (PartyEntry.UltimateDefinition != nullptr)
 		{
 			CharacterState.UltimateDefinition = PartyEntry.UltimateDefinition;
@@ -172,6 +174,23 @@ void FFinalBattleInitializationService::InitializeBattle(
 		if (!PartyEntry.bCollapsed)
 		{
 			State.TeamMaxHP += PartyEntry.VitalShare;
+		}
+
+		for (const FFinalBattleInitialPassiveGrantData& InitialPassiveGrant : PartyEntry.InitialPassiveGrants)
+		{
+			if (!InitialPassiveGrant.PassiveId.IsValid() || InitialPassiveGrant.PassiveDefinition == nullptr || InitialPassiveGrant.InitialStacks <= 0)
+			{
+				continue;
+			}
+
+			GetPassiveService().ApplyPassive(
+				State,
+				State.Characters.Last().RuntimeUnitId,
+				State.Characters.Last().RuntimeUnitId,
+				InitialPassiveGrant.PassiveId,
+				InitialPassiveGrant.PassiveDefinition,
+				InitialPassiveGrant.InitialStacks,
+				InitialPassiveGrant.DurationOverride);
 		}
 	}
 

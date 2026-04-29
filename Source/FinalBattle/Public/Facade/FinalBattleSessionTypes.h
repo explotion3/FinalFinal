@@ -8,6 +8,7 @@
 
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
+class UFinalPassiveDefinition;
 class UFinalUltimateDefinition;
 class UFinalBattleConditionDefinition;
 class UFinalBattleEffectDefinition;
@@ -24,10 +25,19 @@ struct FINALBATTLE_API FFinalBattleCharacterRuntimeStats
 	float RuntimeCritDamage = 1.5f;
 };
 
+struct FINALBATTLE_API FFinalBattleInitialPassiveGrantData
+{
+	FFinalPassiveId PassiveId;
+	UFinalPassiveDefinition* PassiveDefinition = nullptr;
+	int32 InitialStacks = 1;
+	int32 DurationOverride = 0;
+};
+
 struct FINALBATTLE_API FFinalBattleCharacterInitData
 {
 	UFinalCharacterDefinition* CharacterDefinition = nullptr;
 	UFinalUltimateDefinition* UltimateDefinition = nullptr;
+	TArray<FFinalBattleInitialPassiveGrantData> InitialPassiveGrants;
 	int32 CurrentStress = 0;
 	bool bCollapsed = false;
 	int32 CurrentAwakenCount = 0;

@@ -138,10 +138,11 @@
   - `FFinalBattleState.PassiveInstances`
   - `FFinalBattlePassiveInstance`
   - `FinalBattlePassiveService`
-- 首条验证链路当前来自霍断岳 starter 能力牌“受压蓄势”：
-  - 打牌
-  - 获得被动实例
-  - 在 `OwnerTookHealthDamage` 窗口触发
-  - 施加 1 层 `刀势`
-- 本步骤刻意没有迁移霍断岳旧 `CharacterDefinition.BattleTriggers`；旧角色 trigger 当前仍保留，用作兼容过渡链路。
-- battle snapshot / debug 查询当前已补最小 passive 视图，便于验证能力牌赋予被动是否生效。
+- passive 首条验证链路当前分成两条：
+  - 霍断岳 innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
+  - 霍断岳 starter 能力牌“受压蓄势”：打牌后授予 passive“压势追刀”，在每回合第一次打出攻击牌后获得 1 层刀势
+- 本步骤已切断旧 `CharacterDefinition.BattleTriggers` 运行时链，角色自带被动正式改为 `InitialPassiveGrants -> PassiveDefinition -> BattlePassiveInstance`。
+- 霍断岳当前同时具备两条正式被动链：
+  - innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
+  - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后获得 1 层刀势
+- battle snapshot / debug 查询当前已补最小 passive 视图，便于验证 innate passive 与能力牌赋予被动是否生效。

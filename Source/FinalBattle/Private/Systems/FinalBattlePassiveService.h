@@ -4,11 +4,7 @@
 #include "Ids/FinalIds.h"
 #include "Types/FinalCoreTypes.h"
 
-class FFinalBattleConditionService;
-class FFinalBattleEffectExecutionService;
-class FFinalBattleUnitService;
 class UFinalPassiveDefinition;
-struct FFinalBattleEffectExecutionSummary;
 struct FFinalBattlePassiveInstance;
 struct FFinalBattlePassiveViewData;
 struct FFinalBattleState;
@@ -24,13 +20,6 @@ public:
 		const UFinalPassiveDefinition* PassiveDefinition,
 		int32 StacksToAdd,
 		int32 DurationOverride = 0) const;
-
-	void ResolveOwnerTookHealthDamagePassives(
-		FFinalBattleState& BattleState,
-		const FFinalBattleUnitService& UnitService,
-		const FFinalBattleConditionService& ConditionService,
-		const FFinalBattleEffectExecutionService& EffectExecutionService,
-		FFinalBattleEffectExecutionSummary& InOutSummary) const;
 
 	void ResetPlayerTurnTriggerCounts(FFinalBattleState& BattleState) const;
 	void ResolvePlayerTurnEndPassives(FFinalBattleState& BattleState) const;

@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
-#include "Runtime/FinalBattleRuntimeTriggerState.h"
-
 class UFinalUltimateDefinition;
 
 struct FFinalBattleCharacterState
@@ -28,5 +26,4 @@ struct FFinalBattleCharacterState
 	int32 UltimateCostEP = 0;
 	UFinalUltimateDefinition* UltimateDefinition = nullptr;
 	bool bUltimateUsedThisBattle = false;
-	TArray<FFinalBattleRuntimeTriggerState> TriggerStates;
 };

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
@@ -21,6 +20,21 @@ struct FINALDATA_API FFinalInitialLoadoutCardEntry
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
 	EFinalLoadoutRole LoadoutRole = EFinalLoadoutRole::BaseAttack;
+};
+
+USTRUCT(BlueprintType)
+struct FINALDATA_API FFinalInitialPassiveGrantDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character|Passive")
+	FFinalPassiveId PassiveId;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character|Passive", meta = (ClampMin = "1"))
+	int32 InitialStacks = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character|Passive", meta = (ClampMin = "0"))
+	int32 DurationOverride = 0;
 };
 
 UCLASS(BlueprintType)
@@ -77,6 +91,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
 	FFinalStatusId SignatureStatusId;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character")
-	TArray<FFinalRuntimeTriggerDefinition> BattleTriggers;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Character|Passive")
+	TArray<FFinalInitialPassiveGrantDefinition> InitialPassiveGrants;
 };

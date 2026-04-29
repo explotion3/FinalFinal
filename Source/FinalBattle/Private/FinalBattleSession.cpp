@@ -312,11 +312,6 @@ void UFinalBattleSession::AddReferencedObjects(UObject* InThis, FReferenceCollec
 		AddRuntimeTriggerReferences(RuntimeState.TriggerStates);
 	}
 
-	for (FFinalBattleCharacterState& CharacterState : This->State->Characters)
-	{
-		AddRuntimeTriggerReferences(CharacterState.TriggerStates);
-	}
-
 	for (FFinalBattlePassiveInstance& PassiveInstance : This->State->PassiveInstances)
 	{
 		AddRuntimeTriggerReferences(PassiveInstance.TriggerStates);

@@ -786,7 +786,16 @@ namespace FinalDataAssetValidation
 			AddError(Context, bIsValid, TEXT("SignatureStatusId must be set."));
 		}
 
-		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Character->BattleTriggers, TEXT("BattleTriggers"));
+		for (int32 Index = 0; Index < Character->InitialPassiveGrants.Num(); ++Index)
+		{
+			const FFinalInitialPassiveGrantDefinition& InitialPassiveGrant = Character->InitialPassiveGrants[Index];
+			if (!InitialPassiveGrant.PassiveId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("InitialPassiveGrants[%d].PassiveId must be set."), Index));
+			}
+			ValidatePositive(Context, bIsValid, InitialPassiveGrant.InitialStacks, *FString::Printf(TEXT("InitialPassiveGrants[%d].InitialStacks"), Index));
+			ValidateNonNegative(Context, bIsValid, InitialPassiveGrant.DurationOverride, *FString::Printf(TEXT("InitialPassiveGrants[%d].DurationOverride"), Index));
+		}
 	}
 
 	void ValidateEnemyDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalEnemyDefinition* Enemy)
@@ -1568,6 +1577,20 @@ namespace FinalDataAssetValidation
 
 		ValidateReferencedUltimateIdExists(Context, bIsValid, ProjectIndex, Character->UltimateId, TEXT("UltimateId"));
 		ValidateReferencedStatusIdExists(Context, bIsValid, ProjectIndex, Character->SignatureStatusId, TEXT("SignatureStatusId"));
+		for (int32 Index = 0; Index < Character->InitialPassiveGrants.Num(); ++Index)
+		{
+			const FFinalPassiveId PassiveId = Character->InitialPassiveGrants[Index].PassiveId;
+			if (PassiveId.IsValid() && !ProjectIndex.HasPassiveDefinition(PassiveId))
+			{
+				AddError(
+					Context,
+					bIsValid,
+					FString::Printf(
+						TEXT("InitialPassiveGrants[%d].PassiveId references missing PassiveDefinition '%s'."),
+						Index,
+						*PassiveId.Value.ToString()));
+			}
+		}
 	}
 
 	void ValidateEnemyDefinitionProjectConsistency(

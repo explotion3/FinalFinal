@@ -23,6 +23,7 @@ class UFinalBattleEffectRemoveStatus;
 class UFinalBattleConditionMovedCards;
 class UFinalBattleConditionStatusChanged;
 class UFinalBattleConditionHandCard;
+class UFinalBattleConditionDefinition;
 class UFinalBattleConditionResolvedCard;
 class UFinalBattleConditionTargetState;
 class UFinalCardDefinition;
