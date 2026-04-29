@@ -7,6 +7,7 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Modules/ModuleManager.h"
@@ -209,6 +210,7 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 	CharacterGrowthConfigs.Reset();
 	GrowthChoiceDefinitions.Reset();
 	CardEvolutionDefinitions.Reset();
+	PassiveDefinitions.Reset();
 	StatusDefinitions.Reset();
 	UltimateDefinitions.Reset();
 
@@ -235,6 +237,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	const FFinalDataRegistryIndexStats CharacterGrowthConfigStats = IndexDefinitionAssets<UFinalCharacterGrowthConfig>(AssetRegistry, TEXT("GrowthConfigId"), CharacterGrowthConfigs, TEXT("CharacterGrowthConfig"));
 	const FFinalDataRegistryIndexStats GrowthChoiceStats = IndexDefinitionAssets<UFinalGrowthChoiceDefinition>(AssetRegistry, TEXT("GrowthChoiceId"), GrowthChoiceDefinitions, TEXT("GrowthChoiceDefinition"));
 	const FFinalDataRegistryIndexStats CardEvolutionStats = IndexDefinitionAssets<UFinalCardEvolutionDefinition>(AssetRegistry, TEXT("EvolutionId"), CardEvolutionDefinitions, TEXT("CardEvolutionDefinition"));
+	const FFinalDataRegistryIndexStats PassiveStats = IndexDefinitionAssets<UFinalPassiveDefinition>(AssetRegistry, TEXT("PassiveId"), PassiveDefinitions, TEXT("PassiveDefinition"));
 	const FFinalDataRegistryIndexStats StatusStats = IndexDefinitionAssets<UFinalStatusDefinition>(AssetRegistry, TEXT("StatusId"), StatusDefinitions, TEXT("StatusDefinition"));
 	const FFinalDataRegistryIndexStats UltimateStats = IndexDefinitionAssets<UFinalUltimateDefinition>(AssetRegistry, TEXT("UltimateId"), UltimateDefinitions, TEXT("UltimateDefinition"));
 
@@ -252,13 +255,14 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 		+ CharacterGrowthConfigStats.MissingStableIdTagCount
 		+ GrowthChoiceStats.MissingStableIdTagCount
 		+ CardEvolutionStats.MissingStableIdTagCount
+		+ PassiveStats.MissingStableIdTagCount
 		+ StatusStats.MissingStableIdTagCount
 		+ UltimateStats.MissingStableIdTagCount;
 
 	UE_LOG(
 		LogFinalDataRegistry,
 		Log,
-		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d CharacterGrowthConfigs=%d GrowthChoices=%d CardEvolutions=%d MissingStableIdTags=%d"),
+		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Passives=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d CharacterGrowthConfigs=%d GrowthChoices=%d CardEvolutions=%d MissingStableIdTags=%d"),
 		ElapsedMilliseconds,
 		RuleConfigStats.IndexedCount,
 		CharacterStats.IndexedCount,
@@ -266,6 +270,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 		UltimateStats.IndexedCount,
 		EnemyStats.IndexedCount,
 		EnemyIntentStats.IndexedCount,
+		PassiveStats.IndexedCount,
 		StatusStats.IndexedCount,
 		EncounterStats.IndexedCount,
 		PrototypeBootstrapStats.IndexedCount,
@@ -456,6 +461,16 @@ void UFinalDataRegistry::RegisterCardEvolutionDefinition(UFinalCardEvolutionDefi
 	RegisterLoadedDefinition(CardEvolutionDefinitions, Definition->EvolutionId.Value, Definition);
 }
 
+void UFinalDataRegistry::RegisterPassiveDefinition(UFinalPassiveDefinition* Definition)
+{
+	if (!IsValid(Definition) || !Definition->PassiveId.IsValid())
+	{
+		return;
+	}
+
+	RegisterLoadedDefinition(PassiveDefinitions, Definition->PassiveId.Value, Definition);
+}
+
 void UFinalDataRegistry::RegisterStatusDefinition(UFinalStatusDefinition* Definition)
 {
 	if (!IsValid(Definition) || !Definition->StatusId.IsValid())
@@ -574,6 +589,12 @@ UFinalStatusDefinition* UFinalDataRegistry::FindStatusDefinition(const FFinalSta
 {
 	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
 	return MutableThis->FindLoadedDefinition<UFinalStatusDefinition>(MutableThis->StatusDefinitions, StatusId.Value, TEXT("StatusDefinition"));
+}
+
+UFinalPassiveDefinition* UFinalDataRegistry::FindPassiveDefinition(const FFinalPassiveId& PassiveId) const
+{
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	return MutableThis->FindLoadedDefinition<UFinalPassiveDefinition>(MutableThis->PassiveDefinitions, PassiveId.Value, TEXT("PassiveDefinition"));
 }
 
 UFinalUltimateDefinition* UFinalDataRegistry::FindUltimateDefinition(const FFinalUltimateId& UltimateId) const

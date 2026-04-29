@@ -7,6 +7,7 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
@@ -112,6 +113,11 @@ FFinalDataValidationProjectIndex FFinalDataValidationProjectIndex::Build()
 		return Asset.EncounterId.Value;
 	});
 
+	CollectDefinitionIds<UFinalPassiveDefinition>(AssetRegistry, ProjectIndex.PassiveDefinitionPathsById, [](const UFinalPassiveDefinition& Asset)
+	{
+		return Asset.PassiveId.Value;
+	});
+
 	CollectDefinitionIds<UFinalPrototypeBootstrapDefinition>(AssetRegistry, ProjectIndex.PrototypeBootstrapDefinitionPathsById, [](const UFinalPrototypeBootstrapDefinition& Asset)
 	{
 		return Asset.BootstrapId;
@@ -170,6 +176,11 @@ TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateEncounterDefiniti
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(EncounterDefinitionPathsById, EncounterId.Value, CurrentAssetPath);
 }
 
+TArray<FString> FFinalDataValidationProjectIndex::FindDuplicatePassiveDefinitionPaths(const FFinalPassiveId& PassiveId, const FString& CurrentAssetPath) const
+{
+	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(PassiveDefinitionPathsById, PassiveId.Value, CurrentAssetPath);
+}
+
 TArray<FString> FFinalDataValidationProjectIndex::FindDuplicatePrototypeBootstrapDefinitionPaths(const FName BootstrapId, const FString& CurrentAssetPath) const
 {
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(PrototypeBootstrapDefinitionPathsById, BootstrapId, CurrentAssetPath);
@@ -213,6 +224,11 @@ bool FFinalDataValidationProjectIndex::HasCharacterDefinition(const FFinalCharac
 bool FFinalDataValidationProjectIndex::HasEncounterDefinition(const FFinalEncounterId& EncounterId) const
 {
 	return FinalDataValidationProjectIndexInternal::HasStableId(EncounterDefinitionPathsById, EncounterId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasPassiveDefinition(const FFinalPassiveId& PassiveId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(PassiveDefinitionPathsById, PassiveId.Value);
 }
 
 bool FFinalDataValidationProjectIndex::HasPrototypeBootstrapDefinition(const FName BootstrapId) const

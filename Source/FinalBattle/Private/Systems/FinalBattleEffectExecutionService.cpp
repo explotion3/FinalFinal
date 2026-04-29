@@ -1,8 +1,10 @@
 #include "Systems/FinalBattleEffectExecutionService.h"
 
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
@@ -22,6 +24,7 @@
 #include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
+#include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTriggerService.h"
@@ -39,6 +42,7 @@ const FFinalBattleEventService& GetEventService();
 const FFinalBattleTriggerService& GetTriggerService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleStatusService& GetStatusService();
+const FFinalBattlePassiveService& GetPassiveService();
 const FFinalEnemyIntentService& GetEnemyIntentService();
 bool ExecuteEffectListInternal(
 	FFinalBattleState& State,
@@ -98,6 +102,12 @@ const FFinalBattleStatusService& GetStatusService()
 	return StatusService;
 }
 
+const FFinalBattlePassiveService& GetPassiveService()
+{
+	static const FFinalBattlePassiveService PassiveService;
+	return PassiveService;
+}
+
 void RefreshEnemyIntentState(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 PreviewRound, const bool bEmitPhaseChangeEvent)
 {
 	const FName PreviousPhaseTag = EnemyState.CurrentPhaseTag;
@@ -129,6 +139,7 @@ bool HasSupportedEffectListInternal(const TArray<TObjectPtr<UFinalBattleEffectDe
 	{
 		if (Cast<UFinalBattleEffectDamage>(EffectDefinition)
 			|| Cast<UFinalBattleEffectHeal>(EffectDefinition)
+			|| Cast<UFinalBattleEffectApplyPassive>(EffectDefinition)
 			|| Cast<UFinalBattleEffectApplyStatus>(EffectDefinition)
 			|| Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainShield>(EffectDefinition)
@@ -422,6 +433,21 @@ TArray<FName> ResolveStatusTargetOwnerUnitIds(
 	return TargetOwnerUnitIds;
 }
 
+FFinalPassiveId ResolveEffectPassiveId(const UFinalBattleEffectApplyPassive* EffectDefinition)
+{
+	if (EffectDefinition == nullptr)
+	{
+		return FFinalPassiveId();
+	}
+
+	if (EffectDefinition->PassiveId.IsValid())
+	{
+		return EffectDefinition->PassiveId;
+	}
+
+	return EffectDefinition->PassiveDefinition != nullptr ? EffectDefinition->PassiveDefinition->PassiveId : FFinalPassiveId();
+}
+
 int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPercent)
 {
 	if (BaseDamage <= 0 || ModifierPercent == 0)
@@ -536,6 +562,7 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 		}
 
 		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
+		GetPassiveService().ResolveOwnerTookHealthDamagePassives(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
 	}
 	return HpDamage;
 }
@@ -814,6 +841,59 @@ bool ExecuteApplyStatusEffect(
 	}
 
 	Summary.TotalStatusStacksApplied += AppliedStacks;
+	++Summary.ResolvedEffectCount;
+	return true;
+}
+
+bool ExecuteApplyPassiveEffect(
+	FFinalBattleState& State,
+	const UFinalBattleEffectApplyPassive* ApplyPassiveEffect,
+	const FFinalBattleCommand* Command,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState,
+	const FName SourceOwnerUnitId,
+	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleEffectExecutionContext& ExecutionContext,
+	FFinalBattleEffectExecutionSummary& Summary)
+{
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		ApplyPassiveEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
+	{
+		return false;
+	}
+
+	const FFinalPassiveId PassiveId = ResolveEffectPassiveId(ApplyPassiveEffect);
+	if (!PassiveId.IsValid() || ApplyPassiveEffect->PassiveDefinition == nullptr || ApplyPassiveEffect->Stacks <= 0)
+	{
+		return false;
+	}
+
+	const TArray<FName> TargetOwnerUnitIds = ResolveStatusTargetOwnerUnitIds(
+		State,
+		Command,
+		ApplyPassiveEffect->UnitTargetRule,
+		SourceCharacterState,
+		SourceEnemyState,
+		UnitService);
+	int32 AppliedStacks = 0;
+	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
+	{
+		AppliedStacks += GetPassiveService().ApplyPassive(
+			State,
+			TargetOwnerUnitId,
+			SourceOwnerUnitId,
+			PassiveId,
+			ApplyPassiveEffect->PassiveDefinition,
+			ApplyPassiveEffect->Stacks,
+			ApplyPassiveEffect->DurationOverride);
+	}
+
+	if (AppliedStacks <= 0)
+	{
+		return false;
+	}
+
 	++Summary.ResolvedEffectCount;
 	return true;
 }
@@ -1275,6 +1355,12 @@ bool ExecuteEffectListInternal(
 		if (const UFinalBattleEffectApplyStatus* ApplyStatusEffect = Cast<UFinalBattleEffectApplyStatus>(EffectDefinition))
 		{
 			ExecuteApplyStatusEffect(State, ApplyStatusEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, UnitService, ExecutionContext, Summary);
+			continue;
+		}
+
+		if (const UFinalBattleEffectApplyPassive* ApplyPassiveEffect = Cast<UFinalBattleEffectApplyPassive>(EffectDefinition))
+		{
+			ExecuteApplyPassiveEffect(State, ApplyPassiveEffect, Command, SourceCharacterState, SourceEnemyState, SourceOwnerUnitId, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 

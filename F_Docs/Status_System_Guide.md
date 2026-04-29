@@ -176,7 +176,7 @@
 * 苏醒时
 
 当前 Runtime 已落地的最小 battle trigger window：
-* `OwnerTookHealthDamage`：当玩家共享生命实际下降时触发；当前按角色站位顺序检查 `CharacterDefinition.BattleTriggers`，并从运行时 `FinalBattleCharacterState` 执行对应 effect list。该窗口当前用于霍断岳“受压得刀势”。
+* `OwnerTookHealthDamage`：当玩家共享生命实际下降时触发；当前仍兼容旧 `CharacterDefinition.BattleTriggers`，同时也已接通 battle passive runtime。能力牌施加的“受压得刀势”被动会在该窗口下通过 `BattlePassiveInstance.TriggerStates` 触发 `ApplyStatus(刀势 +1)`。
 
 ### 6.3 首版默认状态时点表
 * `灼烧`：当前只作用于敌方单位；在敌方回合开始窗口结算
@@ -245,7 +245,7 @@
 
 ## 9. 首版角色专属状态清单
 ### 9.1 霍断岳
-* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 通过已配置牌和 `OwnerTookHealthDamage` trigger 获得，并由明确配置的攻击牌消耗来追加削韧
+* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 当前既可通过旧 `OwnerTookHealthDamage` 角色 trigger 获得，也可通过能力牌“受压蓄势”赋予的被动，在同一窗口下获得，并由明确配置的攻击牌消耗来追加削韧
 
 ### 9.2 叶半夏
 * `药引`：叶半夏专属状态；默认按层数累积；不自动生效，只有被牌明确消耗时才结算收益

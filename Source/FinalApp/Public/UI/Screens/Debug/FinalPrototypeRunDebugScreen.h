@@ -91,6 +91,9 @@ private:
 	TObjectPtr<UTextBlock> BattleRelicSummaryText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BattlePassiveSummaryText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BattleEventSummaryText;
 
 	UPROPERTY(Transient)

@@ -11,6 +11,7 @@ class UFinalBattleRuleConfig;
 class UFinalCardEvolutionDefinition;
 class UFinalCharacterGrowthConfig;
 class UFinalGrowthChoiceDefinition;
+class UFinalPassiveDefinition;
 class UFinalCardDefinition;
 class UFinalCharacterDefinition;
 class UFinalEnemyDefinition;
@@ -52,6 +53,7 @@ public:
 	void RegisterCharacterGrowthConfig(UFinalCharacterGrowthConfig* Definition);
 	void RegisterGrowthChoiceDefinition(UFinalGrowthChoiceDefinition* Definition);
 	void RegisterCardEvolutionDefinition(UFinalCardEvolutionDefinition* Definition);
+	void RegisterPassiveDefinition(UFinalPassiveDefinition* Definition);
 	void RegisterStatusDefinition(UFinalStatusDefinition* Definition);
 	void RegisterUltimateDefinition(UFinalUltimateDefinition* Definition);
 
@@ -68,6 +70,7 @@ public:
 	UFinalGrowthChoiceDefinition* FindGrowthChoiceDefinition(const FFinalGrowthChoiceId& GrowthChoiceId) const;
 	UFinalCardEvolutionDefinition* FindCardEvolutionDefinition(const FFinalCardEvolutionId& EvolutionId) const;
 	void GetAllCardEvolutionDefinitions(TArray<const UFinalCardEvolutionDefinition*>& OutDefinitions) const;
+	UFinalPassiveDefinition* FindPassiveDefinition(const FFinalPassiveId& PassiveId) const;
 	UFinalStatusDefinition* FindStatusDefinition(const FFinalStatusId& StatusId) const;
 	UFinalUltimateDefinition* FindUltimateDefinition(const FFinalUltimateId& UltimateId) const;
 
@@ -115,6 +118,9 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> CardEvolutionDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> PassiveDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> StatusDefinitions;

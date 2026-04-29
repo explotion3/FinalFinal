@@ -11,8 +11,10 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
@@ -371,6 +373,28 @@ namespace FinalPrototypeContentBootstrap
 		ApplyStatusEffect->Notes = Notes;
 		Effects.Add(ApplyStatusEffect);
 		return ApplyStatusEffect;
+	}
+
+	UFinalBattleEffectApplyPassive* AddApplyPassiveEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		UFinalPassiveDefinition* PassiveDefinition,
+		const int32 Stacks,
+		const int32 DurationOverride,
+		const FText& Notes)
+	{
+		UFinalBattleEffectApplyPassive* ApplyPassiveEffect = NewObject<UFinalBattleEffectApplyPassive>(Owner);
+		ApplyPassiveEffect->EffectId = EffectId;
+		ApplyPassiveEffect->UnitTargetRule = TargetRule;
+		ApplyPassiveEffect->PassiveDefinition = PassiveDefinition;
+		ApplyPassiveEffect->PassiveId = PassiveDefinition ? PassiveDefinition->PassiveId : FFinalPassiveId();
+		ApplyPassiveEffect->Stacks = FMath::Max(Stacks, 1);
+		ApplyPassiveEffect->DurationOverride = FMath::Max(DurationOverride, 0);
+		ApplyPassiveEffect->Notes = Notes;
+		Effects.Add(ApplyPassiveEffect);
+		return ApplyPassiveEffect;
 	}
 
 	UFinalBattleEffectRemoveStatus* AddRemoveStatusEffect(

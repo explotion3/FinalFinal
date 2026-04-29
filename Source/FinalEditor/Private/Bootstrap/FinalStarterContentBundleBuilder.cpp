@@ -15,6 +15,7 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
@@ -49,6 +50,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterHuoDuanYueZhanCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoDuanYueZhan");
 	const FString StarterHuoDuanYueZhanPoZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoDuanYueZhanPoZhen");
 	const FString StarterHuoTieBiHuiFengCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoTieBiHuiFeng");
+	const FString StarterHuoShouYaXuShiCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_HuoShouYaXuShi");
 	const FString StarterYeXingZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_YeXingZhen");
 	const FString StarterYeTiaoXiCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_YeTiaoXi");
 	const FString StarterYeHuaYinCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_YeHuaYin");
@@ -119,6 +121,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterHuoDuanYueZhanPoZhenEvolutionPath = StarterRootPath / TEXT("Growth/DA_CardEvolution_Starter_HuoDuanYueZhanPoZhen");
 	const FString StarterBronzeMirrorGuardRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_BronzeMirrorGuard");
 	const FString StarterTokenZeroDrawRelicPath = StarterRootPath / TEXT("Relics/DA_Relic_Starter_TokenZeroDraw");
+	const FString StarterHuoTookDamageDaoShiPassivePath = StarterRootPath / TEXT("Passives/DA_Passive_Starter_HuoTookDamageDaoShi");
 	const FName StarterBootstrapId(TEXT("prototype.bootstrap.starter.chapter1"));
 	const FName StarterRuleConfigId(TEXT("rule.starter.chapter1"));
 	const FName StarterNormalEncounterId(TEXT("encounter.starter.chapter1.roadblock"));
@@ -146,6 +149,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterHuoDuanYueZhanCardId(TEXT("card.starter.huo.duanyuezhan"));
 	const FName StarterHuoDuanYueZhanPoZhenCardId(TEXT("card.starter.huo.duanyuezhan.pozhen"));
 	const FName StarterHuoTieBiHuiFengCardId(TEXT("card.starter.huo.tiebihuifeng"));
+	const FName StarterHuoShouYaXuShiCardId(TEXT("card.starter.huo.shouyaxushi"));
 	const FName StarterYeXingZhenCardId(TEXT("card.starter.ye.xingzhen"));
 	const FName StarterYeTiaoXiCardId(TEXT("card.starter.ye.tiaoxi"));
 	const FName StarterYeHuaYinCardId(TEXT("card.starter.ye.huayin"));
@@ -176,6 +180,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterHuoDuanYueZhanPoZhenEvolutionId(TEXT("evo.starter.huo.duanyuezhan.pozhen"));
 	const FName StarterBronzeMirrorGuardRelicId(TEXT("relic_bronze_mirror_guard"));
 	const FName StarterTokenZeroDrawRelicId(TEXT("relic_token_zero_draw"));
+	const FName StarterHuoTookDamageDaoShiPassiveId(TEXT("passive.starter.huo.took_damage_gain_daoshi"));
 	const FName StarterOpeningBattleNodeId(TEXT("run.starter.node.battle.roadblock"));
 	const FName StarterRewardNodeId(TEXT("run.starter.node.reward.spoils"));
 	const FName StarterEventNodeId(TEXT("run.starter.node.event.cliff_notice"));
@@ -266,6 +271,31 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoStatus->DefaultDuration = 0;
 	StarterHuoStatus->OnTickEffects.Reset();
 	TrackPackage(StarterHuoStatus, PackagesToSave);
+
+	UFinalPassiveDefinition* StarterHuoTookDamageDaoShiPassive = LoadOrCreateAsset<UFinalPassiveDefinition>(StarterHuoTookDamageDaoShiPassivePath, bCreatedAsset);
+	StarterHuoTookDamageDaoShiPassive->PassiveId = FFinalPassiveId(StarterHuoTookDamageDaoShiPassiveId);
+	StarterHuoTookDamageDaoShiPassive->DisplayId = StarterHuoTookDamageDaoShiPassiveId;
+	StarterHuoTookDamageDaoShiPassive->DisplayName = FText::FromString(TEXT("受压得刀势"));
+	StarterHuoTookDamageDaoShiPassive->SummaryText = FText::FromString(TEXT("承受共享生命伤害后，获得 1 层刀势。"));
+	StarterHuoTookDamageDaoShiPassive->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
+	StarterHuoTookDamageDaoShiPassive->DurationType = EFinalPassiveDurationType::Battle;
+	StarterHuoTookDamageDaoShiPassive->MaxStacks = 1;
+	StarterHuoTookDamageDaoShiPassive->RuntimeTriggers.Reset();
+	{
+		FFinalRuntimeTriggerDefinition& TookDamageTrigger = StarterHuoTookDamageDaoShiPassive->RuntimeTriggers.AddDefaulted_GetRef();
+		TookDamageTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TookDamageTrigger.Window = EFinalRuntimeTriggerWindow::OwnerTookHealthDamage;
+		TookDamageTrigger.Limit = EFinalRuntimeTriggerLimit::None;
+		AddApplyStatusEffect(
+			StarterHuoTookDamageDaoShiPassive,
+			TookDamageTrigger.Effects,
+			TEXT("effect.starter.passive.huo.took_damage.daoshi"),
+			EFinalBattleUnitTargetRule::Self,
+			StarterHuoStatus,
+			1,
+			FText::FromString(TEXT("受压得刀势：承受共享生命伤害后，霍断岳获得 1 层刀势。")));
+	}
+	TrackPackage(StarterHuoTookDamageDaoShiPassive, PackagesToSave);
 
 	UFinalStatusDefinition* StarterYeStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterYeStatusPath, bCreatedAsset);
 	StarterYeStatus->StatusId = FFinalStatusId(StarterYeStatusId);
@@ -821,6 +851,26 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		1);
 	TrackPackage(StarterHuoTieBiHuiFengCard, PackagesToSave);
 
+	UFinalCardDefinition* StarterHuoShouYaXuShiCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterHuoShouYaXuShiCardPath, bCreatedAsset);
+	StarterHuoShouYaXuShiCard->CardId = FFinalCardId(StarterHuoShouYaXuShiCardId);
+	StarterHuoShouYaXuShiCard->OwnerUnitId = StarterHuoCharacterId;
+	StarterHuoShouYaXuShiCard->DisplayName = FText::FromString(TEXT("受压蓄势"));
+	StarterHuoShouYaXuShiCard->CardType = EFinalCardType::Ability;
+	StarterHuoShouYaXuShiCard->Rarity = EFinalRarity::Common;
+	StarterHuoShouYaXuShiCard->BaseCostAP = 1;
+	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“受压得刀势”。本场战斗中，承受共享生命伤害后获得 1 层刀势。"));
+	StarterHuoShouYaXuShiCard->Effects.Reset();
+	AddApplyPassiveEffect(
+		StarterHuoShouYaXuShiCard,
+		StarterHuoShouYaXuShiCard->Effects,
+		TEXT("effect.starter.huo.shouyaxushi.apply_passive"),
+		EFinalBattleUnitTargetRule::Self,
+		StarterHuoTookDamageDaoShiPassive,
+		1,
+		0,
+		FText::FromString(TEXT("赋予自己“受压得刀势”。")));
+	TrackPackage(StarterHuoShouYaXuShiCard, PackagesToSave);
+
 	UFinalCardDefinition* StarterYeXingZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeXingZhenCardPath, bCreatedAsset);
 	StarterYeXingZhenCard->CardId = FFinalCardId(StarterYeXingZhenCardId);
 	StarterYeXingZhenCard->OwnerUnitId = StarterYeCharacterId;
@@ -1173,13 +1223,15 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		MakeLoadoutEntry(StarterHuoLieFengCard->CardId, 2, EFinalLoadoutRole::BaseAttack),
 		MakeLoadoutEntry(StarterHuoWenJiaCard->CardId, 1, EFinalLoadoutRole::BaseDefense),
 		MakeLoadoutEntry(StarterHuoDuanYueZhanCard->CardId, 1, EFinalLoadoutRole::BaseAttack),
-		MakeLoadoutEntry(StarterHuoTieBiHuiFengCard->CardId, 1, EFinalLoadoutRole::BaseDefense)
+		MakeLoadoutEntry(StarterHuoTieBiHuiFengCard->CardId, 1, EFinalLoadoutRole::BaseDefense),
+		MakeLoadoutEntry(StarterHuoShouYaXuShiCard->CardId, 1, EFinalLoadoutRole::ExtraStartCard)
 	};
 	StarterHuoCharacter->CharacterCardPoolIds = {
 		StarterHuoLieFengCard->CardId,
 		StarterHuoWenJiaCard->CardId,
 		StarterHuoDuanYueZhanCard->CardId,
-		StarterHuoTieBiHuiFengCard->CardId
+		StarterHuoTieBiHuiFengCard->CardId,
+		StarterHuoShouYaXuShiCard->CardId
 	};
 	TrackPackage(StarterHuoCharacter, PackagesToSave);
 
@@ -2093,6 +2145,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterHuoWenJiaCard->CardId,
 		StarterHuoDuanYueZhanCard->CardId,
 		StarterHuoTieBiHuiFengCard->CardId,
+		StarterHuoShouYaXuShiCard->CardId,
 		StarterYeXingZhenCard->CardId,
 		StarterYeTiaoXiCard->CardId,
 		StarterYeHuaYinCard->CardId,

@@ -7,6 +7,7 @@
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEnemyActionService.h"
+#include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
@@ -17,6 +18,11 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const FFinalBattlePassiveService& GetPassiveService()
+{
+	static const FFinalBattlePassiveService PassiveService;
+	return PassiveService;
+}
 
 const FFinalEnemyIntentService& GetEnemyIntentService()
 {
@@ -41,6 +47,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	FFinalBattleEndTurnResult Result;
 	CardService.ResolveEndTurnHandCleanup(BattleState);
 	StatusService.ResolvePlayerTurnEndStatuses(BattleState);
+	GetPassiveService().ResolvePlayerTurnEndPassives(BattleState);
 	for (const FFinalBattleCharacterState& CharacterState : BattleState.Characters)
 	{
 		StatusService.ResyncProjectedHandCardModifiers(BattleState, CardService, CharacterState.RuntimeUnitId);
@@ -93,6 +100,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	++BattleState.CurrentRound;
 	ResourceService.ResetRoundResources(BattleState, RuleConfig ? RuleConfig->InitialAP : 0);
 	RelicService.ResetPlayerTurnTriggerCounts(BattleState);
+	GetPassiveService().ResetPlayerTurnTriggerCounts(BattleState);
 	RelicService.ApplyPlayerTurnStartRelicEffects(
 		BattleState,
 		TriggerService,

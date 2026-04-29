@@ -9,6 +9,7 @@
 #include "Run/Rewards/FinalRunRewardTypes.h"
 
 class UFinalBattleEffectApplyStatus;
+class UFinalBattleEffectApplyPassive;
 class UFinalBattleEffectBonusBreak;
 class UFinalBattleEffectDamage;
 class UFinalBattleEffectDefinition;
@@ -25,6 +26,7 @@ class UFinalBattleConditionHandCard;
 class UFinalBattleConditionResolvedCard;
 class UFinalBattleConditionTargetState;
 class UFinalCardDefinition;
+class UFinalPassiveDefinition;
 class UFinalStatusDefinition;
 
 namespace FinalPrototypeContentBootstrap
@@ -61,6 +63,7 @@ namespace FinalPrototypeContentBootstrap
 	UFinalBattleEffectDrawCards* AddDrawEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, int32 DrawCount, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectHeal* AddHealEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectApplyStatus* AddApplyStatusEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalStatusDefinition* StatusDefinition, int32 Stacks, const FText& Notes = FText::GetEmpty());
+	UFinalBattleEffectApplyPassive* AddApplyPassiveEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalPassiveDefinition* PassiveDefinition, int32 Stacks, int32 DurationOverride = 0, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectRemoveStatus* AddRemoveStatusEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalStatusDefinition* StatusDefinition, int32 Stacks, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectGainAP* AddGainApEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, int32 GainValue, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectBonusBreak* AddBonusBreakEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None, const FText& Notes = FText::GetEmpty());

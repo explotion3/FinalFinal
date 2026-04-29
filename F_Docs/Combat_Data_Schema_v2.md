@@ -334,9 +334,16 @@ BattleVictoryBaseReward
 | `RoleTags` | 角色定位标签 |
 | `ContentTags` | 内容主题标签 |
 | `GrowthConfigId` | 角色默认成长配置，可为空 |
+| `BattleTriggers` | 旧角色触发 authoring，当前仍处于过渡保留状态 |
 
 第一版角色成长属性不直接写进 `CharacterDefinition`，而是写入 `RunPersistentCharacterState`。  
 当前 `CharacterDefinition` 只允许通过 `GrowthConfigId` 指向角色默认成长配置，用于提供诸如默认突破阈值这类“角色成长口径”，不承担本局初始成长状态真相。
+
+补充说明：
+
+- 当前 battle 内已经建立正式 `PassiveDefinition / BattlePassiveInstance` 框架。
+- `CharacterDefinition.BattleTriggers` 这一轮仍然保留，只用于兼容旧角色触发内容；它不是长期承载被动规则的目标结构。
+- 新的“能力牌赋予被动”链路统一通过 `ApplyPassive -> PassiveDefinition -> BattlePassiveInstance -> RuntimeTriggers` 落地。
 
 ### 5.3 CardDefinition
 
@@ -401,6 +408,31 @@ GenerateCard
 CopyCard
 ApplyPassive
 ```
+
+`ApplyPassive` 当前已成为 battle 内正式 effect 类型；首版用于把能力牌效果转成 `BattlePassiveInstance`，再由被动自己的 `RuntimeTriggers` 继续驱动后续效果。
+
+### 5.4 PassiveDefinition
+
+用途：描述一个 battle 内正式被动模板。
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `PassiveId` | 被动模板 ID |
+| `DisplayId` | 调试 / 展示稳定 ID |
+| `DisplayName` | 被动显示名 |
+| `SummaryText` | 简述文本 |
+| `StackPolicy` | 叠层或刷新策略 |
+| `DurationType` | 持续类型 |
+| `MaxStacks` | 最大层数 |
+| `RuntimeTriggers` | 被动触发定义列表 |
+
+说明：
+
+- 被动本身不发明第三套 trigger schema，直接复用 `RuntimeTriggerDefinition`。
+- 当前首条验证内容为霍断岳能力牌“受压蓄势”：打出后 `ApplyPassive(Self)`，并通过被动触发 `OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`。
+- 本轮还没有把霍断岳旧 `BattleTriggers` 自动迁到 passive；旧链路与新被动链路暂时并存。
 
 ### 5.5 CardEvolutionDefinition
 
@@ -802,12 +834,21 @@ EvolutionStage: Evolved
 |---|---|
 | `PassiveInstanceId` | 被动实例 ID |
 | `PassiveId` | 被动模板 ID |
+| `DisplayId` | 调试显示 ID |
+| `DisplayName` | 调试显示名 |
 | `OwnerUnitId` | 被动拥有者 |
 | `SourceUnitId` | 被动来源 |
 | `CurrentStacks` | 当前层数 |
 | `RemainingDuration` | 剩余持续值 |
 | `DurationType` | 持续类型 |
 | `AppliedSequence` | 应用顺序 |
+| `TriggerStates` | 该被动实例持有的运行时 trigger 状态 |
+
+说明：
+
+- `BattlePassiveInstance` 当前已经成为代码中的真实 runtime truth，不再只是预留占位。
+- `PassiveInstance` 只存在于 `FinalBattle`；`FinalRun` 当前不持有被动真相。
+- battle snapshot / debug query 当前已暴露最小 passive 视图，用于验证能力牌赋予被动链路。
 
 ### 7.8 BattleRelicRuntimeState
 

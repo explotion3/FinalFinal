@@ -8,6 +8,7 @@
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
+#include "Runtime/FinalBattlePassiveInstance.h"
 #include "Runtime/FinalBattleRelicRuntimeState.h"
 #include "Runtime/FinalBattleStatusInstance.h"
 #include "Runtime/FinalTeamDeckState.h"
@@ -34,6 +35,7 @@ struct FFinalBattleState
 	TArray<FFinalBattleCharacterState> Characters;
 	TArray<FFinalBattleStartRelicInput> ActiveRelics;
 	TArray<FFinalBattleRelicRuntimeState> RelicRuntimeStates;
+	TArray<FFinalBattlePassiveInstance> PassiveInstances;
 	TArray<FFinalBattleEnemyState> Enemies;
 	TArray<FFinalBattleCardInstance> CardInstances;
 	TMap<FGuid, int32> CardInstanceIndexById;

@@ -181,6 +181,9 @@
 - 统一使用 `RuntimeTriggerDefinition` 记录触发域、窗口、限制、条件与效果
 - 记录每回合、每战斗、每效果的触发次数
 - 不允许遗物或角色触发绕过命令与规则结算层直接改状态
+- battle 内正式被动当前由 `PassiveDefinition + BattlePassiveInstance + FinalBattlePassiveService` 承载
+- `ApplyPassive` 当前已接入 `FinalBattleEffectExecutionService`，能力牌可以把被动挂到目标单位
+- `CharacterDefinition.BattleTriggers` 当前仍保留为过渡兼容链路，但不是长期被动 authoring 目标
 
 优先级：`P1`
 
@@ -544,7 +547,6 @@
 
 ### 9.2 P1 应做
 
-- 被动、角色触发与遗物触发
 - 事件、奖励与商店
 - 地图与节点推进
 - Run 查询与事件流
@@ -553,6 +555,10 @@
 - Save / Load
 - 音画反馈
 - 调试工具
+
+补充说明：
+
+- battle 内通用被动框架当前已经建立，因此“被动、角色触发与遗物触发”这一条的下一阶段重点不再是新建框架，而是把旧角色触发内容逐步迁移到正式 passive authoring，并扩更多被动来源与可见性。
 
 ### 9.3 P2 后续补
 

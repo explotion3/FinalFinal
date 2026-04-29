@@ -172,6 +172,39 @@ struct FINALBATTLE_API FFinalBattleStatusViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattlePassiveViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FGuid PassiveInstanceId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalPassiveId PassiveId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName DisplayId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName OwnerUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName SourceUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 CurrentStacks = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RemainingDuration = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalPassiveDurationType DurationType = EFinalPassiveDurationType::Battle;
+};
+
+USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleCharacterStatusesViewData
 {
 	GENERATED_BODY()

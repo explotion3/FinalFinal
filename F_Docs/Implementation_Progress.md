@@ -129,3 +129,19 @@
   - `试作护符`：`BattleStart -> GainAP(1)`、`PlayerTurnStart -> GainAP(1)`
   - `试作修理包`：`BattleStart -> GainShield(4)`、`PlayerTurnStart -> GainShield(2)`
 - `FinalRewardResolver`、`PrototypeRunDebugScreen` 与 `FinalDataAssetValidator` 当前也已统一改成从 `RuntimeTriggers` 汇总与校验，不再读取旧 fixed-effect 字段。
+
+## 2026-04-29 Step 15：建立通用被动系统框架，并用能力卡牌验证 `ApplyPassive`
+
+- `FinalData` 当前已新增正式 `PassiveDefinition`，并在 `FinalDataRegistry` 中接通 `FindPassiveDefinition()` 查询。
+- `ApplyPassive` 当前已从 effect type 占位变成 battle 内可执行 effect；能力牌可以通过 `ApplyPassive(Self)` 正式创建 `BattlePassiveInstance`。
+- `FinalBattle` 当前已建立正式被动真相：
+  - `FFinalBattleState.PassiveInstances`
+  - `FFinalBattlePassiveInstance`
+  - `FinalBattlePassiveService`
+- 首条验证链路当前来自霍断岳 starter 能力牌“受压蓄势”：
+  - 打牌
+  - 获得被动实例
+  - 在 `OwnerTookHealthDamage` 窗口触发
+  - 施加 1 层 `刀势`
+- 本步骤刻意没有迁移霍断岳旧 `CharacterDefinition.BattleTriggers`；旧角色 trigger 当前仍保留，用作兼容过渡链路。
+- battle snapshot / debug 查询当前已补最小 passive 视图，便于验证能力牌赋予被动是否生效。

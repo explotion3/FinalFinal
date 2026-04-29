@@ -118,6 +118,21 @@ enum class EFinalStatusCategory : uint8
 };
 
 UENUM(BlueprintType)
+enum class EFinalPassiveStackPolicy : uint8
+{
+	RefreshExisting,
+	IndependentInstances
+};
+
+UENUM(BlueprintType)
+enum class EFinalPassiveDurationType : uint8
+{
+	Battle,
+	PlayerTurns,
+	Rounds
+};
+
+UENUM(BlueprintType)
 enum class EFinalIntentType : uint8
 {
 	Attack,

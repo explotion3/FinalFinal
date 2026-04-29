@@ -12,12 +12,14 @@
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
@@ -337,6 +339,35 @@ namespace FinalDataAssetValidation
 			}
 
 			ValidateScalar(Context, bIsValid, HealEffect->Scalar, FString::Printf(TEXT("%s.Scalar"), *FieldName), true);
+			return;
+		}
+
+		if (const UFinalBattleEffectApplyPassive* ApplyPassiveEffect = Cast<const UFinalBattleEffectApplyPassive>(Effect))
+		{
+			if (ApplyPassiveEffect->EffectType != EFinalBattleEffectType::ApplyPassive)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be ApplyPassive for UFinalBattleEffectApplyPassive."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, ApplyPassiveEffect->Stacks, *FString::Printf(TEXT("%s.Stacks"), *FieldName));
+			ValidateNonNegative(Context, bIsValid, ApplyPassiveEffect->DurationOverride, *FString::Printf(TEXT("%s.DurationOverride"), *FieldName));
+
+			if (!ApplyPassiveEffect->PassiveId.IsValid() && ApplyPassiveEffect->PassiveDefinition == nullptr)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define PassiveId or PassiveDefinition."), *FieldName));
+			}
+			else if (ApplyPassiveEffect->PassiveId.IsValid()
+				&& !GetProjectIndexCache().Get().HasPassiveDefinition(ApplyPassiveEffect->PassiveId)
+				&& ApplyPassiveEffect->PassiveDefinition == nullptr)
+			{
+				AddError(
+					Context,
+					bIsValid,
+					FString::Printf(
+						TEXT("%s.PassiveId references missing PassiveDefinition '%s'."),
+						*FieldName,
+						*ApplyPassiveEffect->PassiveId.Value.ToString()));
+			}
 			return;
 		}
 
@@ -887,6 +918,18 @@ namespace FinalDataAssetValidation
 		RequireText(Context, bIsValid, Relic->DisplayName, TEXT("DisplayName"));
 
 		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Relic->RuntimeTriggers, TEXT("RuntimeTriggers"));
+	}
+
+	void ValidatePassiveDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalPassiveDefinition* Passive)
+	{
+		if (!Passive->PassiveId.IsValid())
+		{
+			AddError(Context, bIsValid, TEXT("PassiveId must be set."));
+		}
+
+		RequireText(Context, bIsValid, Passive->DisplayName, TEXT("DisplayName"));
+		ValidatePositive(Context, bIsValid, Passive->MaxStacks, TEXT("MaxStacks"));
+		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Passive->RuntimeTriggers, TEXT("RuntimeTriggers"));
 	}
 
 	void ValidateRuleConfig(FDataValidationContext& Context, bool& bIsValid, const UFinalBattleRuleConfig* RuleConfig)
@@ -1636,6 +1679,21 @@ namespace FinalDataAssetValidation
 			ProjectIndex.FindDuplicateRelicDefinitionPaths(Relic->RelicId, CurrentAssetPath));
 	}
 
+	void ValidatePassiveDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalPassiveDefinition* Passive,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("PassiveId"),
+			Passive->PassiveId.ToString(),
+			ProjectIndex.FindDuplicatePassiveDefinitionPaths(Passive->PassiveId, CurrentAssetPath));
+	}
+
 	void ValidateRunRouteDefinitionProjectConsistency(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -1705,6 +1763,7 @@ bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData&
 			|| InAsset->IsA<UFinalEnemyDefinition>()
 			|| InAsset->IsA<UFinalEnemyIntentDefinition>()
 			|| InAsset->IsA<UFinalBattleEncounterDefinition>()
+			|| InAsset->IsA<UFinalPassiveDefinition>()
 			|| InAsset->IsA<UFinalPrototypeBootstrapDefinition>()
 			|| InAsset->IsA<UFinalRelicDefinition>()
 			|| InAsset->IsA<UFinalRunRouteDefinition>()
@@ -1743,6 +1802,11 @@ EDataValidationResult UFinalDataAssetValidator::ValidateLoadedAsset_Implementati
 	{
 		FinalDataAssetValidation::ValidateEncounterDefinition(InContext, bIsValid, Encounter);
 		FinalDataAssetValidation::ValidateEncounterDefinitionProjectConsistency(InContext, bIsValid, Encounter, CurrentAssetPath, ProjectIndex);
+	}
+	else if (const UFinalPassiveDefinition* Passive = Cast<UFinalPassiveDefinition>(InAsset))
+	{
+		FinalDataAssetValidation::ValidatePassiveDefinition(InContext, bIsValid, Passive);
+		FinalDataAssetValidation::ValidatePassiveDefinitionProjectConsistency(InContext, bIsValid, Passive, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalPrototypeBootstrapDefinition* PrototypeBootstrap = Cast<UFinalPrototypeBootstrapDefinition>(InAsset))
 	{

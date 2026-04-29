@@ -4,6 +4,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleUnitService.h"
 
@@ -40,6 +41,12 @@ FFinalBattlePhaseProgressViewData BuildPhaseProgress(const FFinalBattleEnemyStat
 	const float PhaseSpan = FMath::Max(UpperBound - LowerBound, KINDA_SMALL_NUMBER);
 	PhaseProgress.ProgressWithinPhase = FMath::Clamp((UpperBound - CurrentHpPercent) / PhaseSpan, 0.0f, 1.0f);
 	return PhaseProgress;
+}
+
+const FFinalBattlePassiveService& GetPassiveService()
+{
+	static const FFinalBattlePassiveService PassiveService;
+	return PassiveService;
 }
 }
 
@@ -122,6 +129,7 @@ FFinalBattleSnapshot FFinalBattleSnapshotBuilder::BuildSnapshot(
 	}
 
 	StatusService.BuildStatusSnapshotData(State, Snapshot.CharacterStatuses, Snapshot.TeamStatuses, Snapshot.Statuses);
+	GetPassiveService().BuildPassiveSnapshotData(State, Snapshot.Passives);
 	CardService.BuildHandCardViews(State, UnitService, Snapshot.HandCards);
 
 	return Snapshot;

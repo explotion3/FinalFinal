@@ -208,6 +208,32 @@ FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelic
 	return FString::Join(Lines, TEXT("\n"));
 }
 
+FString BuildBattlePassivesSummaryString(const TArray<FFinalBattlePassiveViewData>& Passives)
+{
+	if (Passives.IsEmpty())
+	{
+		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattlePassives", "Battle Passives\n当前战斗没有公开的被动实例。").ToString();
+	}
+
+	TArray<FString> Lines;
+	Lines.Reserve(Passives.Num() + 1);
+	Lines.Add(NSLOCTEXT("FinalPrototypeRunDebug", "BattlePassivesTitle", "Battle Passives").ToString());
+
+	for (const FFinalBattlePassiveViewData& Passive : Passives)
+	{
+		Lines.Add(FString::Printf(
+			TEXT("- %s | PassiveId: %s | Owner: %s | Source: %s | Stacks: %d | Remaining: %d"),
+			*FormatOptionalDisplayName(Passive.DisplayName, Passive.PassiveId.ToString()).ToString(),
+			*Passive.PassiveId.ToString(),
+			*Passive.OwnerUnitId.ToString(),
+			*Passive.SourceUnitId.ToString(),
+			Passive.CurrentStacks,
+			Passive.RemainingDuration));
+	}
+
+	return FString::Join(Lines, TEXT("\n"));
+}
+
 bool TryFindLatestBattleEvent(const UFinalBattleFlowSubsystem* BattleFlowSubsystem, FFinalBattleEvent& OutBattleEvent)
 {
 	if (BattleFlowSubsystem == nullptr)
@@ -684,6 +710,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 		|| EventCharacterResultText == nullptr
 		|| CandidateSummaryText == nullptr
 		|| BattleRelicSummaryText == nullptr
+		|| BattlePassiveSummaryText == nullptr
 		|| BattleEventSummaryText == nullptr)
 	{
 		return;
@@ -734,6 +761,7 @@ void UFinalPrototypeRunDebugScreen::RefreshFromSubsystems()
 
 	CandidateSummaryText->SetText(FText::FromString(BuildPendingRewardCandidatesSummary(RunSnapshot)));
 	BattleRelicSummaryText->SetText(FText::FromString(BuildBattleActiveRelicsSummaryString(BattleSnapshot.ActiveRelics)));
+	BattlePassiveSummaryText->SetText(FText::FromString(BuildBattlePassivesSummaryString(BattleSnapshot.Passives)));
 	BattleEventSummaryText->SetText(FText::FromString(BuildLatestBattleEventSummaryString(BattleFlowSubsystem, BattleSnapshot, DataRegistry)));
 
 	if (RestartRunButton)
@@ -934,6 +962,12 @@ void UFinalPrototypeRunDebugScreen::EnsureWidgetTree()
 	if (UVerticalBoxSlot* BattleRelicSummarySlot = ContentBox->AddChildToVerticalBox(BattleRelicSummaryText))
 	{
 		BattleRelicSummarySlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	BattlePassiveSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattlePassiveSummary"), 10, FLinearColor(0.84f, 0.92f, 0.76f, 1.0f));
+	if (UVerticalBoxSlot* BattlePassiveSummarySlot = ContentBox->AddChildToVerticalBox(BattlePassiveSummaryText))
+	{
+		BattlePassiveSummarySlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	}
 
 	BattleEventSummaryText = CreatePrototypeLabel(WidgetTree, TEXT("PrototypeRunDebugBattleEventSummary"), 10, FLinearColor(0.95f, 0.83f, 0.62f, 1.0f));
