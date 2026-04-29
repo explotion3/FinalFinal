@@ -90,7 +90,7 @@ BattleState
 ### 3.3 卡牌命名口径
 
 - 静态卡牌所属字段统一使用 `OwnerUnitId`。
-- Run 内卡牌实例使用 `RunCardInstanceId`。
+- Run 内卡牌实例语义上使用 `RunCardInstanceId`，当前首版运行时字段名为 `InstanceId`。
 - 战斗内卡牌实例使用 `BattleCardInstanceId`。
 - 运行时单位句柄统一使用 `RuntimeUnitId`。
 - 运行时卡牌所属字段统一使用 `RuntimeOwnerUnitId`。
@@ -105,6 +105,11 @@ BattleState
 - `bExhaust`。
 - `Advanced` 作为稀有度值。
 - 同义重复字段并存，例如 `bRetain / RetainKeyword`。
+
+补充说明：
+
+- 当前首章 roster 只包含玩家角色，因此 `RunCardInstance` 运行时字段暂用 `OwnerCharacterId`。
+- 若后续需要让同一套 `RunCardInstance` 挂到非角色单位，再统一提升为更通用的 `OwnerUnitId`。
 
 ## 4. 共享协议与核心枚举
 
@@ -205,25 +210,25 @@ KillingIntent
 ```text
 Base
 Evolved
-Mastery
+Mastered
 ```
 
 说明：
 
 - `Base`：基础卡。
 - `Evolved`：进化卡。
-- `Mastery`：绝学化卡。第一版可只预留，不要求完整内容。
+- `Mastered`：绝学化卡。第一版可只预留，不要求完整内容。
 
 ### 4.9 CardEvolutionType
 
 ```text
-EffectEvolution
-SlotEvolution
-MasteryEvolution
+ImmediatePower
+GrowthPotential
+ArchetypeShift
 ```
 
-第一版必须支持 `EffectEvolution`。  
-`SlotEvolution / MasteryEvolution` 可先作为后续扩展保留。
+第一版必须支持 `ImmediatePower`。  
+其余类型先作为扩展口径保留，不要求完整内容池。
 
 ### 4.10 GemSlotLevel 与 GemTier
 
@@ -365,10 +370,11 @@ ApplyPassive
 | `EvolutionType` | 进化类型 |
 | `FromStage` | 要求当前阶段 |
 | `ToStage` | 进化后阶段 |
-| `OwnerUnitId` | 限定所属单位，可为空 |
-| `RequiredTags` | 要求标签，可为空 |
-| `PreviewTitle` | 候选展示标题 |
-| `PreviewText` | 候选展示描述 |
+| `RequiredOwnerCharacterId` | 限定所属角色，可为空 |
+| `RequiredCardTags` | 要求卡牌标签，可为空 |
+| `bAllowAsLevelUpCandidate` | 是否允许作为升级候选 |
+| `DisplayName` | 候选展示标题 |
+| `Description` | 候选展示描述 |
 
 说明：
 
@@ -396,20 +402,18 @@ EvolutionStage: Evolved
 | 字段 | 说明 |
 |---|---|
 | `GrowthChoiceId` | 成长候选定义 ID |
-| `GrowthChoiceType` | 候选类型 |
-| `OwnerUnitId` | 候选所属角色 |
-| `DisplayTitle` | 展示标题 |
-| `DisplayText` | 展示说明 |
+| `ChoiceType` | 候选类型 |
+| `DisplayName` | 展示标题 |
+| `Description` | 展示说明 |
 | `Weight` | 基础出现权重 |
-| `RequiredCharacterLevel` | 要求角色等级 |
-| `RequiredTags` | 要求标签，可为空 |
 | `AttributeType` | 属性成长类型，属性候选使用 |
 | `AttributeDelta` | 属性增加值 |
-| `EvolutionId` | 卡牌进化候选使用 |
+| `CardEvolutionId` | 卡牌进化候选使用 |
 
 说明：
 
 - 第一版可以不为所有属性候选建表，也可以由规则直接生成。
+- 当前 Step 4 运行时属性候选就是由 `FinalRunSession` 直接程序化生成，并未强依赖 `GrowthChoiceDefinition` 表。
 - 卡牌进化候选应引用 `CardEvolutionDefinition`。
 - 候选实例由 `FinalRun` 生成，不由 `FinalBattle` 生成。
 
@@ -463,7 +467,7 @@ EvolutionStage: Evolved
 | `RunDeck` | Run 内卡牌实例列表 |
 | `RelicIds` | 已拥有遗物 |
 | `Gold` | 金币 |
-| `PendingGrowthChoices` | 待处理成长候选，可为空 |
+| `PendingGrowthChoice` | 当前待处理成长候选，可为空 |
 | `RunFlags` | Run 内标记 |
 
 ### 6.2 RunPersistentCharacterState
@@ -502,21 +506,19 @@ EvolutionStage: Evolved
 
 | 字段 | 说明 |
 |---|---|
-| `RunCardInstanceId` | Run 内卡牌实例 ID |
+| `InstanceId` | Run 内卡牌实例 ID |
 | `BaseCardId` | 初始基础卡牌 ID |
 | `CurrentCardId` | 当前实际卡牌 ID |
-| `OwnerUnitId` | Run 内所属单位 |
+| `OwnerCharacterId` | Run 内所属角色 |
 | `EvolutionStage` | 当前进化阶段 |
 | `TimesPlayedThisRun` | 本 Run 使用次数 |
-| `bLocked` | 是否不可移除或不可替换 |
-| `GemSlots` | 强化槽结构，后续扩展 |
-| `EquippedGems` | 已镶嵌强化珠，后续扩展 |
 
 说明：
 
 - `BaseCardId` 用于保留这张牌的原始身份。
 - `CurrentCardId` 用于决定当前展示和结算模板。
 - 第一版卡牌进化只要求替换 `CurrentCardId` 和 `EvolutionStage`。
+- 当前 `RunDeck` 已是 Run 内唯一牌组真相源；战斗起始请求仍从每张实例的 `CurrentCardId` 派生 `DeckCardIds`。
 - 如果这张卡当前也存在于手牌中，进化后需要同步刷新对应 `BattleCardInstance` 的展示与结算引用。
 
 ### 6.4 PendingGrowthChoiceState
@@ -527,11 +529,15 @@ EvolutionStage: Evolved
 
 | 字段 | 说明 |
 |---|---|
-| `PendingChoiceId` | 待处理选择 ID |
+| `bIsValid` | 当前待处理结构是否有效 |
 | `CharacterId` | 升级角色 |
-| `GeneratedAtNodeId` | 生成节点，可为空 |
 | `Choices` | 候选列表 |
-| `bResolved` | 是否已处理 |
+
+说明：
+
+- 当前首版运行时同一时刻只维护一个 `PendingGrowthChoice`。
+- Step 4 已落地的最小结构只保存 `bIsValid / CharacterId / Choices`。
+- `PendingChoiceId / GeneratedAtNodeId / bResolved` 这类审计字段可以在接入 UI、命令与事件后再补。
 
 ### 6.5 GrowthChoiceInstance
 
@@ -542,21 +548,25 @@ EvolutionStage: Evolved
 | 字段 | 说明 |
 |---|---|
 | `ChoiceInstanceId` | 候选实例 ID |
-| `GrowthChoiceType` | 候选类型 |
-| `DisplayTitle` | 展示标题 |
-| `DisplayText` | 展示说明 |
+| `ChoiceType` | 候选类型 |
+| `CharacterId` | 候选归属角色 |
+| `DisplayName` | 展示标题 |
+| `Description` | 展示说明 |
 | `AttributeType` | 属性成长候选使用 |
 | `AttributeDelta` | 属性增量 |
 | `TargetRunCardInstanceId` | 卡牌进化候选目标实例 |
-| `EvolutionId` | 进化定义 ID |
-| `PreviewFromCardId` | 展示用原卡 |
-| `PreviewToCardId` | 展示用目标卡 |
+| `CardEvolutionId` | 进化定义 ID |
+| `FromCardId` | 展示用原卡 |
+| `ToCardId` | 展示用目标卡 |
 
 说明：
 
 - 一次角色升级默认生成 3 个候选。
 - 候选应混合属性成长与卡牌进化。
-- 第一版建议至少保证 1 个属性候选与 1 个卡牌进化候选，具体规则由 `FinalRun` 决定。
+- 当前 Step 4 运行时口径为 deterministic：
+  - 默认生成 `RootBone +1` 与 `Insight +1`
+  - 若存在可用进化，则第 3 个候选为卡牌进化
+  - 否则第 3 个候选为 `KillingIntent +1`
 
 ## 7. 战斗运行时结构
 
@@ -759,6 +769,10 @@ RunState
 - `FinalBattle` 不直接生成成长候选。
 - `FinalBattle` 只记录战斗事实。
 - `FinalRun` 根据规则处理突破值、升级和候选应用。
+- 当前 Step 4 已落地的最小规则还包括：
+  - 同一时刻只允许一个 `PendingGrowthChoice`
+  - 若已有待处理成长候选，新的突破值仍会累计，但不会再次触发升级
+  - 当前尚未实现“玩家选择后应用成长效果”
 
 ### 8.3 卡牌进化
 
@@ -883,4 +897,3 @@ TempModifiers
 ```
 
 强化珠、绝学化、角色专属临界收益可以保留数据口径，但不进入第一版必须实现范围。
-

@@ -8,6 +8,7 @@
 #include "Queries/FinalDataRegistry.h"
 #include "Rewards/FinalRewardResolver.h"
 #include "Run/Bridge/FinalBattleRelicPayload.h"
+#include "Run/Definitions/FinalCardEvolutionDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Run/Definitions/FinalRunRouteDefinition.h"
 #include "Shops/FinalShopResolver.h"
@@ -329,6 +330,131 @@ FText ResolveDeckEntryDisplayName(const FFinalCardId& CardId, const UFinalDataRe
 	return CardId.IsValid()
 		? FText::FromName(CardId.Value)
 		: NSLOCTEXT("FinalRunSession", "UnknownDeckCard", "Unknown Card");
+}
+
+FText GetGrowthAttributeDisplayName(const EFinalGrowthAttributeType AttributeType)
+{
+	switch (AttributeType)
+	{
+	case EFinalGrowthAttributeType::RootBone:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeRootBone", "Root Bone +1");
+
+	case EFinalGrowthAttributeType::Insight:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeInsight", "Insight +1");
+
+	case EFinalGrowthAttributeType::KillingIntent:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeKillingIntent", "Killing Intent +1");
+
+	default:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeUnknown", "Growth +1");
+	}
+}
+
+FText GetGrowthAttributeDescription(const EFinalGrowthAttributeType AttributeType)
+{
+	switch (AttributeType)
+	{
+	case EFinalGrowthAttributeType::RootBone:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeRootBoneDescription", "Increase vitality share, defense, and stress cap.");
+
+	case EFinalGrowthAttributeType::Insight:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeInsightDescription", "Improve future breakthrough gain efficiency.");
+
+	case EFinalGrowthAttributeType::KillingIntent:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeKillingIntentDescription", "Increase attack, critical chance, and critical damage.");
+
+	default:
+		return NSLOCTEXT("FinalRunSession", "GrowthAttributeUnknownDescription", "Increase a growth attribute.");
+	}
+}
+
+FName BuildGrowthChoiceInstanceId(const FFinalCharacterId& CharacterId, const int32 CharacterLevel, const int32 ChoiceIndex)
+{
+	return FName(*FString::Printf(
+		TEXT("GrowthChoice_%s_Lv%d_%d"),
+		*CharacterId.Value.ToString(),
+		CharacterLevel,
+		ChoiceIndex));
+}
+
+FFinalRunGrowthChoiceInstance MakeAttributeGrowthChoice(
+	const FFinalRunPersistentCharacterState& CharacterState,
+	const EFinalGrowthAttributeType AttributeType,
+	const int32 ChoiceIndex)
+{
+	FFinalRunGrowthChoiceInstance Choice;
+	Choice.ChoiceInstanceId = BuildGrowthChoiceInstanceId(CharacterState.CharacterId, CharacterState.Level, ChoiceIndex);
+	Choice.ChoiceType = EFinalGrowthChoiceType::AttributeGrowth;
+	Choice.CharacterId = CharacterState.CharacterId;
+	Choice.AttributeType = AttributeType;
+	Choice.AttributeDelta = 1;
+	Choice.DisplayName = GetGrowthAttributeDisplayName(AttributeType);
+	Choice.Description = GetGrowthAttributeDescription(AttributeType);
+	return Choice;
+}
+
+bool IsEligibleEvolutionChoice(
+	const UFinalCardEvolutionDefinition& EvolutionDefinition,
+	const FFinalRunCardInstance& CardInstance,
+	const FFinalRunPersistentCharacterState& CharacterState)
+{
+	if (!EvolutionDefinition.bAllowAsLevelUpCandidate
+		|| !CardInstance.OwnerCharacterId.IsValid()
+		|| CardInstance.OwnerCharacterId != CharacterState.CharacterId
+		|| CardInstance.CurrentCardId != EvolutionDefinition.FromCardId
+		|| CardInstance.EvolutionStage != EvolutionDefinition.FromStage)
+	{
+		return false;
+	}
+
+	if (EvolutionDefinition.RequiredOwnerCharacterId.IsValid()
+		&& EvolutionDefinition.RequiredOwnerCharacterId != CharacterState.CharacterId)
+	{
+		return false;
+	}
+
+	return EvolutionDefinition.RequiredCardTags.IsEmpty();
+}
+
+FFinalRunGrowthChoiceInstance MakeEvolutionGrowthChoice(
+	const FFinalRunPersistentCharacterState& CharacterState,
+	const FFinalRunCardInstance& CardInstance,
+	const UFinalCardEvolutionDefinition& EvolutionDefinition,
+	const int32 ChoiceIndex,
+	const UFinalDataRegistry* DataRegistry)
+{
+	FFinalRunGrowthChoiceInstance Choice;
+	Choice.ChoiceInstanceId = BuildGrowthChoiceInstanceId(CharacterState.CharacterId, CharacterState.Level, ChoiceIndex);
+	Choice.ChoiceType = EFinalGrowthChoiceType::CardEvolution;
+	Choice.CharacterId = CharacterState.CharacterId;
+	Choice.TargetRunCardInstanceId = CardInstance.InstanceId;
+	Choice.CardEvolutionId = EvolutionDefinition.EvolutionId;
+	Choice.FromCardId = EvolutionDefinition.FromCardId;
+	Choice.ToCardId = EvolutionDefinition.ToCardId;
+	Choice.DisplayName = EvolutionDefinition.DisplayName;
+	Choice.Description = EvolutionDefinition.Description;
+
+	if (Choice.DisplayName.IsEmpty())
+	{
+		if (const UFinalCardDefinition* CardDefinition = DataRegistry != nullptr ? DataRegistry->FindCardDefinition(EvolutionDefinition.ToCardId) : nullptr)
+		{
+			Choice.DisplayName = CardDefinition->DisplayName;
+		}
+
+		if (Choice.DisplayName.IsEmpty())
+		{
+			Choice.DisplayName = EvolutionDefinition.ToCardId.IsValid()
+				? FText::FromName(EvolutionDefinition.ToCardId.Value)
+				: NSLOCTEXT("FinalRunSession", "GrowthEvolutionFallbackDisplayName", "Card Evolution");
+		}
+	}
+
+	if (Choice.Description.IsEmpty())
+	{
+		Choice.Description = NSLOCTEXT("FinalRunSession", "GrowthEvolutionFallbackDescription", "Evolve this card into its stronger run form.");
+	}
+
+	return Choice;
 }
 
 FName ResolveRelicEntryDisplayId(const FFinalRelicId& RelicId, const UFinalDataRegistry* DataRegistry)
@@ -732,6 +858,31 @@ bool UFinalRunSession::AdvanceToNode(FName NodeId)
 	return SubmitRunCommand(Command);
 }
 
+bool UFinalRunSession::AddBreakthroughValue(const FFinalCharacterId& CharacterId, const int32 Amount)
+{
+	if (!CharacterId.IsValid() || Amount <= 0)
+	{
+		return false;
+	}
+
+	FFinalRunPersistentCharacterState* CharacterState = FindMutableCharacterState(CharacterId);
+	if (CharacterState == nullptr)
+	{
+		return false;
+	}
+
+	CharacterState->BreakthroughValue += Amount;
+	if (HasPendingGrowthChoice())
+	{
+		return true;
+	}
+
+	return CharacterState->BreakthroughRequiredValue > 0
+		&& CharacterState->BreakthroughValue >= CharacterState->BreakthroughRequiredValue
+		? TryLevelUpCharacter(*CharacterState)
+		: true;
+}
+
 bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 {
 	FFinalRunEvent CommandEvent;
@@ -808,6 +959,11 @@ bool UFinalRunSession::HasValidBattleStartState() const
 		&& CurrentState.RunDeck.Num() > 0;
 }
 
+bool UFinalRunSession::HasPendingGrowthChoice() const
+{
+	return CurrentState.PendingGrowthChoice.bIsValid;
+}
+
 FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 {
 	FFinalBattleStartRequest Request;
@@ -834,6 +990,11 @@ FFinalBattleStartRequest UFinalRunSession::BuildBattleStartRequest() const
 	}
 
 	return Request;
+}
+
+const FFinalRunPendingGrowthChoice& UFinalRunSession::GetPendingGrowthChoice() const
+{
+	return CurrentState.PendingGrowthChoice;
 }
 
 void UFinalRunSession::ApplyBattleResult(const FFinalBattleResult& Result)
@@ -1016,6 +1177,99 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 FFinalRunState UFinalRunSession::GetRunState() const
 {
 	return CurrentState;
+}
+
+FFinalRunPersistentCharacterState* UFinalRunSession::FindMutableCharacterState(const FFinalCharacterId& CharacterId)
+{
+	return CurrentState.Characters.FindByPredicate([&CharacterId](const FFinalRunPersistentCharacterState& CharacterState)
+	{
+		return CharacterState.CharacterId == CharacterId;
+	});
+}
+
+const FFinalRunPersistentCharacterState* UFinalRunSession::FindCharacterState(const FFinalCharacterId& CharacterId) const
+{
+	return CurrentState.Characters.FindByPredicate([&CharacterId](const FFinalRunPersistentCharacterState& CharacterState)
+	{
+		return CharacterState.CharacterId == CharacterId;
+	});
+}
+
+bool UFinalRunSession::TryLevelUpCharacter(FFinalRunPersistentCharacterState& CharacterState)
+{
+	if (HasPendingGrowthChoice()
+		|| CharacterState.BreakthroughRequiredValue <= 0
+		|| CharacterState.BreakthroughValue < CharacterState.BreakthroughRequiredValue)
+	{
+		return false;
+	}
+
+	CharacterState.BreakthroughValue -= CharacterState.BreakthroughRequiredValue;
+	CharacterState.Level = FMath::Max(1, CharacterState.Level + 1);
+	if (!GenerateGrowthChoicesForCharacter(CharacterState))
+	{
+		CharacterState.bHasPendingGrowthChoice = false;
+		CurrentState.PendingGrowthChoice.Reset();
+		return false;
+	}
+
+	CharacterState.bHasPendingGrowthChoice = true;
+	return true;
+}
+
+bool UFinalRunSession::GenerateGrowthChoicesForCharacter(const FFinalRunPersistentCharacterState& CharacterState)
+{
+	TArray<FFinalRunGrowthChoiceInstance> GeneratedChoices;
+	GeneratedChoices.Reserve(3);
+	GeneratedChoices.Add(MakeAttributeGrowthChoice(CharacterState, EFinalGrowthAttributeType::RootBone, 1));
+	GeneratedChoices.Add(MakeAttributeGrowthChoice(CharacterState, EFinalGrowthAttributeType::Insight, 2));
+
+	const UFinalDataRegistry* DataRegistry = ResolveDataRegistry(this);
+	bool bAddedEvolutionChoice = false;
+	if (DataRegistry != nullptr)
+	{
+		TArray<const UFinalCardEvolutionDefinition*> EvolutionDefinitions;
+		DataRegistry->GetAllCardEvolutionDefinitions(EvolutionDefinitions);
+
+		for (const UFinalCardEvolutionDefinition* EvolutionDefinition : EvolutionDefinitions)
+		{
+			if (EvolutionDefinition == nullptr)
+			{
+				continue;
+			}
+
+			for (const FFinalRunCardInstance& CardInstance : CurrentState.RunDeck)
+			{
+				if (IsEligibleEvolutionChoice(*EvolutionDefinition, CardInstance, CharacterState))
+				{
+					GeneratedChoices.Add(MakeEvolutionGrowthChoice(CharacterState, CardInstance, *EvolutionDefinition, 3, DataRegistry));
+					bAddedEvolutionChoice = true;
+					break;
+				}
+			}
+
+			if (bAddedEvolutionChoice)
+			{
+				break;
+			}
+		}
+	}
+
+	if (!bAddedEvolutionChoice)
+	{
+		GeneratedChoices.Add(MakeAttributeGrowthChoice(CharacterState, EFinalGrowthAttributeType::KillingIntent, 3));
+	}
+
+	if (GeneratedChoices.IsEmpty())
+	{
+		return false;
+	}
+
+	CurrentState.PendingGrowthChoice.Reset();
+	CurrentState.PendingGrowthChoice.bIsValid = true;
+	CurrentState.PendingGrowthChoice.CharacterId = CharacterState.CharacterId;
+	CurrentState.PendingGrowthChoice.Choices = MoveTemp(GeneratedChoices);
+	return true;
 }
 
 TArray<FFinalRunEvent> UFinalRunSession::GetRunLogEntries() const

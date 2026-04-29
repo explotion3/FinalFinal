@@ -237,9 +237,8 @@ Awaken
 第一版重点：
 
 ```text
-RunPersistentState
+RunState
 RunPersistentCharacterState
-RunDeckState
 RunCardInstance
 PendingGrowthChoice
 GrowthChoiceInstance
@@ -259,11 +258,11 @@ KillingIntent
 卡牌实例进化职责：
 
 ```text
-RunCardInstanceId
+InstanceId
 BaseCardId
 CurrentCardId
 EvolutionStage
-OwnerUnitId
+OwnerCharacterId
 ```
 
 原则：
@@ -370,6 +369,25 @@ Normal / Critical / Collapse
 清除 PendingGrowthChoice
 ```
 
+当前 Step 4 已落地的最小口径：
+
+```text
+AddBreakthroughValue()
+-> 累计 BreakthroughValue
+-> 若当前没有 PendingGrowthChoice 且达到阈值，则只触发一次升级
+-> 生成 3 个 deterministic 候选
+-> 写入 RunState.PendingGrowthChoice
+```
+
+这一步仍未接入：
+
+```text
+ApplyGrowthChoice
+RunCommand
+RunEvent
+UI 提交
+```
+
 成长候选类型：
 
 ```text
@@ -399,6 +417,13 @@ CurrentCardId = 当前规则版本
 FinalRun 更新 RunCardInstance.CurrentCardId
 FinalApp 通知相关 UI 刷新
 FinalBattle 在下次建立 BattleCardInstance 时读取新的 CurrentCardId
+```
+
+当前首版兼容桥接仍保留：
+
+```text
+BuildBattleStartRequest()
+-> 从 RunDeck 中每张实例的 CurrentCardId 派生 DeckCardIds
 ```
 
 如果未来支持战斗中进化：

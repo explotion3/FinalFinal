@@ -46,11 +46,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Run")
 	bool AdvanceToNode(FName NodeId);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Run|Growth")
+	bool AddBreakthroughValue(const FFinalCharacterId& CharacterId, int32 Amount);
+
 	UFUNCTION(BlueprintPure, Category = "Final|Run")
 	bool HasValidBattleStartState() const;
 
+	UFUNCTION(BlueprintPure, Category = "Final|Run|Growth")
+	bool HasPendingGrowthChoice() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|Run")
 	FFinalBattleStartRequest BuildBattleStartRequest() const;
+
+	const FFinalRunPendingGrowthChoice& GetPendingGrowthChoice() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Run")
 	void ApplyBattleResult(const FFinalBattleResult& Result);
@@ -85,6 +93,10 @@ private:
 	bool TryExecuteResolveEventNode(const FName& OptionId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteResolveShopNode(const FName& OfferId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
 	bool TryExecuteAdvanceToNode(const FName& TargetNodeId, FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage);
+	FFinalRunPersistentCharacterState* FindMutableCharacterState(const FFinalCharacterId& CharacterId);
+	const FFinalRunPersistentCharacterState* FindCharacterState(const FFinalCharacterId& CharacterId) const;
+	bool TryLevelUpCharacter(FFinalRunPersistentCharacterState& CharacterState);
+	bool GenerateGrowthChoicesForCharacter(const FFinalRunPersistentCharacterState& CharacterState);
 	const FFinalRunNodeDefinition* FindNodeDefinition(const FName& NodeId) const;
 	TArray<FFinalRunNodeOptionViewData> BuildAvailableNextNodeViews() const;
 	FFinalRunPendingRewardNodeViewData BuildPendingRewardNodeView() const;

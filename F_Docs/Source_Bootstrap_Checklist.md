@@ -285,6 +285,10 @@
 * `RemoveCard / UpgradeCard` 使用稳定 payload，例如 `RemovedCardId / UpgradeFromCardId / UpgradeToCardId`，并在落地前校验必要 payload、card definition 和 `RunDeck` 中的目标
 * `Growth` 使用最小 typed payload，例如 `GrowthTargetCharacterId / GrowthEffectType / Value`，并只落地到现有 `RunPersistentCharacterState` 字段
 * `Growth` 当前最小 effect 范围控制在 `ReduceStress / GainAwakenProgress / ReduceCollapseCount`，不提前扩成完整成长树
+* `RunDeck` 当前已升级为 `FFinalRunCardInstance` 列表，作为 Run 内唯一牌组真相源；战斗起始请求仍从实例的 `CurrentCardId` 派生 `DeckCardIds`
+* `UFinalRunSession` 当前已补最小成长入口：`AddBreakthroughValue() / HasPendingGrowthChoice() / GetPendingGrowthChoice()`
+* 当前 Step 4 已支持“突破值累积 -> 单次升级 -> 生成 3 个 deterministic 候选 -> 写入 `PendingGrowthChoice`”；仍未接入“应用成长选择”
+* `FinalDataRegistry` 当前已补 `GetAllCardEvolutionDefinitions()`，供 `FinalRun` 在生成成长候选时遍历可用进化定义
 * 暴露稳定的 `RunSnapshot / RunEvent / EventsSince` 公开查询面，供 `FinalApp` 与调试读取
 
 #### 暂不创建
@@ -399,6 +403,7 @@
 
 ### 8.3 当前测试入口
 * `FinalDataRegistry` 当前已开始承担运行时 definition 发现/加载：初始化时会扫描项目中的 `BattleRuleConfig / CharacterDefinition / CardDefinition / UltimateDefinition / EnemyDefinition / EnemyIntentDefinition / StatusDefinition / BattleEncounterDefinition / RelicDefinition / RunRouteDefinition / PrototypeBootstrapDefinition`，但启动期只建立 `StableId -> SoftObjectPath` 索引，不再全量 `GetAsset()` 加载 definition
+* `FinalDataRegistry` 当前还支持枚举全部 `CardEvolutionDefinition`，用于 `FinalRun` 的成长候选生成与自动化测试
 * 启动性能护栏：definition 主 ID 字段必须带 `AssetRegistrySearchable`，内容刷新后应运行 `FinalPrototypeContentBootstrap` 写入 tag；若 registry 日志出现 missing stable id tag，应优先重存对应资产，而不是在 runtime registry 中 fallback 全量加载
 * 当前 prototype bundle 已以真实资产落地在 `/Game/Prototype/Definitions/...`，覆盖 `prototype.bootstrap.test / rule.test.bootstrap / encounter.test.bootstrap / character.test.guardian / character.test.support / card.test.guardian.strike / card.test.guardian.guard / card.test.support.shot / card.test.support.focus / relic.test.charm / relic.test.repair_kit / run.route.test.prototype`
 * 当前 starter bundle 也已以真实资产落地在 `/Game/Prototype/Definitions/Starter/...`，覆盖 `prototype.bootstrap.starter.chapter1 / run.route.starter.chapter1`、霍断岳 / 叶半夏 / 沈清弦、每名角色 4 张起始牌与 1 个测试奥义、2 名普通敌人、1 名精英敌人、1 个普通遭遇与 1 个精英遭遇
@@ -431,6 +436,7 @@
 * `FinalBattleWidgetController` 当前仍是 BattleFlow 的唯一订阅点，并把缓存的 `Snapshot / BattleEvents / SelectedEnemy / LastInteractionFeedback` 分发给 panel controllers；panel controllers 只做局部展示组装和命令委托，不各自直接订阅 subsystem
 * `FinalEditor` 当前提供 `FinalPrototypeContentBootstrap` commandlet，用于生成或刷新这批 prototype definition 资产；运行时如果缺少 `prototype.bootstrap.test` 或其引用的 stable id，应返回明确缺失错误并提示执行 commandlet，而不是继续由 `FinalApp` 瞬时造数
 * 本轮启动性能验证命令：`Build.bat FinalFinalEditor Win64 Development`、`UnrealEditor-Cmd.exe -run=FinalPrototypeContentBootstrap`、`UnrealEditor-Cmd.exe -run=DataValidation -ProjectOnly`、`Automation RunTests Final.Editor.PrototypeSmoke`
+* 当前已补 `Final.Editor.RunGrowth.*` 自动化测试，覆盖“无可进化卡时生成 3 个属性候选”和“有可进化卡时生成进化候选，并在 pending 期间继续累计突破值”
 * `FinalBattleGameMode` 当前会确保存在一个 `FinalBattleDirector`，用于把 `BattleSnapshot / BattleEvent` 桥接到世界层展示傀儡
 * `FinalBattleDirector` 当前会按 `Snapshot.Characters / Snapshot.Enemies / CurrentTargetUnitId` 维护最小 presentation roster，生成/复用 `FinalBattlePresentationActor` 并在事件到来时下发攻击 / 受击 / 选中 / 死亡表现
 * `FinalBattlePresentationActor` 当前以 `PaperZDCharacter` 为父类，但只作为纯展示傀儡使用，不持有 Battle 真相

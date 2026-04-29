@@ -67,6 +67,7 @@ public:
 	UFinalCharacterGrowthConfig* FindCharacterGrowthConfig(const FFinalCharacterGrowthConfigId& GrowthConfigId) const;
 	UFinalGrowthChoiceDefinition* FindGrowthChoiceDefinition(const FFinalGrowthChoiceId& GrowthChoiceId) const;
 	UFinalCardEvolutionDefinition* FindCardEvolutionDefinition(const FFinalCardEvolutionId& EvolutionId) const;
+	void GetAllCardEvolutionDefinitions(TArray<const UFinalCardEvolutionDefinition*>& OutDefinitions) const;
 	UFinalStatusDefinition* FindStatusDefinition(const FFinalStatusId& StatusId) const;
 	UFinalUltimateDefinition* FindUltimateDefinition(const FFinalUltimateId& UltimateId) const;
 

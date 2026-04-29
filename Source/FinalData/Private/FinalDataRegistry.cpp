@@ -548,6 +548,28 @@ UFinalCardEvolutionDefinition* UFinalDataRegistry::FindCardEvolutionDefinition(c
 	return MutableThis->FindLoadedDefinition<UFinalCardEvolutionDefinition>(MutableThis->CardEvolutionDefinitions, EvolutionId.Value, TEXT("CardEvolutionDefinition"));
 }
 
+void UFinalDataRegistry::GetAllCardEvolutionDefinitions(TArray<const UFinalCardEvolutionDefinition*>& OutDefinitions) const
+{
+	OutDefinitions.Reset();
+
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	TArray<FName> EvolutionIds;
+	MutableThis->CardEvolutionDefinitions.GetKeys(EvolutionIds);
+	EvolutionIds.Sort([](const FName& Left, const FName& Right)
+	{
+		return Left.ToString() < Right.ToString();
+	});
+
+	OutDefinitions.Reserve(EvolutionIds.Num());
+	for (const FName& EvolutionId : EvolutionIds)
+	{
+		if (UFinalCardEvolutionDefinition* Definition = MutableThis->FindLoadedDefinition<UFinalCardEvolutionDefinition>(MutableThis->CardEvolutionDefinitions, EvolutionId, TEXT("CardEvolutionDefinition")))
+		{
+			OutDefinitions.Add(Definition);
+		}
+	}
+}
+
 UFinalStatusDefinition* UFinalDataRegistry::FindStatusDefinition(const FFinalStatusId& StatusId) const
 {
 	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);

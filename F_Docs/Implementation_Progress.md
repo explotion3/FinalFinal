@@ -22,3 +22,13 @@
 - 新增 `FFinalRunPendingGrowthChoice`，用于在 `RunState` 中承载某个角色待处理的成长三选一。
 - `FFinalRunState` 继续只保存一个当前待处理成长选择集，后续再由 `FinalRunSession` 生成和应用候选。
 - 本步骤不生成候选、不应用属性成长、不应用卡牌进化，也不接 UI。
+## 2026-04-29 Step 4：突破值累积、升级触发与成长候选生成
+
+- `UFinalRunSession` 新增最小成长入口：`AddBreakthroughValue()`、`HasPendingGrowthChoice()` 与 `GetPendingGrowthChoice()`。
+- 角色突破值达到阈值时只触发一次升级：扣除一次阈值、`Level +1`，并生成一个待处理的成长候选集。
+- 当前同一时刻只允许一个 `PendingGrowthChoice`；若已有待处理候选，新的突破值仍会累计，但不会再次触发升级。
+- 成长候选当前为 deterministic：
+  - 默认生成 `RootBone +1`、`Insight +1`
+  - 若 `RunDeck` 中存在符合 `CardEvolutionDefinition` 的卡牌实例，则第 3 个候选为卡牌进化
+  - 否则第 3 个候选为 `KillingIntent +1`
+- 本步骤仍然不应用候选效果、不修改 `RunDeck.CurrentCardId`、不接 UI / Command / Event。
