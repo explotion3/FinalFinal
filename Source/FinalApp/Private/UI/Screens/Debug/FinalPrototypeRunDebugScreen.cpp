@@ -1,6 +1,9 @@
 #include "UI/Screens/Debug/FinalPrototypeRunDebugScreen.h"
 
 #include "App/FinalGameInstance.h"
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -45,78 +48,38 @@ FText FormatNameOrNone(const FName NameValue)
 		: FText::FromName(NameValue);
 }
 
-FText GetPrototypeRelicEffectTypeText(const EFinalRelicBattleStartEffectType EffectType)
+FString BuildBattleRelicRuntimeTriggerSummaryString(
+	const TArray<FFinalRuntimeTriggerDefinition>& RuntimeTriggers,
+	const EFinalRuntimeTriggerWindow Window,
+	const FString& EmptyText)
 {
-	switch (EffectType)
-	{
-	case EFinalRelicBattleStartEffectType::GainAP:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeGainAP", "GainAP");
-
-	case EFinalRelicBattleStartEffectType::GainShield:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeGainShield", "GainShield");
-
-	case EFinalRelicBattleStartEffectType::None:
-	default:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "RelicEffectTypeNone", "None");
-	}
-}
-
-FText GetPrototypeTurnStartRelicEffectTypeText(const EFinalRelicPlayerTurnStartEffectType EffectType)
-{
-	switch (EffectType)
-	{
-	case EFinalRelicPlayerTurnStartEffectType::GainAP:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeGainAP", "GainAP");
-
-	case EFinalRelicPlayerTurnStartEffectType::GainShield:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeGainShield", "GainShield");
-
-	case EFinalRelicPlayerTurnStartEffectType::None:
-	default:
-		return NSLOCTEXT("FinalPrototypeRunDebug", "TurnStartRelicEffectTypeNone", "None");
-	}
-}
-
-FString BuildBattleRelicEffectSummaryString(const TArray<FFinalBattleStartRelicEffectInput>& EffectInputs)
-{
-	if (EffectInputs.IsEmpty())
-	{
-		return NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleRelicEffects", "No battle-start effects").ToString();
-	}
-
 	TArray<FString> Segments;
-	Segments.Reserve(EffectInputs.Num());
-	for (const FFinalBattleStartRelicEffectInput& EffectInput : EffectInputs)
+
+	for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : RuntimeTriggers)
 	{
-		const FString EffectLabel = GetPrototypeRelicEffectTypeText(EffectInput.EffectType).ToString();
-		Segments.Add(FString::Printf(
-			TEXT("%s +%d"),
-			*EffectLabel,
-			EffectInput.Value));
+		if (TriggerDefinition.Domain != EFinalRuntimeTriggerDomain::Battle || TriggerDefinition.Window != Window)
+		{
+			continue;
+		}
+
+		for (const TObjectPtr<UFinalBattleEffectDefinition>& EffectDefinition : TriggerDefinition.Effects)
+		{
+			if (const UFinalBattleEffectGainAP* GainApEffect = Cast<UFinalBattleEffectGainAP>(EffectDefinition))
+			{
+				Segments.Add(FString::Printf(TEXT("GainAP +%d"), GainApEffect->GainValue));
+			}
+			else if (const UFinalBattleEffectGainShield* GainShieldEffect = Cast<UFinalBattleEffectGainShield>(EffectDefinition))
+			{
+				Segments.Add(FString::Printf(TEXT("GainShield +%d"), FMath::RoundToInt(GainShieldEffect->Scalar.BaseValue)));
+			}
+			else if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
+			{
+				Segments.Add(FString::Printf(TEXT("DrawCards +%d"), DrawCardsEffect->DrawCount));
+			}
+		}
 	}
 
-	return FString::Join(Segments, TEXT(" | "));
-}
-
-FString BuildBattleRelicTurnStartEffectSummaryString(const TArray<FFinalBattlePlayerTurnStartRelicEffectInput>& EffectInputs)
-{
-	if (EffectInputs.IsEmpty())
-	{
-		return NSLOCTEXT("FinalPrototypeRunDebug", "NoTurnStartRelicEffects", "No player-turn-start effects").ToString();
-	}
-
-	TArray<FString> Segments;
-	Segments.Reserve(EffectInputs.Num());
-	for (const FFinalBattlePlayerTurnStartRelicEffectInput& EffectInput : EffectInputs)
-	{
-		const FString EffectLabel = GetPrototypeTurnStartRelicEffectTypeText(EffectInput.EffectType).ToString();
-		Segments.Add(FString::Printf(
-			TEXT("%s +%d"),
-			*EffectLabel,
-			EffectInput.Value));
-	}
-
-	return FString::Join(Segments, TEXT(" | "));
+	return Segments.Num() > 0 ? FString::Join(Segments, TEXT(" | ")) : EmptyText;
 }
 
 FText GetFlowStageText(const EFinalRunFlowStage FlowStage)
@@ -228,12 +191,18 @@ FString BuildBattleActiveRelicsSummaryString(const TArray<FFinalBattleStartRelic
 			RelicInput.RelicId.IsValid() ? RelicInput.RelicId.ToString() : RelicInput.DisplayId.ToString()).ToString();
 
 		Lines.Add(FString::Printf(
-			TEXT("- %s | DisplayId: %s | RelicId: %s | Start: %s | Turn: %s"),
+			TEXT("- %s | DisplayId: %s | RelicId: %s | BattleStart: %s | PlayerTurnStart: %s"),
 			*RelicName,
 			*RelicInput.DisplayId.ToString(),
 			*RelicInput.RelicId.ToString(),
-			*BuildBattleRelicEffectSummaryString(RelicInput.BattleStartEffects),
-			*BuildBattleRelicTurnStartEffectSummaryString(RelicInput.PlayerTurnStartEffects)));
+			*BuildBattleRelicRuntimeTriggerSummaryString(
+				RelicInput.RuntimeTriggers,
+				EFinalRuntimeTriggerWindow::BattleStart,
+				NSLOCTEXT("FinalPrototypeRunDebug", "NoBattleRelicEffects", "No battle-start effects").ToString()),
+			*BuildBattleRelicRuntimeTriggerSummaryString(
+				RelicInput.RuntimeTriggers,
+				EFinalRuntimeTriggerWindow::PlayerTurnStart,
+				NSLOCTEXT("FinalPrototypeRunDebug", "NoTurnStartRelicEffects", "No player-turn-start effects").ToString())));
 	}
 
 	return FString::Join(Lines, TEXT("\n"));

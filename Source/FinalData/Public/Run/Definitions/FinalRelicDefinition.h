@@ -4,7 +4,6 @@
 #include "Engine/DataAsset.h"
 #include "Ids/FinalIds.h"
 #include "Types/FinalCoreTypes.h"
-#include "Run/Definitions/FinalRelicBattleTypes.h"
 #include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "FinalRelicDefinition.generated.h"
 
@@ -28,12 +27,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	FText Description;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
-	TArray<FFinalRelicBattleStartEffectDefinition> BattleStartEffects;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
-	TArray<FFinalRelicPlayerTurnStartEffectDefinition> PlayerTurnStartEffects;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Relic")
 	TArray<FFinalRuntimeTriggerDefinition> RuntimeTriggers;

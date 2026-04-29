@@ -5,6 +5,7 @@
 
 class UFinalBattleRuleConfig;
 class FFinalBattleCardService;
+class FFinalBattleConditionService;
 class FFinalBattleEffectExecutionService;
 class FFinalBattleEnemyActionService;
 class FFinalBattleRelicService;
@@ -37,6 +38,7 @@ public:
 		FFinalBattleState& BattleState,
 		const UFinalBattleRuleConfig* RuleConfig,
 		const FFinalBattleCardService& CardService,
+		const FFinalBattleConditionService& ConditionService,
 		const FFinalBattleRelicService& RelicService,
 		const FFinalBattleResourceService& ResourceService,
 		const FFinalBattleStatusService& StatusService,

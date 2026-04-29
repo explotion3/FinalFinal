@@ -1,5 +1,8 @@
 #include "Rewards/FinalRewardResolver.h"
 
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Growth/FinalGrowthResolver.h"
@@ -349,41 +352,52 @@ FText BuildRelicEffectFallbackDetailText(const UFinalRelicDefinition* RelicDefin
 		Summary += Part.ToString();
 	};
 
-	for (const FFinalRelicBattleStartEffectDefinition& EffectDefinition : RelicDefinition->BattleStartEffects)
+	auto AppendEffectSummary = [&AppendSummaryPart](const UFinalBattleEffectDefinition* EffectDefinition, const EFinalRuntimeTriggerWindow Window)
 	{
-		switch (EffectDefinition.EffectType)
-		{
-		case EFinalRelicBattleStartEffectType::GainAP:
-			AppendSummaryPart(FText::Format(
-				NSLOCTEXT("FinalRewardResolver", "RelicBattleStartGainAPDetail", "Battle start: +{0} AP"),
-				FText::AsNumber(EffectDefinition.Value)));
-			break;
-		case EFinalRelicBattleStartEffectType::GainShield:
-			AppendSummaryPart(FText::Format(
-				NSLOCTEXT("FinalRewardResolver", "RelicBattleStartGainShieldDetail", "Battle start: +{0} Shield"),
-				FText::AsNumber(EffectDefinition.Value)));
-			break;
-		default:
-			break;
-		}
-	}
+		const FText Prefix = Window == EFinalRuntimeTriggerWindow::BattleStart
+			? NSLOCTEXT("FinalRewardResolver", "RelicBattleStartPrefix", "Battle start")
+			: NSLOCTEXT("FinalRewardResolver", "RelicTurnStartPrefix", "Turn start");
 
-	for (const FFinalRelicPlayerTurnStartEffectDefinition& EffectDefinition : RelicDefinition->PlayerTurnStartEffects)
-	{
-		switch (EffectDefinition.EffectType)
+		if (const UFinalBattleEffectGainAP* GainApEffect = Cast<UFinalBattleEffectGainAP>(EffectDefinition))
 		{
-		case EFinalRelicPlayerTurnStartEffectType::GainAP:
 			AppendSummaryPart(FText::Format(
-				NSLOCTEXT("FinalRewardResolver", "RelicTurnStartGainAPDetail", "Turn start: +{0} AP"),
-				FText::AsNumber(EffectDefinition.Value)));
-			break;
-		case EFinalRelicPlayerTurnStartEffectType::GainShield:
+				NSLOCTEXT("FinalRewardResolver", "RelicRuntimeTriggerGainAPDetail", "{0}: +{1} AP"),
+				Prefix,
+				FText::AsNumber(GainApEffect->GainValue)));
+			return;
+		}
+
+		if (const UFinalBattleEffectGainShield* GainShieldEffect = Cast<UFinalBattleEffectGainShield>(EffectDefinition))
+		{
+			const int32 FlatShieldValue = FMath::RoundToInt(GainShieldEffect->Scalar.BaseValue);
 			AppendSummaryPart(FText::Format(
-				NSLOCTEXT("FinalRewardResolver", "RelicTurnStartGainShieldDetail", "Turn start: +{0} Shield"),
-				FText::AsNumber(EffectDefinition.Value)));
-			break;
-		default:
-			break;
+				NSLOCTEXT("FinalRewardResolver", "RelicRuntimeTriggerGainShieldDetail", "{0}: +{1} Shield"),
+				Prefix,
+				FText::AsNumber(FlatShieldValue)));
+			return;
+		}
+
+		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<UFinalBattleEffectDrawCards>(EffectDefinition))
+		{
+			AppendSummaryPart(FText::Format(
+				NSLOCTEXT("FinalRewardResolver", "RelicRuntimeTriggerDrawCardsDetail", "{0}: Draw {1}"),
+				Prefix,
+				FText::AsNumber(DrawCardsEffect->DrawCount)));
+		}
+	};
+
+	for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : RelicDefinition->RuntimeTriggers)
+	{
+		if (TriggerDefinition.Domain != EFinalRuntimeTriggerDomain::Battle
+			|| (TriggerDefinition.Window != EFinalRuntimeTriggerWindow::BattleStart
+				&& TriggerDefinition.Window != EFinalRuntimeTriggerWindow::PlayerTurnStart))
+		{
+			continue;
+		}
+
+		for (const TObjectPtr<UFinalBattleEffectDefinition>& EffectDefinition : TriggerDefinition.Effects)
+		{
+			AppendEffectSummary(EffectDefinition, TriggerDefinition.Window);
 		}
 	}
 

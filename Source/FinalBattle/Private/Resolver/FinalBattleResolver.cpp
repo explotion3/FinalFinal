@@ -264,9 +264,12 @@ void FFinalBattleResolver::Initialize(FFinalBattleState& State, const UFinalBatt
 		RuleConfig,
 		InitContext,
 		GetCardService(),
+		GetConditionService(),
 		GetEventService(),
+		GetEffectExecutionService(),
 		GetRelicService(),
 		GetResourceService(),
+		GetTriggerService(),
 		GetUnitService(),
 		GetEnemyIntentService());
 }
@@ -508,6 +511,7 @@ FFinalBattleEvent FFinalBattleResolver::ExecuteEndTurnCommand(FFinalBattleState&
 		State,
 		RuleConfig,
 		GetCardService(),
+		GetConditionService(),
 		GetRelicService(),
 		GetResourceService(),
 		GetStatusService(),

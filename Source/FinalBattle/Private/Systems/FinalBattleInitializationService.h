@@ -3,9 +3,12 @@
 #include "CoreMinimal.h"
 
 class FFinalBattleCardService;
+class FFinalBattleConditionService;
 class FFinalBattleEventService;
+class FFinalBattleEffectExecutionService;
 class FFinalBattleRelicService;
 class FFinalBattleResourceService;
+class FFinalBattleTriggerService;
 class FFinalBattleUnitService;
 class FFinalEnemyIntentService;
 class UFinalBattleEncounterDefinition;
@@ -24,9 +27,12 @@ public:
 		const UFinalBattleRuleConfig* RuleConfig,
 		const FFinalBattleInitContext& InitContext,
 		const FFinalBattleCardService& CardService,
+		const FFinalBattleConditionService& ConditionService,
 		const FFinalBattleEventService& EventService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService,
 		const FFinalBattleRelicService& RelicService,
 		const FFinalBattleResourceService& ResourceService,
+		const FFinalBattleTriggerService& TriggerService,
 		const FFinalBattleUnitService& UnitService,
 		const FFinalEnemyIntentService& EnemyIntentService) const;
 };

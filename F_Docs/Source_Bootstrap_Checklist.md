@@ -101,7 +101,6 @@
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRunNodeContentDefinition.h`
 * `Source/FinalData/Public/Run/Definitions/FinalRelicDefinition.h`
-* `Source/FinalData/Public/Run/Definitions/FinalRelicBattleTypes.h`
 * `Source/FinalData/Public/Battle/Definitions/FinalRuntimeTriggerDefinition.h`
 * `Source/FinalData/Public/Run/Bridge/FinalBattleRelicPayload.h`
 * `Source/FinalData/Public/Run/Rewards/FinalRunRewardTypes.h`
@@ -173,7 +172,8 @@
 * 第二批可补最小 relic 触发深化：由 `RunSession -> FinalBattleStartRequest -> FinalBattleInitContext` 显式传入遗物输入
 * 先支持 `battle-start` 的 AP / Shield 修正
 * 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
-* 当前已新增共享 `RuntimeTriggerDefinition`，角色 `BattleTriggers` 与遗物 `RuntimeTriggers` 复用 `Domain / Window / Limit / Conditions / Effects`；`PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，`PlayerCardResolved + ResolvedCard(RuntimeCostAP=0) -> DrawCards` 用于阵门木签
+* 当前 battle relic 的固定窗口与条件触发窗口都统一走共享 `RuntimeTriggerDefinition`；角色 `BattleTriggers` 与遗物 `RuntimeTriggers` 复用 `Domain / Window / Limit / Conditions / Effects / TriggeredCardModifiers`
+* 当前首批已落地窗口包括 `BattleStart / PlayerTurnStart / PlayerTeamTookHealthDamage / PlayerCardResolved`；`PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，`PlayerCardResolved + ResolvedCard(RuntimeCostAP=0) -> DrawCards + TriggeredCardModifiers` 用于阵门木签
 
 #### 当前口径
 * `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator

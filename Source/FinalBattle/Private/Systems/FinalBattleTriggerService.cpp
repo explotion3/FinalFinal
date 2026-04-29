@@ -14,6 +14,8 @@
 namespace
 {
 const FName OwnerTookHealthDamageTag(TEXT("battle.trigger.owner_took_health_damage"));
+const FName BattleStartTag(TEXT("battle.trigger.battle_start"));
+const FName PlayerTurnStartTag(TEXT("battle.trigger.player_turn_start"));
 const FName PlayerTeamTookHealthDamageTag(TEXT("battle.trigger.player_team_took_health_damage"));
 const FName PlayerCardResolvedTag(TEXT("battle.trigger.player_card_resolved"));
 const FName RelicTriggeredModifierIdPrefix(TEXT("relic.trigger"));
@@ -50,6 +52,12 @@ FName ResolveTriggerWindowTag(const EFinalRuntimeTriggerWindow Window)
 {
 	switch (Window)
 	{
+	case EFinalRuntimeTriggerWindow::BattleStart:
+		return BattleStartTag;
+
+	case EFinalRuntimeTriggerWindow::PlayerTurnStart:
+		return PlayerTurnStartTag;
+
 	case EFinalRuntimeTriggerWindow::OwnerTookHealthDamage:
 		return OwnerTookHealthDamageTag;
 
@@ -229,6 +237,16 @@ FText BuildRelicTriggerMessage(
 {
 	switch (Window)
 	{
+	case EFinalRuntimeTriggerWindow::BattleStart:
+		return FText::Format(
+			NSLOCTEXT("FinalBattleTriggerService", "RelicBattleStart", "{0} triggered at battle start."),
+			DisplayName);
+
+	case EFinalRuntimeTriggerWindow::PlayerTurnStart:
+		return FText::Format(
+			NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerTurnStart", "{0} triggered at player turn start."),
+			DisplayName);
+
 	case EFinalRuntimeTriggerWindow::PlayerTeamTookHealthDamage:
 		return FText::Format(
 			NSLOCTEXT("FinalBattleTriggerService", "RelicPlayerTeamTookHealthDamage", "{0} triggered after actual health loss."),
@@ -279,6 +297,51 @@ bool ExecuteRuntimeTriggerEffects(
 		UnitService,
 		OutSummary);
 }
+}
+
+void FFinalBattleTriggerService::HandleBattlePhaseRuntimeTriggers(
+	FFinalBattleState& BattleState,
+	const EFinalRuntimeTriggerWindow Window,
+	const FFinalBattleConditionService& ConditionService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
+	const FFinalBattleUnitService& UnitService,
+	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
+{
+	for (FFinalBattleRelicRuntimeState& RuntimeState : BattleState.RelicRuntimeStates)
+	{
+		for (FFinalBattleRuntimeTriggerState& TriggerState : RuntimeState.TriggerStates)
+		{
+			const FFinalRuntimeTriggerDefinition& TriggerDefinition = TriggerState.TriggerDefinition;
+			if (TriggerDefinition.Window != Window
+				|| !IsValidBattleRuntimeTrigger(TriggerDefinition)
+				|| !CanTrigger(TriggerState))
+			{
+				continue;
+			}
+
+			FFinalBattleEffectExecutionSummary TriggerSummary;
+			if (!ExecuteRuntimeTriggerEffects(
+				BattleState,
+				TriggerDefinition,
+				nullptr,
+				nullptr,
+				ConditionService,
+				EffectExecutionService,
+				UnitService,
+				TriggerSummary))
+			{
+				continue;
+			}
+
+			ApplyTriggeredCardModifiers(BattleState, RuntimeState.RelicId, TriggerDefinition, TriggerSummary);
+			MarkTriggered(TriggerState);
+			OutGeneratedEvents.Add(BuildTriggeredEvent(
+				RuntimeState.RelicId,
+				ResolveTriggerWindowTag(TriggerDefinition.Window),
+				TriggerSummary,
+				BuildRelicTriggerMessage(RuntimeState.DisplayName, TriggerDefinition.Window)));
+		}
+	}
 }
 
 void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(

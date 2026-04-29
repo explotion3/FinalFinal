@@ -385,12 +385,28 @@ void FFinalPrototypeTestBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	CharmRelic->DisplayId = TEXT("Relic.Test.Charm");
 	CharmRelic->DisplayName = FText::FromString(TEXT("试作护符"));
 	CharmRelic->Description = FText::FromString(TEXT("战斗开始与玩家回合开始额外获得 1 AP。"));
-	CharmRelic->BattleStartEffects = {
-		{ EFinalRelicBattleStartEffectType::GainAP, 1 }
-	};
-	CharmRelic->PlayerTurnStartEffects = {
-		{ EFinalRelicPlayerTurnStartEffectType::GainAP, 1 }
-	};
+	CharmRelic->RuntimeTriggers.Reset();
+	{
+		FFinalRuntimeTriggerDefinition& BattleStartTrigger = CharmRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		BattleStartTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		BattleStartTrigger.Window = EFinalRuntimeTriggerWindow::BattleStart;
+		AddGainApEffect(
+			CharmRelic,
+			BattleStartTrigger.Effects,
+			TEXT("effect.test.relic.charm.battle_start_ap"),
+			1,
+			FText::FromString(TEXT("战斗开始额外获得 1 AP。")));
+
+		FFinalRuntimeTriggerDefinition& TurnStartTrigger = CharmRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TurnStartTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TurnStartTrigger.Window = EFinalRuntimeTriggerWindow::PlayerTurnStart;
+		AddGainApEffect(
+			CharmRelic,
+			TurnStartTrigger.Effects,
+			TEXT("effect.test.relic.charm.player_turn_start_ap"),
+			1,
+			FText::FromString(TEXT("玩家回合开始额外获得 1 AP。")));
+	}
 	TrackPackage(CharmRelic, PackagesToSave);
 
 	UFinalRelicDefinition* RepairKitRelic = LoadOrCreateAsset<UFinalRelicDefinition>(RepairKitRelicPath, bCreatedAsset);
@@ -398,12 +414,34 @@ void FFinalPrototypeTestBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	RepairKitRelic->DisplayId = TEXT("Relic.Test.RepairKit");
 	RepairKitRelic->DisplayName = FText::FromString(TEXT("试作修理包"));
 	RepairKitRelic->Description = FText::FromString(TEXT("战斗开始获得 4 护盾，玩家回合开始获得 2 护盾。"));
-	RepairKitRelic->BattleStartEffects = {
-		{ EFinalRelicBattleStartEffectType::GainShield, 4 }
-	};
-	RepairKitRelic->PlayerTurnStartEffects = {
-		{ EFinalRelicPlayerTurnStartEffectType::GainShield, 2 }
-	};
+	RepairKitRelic->RuntimeTriggers.Reset();
+	{
+		FFinalRuntimeTriggerDefinition& BattleStartTrigger = RepairKitRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		BattleStartTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		BattleStartTrigger.Window = EFinalRuntimeTriggerWindow::BattleStart;
+		AddShieldEffect(
+			RepairKitRelic,
+			BattleStartTrigger.Effects,
+			TEXT("effect.test.relic.repair_kit.battle_start_shield"),
+			EFinalBattleUnitTargetRule::TeamPlayer,
+			4.0f,
+			EFinalBattleScalarMode::Flat,
+			EFinalBattleSourceStat::None,
+			FText::FromString(TEXT("战斗开始获得 4 护盾。")));
+
+		FFinalRuntimeTriggerDefinition& TurnStartTrigger = RepairKitRelic->RuntimeTriggers.AddDefaulted_GetRef();
+		TurnStartTrigger.Domain = EFinalRuntimeTriggerDomain::Battle;
+		TurnStartTrigger.Window = EFinalRuntimeTriggerWindow::PlayerTurnStart;
+		AddShieldEffect(
+			RepairKitRelic,
+			TurnStartTrigger.Effects,
+			TEXT("effect.test.relic.repair_kit.player_turn_start_shield"),
+			EFinalBattleUnitTargetRule::TeamPlayer,
+			2.0f,
+			EFinalBattleScalarMode::Flat,
+			EFinalBattleSourceStat::None,
+			FText::FromString(TEXT("玩家回合开始获得 2 护盾。")));
+	}
 	TrackPackage(RepairKitRelic, PackagesToSave);
 
 	UFinalRunRouteDefinition* PrototypeRunRoute = LoadOrCreateAsset<UFinalRunRouteDefinition>(PrototypeRunRoutePath, bCreatedAsset);

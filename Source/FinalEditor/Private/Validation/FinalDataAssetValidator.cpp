@@ -886,26 +886,6 @@ namespace FinalDataAssetValidation
 
 		RequireText(Context, bIsValid, Relic->DisplayName, TEXT("DisplayName"));
 
-		for (int32 Index = 0; Index < Relic->BattleStartEffects.Num(); ++Index)
-		{
-			const FFinalRelicBattleStartEffectDefinition& Effect = Relic->BattleStartEffects[Index];
-			if (Effect.EffectType == EFinalRelicBattleStartEffectType::None)
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("BattleStartEffects[%d].EffectType must not be None."), Index));
-			}
-			ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("BattleStartEffects[%d].Value"), Index));
-		}
-
-		for (int32 Index = 0; Index < Relic->PlayerTurnStartEffects.Num(); ++Index)
-		{
-			const FFinalRelicPlayerTurnStartEffectDefinition& Effect = Relic->PlayerTurnStartEffects[Index];
-			if (Effect.EffectType == EFinalRelicPlayerTurnStartEffectType::None)
-			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("PlayerTurnStartEffects[%d].EffectType must not be None."), Index));
-			}
-			ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("PlayerTurnStartEffects[%d].Value"), Index));
-		}
-
 		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Relic->RuntimeTriggers, TEXT("RuntimeTriggers"));
 	}
 

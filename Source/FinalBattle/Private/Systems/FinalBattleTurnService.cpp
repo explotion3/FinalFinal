@@ -4,6 +4,7 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEnemyActionService.h"
 #include "Systems/FinalBattleRelicService.h"
@@ -28,6 +29,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	FFinalBattleState& BattleState,
 	const UFinalBattleRuleConfig* RuleConfig,
 	const FFinalBattleCardService& CardService,
+	const FFinalBattleConditionService& ConditionService,
 	const FFinalBattleRelicService& RelicService,
 	const FFinalBattleResourceService& ResourceService,
 	const FFinalBattleStatusService& StatusService,
@@ -91,7 +93,13 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	++BattleState.CurrentRound;
 	ResourceService.ResetRoundResources(BattleState, RuleConfig ? RuleConfig->InitialAP : 0);
 	RelicService.ResetPlayerTurnTriggerCounts(BattleState);
-	RelicService.ApplyPlayerTurnStartRelicEffects(BattleState, Result.GeneratedEvents);
+	RelicService.ApplyPlayerTurnStartRelicEffects(
+		BattleState,
+		TriggerService,
+		ConditionService,
+		EffectExecutionService,
+		UnitService,
+		Result.GeneratedEvents);
 
 	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)
 	{

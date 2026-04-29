@@ -18,6 +18,8 @@ UENUM(BlueprintType)
 enum class EFinalRuntimeTriggerWindow : uint8
 {
 	None,
+	BattleStart,
+	PlayerTurnStart,
 	OwnerTookHealthDamage,
 	PlayerTeamTookHealthDamage,
 	PlayerCardResolved

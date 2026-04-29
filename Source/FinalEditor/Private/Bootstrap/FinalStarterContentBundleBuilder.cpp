@@ -392,8 +392,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterBronzeMirrorGuardRelic->DisplayName = FText::FromString(TEXT("护心铜镜"));
 	StarterBronzeMirrorGuardRelic->Rarity = EFinalRarity::Common;
 	StarterBronzeMirrorGuardRelic->Description = FText::FromString(TEXT("每回合第一次承受实际生命损失后，获得 8 护盾。"));
-	StarterBronzeMirrorGuardRelic->BattleStartEffects.Reset();
-	StarterBronzeMirrorGuardRelic->PlayerTurnStartEffects.Reset();
 	StarterBronzeMirrorGuardRelic->RuntimeTriggers.Reset();
 	{
 		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterBronzeMirrorGuardRelic->RuntimeTriggers.AddDefaulted_GetRef();
@@ -418,8 +416,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterTokenZeroDrawRelic->DisplayName = FText::FromString(TEXT("阵门木签"));
 	StarterTokenZeroDrawRelic->Rarity = EFinalRarity::Common;
 	StarterTokenZeroDrawRelic->Description = FText::FromString(TEXT("每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且伤害提高 20%。"));
-	StarterTokenZeroDrawRelic->BattleStartEffects.Reset();
-	StarterTokenZeroDrawRelic->PlayerTurnStartEffects.Reset();
 	StarterTokenZeroDrawRelic->RuntimeTriggers.Reset();
 	{
 		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterTokenZeroDrawRelic->RuntimeTriggers.AddDefaulted_GetRef();

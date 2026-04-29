@@ -69,7 +69,7 @@
   * `PendingBattleReward / PendingRewardNode / PendingEventNode / PendingShopNode` 里的奖励条目只保留为“当前可见变动候选”附加调试区，不再冒充当前构筑真相
   * 当候选奖励里出现 `Growth / RemoveCard / UpgradeCard` 时，会额外显示 typed payload，例如目标角色、移除目标卡、升级路径，而不是只显示奖励类型名
   * 战斗期间额外显示 `BattleSnapshot.ActiveRelics` 与最近一条 `RelicTriggered` 事件，作为开场遗物生效的只读调试观察入口
-  * 当前 battle relic 调试摘要已区分 `BattleStartEffects` 与 `PlayerTurnStartEffects`，并继续直接显示 `RelicTriggered` 的原始事件反馈
+  * 当前 battle relic 调试摘要已按 `RuntimeTriggers` 的 `BattleStart / PlayerTurnStart / 其他 battle windows` 汇总展示，并继续直接显示 `RelicTriggered` 的原始事件反馈
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
 ## 1. 当前最小布局

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Events/FinalBattleEvent.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
@@ -26,6 +27,14 @@ struct FFinalBattleResolvedCardTriggerContext
 class FFinalBattleTriggerService
 {
 public:
+	void HandleBattlePhaseRuntimeTriggers(
+		FFinalBattleState& BattleState,
+		EFinalRuntimeTriggerWindow Window,
+		const FFinalBattleConditionService& ConditionService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService,
+		const FFinalBattleUnitService& UnitService,
+		TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
+
 	void HandleOwnerTookHealthDamage(
 		FFinalBattleState& BattleState,
 		const FFinalBattleUnitService& UnitService,

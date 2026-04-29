@@ -117,3 +117,15 @@
 - `FinalBattleTriggerService` 当前会在 relic runtime trigger effects 执行成功后，直接按 effect summary 把 `阵门木签` 的 `-1 AP / +20% 伤害` modifier 投影到抽到的攻击牌；若该牌带 `SourceRunCardInstanceId`，还会同步投影到当前 battle 中全部同源实例。
 - `FFinalBattleCardModifierRecord` 当前已补 `bExpireAtPlayerTurnEnd`；因此 `阵门木签` 的临时修正现在同时支持“打出后清除”与“若未打出则在玩家回合结束后清除”。
 - 本步骤扩展了 `Final.Battle.CardProjection.*` 自动化测试，覆盖攻击牌抽到后投影、生成为非攻击牌时不投影、打出后清除、回合结束后清除这四条基础行为。
+
+## 2026-04-29 Step 14：统一遗物固定效果与 `RuntimeTriggers` authoring
+
+- `UFinalRelicDefinition` 当前已删除 `BattleStartEffects / PlayerTurnStartEffects`，遗物 battle 内 authoring 统一只保留 `RuntimeTriggers`。
+- `EFinalRuntimeTriggerWindow` 当前已补 `BattleStart / PlayerTurnStart`，固定相位与条件触发都统一通过 `Window + Conditions + Effects + TriggeredCardModifiers` 表达。
+- `FFinalBattleStartRelicInput` 当前只桥接 `RelicId / DisplayId / DisplayName / RuntimeTriggers`；Run 不再复制旧 fixed-effect payload。
+- `FinalBattleRelicService` 当前不再自带 AP / Shield 的独立 switch 执行路径，而是在 `BattleStart / PlayerTurnStart` 两个窗口直接复用共享 runtime trigger 执行链。
+- `FinalBattleTriggerService` 当前已能直接执行 `BattleStart / PlayerTurnStart` relic triggers，并继续产出统一的 `RelicTriggered` 事件。
+- starter / test relic 当前已迁到新 schema：
+  - `试作护符`：`BattleStart -> GainAP(1)`、`PlayerTurnStart -> GainAP(1)`
+  - `试作修理包`：`BattleStart -> GainShield(4)`、`PlayerTurnStart -> GainShield(2)`
+- `FinalRewardResolver`、`PrototypeRunDebugScreen` 与 `FinalDataAssetValidator` 当前也已统一改成从 `RuntimeTriggers` 汇总与校验，不再读取旧 fixed-effect 字段。

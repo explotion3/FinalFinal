@@ -12,9 +12,12 @@
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
+#include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
+#include "Systems/FinalBattleTriggerService.h"
 #include "Systems/FinalBattleUnitService.h"
 #include "Systems/FinalEnemyIntentService.h"
 
@@ -93,9 +96,12 @@ void FFinalBattleInitializationService::InitializeBattle(
 	const UFinalBattleRuleConfig* RuleConfig,
 	const FFinalBattleInitContext& InitContext,
 	const FFinalBattleCardService& CardService,
+	const FFinalBattleConditionService& ConditionService,
 	const FFinalBattleEventService& EventService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService,
 	const FFinalBattleRelicService& RelicService,
 	const FFinalBattleResourceService& ResourceService,
+	const FFinalBattleTriggerService& TriggerService,
 	const FFinalBattleUnitService& UnitService,
 	const FFinalEnemyIntentService& EnemyIntentService) const
 {
@@ -255,7 +261,14 @@ void FFinalBattleInitializationService::InitializeBattle(
 	EventService.FinalizeBattleEvent(State, SessionStartedEvent);
 
 	TArray<FFinalBattleEvent> BattleStartRelicEvents;
-	RelicService.InitializeRelics(State, InitContext.BattleStartRelics, BattleStartRelicEvents);
+	RelicService.InitializeRelics(
+		State,
+		InitContext.BattleStartRelics,
+		TriggerService,
+		ConditionService,
+		EffectExecutionService,
+		UnitService,
+		BattleStartRelicEvents);
 	for (const FFinalBattleEvent& RelicEvent : BattleStartRelicEvents)
 	{
 		EventService.AppendBattleEvent(State, RelicEvent);
