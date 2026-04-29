@@ -111,6 +111,45 @@ int32 UFinalBattleSession::GetLatestGrowthFactBatchSequence() const
 	return State != nullptr ? State->LastGrowthFactBatchSequence : 0;
 }
 
+bool UFinalBattleSession::RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats)
+{
+	if (State == nullptr || !RuntimeStats.CharacterId.IsValid())
+	{
+		return false;
+	}
+
+	FFinalBattleCharacterState* CharacterState = State->Characters.FindByPredicate([&RuntimeStats](const FFinalBattleCharacterState& Candidate)
+	{
+		return Candidate.CharacterId == RuntimeStats.CharacterId;
+	});
+	if (CharacterState == nullptr)
+	{
+		return false;
+	}
+
+	CharacterState->VitalShare = RuntimeStats.VitalShare;
+	CharacterState->StressCap = RuntimeStats.StressCap;
+	CharacterState->CurrentStress = FMath::Min(CharacterState->CurrentStress, CharacterState->StressCap);
+	CharacterState->RuntimeAttack = RuntimeStats.RuntimeAttack;
+	CharacterState->RuntimeDefense = RuntimeStats.RuntimeDefense;
+	CharacterState->RuntimeBreakRate = RuntimeStats.RuntimeBreakRate;
+	CharacterState->RuntimeCritChance = RuntimeStats.RuntimeCritChance;
+	CharacterState->RuntimeCritDamage = RuntimeStats.RuntimeCritDamage;
+
+	int32 UpdatedTeamMaxHP = 0;
+	for (const FFinalBattleCharacterState& TeamCharacterState : State->Characters)
+	{
+		if (!TeamCharacterState.bCollapsed)
+		{
+			UpdatedTeamMaxHP += TeamCharacterState.VitalShare;
+		}
+	}
+
+	State->TeamMaxHP = FMath::Max(UpdatedTeamMaxHP, 0);
+	State->TeamCurrentHP = FMath::Min(State->TeamCurrentHP, State->TeamMaxHP);
+	return true;
+}
+
 void UFinalBattleSession::ResetSession()
 {
 	delete State;

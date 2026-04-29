@@ -278,6 +278,17 @@ BattleVictoryBaseReward
 - `FinalBattle` 只产出 facts，不直接给角色加突破值。
 - `FinalApp` 负责消费 facts 并调用 `FinalRun::AddBreakthroughValue()`。
 - `FinalRun` 仍是突破值、升级与成长候选的唯一真相源。
+- 当前 `CharacterGrowthConfig` 还同时提供首版属性投影参数：
+  - `RootBoneVitalSharePerPoint`
+  - `RootBoneStressCapPerPoint`
+  - `RootBoneDefensePerPoint`
+  - `KillingIntentAttackPerPoint`
+  - `KillingIntentCritChancePerPoint`
+  - `KillingIntentCritDamagePerPoint`
+  - `InsightBreakthroughGainMultiplierPerPoint`
+- 当前 battle runtime 投影统一由 `FinalApp` 侧 helper 计算，并用于：
+  - 新 battle 初始化
+  - active battle 中属性成长后的即时刷新
 
 ## 5. 静态定义
 
@@ -807,6 +818,10 @@ BattleGrowthFact / 节点奖励
 - `FinalBattle` 只产出结构化 `BattleGrowthFactBatch`。
 - `FinalApp` 桥接层根据角色 `CharacterGrowthConfig` 把 facts 转成突破值，并调用 `FinalRun::AddBreakthroughValue()`。
 - `FinalRun` 根据规则处理突破值、升级和候选应用。
+- 当前属性成长应用成功后，`FinalApp` 还会把最新的 battle runtime 投影回刷到 active battle：
+  - `RootBone -> VitalShare / StressCap / RuntimeDefense`
+  - `KillingIntent -> RuntimeAttack / RuntimeCritChance / RuntimeCritDamage`
+  - `Insight` 仍不进入 battle runtime 面板
 - 当前 Step 4 已落地的最小规则还包括：
   - 同一时刻只允许一个 `PendingGrowthChoice`
   - 若已有待处理成长候选，新的突破值仍会累计，但不会再次触发升级

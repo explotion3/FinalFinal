@@ -69,3 +69,15 @@
 - Battle HUD 当前已直接从 `RunSnapshot.Characters` 投影角色等级与突破槽，并在满槽时做高亮；HUD 不新增第二套成长真相缓存，也不把突破值写进 `BattleSnapshot`。
 - `RunSession::ApplyBattleResult()` 当前已改为按 `CharacterId` 合并 battle-owned 字段，保留 `Level / BreakthroughValue / BreakthroughRequiredValue / RootBone / Insight / KillingIntent / bHasPendingGrowthChoice` 等 run-owned 成长状态。
 - starter 首章默认已从“开局即 pending growth”调整为“霍断岳 80 / 100 接近突破进入首战”，用于手工验收战中突破、即时 Growth overlay 与卡牌进化路径。
+
+## 2026-04-29 Step 9：属性成长正式进入 battle runtime，并支持战中即时刷新
+
+- `FinalApp` 当前新增统一的成长数值投影 helper，用于把 `RunPersistentCharacterState + CharacterDefinition + CharacterGrowthConfig` 折算成 battle runtime 数值。
+- `FinalBattleCharacterInitData` 当前已显式承载 `VitalShare / StressCap / RuntimeAttack / RuntimeDefense / RuntimeBreakRate / RuntimeCritChance / RuntimeCritDamage`，`FinalBattleInitializationService` 不再自行从角色静态定义重新拼这些字段。
+- 当前首版属性成长投影规则已固定：
+  - `RootBone -> VitalShare / StressCap / RuntimeDefense`
+  - `KillingIntent -> RuntimeAttack / RuntimeCritChance / RuntimeCritDamage`
+  - `Insight` 继续只影响突破值获取倍率
+- `FinalBattle` 当前已把 crit 正式纳入权威结算：每个伤害 hit 独立判定暴击，暴击时按 `RuntimeCritDamage` 放大伤害。
+- 当前在 active battle 中成功选择属性成长后，`FinalRunFlowSubsystem -> FinalGameFlowSubsystem -> FinalBattleFlowSubsystem` 会立即把最新 runtime 投影回刷到当前 battle session，而不是只等到下一场战斗。
+- 本步骤仍然没有处理“战中卡牌进化刷新当前 hand / draw / discard / consume 实例”；这条链路仍留给后续单独收口。

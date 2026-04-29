@@ -644,6 +644,21 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 只有玩家主动命令完整结算后首次满槽，才立即弹出 Growth overlay
 - 敌方阶段、被动链或战斗胜利导致的满槽，由外层流程在安全窗口展示
 
+当前首版已落地的属性成长投影口径：
+
+- `Insight` 仍然只影响突破值获取倍率，不直接改 battle runtime 数值。
+- `RootBone` 会投影到当前 battle runtime 的 `VitalShare / StressCap / Defense`。
+- `KillingIntent` 会投影到当前 battle runtime 的 `Attack / CritChance / CritDamage`。
+- 这些投影值在战斗初始化时由 `FinalApp` 统一构造，再交给 `FinalBattle` 消费；`FinalBattle` 不直接读取 Run 状态。
+- 若玩家在 active battle 中选择属性成长，`FinalApp` 会在 `SelectGrowthChoice` 成功后立即把最新投影值回刷到当前 battle session。
+
+当前首版已落地的暴击规则：
+
+- 每个伤害 hit 独立判定一次暴击。
+- 暴击概率读取角色当前 `RuntimeCritChance`。
+- 暴击倍率读取角色当前 `RuntimeCritDamage`，并作为总倍率乘到该 hit 的基础伤害上。
+- 暴击属于 `FinalBattle` 内的权威伤害规则，不是仅用于 HUD 展示的附加字段。
+
 ---
 
 ## 11. 待补项

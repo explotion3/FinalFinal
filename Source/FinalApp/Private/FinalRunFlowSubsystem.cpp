@@ -292,12 +292,41 @@ bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType Command
 		return false;
 	}
 
+	FFinalCharacterId GrowthRefreshCharacterId;
+	if (CommandType == EFinalRunCommandType::SelectGrowthChoice)
+	{
+		const FFinalRunPendingGrowthChoice& PendingGrowthChoice = RunSession->GetPendingGrowthChoice();
+		if (PendingGrowthChoice.bIsValid)
+		{
+			if (const FFinalRunGrowthChoiceInstance* SelectedChoice = PendingGrowthChoice.Choices.FindByPredicate([&PayloadId](const FFinalRunGrowthChoiceInstance& Choice)
+			{
+				return Choice.ChoiceInstanceId == PayloadId;
+			}))
+			{
+				if (SelectedChoice->ChoiceType == EFinalGrowthChoiceType::AttributeGrowth)
+				{
+					GrowthRefreshCharacterId = SelectedChoice->CharacterId;
+				}
+			}
+		}
+	}
+
 	FFinalRunCommand Command;
 	Command.CommandType = CommandType;
 	Command.PayloadId = PayloadId;
 
 	const bool bAccepted = RunSession->SubmitRunCommand(Command);
 	RefreshRunFlow(true);
+	if (bAccepted
+		&& CommandType == EFinalRunCommandType::SelectGrowthChoice
+		&& GrowthRefreshCharacterId.IsValid())
+	{
+		if (UFinalGameFlowSubsystem* GameFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr)
+		{
+			GameFlowSubsystem->TryRefreshActiveBattleCharacterFromRunState(GrowthRefreshCharacterId);
+		}
+	}
+
 	return bAccepted;
 }
 

@@ -51,6 +51,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Flow")
 	FText GetLastBattleFailureReason() const;
 
+	void TryRefreshActiveBattleCharacterFromRunState(const FFinalCharacterId& CharacterId);
+
 private:
 	bool BuildResolvedBattleResult(FFinalBattleResult& OutResult);
 	UFUNCTION()
@@ -59,6 +61,7 @@ private:
 	bool TryPresentPendingGrowthChoiceAtSafeWindow(const FFinalBattleSnapshot& Snapshot, bool bPendingCreatedThisTick);
 	int32 ResolveBreakthroughGainFromFact(const FFinalBattleGrowthFact& Fact, const FFinalRunPersistentCharacterState& CharacterState) const;
 	int32 ResolveBattleVictoryRewardForNode(EFinalRunNodeType NodeType, const UFinalCharacterGrowthConfig& GrowthConfig) const;
+	bool BuildProjectedRuntimeStatsForCharacter(const FFinalCharacterId& CharacterId, FFinalBattleCharacterRuntimeStats& OutRuntimeStats) const;
 	void BindToBattleFlowSubsystem(UFinalBattleFlowSubsystem* BattleFlowSubsystem);
 	void UnbindFromBattleFlowSubsystem(UFinalBattleFlowSubsystem* BattleFlowSubsystem);
 

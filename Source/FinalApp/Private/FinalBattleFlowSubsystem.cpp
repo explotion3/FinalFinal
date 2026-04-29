@@ -4,6 +4,7 @@
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
+#include "BattleBridge/FinalBattleGrowthStatProjection.h"
 #include "Facade/FinalBattleSession.h"
 #include "Queries/FinalDataRegistry.h"
 
@@ -140,6 +141,22 @@ int32 UFinalBattleFlowSubsystem::GetLatestBattleEventSequence() const
 	return ActiveBattleSession ? ActiveBattleSession->GetLatestBattleEventSequence() : 0;
 }
 
+bool UFinalBattleFlowSubsystem::RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats)
+{
+	if (ActiveBattleSession == nullptr)
+	{
+		return false;
+	}
+
+	const bool bRefreshed = ActiveBattleSession->RefreshCharacterRuntimeStats(RuntimeStats);
+	if (bRefreshed)
+	{
+		BroadcastSnapshot();
+	}
+
+	return bRefreshed;
+}
+
 void UFinalBattleFlowSubsystem::BroadcastPendingBattleEvents()
 {
 	if (ActiveBattleSession == nullptr)
@@ -200,6 +217,18 @@ bool UFinalBattleFlowSubsystem::BuildInitContext(const FFinalBattleStartRequest&
 		InitData.bCollapsed = PartyState.bCollapsed;
 		InitData.CurrentAwakenCount = PartyState.CurrentAwakenCount;
 		InitData.CollapseCount = PartyState.CollapseCount;
+		const UFinalCharacterGrowthConfig* GrowthConfig = CharacterDefinition->GrowthConfigId.IsValid()
+			? DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId)
+			: nullptr;
+		const FFinalBattleCharacterRuntimeStats RuntimeStats =
+			FinalBattleGrowthStatProjection::BuildRuntimeStats(PartyState, *CharacterDefinition, GrowthConfig);
+		InitData.VitalShare = RuntimeStats.VitalShare;
+		InitData.StressCap = RuntimeStats.StressCap;
+		InitData.RuntimeAttack = RuntimeStats.RuntimeAttack;
+		InitData.RuntimeDefense = RuntimeStats.RuntimeDefense;
+		InitData.RuntimeBreakRate = RuntimeStats.RuntimeBreakRate;
+		InitData.RuntimeCritChance = RuntimeStats.RuntimeCritChance;
+		InitData.RuntimeCritDamage = RuntimeStats.RuntimeCritDamage;
 		OutInitContext.PartyMembers.Add(InitData);
 	}
 

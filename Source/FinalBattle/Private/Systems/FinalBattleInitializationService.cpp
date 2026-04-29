@@ -133,15 +133,17 @@ void FFinalBattleInitializationService::InitializeBattle(
 		CharacterState.CharacterId = PartyEntry.CharacterDefinition->CharacterId;
 		CharacterState.DisplayName = PartyEntry.CharacterDefinition->DisplayName;
 		CharacterState.CurrentStress = PartyEntry.CurrentStress;
-		CharacterState.StressCap = PartyEntry.CharacterDefinition->BaseStressCap;
+		CharacterState.StressCap = PartyEntry.StressCap;
 		CharacterState.bCollapsed = PartyEntry.bCollapsed;
 		CharacterState.CurrentAwakenCount = PartyEntry.CurrentAwakenCount;
 		CharacterState.CollapseCount = PartyEntry.CollapseCount;
 		CharacterState.CurrentAwakenThreshold = ResolveAwakenThreshold(CharacterState, RuleConfig);
-		CharacterState.VitalShare = PartyEntry.CharacterDefinition->BaseVitalShare;
-		CharacterState.RuntimeAttack = PartyEntry.CharacterDefinition->BaseAttack;
-		CharacterState.RuntimeDefense = PartyEntry.CharacterDefinition->BaseDefense;
-		CharacterState.RuntimeBreakRate = PartyEntry.CharacterDefinition->BaseBreakRate;
+		CharacterState.VitalShare = PartyEntry.VitalShare;
+		CharacterState.RuntimeAttack = PartyEntry.RuntimeAttack;
+		CharacterState.RuntimeDefense = PartyEntry.RuntimeDefense;
+		CharacterState.RuntimeBreakRate = PartyEntry.RuntimeBreakRate;
+		CharacterState.RuntimeCritChance = PartyEntry.RuntimeCritChance;
+		CharacterState.RuntimeCritDamage = PartyEntry.RuntimeCritDamage;
 		CharacterState.UltimateId = PartyEntry.CharacterDefinition->UltimateId;
 		for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : PartyEntry.CharacterDefinition->BattleTriggers)
 		{
@@ -161,7 +163,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 
 		if (!PartyEntry.bCollapsed)
 		{
-			State.TeamMaxHP += PartyEntry.CharacterDefinition->BaseVitalShare;
+			State.TeamMaxHP += PartyEntry.VitalShare;
 		}
 	}
 

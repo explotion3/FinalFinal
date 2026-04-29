@@ -46,6 +46,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	int32 GetLatestGrowthFactBatchSequence() const;
 
+	bool RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats);
+
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle")
 	void ResetSession();
 

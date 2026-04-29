@@ -54,6 +54,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle")
 	int32 GetLatestBattleEventSequence() const;
 
+	bool RefreshCharacterRuntimeStats(const FFinalBattleCharacterRuntimeStats& RuntimeStats);
+
 	UPROPERTY(BlueprintAssignable, Category = "Final|Battle")
 	FFinalBattleSnapshotChangedSignature OnBattleSnapshotChanged;
 

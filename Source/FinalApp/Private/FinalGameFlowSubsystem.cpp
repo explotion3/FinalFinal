@@ -1,6 +1,7 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 
 #include "Battle/Definitions/FinalCharacterDefinition.h"
+#include "BattleBridge/FinalBattleGrowthStatProjection.h"
 #include "Facade/FinalRunSession.h"
 #include "Queries/FinalDataRegistry.h"
 #include "Run/Definitions/FinalCharacterGrowthConfig.h"
@@ -241,6 +242,28 @@ FText UFinalGameFlowSubsystem::GetLastBattleFailureReason() const
 	return BattleFlowSubsystem ? BattleFlowSubsystem->GetLastFailureReason() : FText::GetEmpty();
 }
 
+void UFinalGameFlowSubsystem::TryRefreshActiveBattleCharacterFromRunState(const FFinalCharacterId& CharacterId)
+{
+	if (!CharacterId.IsValid())
+	{
+		return;
+	}
+
+	UFinalBattleFlowSubsystem* BattleFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
+	if (RunSession == nullptr || BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
+	{
+		return;
+	}
+
+	FFinalBattleCharacterRuntimeStats RuntimeStats;
+	if (!BuildProjectedRuntimeStatsForCharacter(CharacterId, RuntimeStats))
+	{
+		return;
+	}
+
+	BattleFlowSubsystem->RefreshCharacterRuntimeStats(RuntimeStats);
+}
+
 bool UFinalGameFlowSubsystem::BuildResolvedBattleResult(FFinalBattleResult& OutResult)
 {
 	if (RunSession == nullptr)
@@ -475,6 +498,43 @@ int32 UFinalGameFlowSubsystem::ResolveBattleVictoryRewardForNode(const EFinalRun
 	default:
 		return GrowthConfig.NormalBattleVictoryBreakthroughReward;
 	}
+}
+
+bool UFinalGameFlowSubsystem::BuildProjectedRuntimeStatsForCharacter(const FFinalCharacterId& CharacterId, FFinalBattleCharacterRuntimeStats& OutRuntimeStats) const
+{
+	if (RunSession == nullptr || !CharacterId.IsValid())
+	{
+		return false;
+	}
+
+	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
+	if (DataRegistry == nullptr)
+	{
+		return false;
+	}
+
+	const FFinalRunState RunState = RunSession->GetRunState();
+	const FFinalRunPersistentCharacterState* CharacterState = RunState.Characters.FindByPredicate([&CharacterId](const FFinalRunPersistentCharacterState& Candidate)
+	{
+		return Candidate.CharacterId == CharacterId;
+	});
+	if (CharacterState == nullptr)
+	{
+		return false;
+	}
+
+	const UFinalCharacterDefinition* CharacterDefinition = DataRegistry->FindCharacterDefinition(CharacterId);
+	if (CharacterDefinition == nullptr)
+	{
+		return false;
+	}
+
+	const UFinalCharacterGrowthConfig* GrowthConfig =
+		CharacterDefinition->GrowthConfigId.IsValid()
+			? DataRegistry->FindCharacterGrowthConfig(CharacterDefinition->GrowthConfigId)
+			: nullptr;
+	OutRuntimeStats = FinalBattleGrowthStatProjection::BuildRuntimeStats(*CharacterState, *CharacterDefinition, GrowthConfig);
+	return true;
 }
 
 void UFinalGameFlowSubsystem::BindToBattleFlowSubsystem(UFinalBattleFlowSubsystem* BattleFlowSubsystem)

@@ -433,6 +433,29 @@ int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPe
 	return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseDamage) * ModifierScale), 0);
 }
 
+bool ShouldApplyCriticalHit(const FFinalBattleCharacterState* SourceCharacterState)
+{
+	if (SourceCharacterState == nullptr)
+	{
+		return false;
+	}
+
+	const float CriticalChance = FMath::Clamp(SourceCharacterState->RuntimeCritChance, 0.0f, 1.0f);
+	return CriticalChance >= 1.0f || (CriticalChance > 0.0f && FMath::FRand() < CriticalChance);
+}
+
+int32 ApplyCriticalHitMultiplier(const int32 BaseDamage, const FFinalBattleCharacterState* SourceCharacterState)
+{
+	if (BaseDamage <= 0 || SourceCharacterState == nullptr)
+	{
+		return BaseDamage;
+	}
+
+	return FMath::Max(
+		FMath::RoundToInt(static_cast<float>(BaseDamage) * FMath::Max(SourceCharacterState->RuntimeCritDamage, 1.0f)),
+		0);
+}
+
 int32 ApplyDamageToEnemy(
 	FFinalBattleState& State,
 	FFinalBattleEnemyState& EnemyState,
@@ -978,14 +1001,20 @@ bool ExecuteDamageEffect(
 
 		for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 		{
+			const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
+			const int32 ResolvedDamagePerHit = bIsCriticalHit
+				? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
+				: DamagePerHit;
 			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(
 				State,
-				DamagePerHit,
+				ResolvedDamagePerHit,
 				UnitService,
 				GetTriggerService(),
 				GetEffectExecutionService(),
 				Summary);
 			Summary.TotalDamageToTeam += HpDamage;
+			Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
+			Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
 		}
 
 		++Summary.ResolvedEffectCount;
@@ -1011,11 +1040,17 @@ bool ExecuteDamageEffect(
 
 			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 			{
+				const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
+				const int32 ResolvedDamagePerHit = bIsCriticalHit
+					? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
+					: DamagePerHit;
 				int32 DefeatCount = 0;
-				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, DamagePerHit, UnitService, DefeatCount);
+				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, ResolvedDamagePerHit, UnitService, DefeatCount);
 				ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
-				Summary.TotalDamageToEnemies += DamagePerHit;
+				Summary.TotalDamageToEnemies += ResolvedDamagePerHit;
 				Summary.TotalEnemiesDefeated += DefeatCount;
+				Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
+				Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
 				bAppliedDamageToAnyEnemy = true;
 			}
 		}
@@ -1053,11 +1088,17 @@ bool ExecuteDamageEffect(
 
 	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 	{
+		const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
+		const int32 ResolvedDamagePerHit = bIsCriticalHit
+			? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
+			: DamagePerHit;
 		int32 DefeatCount = 0;
-		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, DamagePerHit, UnitService, DefeatCount);
+		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, ResolvedDamagePerHit, UnitService, DefeatCount);
 		ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
-		Summary.TotalDamageToEnemies += DamagePerHit;
+		Summary.TotalDamageToEnemies += ResolvedDamagePerHit;
 		Summary.TotalEnemiesDefeated += DefeatCount;
+		Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
+		Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
 	}
 
 	++Summary.ResolvedEffectCount;

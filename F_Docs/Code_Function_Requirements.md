@@ -282,6 +282,7 @@
 - 当前 Step 4 运行时已提供 `UFinalRunSession::AddBreakthroughValue()` 作为最小成长入口；它会先累计突破值，再在没有待处理成长选择时尝试触发一次升级
 - 当前 run 初始化还会合并 `PrototypeBootstrap.InitialCharacterStates` 与角色默认 `CharacterGrowthConfig`，在进入首场战斗前就构造完整 `RunPersistentCharacterState`
 - battle result 回写当前按 `CharacterId` 合并，只更新 battle-owned 字段，避免覆盖 Run 内成长字段
+- 当前 battle 初始化与 active battle 属性刷新共用同一套成长投影公式，统一由 `FinalApp` 侧 helper 构造 `VitalShare / StressCap / RuntimeAttack / RuntimeDefense / RuntimeCritChance / RuntimeCritDamage`
 
 优先级：`P0`
 
@@ -315,6 +316,11 @@
 - 当前不会在应用成长选择后自动连锁触发下一次升级；剩余突破值会保留到后续再次显式触发成长入口时再处理。
 - Step 8 已落地安全窗口口径：只有玩家主动命令完整结算后首次满槽，才立即展示 Growth overlay；敌方阶段、被动链或战斗胜利导致的满槽会延后到下一个安全窗口。
 - starter 首章当前不再“开局即 pending growth”；默认由霍断岳以 `80 / 100` 突破值进入首战，在战斗中自然触发第一次成长选择。
+- 当前属性成长已真正进入 battle runtime：
+  - `RootBone -> VitalShare / StressCap / RuntimeDefense`
+  - `KillingIntent -> RuntimeAttack / RuntimeCritChance / RuntimeCritDamage`
+  - `Insight` 继续只影响突破值倍率
+- 当前在 active battle 中成功应用属性成长后，`FinalApp` 会立即桥接刷新当前 battle session；属性收益不再只等到下一场战斗才生效。
 
 优先级：`P0`
 

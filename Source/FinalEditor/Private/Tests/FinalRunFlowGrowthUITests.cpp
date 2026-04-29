@@ -6,6 +6,8 @@
 #include "Battle/Definitions/FinalBattleRuleConfig.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Blueprint/UserWidget.h"
@@ -60,6 +62,22 @@ namespace FinalRunFlowGrowthUITests
 		Command.CommandType = EFinalRunCommandType::SelectGrowthChoice;
 		Command.PayloadId = PendingGrowthChoice.Choices[0].ChoiceInstanceId;
 		return RunSession.SubmitRunCommand(Command);
+	}
+
+	const FFinalBattleCharacterViewData* FindBattleCharacterView(const FFinalBattleSnapshot& Snapshot, const FFinalCharacterId& CharacterId)
+	{
+		return Snapshot.Characters.FindByPredicate([&CharacterId](const FFinalBattleCharacterViewData& CharacterView)
+		{
+			return CharacterView.CharacterId == CharacterId;
+		});
+	}
+
+	const FFinalBattleEnemyViewData* FindBattleEnemyView(const FFinalBattleSnapshot& Snapshot, const FName RuntimeUnitId)
+	{
+		return Snapshot.Enemies.FindByPredicate([&RuntimeUnitId](const FFinalBattleEnemyViewData& EnemyView)
+		{
+			return EnemyView.RuntimeUnitId == RuntimeUnitId;
+		});
 	}
 
 	struct FAutomationContext
@@ -176,8 +194,60 @@ namespace FinalRunFlowGrowthUITests
 			CharacterDefinition->BaseAttack = 5;
 			CharacterDefinition->BaseDefense = 2;
 			CharacterDefinition->BaseBreakRate = 1.0f;
+			CharacterDefinition->BaseCritChance = 0.0f;
+			CharacterDefinition->BaseCritDamage = 1.5f;
 			DataRegistry->RegisterCharacterDefinition(CharacterDefinition);
 			return CharacterDefinition;
+		}
+
+		UFinalBattleRuleConfig* RegisterRuleConfig(
+			const FFinalRuleConfigId& RuleConfigId,
+			const int32 InitialHandSize = 1,
+			const int32 InitialAP = 3) const
+		{
+			UFinalBattleRuleConfig* RuleConfig = NewObject<UFinalBattleRuleConfig>(GameInstance.Get());
+			RuleConfig->RuleConfigId = RuleConfigId;
+			RuleConfig->InitialHandSize = InitialHandSize;
+			RuleConfig->InitialAP = InitialAP;
+			RuleConfig->TurnStartDrawCount = InitialHandSize;
+			DataRegistry->RegisterRuleConfig(RuleConfig);
+			return RuleConfig;
+		}
+
+		UFinalEnemyDefinition* RegisterEnemyDefinition(
+			const FFinalEnemyId& EnemyId,
+			const FString& DisplayName,
+			const int32 MaxHP = 100) const
+		{
+			UFinalEnemyDefinition* EnemyDefinition = NewObject<UFinalEnemyDefinition>(GameInstance.Get());
+			EnemyDefinition->EnemyId = EnemyId;
+			EnemyDefinition->DisplayName = FText::FromString(DisplayName);
+			EnemyDefinition->MaxHP = MaxHP;
+			EnemyDefinition->MaxBreakValue = 10;
+			EnemyDefinition->BaseDamagePower = 3;
+			EnemyDefinition->InitialInitiativeValue = 0;
+			EnemyDefinition->IntentSelectRule = EFinalIntentSelectRule::Cycle;
+			DataRegistry->RegisterEnemyDefinition(EnemyDefinition);
+			return EnemyDefinition;
+		}
+
+		UFinalBattleEncounterDefinition* RegisterEncounterDefinition(
+			const FFinalEncounterId& EncounterId,
+			UFinalBattleRuleConfig* RuleConfig,
+			UFinalEnemyDefinition* EnemyDefinition) const
+		{
+			UFinalBattleEncounterDefinition* EncounterDefinition = NewObject<UFinalBattleEncounterDefinition>(GameInstance.Get());
+			EncounterDefinition->EncounterId = EncounterId;
+			EncounterDefinition->DisplayName = FText::FromString(TEXT("Automation Encounter"));
+			EncounterDefinition->RuleConfig = RuleConfig;
+
+			FFinalEnemyRosterEntry& Entry = EncounterDefinition->EnemyRoster.AddDefaulted_GetRef();
+			Entry.EnemyDefinition = EnemyDefinition;
+			Entry.PositionIndex = 0;
+			Entry.SpawnWave = 1;
+
+			DataRegistry->RegisterEncounterDefinition(EncounterDefinition);
+			return EncounterDefinition;
 		}
 
 		UFinalCardDefinition* RegisterBreakthroughTestCard(
@@ -199,9 +269,50 @@ namespace FinalRunFlowGrowthUITests
 			return CardDefinition;
 		}
 
+		UFinalCardDefinition* RegisterAttackScalingTestCard(
+			const FFinalCardId& CardId,
+			const FFinalCharacterId& OwnerCharacterId,
+			const FString& DisplayName) const
+		{
+			UFinalCardDefinition* CardDefinition = RegisterCardDefinition(CardId, OwnerCharacterId, DisplayName);
+			CardDefinition->BaseCostAP = 1;
+			CardDefinition->CardType = EFinalCardType::Attack;
+			CardDefinition->Effects.Reset();
+
+			UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+			DamageEffect->EffectId = TEXT("effect.test.damage.scaling");
+			DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+			DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+			DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+			DamageEffect->Scalar.BaseValue = 1.0f;
+			CardDefinition->Effects.Add(DamageEffect);
+			return CardDefinition;
+		}
+
 		UFinalRunSession* CreateRunSessionWithSingleCharacter(
 			const FFinalCharacterId& CharacterId,
 			const FFinalCardId& StarterCardId) const
+		{
+			FFinalRunPersistentCharacterState CharacterState;
+			CharacterState.CharacterId = CharacterId;
+			CharacterState.Level = 1;
+			CharacterState.BreakthroughValue = 0;
+			CharacterState.BreakthroughRequiredValue = 100;
+
+			return CreateRunSessionWithCharacterState(
+				CharacterState,
+				{ StarterCardId },
+				FFinalEncounterId(StarterEncounterId),
+				FFinalRuleConfigId(StarterRuleConfigId),
+				20);
+		}
+
+		UFinalRunSession* CreateRunSessionWithCharacterState(
+			const FFinalRunPersistentCharacterState& CharacterState,
+			const TArray<FFinalCardId>& StarterDeck,
+			const FFinalEncounterId& EncounterId,
+			const FFinalRuleConfigId& RuleConfigId,
+			const int32 InitialTeamCurrentHP) const
 		{
 			UFinalRunSession* RunSession = GameFlowSubsystem->BootstrapNewRun();
 			if (RunSession == nullptr)
@@ -209,24 +320,15 @@ namespace FinalRunFlowGrowthUITests
 				return nullptr;
 			}
 
-			FFinalRunPersistentCharacterState CharacterState;
-			CharacterState.CharacterId = CharacterId;
-			CharacterState.Level = 1;
-			CharacterState.BreakthroughValue = 0;
-			CharacterState.BreakthroughRequiredValue = 100;
-
 			TArray<FFinalRunPersistentCharacterState> PartyStates;
 			PartyStates.Add(CharacterState);
 
-			TArray<FFinalCardId> StarterDeck;
-			StarterDeck.Add(StarterCardId);
-
 			RunSession->ConfigureBattleStartState(
-				FFinalEncounterId(StarterEncounterId),
-				FFinalRuleConfigId(StarterRuleConfigId),
+				EncounterId,
+				RuleConfigId,
 				PartyStates,
 				StarterDeck,
-				20);
+				InitialTeamCurrentHP);
 
 			return RunSession;
 		}
@@ -552,6 +654,219 @@ bool FFinalRunGrowthOverlayWidgetSelectionTest::RunTest(const FString& Parameter
 	TestTrue(TEXT("Confirming the current growth choice through the widget should submit the RunCommand."), GrowthScreen->ConfirmCurrentChoice());
 	TestFalse(TEXT("RunSession pending growth choice should be cleared after widget-driven confirmation."), RunSession->GetSnapshot().PendingGrowthChoice.bHasPendingChoice);
 	TestEqual(TEXT("Widget-driven confirmation should still route through GrowthChoiceApplied."), Context.RunFlowSubsystem->GetLastProcessedRunEvent().EventType, EFinalRunEventType::GrowthChoiceApplied);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthAttributeProjectionAndRefreshTest,
+	"Final.Editor.RunFlow.GrowthAttributeProjectionAndMidBattleRefresh",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthAttributeProjectionAndRefreshTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthAttributeProjectionAndRefreshTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.attribute_projection")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.attribute_projection")));
+	const FFinalCardId StarterCardId(FName(TEXT("card.test.attribute_projection")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.attribute_projection")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.attribute_projection")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.attribute_projection")));
+
+	UFinalCharacterGrowthConfig* GrowthConfig = Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Attribute Projection Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 1, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Projection Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterAttackScalingTestCard(StarterCardId, CharacterId, TEXT("Projection Slash"));
+
+	FFinalRunPersistentCharacterState CharacterState;
+	CharacterState.CharacterId = CharacterId;
+	CharacterState.Level = 1;
+	CharacterState.BreakthroughRequiredValue = 100;
+	CharacterState.RootBone = 2;
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithCharacterState(
+		CharacterState,
+		{ StarterCardId },
+		EncounterId,
+		RuleConfigId,
+		20);
+	if (!TestNotNull(TEXT("RunSession should be created for attribute projection test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for attribute projection test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	const FFinalBattleCharacterViewData* CharacterView = FindBattleCharacterView(BattleSnapshot, CharacterId);
+	if (!TestNotNull(TEXT("Battle snapshot should expose the projected character view."), CharacterView))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Root Bone should increase VitalShare during battle initialization."), CharacterView->VitalShare, 32);
+	TestEqual(TEXT("Root Bone should increase StressCap during battle initialization."), CharacterView->StressCap, 14);
+	TestEqual(TEXT("Team max HP should include projected VitalShare."), BattleSnapshot.TeamMaxHP, 32);
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice during the active battle."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunSnapshot PendingSnapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
+	const FFinalRunGrowthChoiceInstance* RootBoneChoice = PendingSnapshot.PendingGrowthChoice.Choices.FindByPredicate([](const FFinalRunGrowthChoiceInstance& Choice)
+	{
+		return Choice.ChoiceType == EFinalGrowthChoiceType::AttributeGrowth
+			&& Choice.AttributeType == EFinalGrowthAttributeType::RootBone;
+	});
+	if (!TestNotNull(TEXT("Pending growth choice set should contain the Root Bone option."), RootBoneChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting Root Bone through RunFlowSubsystem should succeed during an active battle."), Context.RunFlowSubsystem->SelectGrowthChoice(RootBoneChoice->ChoiceInstanceId));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	CharacterView = FindBattleCharacterView(BattleSnapshot, CharacterId);
+	if (!TestNotNull(TEXT("Battle snapshot should still expose the character after Root Bone refresh."), CharacterView))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Mid-battle Root Bone growth should immediately refresh VitalShare."), CharacterView->VitalShare, 38);
+	TestEqual(TEXT("Mid-battle Root Bone growth should immediately refresh StressCap."), CharacterView->StressCap, 15);
+	TestEqual(TEXT("Team max HP should refresh with the projected VitalShare after growth."), BattleSnapshot.TeamMaxHP, 38);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleGrowthKillingIntentDamageAndCritTest,
+	"Final.Editor.RunFlow.GrowthKillingIntentRefreshAffectsDamageAndCrit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleGrowthKillingIntentDamageAndCritTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalBattleGrowthKillingIntentDamageAndCritTest")))
+	{
+		return false;
+	}
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.killing_intent")));
+	const FFinalCharacterGrowthConfigId GrowthConfigId(FName(TEXT("growth.config.test.killing_intent")));
+	const FFinalCardId StarterCardId(FName(TEXT("card.test.killing_intent")));
+	const FFinalRuleConfigId RuleConfigId(FName(TEXT("rule.test.killing_intent")));
+	const FFinalEncounterId EncounterId(FName(TEXT("encounter.test.killing_intent")));
+	const FFinalEnemyId EnemyId(FName(TEXT("enemy.test.killing_intent")));
+
+	UFinalCharacterGrowthConfig* GrowthConfig = Context.RegisterGrowthConfig(GrowthConfigId, {}, {});
+	GrowthConfig->KillingIntentAttackPerPoint = 2;
+	GrowthConfig->KillingIntentCritChancePerPoint = 1.0f;
+	GrowthConfig->KillingIntentCritDamagePerPoint = 1.0f;
+	Context.RegisterCharacterDefinition(CharacterId, GrowthConfigId, TEXT("Killing Intent Hero"));
+	Context.RegisterRuleConfig(RuleConfigId, 2, 3);
+	UFinalEnemyDefinition* EnemyDefinition = Context.RegisterEnemyDefinition(EnemyId, TEXT("Crit Target"), 100);
+	Context.RegisterEncounterDefinition(EncounterId, Context.DataRegistry->FindRuleConfig(RuleConfigId), EnemyDefinition);
+	Context.RegisterAttackScalingTestCard(StarterCardId, CharacterId, TEXT("Intent Slash"));
+
+	FFinalRunPersistentCharacterState CharacterState;
+	CharacterState.CharacterId = CharacterId;
+	CharacterState.Level = 1;
+	CharacterState.BreakthroughRequiredValue = 100;
+
+	UFinalRunSession* RunSession = Context.CreateRunSessionWithCharacterState(
+		CharacterState,
+		{ StarterCardId, StarterCardId },
+		EncounterId,
+		RuleConfigId,
+		20);
+	if (!TestNotNull(TEXT("RunSession should be created for Killing Intent damage test."), RunSession))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Battle session should start for Killing Intent damage test."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	FFinalBattleSnapshot BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	if (!TestEqual(TEXT("The custom rule config should draw both attack cards into hand."), BattleSnapshot.HandCards.Num(), 2))
+	{
+		return false;
+	}
+
+	const FName TargetUnitId = BattleSnapshot.CurrentTargetUnitId.IsNone()
+		? BattleSnapshot.Enemies[0].RuntimeUnitId
+		: BattleSnapshot.CurrentTargetUnitId;
+	const FFinalBattleEnemyViewData* EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("Battle snapshot should expose the selected target enemy."), EnemyView))
+	{
+		return false;
+	}
+
+	const int32 EnemyHpBeforeBaselineAttack = EnemyView->CurrentHP;
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
+	Command.TargetUnitId = TargetUnitId;
+	TestTrue(TEXT("Baseline attack should resolve successfully before Killing Intent grows."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("Enemy should still exist after the baseline attack."), EnemyView))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Without Killing Intent growth, the baseline attack should deal damage equal to RuntimeAttack."), EnemyHpBeforeBaselineAttack - EnemyView->CurrentHP, 5);
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice before selecting Killing Intent."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunSnapshot PendingSnapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
+	const FFinalRunGrowthChoiceInstance* KillingIntentChoice = PendingSnapshot.PendingGrowthChoice.Choices.FindByPredicate([](const FFinalRunGrowthChoiceInstance& Choice)
+	{
+		return Choice.ChoiceType == EFinalGrowthChoiceType::AttributeGrowth
+			&& Choice.AttributeType == EFinalGrowthAttributeType::KillingIntent;
+	});
+	if (!TestNotNull(TEXT("Pending growth choice set should contain the Killing Intent option."), KillingIntentChoice))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Selecting Killing Intent through RunFlowSubsystem should succeed during the active battle."), Context.RunFlowSubsystem->SelectGrowthChoice(KillingIntentChoice->ChoiceInstanceId));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("Enemy should still exist before the post-growth attack."), EnemyView))
+	{
+		return false;
+	}
+
+	const int32 EnemyHpBeforeCriticalAttack = EnemyView->CurrentHP;
+	Command.CardInstanceId = BattleSnapshot.HandCards[0].CardInstanceId;
+	TestTrue(TEXT("Post-growth attack should resolve successfully after Killing Intent refresh."), Context.BattleFlowSubsystem->SubmitBattleCommand(Command));
+
+	BattleSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	EnemyView = FindBattleEnemyView(BattleSnapshot, TargetUnitId);
+	if (!TestNotNull(TEXT("Enemy should still exist after the post-growth attack."), EnemyView))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Killing Intent should increase RuntimeAttack and force crits when crit chance reaches 1."), EnemyHpBeforeCriticalAttack - EnemyView->CurrentHP, 18);
 	return true;
 }
 

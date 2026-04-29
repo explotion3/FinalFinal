@@ -21,6 +21,8 @@ struct FFinalBattleCharacterState
 	int32 RuntimeAttack = 0;
 	int32 RuntimeDefense = 0;
 	float RuntimeBreakRate = 0.0f;
+	float RuntimeCritChance = 0.0f;
+	float RuntimeCritDamage = 1.5f;
 	FFinalUltimateId UltimateId;
 	FText UltimateDisplayName;
 	int32 UltimateCostEP = 0;

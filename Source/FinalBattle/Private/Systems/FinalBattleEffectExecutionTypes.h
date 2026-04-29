@@ -15,6 +15,8 @@ struct FFinalBattleEffectExecutionSummary
 	int32 TotalBreakDamageToEnemies = 0;
 	int32 TotalHealingToTeam = 0;
 	int32 TotalEnemiesDefeated = 0;
+	int32 TotalCriticalHits = 0;
+	int32 TotalCriticalBonusDamage = 0;
 	int32 TotalTeamShieldGained = 0;
 	int32 TotalEnemyShieldGained = 0;
 	int32 TotalStatusStacksApplied = 0;
