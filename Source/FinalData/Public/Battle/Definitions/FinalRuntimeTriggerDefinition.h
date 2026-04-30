@@ -70,7 +70,10 @@ struct FINALDATA_API FFinalTriggeredCardModifierDefinition
 	int32 CostDeltaAP = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Trigger")
-	int32 OutgoingDamagePercentDelta = 0;
+	int32 DamagePowerPercentPointDelta = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Trigger")
+	int32 FinalDamagePercentDelta = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Trigger")
 	EFinalTriggeredCardModifierDurationPolicy DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;

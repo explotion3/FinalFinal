@@ -117,7 +117,10 @@ struct FINALDATA_API FFinalStatusProjectedCardModifierDefinition
 	int32 CostDeltaAPPerStack = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|ProjectedCardModifiers")
-	int32 OutgoingDamagePercentPerStack = 0;
+	int32 DamagePowerPercentPointDeltaPerStack = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|ProjectedCardModifiers")
+	int32 FinalDamagePercentDeltaPerStack = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|ProjectedCardModifiers")
 	EFinalStatusProjectedCardModifierLifetimePolicy LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;

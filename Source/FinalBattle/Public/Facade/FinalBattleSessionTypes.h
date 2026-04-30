@@ -123,7 +123,8 @@ struct FINALBATTLE_API FFinalBattleCardModifierRecord
 	bool bConsumeOnPlay = false;
 	bool bOverrideRecycleCount = false;
 	int32 RecycleCount = 0;
-	int32 OutgoingDamagePercentDelta = 0;
+	int32 DamagePowerPercentPointDelta = 0;
+	int32 FinalDamagePercentDelta = 0;
 	bool bReplaceEntireEffectList = false;
 	TArray<TObjectPtr<UFinalBattleEffectDefinition>> ReplacementEffects;
 	TArray<FFinalBattleCardEffectPatch> EffectPatches;
@@ -139,7 +140,8 @@ struct FINALBATTLE_API FFinalBattleCardProjectionView
 	bool bRetained = false;
 	bool bConsumeOnPlay = false;
 	int32 RecycleCount = 0;
-	int32 EffectiveOutgoingDamagePercent = 0;
+	int32 EffectiveDamagePowerPercentPointDelta = 0;
+	int32 EffectiveFinalDamagePercentDelta = 0;
 	int32 EffectCount = 0;
 	int32 ModifierCount = 0;
 	bool bHasProjectedDefinition = false;

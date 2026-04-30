@@ -262,7 +262,7 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - **中毒**：当前唯一正式 DOT；敌我共用，在玩家结束回合后的敌方行动前窗口结算。若作用于玩家侧，则默认挂在 `team_player`。
 - **护体**：常驻修正状态，在受击时参与减伤计算。
 - **士气**：常驻修正状态，在造成伤害时参与攻击修正。
-- **锋锐**：当前已迁移为“状态驱动的 BattleCard modifier”；只把当前手牌中的攻击牌投影为伤害提高 20% 的临时卡修正。
+- **锋锐**：当前已迁移为“状态驱动的 BattleCard modifier”；只把当前手牌中的攻击牌投影为攻击力倍率点数 `+20%` 的临时卡修正，例如 `130% -> 150%`。
 - **易伤**：常驻修正状态，在目标受到伤害时参与伤害放大。
 - **虚弱**：常驻修正状态，在目标造成伤害时参与伤害降低。
 - **破绽**：条件收益状态，在满足 Break、追击、处决等文本条件时参与判定。
@@ -282,8 +282,8 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - modifier 直接挂到 battle card instance，而不是回写 `RunCardInstance`
 - 同源联动仅在目标 battle card 带 `SourceRunCardInstanceId` 时生效
 - card modifier 继续只通过 `BattleCard projection` 生效，不额外走第二条全局遗物伤害修正路径
-- `阵门木签` 当前是第一条正式落地的 relic-driven card modifier：玩家每回合第一次打出 `0 AP` 牌后，先抽 1，再把 `-1 AP / +20% 伤害` 挂到本次抽到的攻击牌及其同源实例上，持续到打出或玩家回合结束
-- `压势追刀` 当前是第一条正式落地的 passive-driven card modifier：能力牌授予该 passive 后，角色每回合第一次打出攻击牌时，把 `-1 AP / +20% 伤害` 挂到触发当下自己手牌中的攻击牌上，持续到打出或玩家回合结束
+- `阵门木签` 当前是第一条正式落地的 relic-driven card modifier：玩家每回合第一次打出 `0 AP` 牌后，先抽 1，再把 `-1 AP / FinalDamagePercentDelta=20` 挂到本次抽到的攻击牌及其同源实例上，持续到打出或玩家回合结束
+- `压势追刀` 当前是第一条正式落地的 passive-driven card modifier：能力牌授予该 passive 后，角色每回合第一次打出攻击牌时，把 `-1 AP / FinalDamagePercentDelta=20` 挂到触发当下自己手牌中的攻击牌上，持续到打出或玩家回合结束
 
 ### 6.5.1 卡牌即时派生 BattleCard modifier
 
@@ -292,7 +292,7 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 目标来源：`CurrentAllyHandCards`
 - 作用范围：其他玩家角色当前手牌中的攻击牌
 - 不作用于来源角色自己的牌、敌人、`team_player` 或后续新抽入手的牌
-- 修正：`-1 AP / +20% 伤害`
+- 修正：`-1 AP / FinalDamagePercentDelta=20`
 - 生命周期：打出后清理；若未打出，则玩家回合结束清理
 
 ### 6.6 状态结算顺序

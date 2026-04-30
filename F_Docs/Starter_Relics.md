@@ -61,13 +61,13 @@ Runtime 状态：
 定位：强化 `0 AP` 与阵牌节奏的基础遗物。
 
 效果文本：
-* `每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且伤害提高 20%。`
+* `每回合第一次打出 0 AP 牌时，抽 1 张牌。若抽到攻击牌，则该牌及其同源实例本回合费用 -1 AP，且最终伤害提高 20%。`
 
 Runtime 状态：
 * 已进入 Runtime。资产 `relic_token_zero_draw` 使用共享 `RelicDefinition.RuntimeTriggers`，配置为 `Domain=Battle`、`Window=PlayerCardResolved`、`Limit=OncePerPlayerTurn`、`Conditions=[ResolvedCard(RequiredCardCostAP=0)]`、`Effects=[DrawCards(1)]`，并追加 `TriggeredCardModifiers`：
   * 目标来源：`DrawnCardsFromExecutedEffects`
   * 过滤：仅攻击牌
-  * 修正：`CostDeltaAP = -1`、`OutgoingDamagePercentDelta = +20`
+  * 修正：`CostDeltaAP = -1`、`FinalDamagePercentDelta = +20`
   * 生命周期：`UntilPlayed + bExpireAtPlayerTurnEnd`
   * 若抽到的牌带 `SourceRunCardInstanceId`，则会同步投影到当前 battle 中全部同源实例
 * 触发口径是玩家卡牌成功结算后；命令被拒绝不会触发，卡牌内部分 follow-up effect 因条件不满足而跳过不影响“这张牌已成功结算”的窗口。

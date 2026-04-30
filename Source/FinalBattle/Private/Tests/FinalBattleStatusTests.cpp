@@ -179,7 +179,7 @@ namespace FinalBattleStatusTests
 	TStrongObjectPtr<UFinalStatusDefinition> MakeProjectedDamageStatusDefinition(
 		const FName StatusName,
 		const FString& DisplayName,
-		const int32 OutgoingDamagePercentPerStack,
+		const int32 DamagePowerPercentPointDeltaPerStack,
 		const bool bConsumeOnSuccessfulDamage,
 		const bool bExpireAtPlayerTurnEnd,
 		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::PlayerOnly,
@@ -196,7 +196,7 @@ namespace FinalBattleStatusTests
 		ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
 		ProjectedModifier.bRequireCardType = true;
 		ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
-		ProjectedModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
+		ProjectedModifier.DamagePowerPercentPointDeltaPerStack = DamagePowerPercentPointDeltaPerStack;
 		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 		ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
 		StatusDefinition->DurationType = EFinalStatusDurationType::PlayerTurns;
@@ -260,6 +260,30 @@ namespace FinalBattleStatusTests
 		DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
 		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
 		DamageEffect->Scalar.BaseValue = Damage;
+		CardDefinition->Effects.Add(DamageEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeAttackMultiplierDamageCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP,
+		const float AttackMultiplier)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = BaseCostAP;
+		CardDefinition->CardType = EFinalCardType::Attack;
+
+		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition.Get());
+		DamageEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.damage"), *CardId.Value.ToString()));
+		DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+		DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+		DamageEffect->Scalar.BaseValue = AttackMultiplier;
 		CardDefinition->Effects.Add(DamageEffect);
 		return CardDefinition;
 	}
@@ -965,7 +989,7 @@ bool FFinalBattleStatusRuntimeModifiersWeakAndFengRuiStackTest::RunTest(const FS
 		true);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyWeakCard = MakeApplyStatusCard(WeakCardId, CharacterId, TEXT("Apply Weak"), WeakStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyFengRuiCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
-	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 12.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeAttackMultiplierDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 3.0f);
 	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyWeakCard.Get(), ApplyFengRuiCard.Get(), AttackCard.Get() });
 
 	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
@@ -997,7 +1021,7 @@ bool FFinalBattleStatusRuntimeModifiersWeakAndFengRuiStackTest::RunTest(const FS
 	TestNotEqual(TEXT("Attacking with Weak and FengRui should resolve successfully."), Session->SubmitCommand(AttackCommand).EventType, EFinalBattleEventType::CommandRejected);
 
 	const FFinalBattleSnapshot SnapshotAfterAttack = Session->GetSnapshot();
-	TestEqual(TEXT("Base 12 damage with Weak (-25%) and FengRui (+20%) should resolve to 11 total damage."), SnapshotAfterAttack.Enemies[0].CurrentHP, 9);
+	TestEqual(TEXT("Attack 300% damage with FengRui +20 percentage points and Weak -25% should resolve to 10 total damage."), SnapshotAfterAttack.Enemies[0].CurrentHP, 10);
 	return true;
 }
 

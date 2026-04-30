@@ -95,6 +95,18 @@ namespace FinalBattleCardProjectionTests
 		return DamageEffect;
 	}
 
+	UFinalBattleEffectDamage* AddAttackMultiplierDamageEffect(UFinalCardDefinition* CardDefinition, const FName EffectId, const float AttackMultiplier)
+	{
+		UFinalBattleEffectDamage* DamageEffect = NewObject<UFinalBattleEffectDamage>(CardDefinition);
+		DamageEffect->EffectId = EffectId;
+		DamageEffect->UnitTargetRule = EFinalBattleUnitTargetRule::SelectedEnemy;
+		DamageEffect->Scalar.ScaleMode = EFinalBattleScalarMode::SourceStatMultiplier;
+		DamageEffect->Scalar.SourceStat = EFinalBattleSourceStat::Attack;
+		DamageEffect->Scalar.BaseValue = AttackMultiplier;
+		CardDefinition->Effects.Add(DamageEffect);
+		return DamageEffect;
+	}
+
 	TStrongObjectPtr<UFinalCardDefinition> MakeDamageCard(
 		const FFinalCardId& CardId,
 		const FFinalCharacterId& CharacterId,
@@ -109,6 +121,23 @@ namespace FinalBattleCardProjectionTests
 		CardDefinition->BaseCostAP = BaseCostAP;
 		CardDefinition->CardType = EFinalCardType::Attack;
 		AddFlatDamageEffect(CardDefinition.Get(), FName(TEXT("effect.base.damage")), Damage);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeAttackMultiplierDamageCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP,
+		const float AttackMultiplier)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = BaseCostAP;
+		CardDefinition->CardType = EFinalCardType::Attack;
+		AddAttackMultiplierDamageEffect(CardDefinition.Get(), FName(TEXT("effect.base.damage")), AttackMultiplier);
 		return CardDefinition;
 	}
 
@@ -154,7 +183,7 @@ namespace FinalBattleCardProjectionTests
 			ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
 			ProjectedModifier.bRequireCardType = true;
 			ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
-			ProjectedModifier.OutgoingDamagePercentPerStack = ProjectedDamagePercentPerStack;
+			ProjectedModifier.DamagePowerPercentPointDeltaPerStack = ProjectedDamagePercentPerStack;
 			ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 			ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
 		}
@@ -247,7 +276,7 @@ namespace FinalBattleCardProjectionTests
 		AllyAttackModifier.bRequireCardType = true;
 		AllyAttackModifier.RequiredCardType = EFinalCardType::Attack;
 		AllyAttackModifier.CostDeltaAP = -1;
-		AllyAttackModifier.OutgoingDamagePercentDelta = 20;
+		AllyAttackModifier.FinalDamagePercentDelta = 20;
 		AllyAttackModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		AllyAttackModifier.bExpireAtPlayerTurnEnd = true;
 		CardDefinition->Effects.Add(ApplyCardModifiersEffect);
@@ -465,7 +494,7 @@ namespace FinalBattleCardProjectionTests
 		TriggeredModifier.bRequireCardType = true;
 		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
 		TriggeredModifier.CostDeltaAP = -1;
-		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.FinalDamagePercentDelta = 20;
 		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 		TriggeredModifier.bApplyToAllSameSourceRunCardInstances = true;
@@ -765,8 +794,8 @@ bool FFinalBattleCardProjectionFengRuiProjectsToHandAttackCardsTest::RunTest(con
 
 	const FFinalBattleCardProjectionView AttackProjection = Session->GetCardProjectionView(AttackHandCard->CardInstanceId);
 	const FFinalBattleCardProjectionView NonAttackProjection = Session->GetCardProjectionView(NonAttackHandCard->CardInstanceId);
-	TestEqual(TEXT("FengRui should project +20% outgoing damage onto current hand attack cards."), AttackProjection.EffectiveOutgoingDamagePercent, 20);
-	TestEqual(TEXT("FengRui should not project outgoing damage onto non-attack hand cards."), NonAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("FengRui should project +20 percentage points onto current hand attack cards."), AttackProjection.EffectiveDamagePowerPercentPointDelta, 20);
+	TestEqual(TEXT("FengRui should not project damage power points onto non-attack hand cards."), NonAttackProjection.EffectiveDamagePowerPercentPointDelta, 0);
 	return true;
 }
 
@@ -808,7 +837,7 @@ bool FFinalBattleCardProjectionFengRuiStacksWithShiQiTest::RunTest(const FString
 		false);
 	TStrongObjectPtr<UFinalCardDefinition> FengRuiApplyCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1);
 	TStrongObjectPtr<UFinalCardDefinition> ShiQiApplyCard = MakeApplyStatusCard(ShiQiCardId, CharacterId, TEXT("Apply ShiQi"), ShiQiStatus.Get(), 1);
-	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Stack Attack"), 1, 10.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeAttackMultiplierDamageCard(AttackCardId, CharacterId, TEXT("Stack Attack"), 1, 2.0f);
 
 	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
 		EncounterDefinition.Get(),
@@ -847,7 +876,7 @@ bool FFinalBattleCardProjectionFengRuiStacksWithShiQiTest::RunTest(const FString
 	}
 
 	const FFinalBattleCardProjectionView AttackProjection = Session->GetCardProjectionView(AttackHandCard->CardInstanceId);
-	TestEqual(TEXT("FengRui should still only contribute +20% through card projection."), AttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("FengRui should still only contribute +20 percentage points through card projection."), AttackProjection.EffectiveDamagePowerPercentPointDelta, 20);
 
 	FFinalBattleCommand AttackCommand;
 	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
@@ -860,7 +889,7 @@ bool FFinalBattleCardProjectionFengRuiStacksWithShiQiTest::RunTest(const FString
 	}
 
 	const FFinalBattleSnapshot AfterAttackSnapshot = Session->GetSnapshot();
-	TestEqual(TEXT("Base 10 damage with +20% ShiQi and +20% FengRui should resolve to 14 total damage."), AfterAttackSnapshot.Enemies[0].CurrentHP, 6);
+	TestEqual(TEXT("Attack 200% damage with +20 percentage points FengRui and +20% ShiQi should resolve to 13 total damage."), AfterAttackSnapshot.Enemies[0].CurrentHP, 7);
 	return true;
 }
 
@@ -924,8 +953,8 @@ bool FFinalBattleCardProjectionFengRuiConsumesAndReprojectsTest::RunTest(const F
 		return false;
 	}
 
-	TestEqual(TEXT("Two FengRui stacks should project +40% onto Attack A."), Session->GetCardProjectionView(AttackHandCardA->CardInstanceId).EffectiveOutgoingDamagePercent, 40);
-	TestEqual(TEXT("Two FengRui stacks should project +40% onto Attack B."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveOutgoingDamagePercent, 40);
+	TestEqual(TEXT("Two FengRui stacks should project +40 percentage points onto Attack A."), Session->GetCardProjectionView(AttackHandCardA->CardInstanceId).EffectiveDamagePowerPercentPointDelta, 40);
+	TestEqual(TEXT("Two FengRui stacks should project +40 percentage points onto Attack B."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveDamagePowerPercentPointDelta, 40);
 
 	FFinalBattleCommand AttackCommand;
 	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
@@ -940,7 +969,7 @@ bool FFinalBattleCardProjectionFengRuiConsumesAndReprojectsTest::RunTest(const F
 		return false;
 	}
 
-	TestEqual(TEXT("After one successful attack, the remaining hand attack should reproject to +20%."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("After one successful attack, the remaining hand attack should reproject to +20 percentage points."), Session->GetCardProjectionView(AttackHandCardB->CardInstanceId).EffectiveDamagePowerPercentPointDelta, 20);
 	return true;
 }
 
@@ -1012,7 +1041,7 @@ bool FFinalBattleCardProjectionFengRuiAppliesToGeneratedAttackCardsTest::RunTest
 		return false;
 	}
 
-	TestEqual(TEXT("A generated attack card entering hand while FengRui is active should immediately gain +20% projected outgoing damage."), Session->GetCardProjectionView(GeneratedAttackHandCard->CardInstanceId).EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("A generated attack card entering hand while FengRui is active should immediately gain +20 projected damage power points."), Session->GetCardProjectionView(GeneratedAttackHandCard->CardInstanceId).EffectiveDamagePowerPercentPointDelta, 20);
 	return true;
 }
 
@@ -1070,7 +1099,7 @@ bool FFinalBattleCardProjectionZeroCostRelicDrawnAttackGetsProjectedModifierTest
 
 	const FFinalBattleCardProjectionView DrawnProjection = Session->GetCardProjectionView(DrawnAttackHandCard->CardInstanceId);
 	TestEqual(TEXT("Relic-driven attack draw should reduce projected AP cost by 1."), DrawnProjection.EffectiveCostAP, 0);
-	TestEqual(TEXT("Relic-driven attack draw should add +20% projected outgoing damage."), DrawnProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Relic-driven attack draw should add +20% final damage."), DrawnProjection.EffectiveFinalDamagePercentDelta, 20);
 	return true;
 }
 
@@ -1130,7 +1159,7 @@ bool FFinalBattleCardProjectionZeroCostRelicDrawnNonAttackDoesNotGetModifierTest
 
 	const FFinalBattleCardProjectionView DrawnProjection = Session->GetCardProjectionView(DrawnSkillHandCard->CardInstanceId);
 	TestEqual(TEXT("Non-attack cards drawn by the relic should keep their projected AP cost."), DrawnProjection.EffectiveCostAP, DrawnSkillCard->BaseCostAP);
-	TestEqual(TEXT("Non-attack cards drawn by the relic should not gain outgoing damage."), DrawnProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Non-attack cards drawn by the relic should not gain final damage."), DrawnProjection.EffectiveFinalDamagePercentDelta, 0);
 	return true;
 }
 
@@ -1192,10 +1221,13 @@ bool FFinalBattleCardProjectionZeroCostRelicModifierClearsOnPlayTest::RunTest(co
 	AttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
 	TestTrue(TEXT("Playing the relic-buffed attack should succeed."), Session->SubmitCommand(AttackCommand).EventType != EFinalBattleEventType::CommandRejected);
 
+	const FFinalBattleSnapshot SnapshotAfterAttack = Session->GetSnapshot();
+	TestEqual(TEXT("Relic final damage +20% should turn 5 damage into 6 damage after the 2 damage trigger card."), SnapshotAfterAttack.Enemies[0].CurrentHP, 12);
+
 	const FFinalBattleCardProjectionView ProjectionAfterPlay = Session->GetCardProjectionView(DrawnAttackHandCard->CardInstanceId);
 	TestEqual(TEXT("Relic modifier should clear immediately after the buffed attack is played."), ProjectionAfterPlay.ModifierCount, 0);
 	TestEqual(TEXT("After play cleanup the projected cost should return to base."), ProjectionAfterPlay.EffectiveCostAP, DrawnAttackCard->BaseCostAP);
-	TestEqual(TEXT("After play cleanup the projected outgoing damage bonus should be removed."), ProjectionAfterPlay.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("After play cleanup the projected final damage bonus should be removed."), ProjectionAfterPlay.EffectiveFinalDamagePercentDelta, 0);
 	return true;
 }
 
@@ -1252,7 +1284,7 @@ bool FFinalBattleCardProjectionZeroCostRelicModifierClearsAtTurnEndTest::RunTest
 	}
 
 	const FFinalBattleCardProjectionView ProjectionBeforeEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
-	TestEqual(TEXT("Retained attack should be buffed before end turn cleanup."), ProjectionBeforeEndTurn.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Retained attack should be buffed before end turn cleanup."), ProjectionBeforeEndTurn.EffectiveFinalDamagePercentDelta, 20);
 
 	FFinalBattleCommand EndTurnCommand;
 	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
@@ -1268,7 +1300,7 @@ bool FFinalBattleCardProjectionZeroCostRelicModifierClearsAtTurnEndTest::RunTest
 	const FFinalBattleCardProjectionView ProjectionAfterEndTurn = Session->GetCardProjectionView(RetainedAttackAfterEndTurn->CardInstanceId);
 	TestEqual(TEXT("Relic modifier should clear from retained cards at player turn end."), ProjectionAfterEndTurn.ModifierCount, 0);
 	TestEqual(TEXT("Retained card cost should return to base after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
-	TestEqual(TEXT("Retained card damage bonus should be removed after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Retained card damage bonus should be removed after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveFinalDamagePercentDelta, 0);
 	return true;
 }
 
@@ -1357,15 +1389,15 @@ bool FFinalBattleCardProjectionApplyCardModifiersAffectsCurrentAllyHandAttacksTe
 	const FFinalBattleCardProjectionView AllyDrawnAttackProjection = Session->GetCardProjectionView(AllyDrawnAttackHandCard->CardInstanceId);
 
 	TestEqual(TEXT("Source character's own attack should not be modified."), SourceAttackProjection.EffectiveCostAP, SourceAttackCard->BaseCostAP);
-	TestEqual(TEXT("Source character's own attack damage should not be modified."), SourceAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Source character's own attack damage should not be modified."), SourceAttackProjection.EffectiveFinalDamagePercentDelta, 0);
 	TestEqual(TEXT("Current ally attack should have AP reduced by 1."), AllyAttackProjection.EffectiveCostAP, AllyAttackCard->BaseCostAP - 1);
-	TestEqual(TEXT("Current ally attack should gain +20% outgoing damage."), AllyAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Current ally attack should gain +20% final damage."), AllyAttackProjection.EffectiveFinalDamagePercentDelta, 20);
 	TestEqual(TEXT("Current retained ally attack should have AP reduced by 1."), AllyRetainedAttackProjection.EffectiveCostAP, AllyRetainedAttackCard->BaseCostAP - 1);
-	TestEqual(TEXT("Current retained ally attack should gain +20% outgoing damage."), AllyRetainedAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Current retained ally attack should gain +20% final damage."), AllyRetainedAttackProjection.EffectiveFinalDamagePercentDelta, 20);
 	TestEqual(TEXT("Ally non-attack card should not be modified."), AllySkillProjection.EffectiveCostAP, AllySkillCard->BaseCostAP);
-	TestEqual(TEXT("Ally non-attack card damage modifier should remain 0."), AllySkillProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Ally non-attack card damage modifier should remain 0."), AllySkillProjection.EffectiveFinalDamagePercentDelta, 0);
 	TestEqual(TEXT("Attack drawn after the modifier pass should not receive the modifier."), AllyDrawnAttackProjection.EffectiveCostAP, AllyDrawnAttackCard->BaseCostAP);
-	TestEqual(TEXT("Attack drawn after the modifier pass should not gain damage."), AllyDrawnAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Attack drawn after the modifier pass should not gain damage."), AllyDrawnAttackProjection.EffectiveFinalDamagePercentDelta, 0);
 
 	FFinalBattleCommand AllyAttackCommand;
 	AllyAttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
@@ -1390,7 +1422,7 @@ bool FFinalBattleCardProjectionApplyCardModifiersAffectsCurrentAllyHandAttacksTe
 
 	const FFinalBattleCardProjectionView AllyRetainedAttackAfterEndTurnProjection = Session->GetCardProjectionView(AllyRetainedAttackAfterEndTurn->CardInstanceId);
 	TestEqual(TEXT("Turn end should clear cross-character AP modifier from retained ally attack."), AllyRetainedAttackAfterEndTurnProjection.EffectiveCostAP, AllyRetainedAttackCard->BaseCostAP);
-	TestEqual(TEXT("Turn end should clear cross-character damage modifier from retained ally attack."), AllyRetainedAttackAfterEndTurnProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Turn end should clear cross-character damage modifier from retained ally attack."), AllyRetainedAttackAfterEndTurnProjection.EffectiveFinalDamagePercentDelta, 0);
 	return true;
 }
 

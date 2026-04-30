@@ -6,6 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "Engine/DataTable.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
@@ -23,6 +24,19 @@ UTextBlock* CreateFallbackTextBlock(UWidgetTree& WidgetTree, const FName WidgetN
 
 	return TextBlock;
 }
+
+UDataTable* GetCardRichTextStyleSet()
+{
+	static TWeakObjectPtr<UDataTable> CachedStyleSet;
+	if (CachedStyleSet.IsValid())
+	{
+		return CachedStyleSet.Get();
+	}
+
+	UDataTable* StyleSet = LoadObject<UDataTable>(nullptr, TEXT("/Game/UI/BattleHUD/DT_CardRichTextStyle.DT_CardRichTextStyle"));
+	CachedStyleSet = StyleSet;
+	return StyleSet;
+}
 }
 
 void UFinalBattleCardEntryWidget::NativeOnInitialized()
@@ -38,6 +52,10 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 		NameText = CreateFallbackTextBlock(*WidgetTree, TEXT("NameText"), 16);
 		TypeText = CreateFallbackTextBlock(*WidgetTree, TEXT("TypeText"), 14);
 		DescriptionText = WidgetTree->ConstructWidget<URichTextBlock>(URichTextBlock::StaticClass(), TEXT("DescriptionText"));
+		if (DescriptionText)
+		{
+			DescriptionText->SetTextStyleSet(GetCardRichTextStyleSet());
+		}
 
 		if (FallbackBox)
 		{
@@ -124,6 +142,7 @@ void UFinalBattleCardEntryWidget::RebuildVisual()
 
 	if (DescriptionText)
 	{
+		DescriptionText->SetTextStyleSet(GetCardRichTextStyleSet());
 		DescriptionText->SetText(CachedDescriptionText);
 	}
 

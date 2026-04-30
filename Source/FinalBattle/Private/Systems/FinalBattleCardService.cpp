@@ -809,6 +809,8 @@ void FFinalBattleCardService::BuildHandCardViews(
 			? CardInstance->ProjectedDefinition->CardType
 			: EFinalCardType::Attack;
 		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
+		CardView.RuntimeDamagePowerPercentPointDelta = CardInstance->RuntimeDamagePowerPercentPointDelta;
+		CardView.RuntimeFinalDamagePercentDelta = CardInstance->RuntimeFinalDamagePercentDelta;
 		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
 		CardView.bRetained = CardInstance->RuntimeBehavior.bRetained;
 		if (const FFinalBattleCharacterState* OwnerCharacterState = UnitService.FindCharacterState(BattleState, CardInstance->RuntimeOwnerUnitId))
@@ -838,7 +840,8 @@ FFinalBattleCardProjectionView FFinalBattleCardService::BuildProjectionView(
 	ProjectionView.bRetained = CardInstance->RuntimeBehavior.bRetained;
 	ProjectionView.bConsumeOnPlay = CardInstance->RuntimeBehavior.bConsumeOnPlay;
 	ProjectionView.RecycleCount = CardInstance->RuntimeBehavior.RecycleCount;
-	ProjectionView.EffectiveOutgoingDamagePercent = CardInstance->RuntimeOutgoingDamagePercent;
+	ProjectionView.EffectiveDamagePowerPercentPointDelta = CardInstance->RuntimeDamagePowerPercentPointDelta;
+	ProjectionView.EffectiveFinalDamagePercentDelta = CardInstance->RuntimeFinalDamagePercentDelta;
 	ProjectionView.EffectCount = CardInstance->ProjectedDefinition != nullptr ? CardInstance->ProjectedDefinition->Effects.Num() : 0;
 	ProjectionView.ModifierCount = CardInstance->ModifierRecords.Num();
 	ProjectionView.bHasProjectedDefinition = CardInstance->ProjectedDefinition != nullptr;
@@ -890,7 +893,8 @@ void FFinalBattleCardService::ApplyCardDefinitionProjection(
 	const int32 EffectiveCostAP,
 	const FGameplayTagContainer& EffectiveKeywords,
 	const FFinalBattleCardRuntimeBehavior& EffectiveBehavior,
-	const int32 EffectiveOutgoingDamagePercent) const
+	const int32 EffectiveDamagePowerPercentPointDelta,
+	const int32 EffectiveFinalDamagePercentDelta) const
 {
 	CardInstance.ProjectedDefinition = RuntimeCardDefinition;
 	CardInstance.CardId = RuntimeCardDefinition != nullptr && RuntimeCardDefinition->CardId.IsValid()
@@ -899,7 +903,8 @@ void FFinalBattleCardService::ApplyCardDefinitionProjection(
 	CardInstance.RuntimeCostAP = EffectiveCostAP;
 	CardInstance.RuntimeKeywords = EffectiveKeywords;
 	CardInstance.RuntimeBehavior = EffectiveBehavior;
-	CardInstance.RuntimeOutgoingDamagePercent = EffectiveOutgoingDamagePercent;
+	CardInstance.RuntimeDamagePowerPercentPointDelta = EffectiveDamagePowerPercentPointDelta;
+	CardInstance.RuntimeFinalDamagePercentDelta = EffectiveFinalDamagePercentDelta;
 }
 
 bool FFinalBattleCardService::ReprojectCardInstanceInternal(FFinalBattleCardInstance& CardInstance, UObject* RuntimeProjectionOwner) const
@@ -929,7 +934,8 @@ bool FFinalBattleCardService::ReprojectCardInstanceInternal(FFinalBattleCardInst
 
 	int32 EffectiveCostAP = RuntimeCardDefinition->BaseCostAP;
 	FGameplayTagContainer EffectiveKeywords = RuntimeCardDefinition->Keywords;
-	int32 EffectiveOutgoingDamagePercent = 0;
+	int32 EffectiveDamagePowerPercentPointDelta = 0;
+	int32 EffectiveFinalDamagePercentDelta = 0;
 	TOptional<bool> OverrideRetained;
 	TOptional<bool> OverrideConsumeOnPlay;
 	TOptional<int32> OverrideRecycleCount;
@@ -939,7 +945,8 @@ bool FFinalBattleCardService::ReprojectCardInstanceInternal(FFinalBattleCardInst
 		const FFinalBattleCardModifierRecord& ModifierRecord = CardInstance.ModifierRecords[ModifierIndex];
 		ApplyCardModifierRecordToDefinition(CardInstance, ModifierRecord, RuntimeCardDefinition);
 		EffectiveCostAP += ModifierRecord.CostDeltaAP;
-		EffectiveOutgoingDamagePercent += ModifierRecord.OutgoingDamagePercentDelta;
+		EffectiveDamagePowerPercentPointDelta += ModifierRecord.DamagePowerPercentPointDelta;
+		EffectiveFinalDamagePercentDelta += ModifierRecord.FinalDamagePercentDelta;
 		EffectiveKeywords.AppendTags(ModifierRecord.AddedKeywords);
 		RemoveKeywordTags(EffectiveKeywords, ModifierRecord.RemovedKeywords);
 
@@ -974,7 +981,7 @@ bool FFinalBattleCardService::ReprojectCardInstanceInternal(FFinalBattleCardInst
 		EffectiveBehavior.RecycleCount = FMath::Max(OverrideRecycleCount.GetValue(), 0);
 	}
 
-	ApplyCardDefinitionProjection(CardInstance, RuntimeCardDefinition, EffectiveCostAP, EffectiveKeywords, EffectiveBehavior, EffectiveOutgoingDamagePercent);
+	ApplyCardDefinitionProjection(CardInstance, RuntimeCardDefinition, EffectiveCostAP, EffectiveKeywords, EffectiveBehavior, EffectiveDamagePowerPercentPointDelta, EffectiveFinalDamagePercentDelta);
 	return true;
 }
 

@@ -218,7 +218,8 @@ void ApplyTriggeredCardModifierRecord(
 	ModifierRecord.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
 	ModifierRecord.ApplyOrder = 2000;
 	ModifierRecord.CostDeltaAP = ModifierDefinition.CostDeltaAP;
-	ModifierRecord.OutgoingDamagePercentDelta = ModifierDefinition.OutgoingDamagePercentDelta;
+	ModifierRecord.DamagePowerPercentPointDelta = ModifierDefinition.DamagePowerPercentPointDelta;
+	ModifierRecord.FinalDamagePercentDelta = ModifierDefinition.FinalDamagePercentDelta;
 
 	for (const FGuid& TargetCardInstanceId : TargetCardInstanceIds)
 	{
@@ -328,7 +329,9 @@ void ApplyTriggeredCardModifiers(
 
 	for (const FFinalTriggeredCardModifierDefinition& ModifierDefinition : TriggerDefinition.TriggeredCardModifiers)
 	{
-		if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+		if (ModifierDefinition.CostDeltaAP == 0
+			&& ModifierDefinition.DamagePowerPercentPointDelta == 0
+			&& ModifierDefinition.FinalDamagePercentDelta == 0)
 		{
 			continue;
 		}

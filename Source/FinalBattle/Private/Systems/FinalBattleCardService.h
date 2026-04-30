@@ -168,7 +168,8 @@ private:
 		int32 EffectiveCostAP,
 		const FGameplayTagContainer& EffectiveKeywords,
 		const FFinalBattleCardRuntimeBehavior& EffectiveBehavior,
-		int32 EffectiveOutgoingDamagePercent) const;
+		int32 EffectiveDamagePowerPercentPointDelta,
+		int32 EffectiveFinalDamagePercentDelta) const;
 
 	bool ReprojectCardInstanceInternal(
 		FFinalBattleCardInstance& CardInstance,

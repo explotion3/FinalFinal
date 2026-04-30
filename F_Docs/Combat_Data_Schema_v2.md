@@ -441,7 +441,7 @@ ApplyPassive
 - `AppliesTo` 当前只约束被动拥有者归属，不改变 trigger / effect 语义。battle runtime 会在 `ApplyPassive()` 入口硬拦截不合法归属。
 - 当前 starter 已有两条正式被动链：
   - 霍断岳 innate passive：`OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`
-  - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> TriggeredCardModifiers(CurrentOwnedHandCards, Attack, -1 AP, +20% damage, UntilPlayed + EndOfTurn cleanup)`。
+  - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> TriggeredCardModifiers(CurrentOwnedHandCards, Attack, -1 AP, FinalDamagePercentDelta=20, UntilPlayed + EndOfTurn cleanup)`。
 - `CharacterDefinition.BattleTriggers` 已从当前代码真相中移除；角色 battle 规则统一由 `InitialPassiveGrants` 与 `PassiveDefinition.RuntimeTriggers` 承载。
 
 ### 5.5 CardEvolutionDefinition
@@ -831,7 +831,8 @@ EvolutionStage: Evolved
 | `DurationPolicy` | 持续窗口：`UntilPlayed / EndOfTurn / EndOfRound / EndOfBattle / ManualClear` |
 | `bExpireAtPlayerTurnEnd` | 是否在玩家回合结束时额外清理 |
 | `ApplyOrder` | 同一卡上的稳定应用顺序 |
-| `OutgoingDamagePercentDelta` | 当前卡实例独有的伤害百分比修正 |
+| `DamagePowerPercentPointDelta` | 当前卡实例独有的攻击力倍率点数修正；例如基础 `130%` 加 `+20` 后按 `150%` 结算 |
+| `FinalDamagePercentDelta` | 当前卡实例独有的最终伤害百分比修正；例如基础 `130%` 叠 `20%` 后按 `130% × 1.2` 结算 |
 | `PatchPayload` | 费用、关键词、行为位或运行时图 patch 载荷 |
 
 当前首版允许的 patch 作用范围只覆盖卡牌自身运行时图：

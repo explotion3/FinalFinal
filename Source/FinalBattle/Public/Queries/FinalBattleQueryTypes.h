@@ -135,6 +135,12 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 	int32 RuntimeCostAP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RuntimeDamagePowerPercentPointDelta = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RuntimeFinalDamagePercentDelta = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FGameplayTagContainer RuntimeKeywords;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")

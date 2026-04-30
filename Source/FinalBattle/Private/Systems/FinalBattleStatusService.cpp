@@ -113,7 +113,8 @@ void BuildStructuredProjectedCardModifiers(
 		}
 
 		if (ModifierDefinition.CostDeltaAPPerStack == 0
-			&& ModifierDefinition.OutgoingDamagePercentPerStack == 0)
+			&& ModifierDefinition.DamagePowerPercentPointDeltaPerStack == 0
+			&& ModifierDefinition.FinalDamagePercentDeltaPerStack == 0)
 		{
 			continue;
 		}
@@ -123,7 +124,8 @@ void BuildStructuredProjectedCardModifiers(
 		ModifierInstance.bRequireCardType = ModifierDefinition.bRequireCardType;
 		ModifierInstance.RequiredCardType = ModifierDefinition.RequiredCardType;
 		ModifierInstance.CostDeltaAPPerStack = ModifierDefinition.CostDeltaAPPerStack;
-		ModifierInstance.OutgoingDamagePercentPerStack = ModifierDefinition.OutgoingDamagePercentPerStack;
+		ModifierInstance.DamagePowerPercentPointDeltaPerStack = ModifierDefinition.DamagePowerPercentPointDeltaPerStack;
+		ModifierInstance.FinalDamagePercentDeltaPerStack = ModifierDefinition.FinalDamagePercentDeltaPerStack;
 		ModifierInstance.LifetimePolicy = ModifierDefinition.LifetimePolicy;
 		ModifierInstance.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
 	}
@@ -347,7 +349,7 @@ bool IsProjectedHandCardModifierApplicable(const FFinalBattleStatusInstance& Sta
 	for (const FFinalBattleStatusProjectedCardModifierInstance& ModifierInstance : StatusInstance.ProjectedCardModifiers)
 	{
 		if (ModifierInstance.TargetSource != EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards
-			|| ModifierInstance.OutgoingDamagePercentPerStack == 0)
+			|| (ModifierInstance.DamagePowerPercentPointDeltaPerStack == 0 && ModifierInstance.FinalDamagePercentDeltaPerStack == 0))
 		{
 			continue;
 		}
@@ -706,7 +708,8 @@ void FFinalBattleStatusService::ResyncProjectedHandCardModifiers(
 				}
 
 				if (ProjectedModifier.CostDeltaAPPerStack == 0
-					&& ProjectedModifier.OutgoingDamagePercentPerStack == 0)
+					&& ProjectedModifier.DamagePowerPercentPointDeltaPerStack == 0
+					&& ProjectedModifier.FinalDamagePercentDeltaPerStack == 0)
 				{
 					continue;
 				}
@@ -738,7 +741,8 @@ void FFinalBattleStatusService::ResyncProjectedHandCardModifiers(
 					ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
 					ModifierRecord.ApplyOrder = 1000;
 					ModifierRecord.CostDeltaAP = StatusInstance.CurrentStacks * ProjectedModifier.CostDeltaAPPerStack;
-					ModifierRecord.OutgoingDamagePercentDelta = StatusInstance.CurrentStacks * ProjectedModifier.OutgoingDamagePercentPerStack;
+					ModifierRecord.DamagePowerPercentPointDelta = StatusInstance.CurrentStacks * ProjectedModifier.DamagePowerPercentPointDeltaPerStack;
+					ModifierRecord.FinalDamagePercentDelta = StatusInstance.CurrentStacks * ProjectedModifier.FinalDamagePercentDeltaPerStack;
 					CardInstance->ModifierRecords.Add(MoveTemp(ModifierRecord));
 					CardInstanceIdsToReproject.AddUnique(CardInstance->CardInstanceId);
 				}

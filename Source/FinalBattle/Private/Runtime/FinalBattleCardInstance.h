@@ -25,7 +25,8 @@ struct FFinalBattleCardInstance
 	int32 RuntimeCostAP = 0;
 	FGameplayTagContainer RuntimeKeywords;
 	FFinalBattleCardRuntimeBehavior RuntimeBehavior;
-	int32 RuntimeOutgoingDamagePercent = 0;
+	int32 RuntimeDamagePowerPercentPointDelta = 0;
+	int32 RuntimeFinalDamagePercentDelta = 0;
 	TArray<FFinalBattleCardModifierRecord> ModifierRecords;
 	bool bGeneratedCard = false;
 	bool bTemporaryCard = false;

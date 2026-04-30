@@ -498,7 +498,7 @@ int32 ApplyOutgoingDamageModifier(const int32 BaseDamage, const int32 ModifierPe
 	return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseDamage) * ModifierScale), 0);
 }
 
-int32 ResolveCurrentCardOutgoingDamageModifierPercent(
+int32 ResolveCurrentCardDamagePowerPercentPointDelta(
 	const FFinalBattleState& State,
 	const FFinalBattleEffectExecutionContext& ExecutionContext)
 {
@@ -508,7 +508,35 @@ int32 ResolveCurrentCardOutgoingDamageModifierPercent(
 	}
 
 	const FFinalBattleCardInstance* SourceCardInstance = GetCardService().FindCardInstance(State, ExecutionContext.Transient.SourceCardInstanceId);
-	return SourceCardInstance != nullptr ? SourceCardInstance->RuntimeOutgoingDamagePercent : 0;
+	return SourceCardInstance != nullptr ? SourceCardInstance->RuntimeDamagePowerPercentPointDelta : 0;
+}
+
+int32 ResolveCurrentCardFinalDamageModifierPercent(
+	const FFinalBattleState& State,
+	const FFinalBattleEffectExecutionContext& ExecutionContext)
+{
+	if (!ExecutionContext.Transient.SourceCardInstanceId.IsValid())
+	{
+		return 0;
+	}
+
+	const FFinalBattleCardInstance* SourceCardInstance = GetCardService().FindCardInstance(State, ExecutionContext.Transient.SourceCardInstanceId);
+	return SourceCardInstance != nullptr ? SourceCardInstance->RuntimeFinalDamagePercentDelta : 0;
+}
+
+FFinalBattleScalarValue ApplyDamagePowerPercentPointDelta(
+	const FFinalBattleScalarValue& Scalar,
+	const int32 DamagePowerPercentPointDelta)
+{
+	FFinalBattleScalarValue AdjustedScalar = Scalar;
+	if (DamagePowerPercentPointDelta != 0
+		&& AdjustedScalar.ScaleMode == EFinalBattleScalarMode::SourceStatMultiplier
+		&& AdjustedScalar.SourceStat == EFinalBattleSourceStat::Attack)
+	{
+		AdjustedScalar.BaseValue += static_cast<float>(DamagePowerPercentPointDelta) / 100.0f;
+	}
+
+	return AdjustedScalar;
 }
 
 bool ShouldApplyCriticalHit(const FFinalBattleCharacterState* SourceCharacterState)
@@ -927,7 +955,9 @@ bool ExecuteApplyCardModifiersEffect(
 	int32 AppliedModifierCount = 0;
 	for (const FFinalTriggeredCardModifierDefinition& ModifierDefinition : ApplyCardModifiersEffect->CardModifiers)
 	{
-		if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+		if (ModifierDefinition.CostDeltaAP == 0
+			&& ModifierDefinition.DamagePowerPercentPointDelta == 0
+			&& ModifierDefinition.FinalDamagePercentDelta == 0)
 		{
 			continue;
 		}
@@ -946,7 +976,8 @@ bool ExecuteApplyCardModifiersEffect(
 			ModifierRecord.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
 			ModifierRecord.ApplyOrder = 1500;
 			ModifierRecord.CostDeltaAP = ModifierDefinition.CostDeltaAP;
-			ModifierRecord.OutgoingDamagePercentDelta = ModifierDefinition.OutgoingDamagePercentDelta;
+			ModifierRecord.DamagePowerPercentPointDelta = ModifierDefinition.DamagePowerPercentPointDelta;
+			ModifierRecord.FinalDamagePercentDelta = ModifierDefinition.FinalDamagePercentDelta;
 
 			GetCardService().RemoveCardModifier(State, TargetCardInstanceId, State.RuntimeProjectionOwner, ModifierRecord.ModifierId);
 			if (GetCardService().AddCardModifier(State, TargetCardInstanceId, State.RuntimeProjectionOwner, ModifierRecord))
@@ -1405,11 +1436,13 @@ bool ExecuteDamageEffect(
 	}
 
 	const int32 HitCount = FMath::Max(DamageEffect->HitCount, 1);
-	const int32 BaseDamagePerHit = ResolveScalarValue(DamageEffect->Scalar, SourceCharacterState, SourceEnemyState);
+	const int32 CardDamagePowerPercentPointDelta = ResolveCurrentCardDamagePowerPercentPointDelta(State, ExecutionContext);
+	const FFinalBattleScalarValue AdjustedDamageScalar = ApplyDamagePowerPercentPointDelta(DamageEffect->Scalar, CardDamagePowerPercentPointDelta);
+	const int32 BaseDamagePerHit = ResolveScalarValue(AdjustedDamageScalar, SourceCharacterState, SourceEnemyState);
 	const int32 DamageModifierPercent = SourceCharacterState != nullptr
 		? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
 		: 0;
-	const int32 CardOutgoingDamageModifierPercent = ResolveCurrentCardOutgoingDamageModifierPercent(State, ExecutionContext);
+	const int32 CardFinalDamageModifierPercent = ResolveCurrentCardFinalDamageModifierPercent(State, ExecutionContext);
 	if (BaseDamagePerHit <= 0)
 	{
 		return false;
@@ -1432,10 +1465,10 @@ bool ExecuteDamageEffect(
 				: BaseDamagePerHit;
 			const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
 				CriticalAdjustedDamagePerHit,
-				DamageModifierPercent + CardOutgoingDamageModifierPercent);
+				DamageModifierPercent + CardFinalDamageModifierPercent);
 			const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
 				BaseDamagePerHit,
-				DamageModifierPercent + CardOutgoingDamageModifierPercent);
+				DamageModifierPercent + CardFinalDamageModifierPercent);
 			const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, TeamPlayerUnitId);
 			const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
 				OutgoingAdjustedDamagePerHit,
@@ -1488,10 +1521,10 @@ bool ExecuteDamageEffect(
 					: BaseDamagePerHit;
 				const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
 					CriticalAdjustedDamagePerHit,
-					DamageModifierPercent + CardOutgoingDamageModifierPercent);
+					DamageModifierPercent + CardFinalDamageModifierPercent);
 				const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
 					BaseDamagePerHit,
-					DamageModifierPercent + CardOutgoingDamageModifierPercent);
+					DamageModifierPercent + CardFinalDamageModifierPercent);
 				const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, EnemyState.RuntimeUnitId);
 				const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
 					OutgoingAdjustedDamagePerHit,
@@ -1553,10 +1586,10 @@ bool ExecuteDamageEffect(
 			: BaseDamagePerHit;
 		const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
 			CriticalAdjustedDamagePerHit,
-			DamageModifierPercent + CardOutgoingDamageModifierPercent);
+			DamageModifierPercent + CardFinalDamageModifierPercent);
 		const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
 			BaseDamagePerHit,
-			DamageModifierPercent + CardOutgoingDamageModifierPercent);
+			DamageModifierPercent + CardFinalDamageModifierPercent);
 		const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, TargetEnemyState->RuntimeUnitId);
 		const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
 			OutgoingAdjustedDamagePerHit,

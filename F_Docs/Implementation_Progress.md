@@ -1,10 +1,16 @@
 # Implementation Progress
 
+## 2026-04-30：卡牌文本规范 v0.1 与 starter 文案收口
+
+- `Card_Design_Guide.md` 当前已新增 `Card Text Style v0.1`，卡牌 `RulesText` 采用短语化、RichText 标签和每行一个效果的写法。
+- Starter 玩家卡牌与剑阵衍生牌的 `RulesText` 已收口为 `<num> / <stat> / <status> / <keyword> / <cost> / <good> / <bad>` 首版标签格式。
+- `FinalDataAssetValidator` 当前会对 starter card 中明显旧式文本片段给 warning；这轮不改变卡牌规则、费用、卡池或 BattleCard projection。
+
 ## 2026-04-30 Step 25：跨角色改卡，沈清弦技能牌即时强化友方攻击牌
 
 - 新增直接 effect `ApplyCardModifiers`，普通卡牌现在可以不经过 passive / relic trigger，直接向 BattleCard instance 写入临时 modifier。
 - 共享 card modifier target source 新增 `CurrentAllyHandCards`：只扫描来源角色之外的其他玩家角色当前手牌，不包含来源自己、敌人或 `team_player`。
-- 新增沈清弦 starter 技能牌 `援锋成阵`（`card.starter.shen.yuanfengchengzhen`）：进入沈清弦卡池，不进入初始牌组；打出后让其他友方当前手牌攻击牌获得 `-1 AP / +20% 伤害`，直到打出或玩家回合结束。
+- 新增沈清弦 starter 技能牌 `援锋成阵`（`card.starter.shen.yuanfengchengzhen`）：进入沈清弦卡池，不进入初始牌组；打出后让其他友方当前手牌攻击牌获得 `-1 AP / FinalDamagePercentDelta=20`，直到打出或玩家回合结束。
 - 霍断岳 `压势追刀` 保持原有 passive-driven 自我改卡语义，不受本轮影响。
 
 ## 2026-04-30 Step 24：状态系统 legacy 字段清理与 authoring 收口
@@ -55,9 +61,10 @@
 - `FinalBattleStatusService.ResyncProjectedHandCardModifiers()` 当前已开始对“已迁移状态”读取结构化 projected-card modifiers：
   - `TargetSource = CurrentOwnedHandCards`
   - `RequiredCardType = Attack`
-  - `OutgoingDamagePercentPerStack = 20`
+  - `DamagePowerPercentPointDeltaPerStack = 20`
 - `锋锐` 的玩法语义保持不变：
   - 只作用于拥有者当前手牌中的攻击牌
+  - `+20%` 按攻击力倍率点数增加结算，例如 `130% -> 150%`
   - 新抽进手或生成进手的攻击牌，在 `锋锐` 仍存在时也会立即获得投影
   - 成功造成伤害后仍消耗 1 层
   - 玩家回合结束仍会过期并清理投影
@@ -66,6 +73,14 @@
 - `刀势 / 药引` 已归位为正式资源型状态
 - `易伤 / 虚弱` 已迁入正式 `RuntimeModifiers`
 - `中毒` 已走 DOT 专用 schema/runtime；`腐蚀 / 流血` 退出当前首章有效规则
+
+## 2026-05-01：卡牌伤害修正语义拆分
+
+- `BattleCard` 投影中的旧 `RuntimeOutgoingDamagePercent` 语义已拆为两条：
+  - `RuntimeDamagePowerPercentPointDelta`：攻击力倍率点数增加，服务 `锋锐` 这类 `+20%` 语义。
+  - `RuntimeFinalDamagePercentDelta`：最终伤害百分比修正，服务 `压势追刀 / 援锋成阵 / 阵门木签` 这类 `20%` 乘算语义。
+- `ProjectedCardModifiers` 的状态侧字段同步拆为 `DamagePowerPercentPointDeltaPerStack / FinalDamagePercentDeltaPerStack`。
+- `TriggeredCardModifiers / ApplyCardModifiers` 同步拆为 `DamagePowerPercentPointDelta / FinalDamagePercentDelta`。
 
 ## 2026-04-30 Step 20：迁移 `易伤 / 虚弱` 到正式 `RuntimeModifiers`
 
@@ -237,7 +252,7 @@
 
 ## 2026-04-29 Step 12：`锋锐` 接入 BattleCard modifier / projection
 
-- `锋锐` 当前已从通用状态伤害修正路径迁移为“状态驱动的 BattleCard modifier”；玩法语义保持为“下一张攻击牌伤害提高 20%”。
+- `锋锐` 当前已从通用状态伤害修正路径迁移为“状态驱动的 BattleCard modifier”；玩法语义保持为“下一张攻击牌攻击力倍率点数 +20%”。
 - `StatusDefinition` 当时补了最小 card projection 字段；该路径后续已收口为 `ProjectedCardModifiers`。
 - `FinalBattle` 当前会根据角色身上的 `锋锐` 层数，把拥有者当前手牌中的攻击牌同步为 derived `BattleCard` modifiers，并在抽牌进手、生成牌进手、手牌移动、状态叠层/消耗/过期后立即重建同步。
 - `锋锐` 当前只作用于手牌中的攻击牌；抽牌堆、弃牌堆、消耗区和持续区中的牌不投影这条状态。
@@ -249,7 +264,7 @@
 - `阵门木签` 当前已从“第一次打出 0 AP 牌后抽 1”扩展为第一条正式的 `Relic -> RuntimeTriggers -> TriggeredCardModifiers -> BattleCard projection` 链。
 - 共享 `FFinalRuntimeTriggerDefinition` 当前已补 `TriggeredCardModifiers`，首版支持在 trigger `Effects` 之后，基于 `DrawnCardsFromExecutedEffects` 目标来源把 follow-up modifier 挂到 battle card instance。
 - `FFinalBattleEffectExecutionSummary` 当前已补 `DrawnCardInstanceIds`，用于把本次 trigger 实际抽到的牌实例稳定传给 follow-up modifier 逻辑，而不通过文本日志推断。
-- `FinalBattleTriggerService` 当前会在 relic runtime trigger effects 执行成功后，直接按 effect summary 把 `阵门木签` 的 `-1 AP / +20% 伤害` modifier 投影到抽到的攻击牌；若该牌带 `SourceRunCardInstanceId`，还会同步投影到当前 battle 中全部同源实例。
+- `FinalBattleTriggerService` 当前会在 relic runtime trigger effects 执行成功后，直接按 effect summary 把 `阵门木签` 的 `-1 AP / FinalDamagePercentDelta=20` modifier 投影到抽到的攻击牌；若该牌带 `SourceRunCardInstanceId`，还会同步投影到当前 battle 中全部同源实例。
 - `FFinalBattleCardModifierRecord` 当前已补 `bExpireAtPlayerTurnEnd`；因此 `阵门木签` 的临时修正现在同时支持“打出后清除”与“若未打出则在玩家回合结束后清除”。
 - 本步骤扩展了 `Final.Battle.CardProjection.*` 自动化测试，覆盖攻击牌抽到后投影、生成为非攻击牌时不投影、打出后清除、回合结束后清除这四条基础行为。
 
@@ -275,11 +290,11 @@
   - `FinalBattlePassiveService`
 - passive 首条验证链路当前分成两条：
   - 霍断岳 innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
-  - 霍断岳 starter 能力牌“受压蓄势”：打牌后授予 passive“压势追刀”，在每回合第一次打出攻击牌后为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`
+  - 霍断岳 starter 能力牌“受压蓄势”：打牌后授予 passive“压势追刀”，在每回合第一次打出攻击牌后为当前手牌中的攻击牌投影 `-1 AP / FinalDamagePercentDelta=20`
 - 本步骤已切断旧 `CharacterDefinition.BattleTriggers` 运行时链，角色自带被动正式改为 `InitialPassiveGrants -> PassiveDefinition -> BattlePassiveInstance`。
 - 霍断岳当前同时具备两条正式被动链：
   - innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
-  - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后，为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`，持续到打出或玩家回合结束
+  - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后，为当前手牌中的攻击牌投影 `-1 AP / FinalDamagePercentDelta=20`，持续到打出或玩家回合结束
 - battle snapshot / debug 查询当前已补最小 passive 视图，便于验证 innate passive 与能力牌赋予被动是否生效。
 - `RuntimeTriggers -> TriggeredCardModifiers` 当前已新增 `CurrentOwnedHandCards` 目标来源，第一条正式 passive-driven card projection 已由 `压势追刀` 落地。
 

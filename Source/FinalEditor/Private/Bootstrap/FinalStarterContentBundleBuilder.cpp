@@ -338,7 +338,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		TriggeredModifier.bRequireCardType = true;
 		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
 		TriggeredModifier.CostDeltaAP = -1;
-		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.FinalDamagePercentDelta = 20;
 		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 	}
@@ -438,7 +438,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
 		ProjectedModifier.bRequireCardType = true;
 		ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
-		ProjectedModifier.OutgoingDamagePercentPerStack = 20;
+		ProjectedModifier.DamagePowerPercentPointDeltaPerStack = 20;
 		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 		ProjectedModifier.bExpireAtPlayerTurnEnd = true;
 	}
@@ -572,7 +572,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		TriggeredModifier.bRequireCardType = true;
 		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
 		TriggeredModifier.CostDeltaAP = -1;
-		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.FinalDamagePercentDelta = 20;
 		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 		TriggeredModifier.bApplyToAllSameSourceRunCardInstances = true;
@@ -775,7 +775,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoLieFengCard->CardType = EFinalCardType::Attack;
 	StarterHuoLieFengCard->Rarity = EFinalRarity::Common;
 	StarterHuoLieFengCard->BaseCostAP = 1;
-	StarterHuoLieFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 110% 的伤害。额外造成 2 点削韧，并获得 1 层刀势。"));
+	StarterHuoLieFengCard->RulesText = FText::FromString(TEXT("造成 <stat>攻击力</> <num>110%</> 伤害。\n额外 <num>2</> 削韧。\n+<num>1</> <status>刀势</>。"));
 	StarterHuoLieFengCard->Effects.Reset();
 	AddBonusBreakEffect(
 		StarterHuoLieFengCard,
@@ -809,7 +809,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoWenJiaCard->CardType = EFinalCardType::Skill;
 	StarterHuoWenJiaCard->Rarity = EFinalRarity::Common;
 	StarterHuoWenJiaCard->BaseCostAP = 1;
-	StarterHuoWenJiaCard->RulesText = FText::FromString(TEXT("获得相当于防御力 100% 的护盾。"));
+	StarterHuoWenJiaCard->RulesText = FText::FromString(TEXT("获得 <stat>防御力</> <num>100%</> 护盾。"));
 	StarterHuoWenJiaCard->Effects.Reset();
 	AddShieldEffect(
 		StarterHuoWenJiaCard,
@@ -828,7 +828,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoDuanYueZhanCard->CardType = EFinalCardType::Attack;
 	StarterHuoDuanYueZhanCard->Rarity = EFinalRarity::Common;
 	StarterHuoDuanYueZhanCard->BaseCostAP = 1;
-	StarterHuoDuanYueZhanCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 130% 的伤害。额外造成 3 点削韧。消耗 1 层刀势：再额外造成 2 点削韧。"));
+	StarterHuoDuanYueZhanCard->RulesText = FText::FromString(TEXT("造成 <stat>攻击力</> <num>130%</> 伤害。\n额外 <num>3</> 削韧。\n消耗 <num>1</> <status>刀势</>：额外 <num>2</> 削韧。"));
 	StarterHuoDuanYueZhanCard->Effects.Reset();
 	AddBonusBreakEffect(
 		StarterHuoDuanYueZhanCard,
@@ -870,7 +870,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoDuanYueZhanPoZhenCard->CardType = EFinalCardType::Attack;
 	StarterHuoDuanYueZhanPoZhenCard->Rarity = EFinalRarity::Rare;
 	StarterHuoDuanYueZhanPoZhenCard->BaseCostAP = 1;
-	StarterHuoDuanYueZhanPoZhenCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 150% 的伤害。额外造成 4 点削韧。消耗 1 层刀势：再额外造成 3 点削韧。"));
+	StarterHuoDuanYueZhanPoZhenCard->RulesText = FText::FromString(TEXT("造成 <stat>攻击力</> <num>150%</> 伤害。\n额外 <num>4</> 削韧。\n消耗 <num>1</> <status>刀势</>：额外 <num>3</> 削韧。"));
 	StarterHuoDuanYueZhanPoZhenCard->Effects.Reset();
 	AddBonusBreakEffect(
 		StarterHuoDuanYueZhanPoZhenCard,
@@ -926,7 +926,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoTieBiHuiFengCard->CardType = EFinalCardType::Skill;
 	StarterHuoTieBiHuiFengCard->Rarity = EFinalRarity::Common;
 	StarterHuoTieBiHuiFengCard->BaseCostAP = 1;
-	StarterHuoTieBiHuiFengCard->RulesText = FText::FromString(TEXT("获得相当于防御力 120% 的护盾，并获得 1 层刀势。"));
+	StarterHuoTieBiHuiFengCard->RulesText = FText::FromString(TEXT("获得 <stat>防御力</> <num>120%</> 护盾。\n+<num>1</> <status>刀势</>。"));
 	StarterHuoTieBiHuiFengCard->Effects.Reset();
 	AddShieldEffect(
 		StarterHuoTieBiHuiFengCard,
@@ -952,7 +952,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoShouYaXuShiCard->CardType = EFinalCardType::Ability;
 	StarterHuoShouYaXuShiCard->Rarity = EFinalRarity::Common;
 	StarterHuoShouYaXuShiCard->BaseCostAP = 1;
-	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“压势追刀”。本场战斗中，每回合第一次打出攻击牌后，当前手牌中的攻击牌本回合费用 -1 AP，且伤害提高 20%。"));
+	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("获得 <status>压势追刀</>。\n每回合第一次打出攻击牌后：当前手牌攻击牌 -<cost>1 AP</>，<good>20%</> 最终伤害。"));
 	StarterHuoShouYaXuShiCard->Effects.Reset();
 	AddApplyPassiveEffect(
 		StarterHuoShouYaXuShiCard,
@@ -972,7 +972,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeXingZhenCard->CardType = EFinalCardType::Attack;
 	StarterYeXingZhenCard->Rarity = EFinalRarity::Common;
 	StarterYeXingZhenCard->BaseCostAP = 1;
-	StarterYeXingZhenCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 90% 的伤害。获得 2 层药引。"));
+	StarterYeXingZhenCard->RulesText = FText::FromString(TEXT("造成 <stat>攻击力</> <num>90%</> 伤害。\n+<num>2</> <status>药引</>。"));
 	StarterYeXingZhenCard->Effects.Reset();
 	AddDamageEffect(
 		StarterYeXingZhenCard,
@@ -999,7 +999,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeTiaoXiCard->CardType = EFinalCardType::Skill;
 	StarterYeTiaoXiCard->Rarity = EFinalRarity::Common;
 	StarterYeTiaoXiCard->BaseCostAP = 0;
-	StarterYeTiaoXiCard->RulesText = FText::FromString(TEXT("回复 5 点共享生命，并获得 1 层药引。"));
+	StarterYeTiaoXiCard->RulesText = FText::FromString(TEXT("回复 <num>5</> 共享生命。\n+<num>1</> <status>药引</>。"));
 	StarterYeTiaoXiCard->Effects.Reset();
 	AddHealEffect(
 		StarterYeTiaoXiCard,
@@ -1025,7 +1025,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeHuaYinCard->CardType = EFinalCardType::Skill;
 	StarterYeHuaYinCard->Rarity = EFinalRarity::Common;
 	StarterYeHuaYinCard->BaseCostAP = 1;
-	StarterYeHuaYinCard->RulesText = FText::FromString(TEXT("回复 5 点共享生命。消耗 1 层药引：抽 1 张牌，并回复 1 AP。"));
+	StarterYeHuaYinCard->RulesText = FText::FromString(TEXT("回复 <num>5</> 共享生命。\n消耗 <num>1</> <status>药引</>：抽 <num>1</> 张牌，回复 <cost>1 AP</>。"));
 	StarterYeHuaYinCard->Effects.Reset();
 	AddHealEffect(
 		StarterYeHuaYinCard,
@@ -1063,7 +1063,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeHuiChunSanCard->CardType = EFinalCardType::Skill;
 	StarterYeHuiChunSanCard->Rarity = EFinalRarity::Common;
 	StarterYeHuiChunSanCard->BaseCostAP = 1;
-	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 12 点共享生命。消耗 1 层药引：回复 1 AP。"));
+	StarterYeHuiChunSanCard->RulesText = FText::FromString(TEXT("回复 <num>12</> 共享生命。\n消耗 <num>1</> <status>药引</>：回复 <cost>1 AP</>。"));
 	StarterYeHuiChunSanCard->Effects.Reset();
 	AddHealEffect(
 		StarterYeHuiChunSanCard,
@@ -1098,7 +1098,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenBuFengCard->Rarity = EFinalRarity::Common;
 	StarterShenBuFengCard->BaseCostAP = 1;
 	StarterShenBuFengCard->Keywords.Reset();
-	StarterShenBuFengCard->RulesText = FText::FromString(TEXT("对目标造成相当于攻击力 100% 的伤害。随机生成 1 张剑阵牌到手牌。"));
+	StarterShenBuFengCard->RulesText = FText::FromString(TEXT("造成 <stat>攻击力</> <num>100%</> 伤害。\n生成 <num>1</> 张 <keyword>剑阵</> 牌到手牌。"));
 	StarterShenBuFengCard->Effects.Reset();
 	AddDamageEffect(
 		StarterShenBuFengCard,
@@ -1120,7 +1120,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetRetainKeyword());
 	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetExpendKeyword());
 	StarterShenPoZhenJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
-	StarterShenPoZhenJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。额外造成 2 点削韧。"));
+	StarterShenPoZhenJianZhenCard->RulesText = FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n额外 <num>2</> 削韧。"));
 	StarterShenPoZhenJianZhenCard->Effects.Reset();
 	AddBonusBreakEffect(
 		StarterShenPoZhenJianZhenCard,
@@ -1141,7 +1141,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetRetainKeyword());
 	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetExpendKeyword());
 	StarterShenGuoPaiJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
-	StarterShenGuoPaiJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。抽 1 张牌。"));
+	StarterShenGuoPaiJianZhenCard->RulesText = FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n抽 <num>1</> 张牌。"));
 	StarterShenGuoPaiJianZhenCard->Effects.Reset();
 	AddDrawEffect(
 		StarterShenGuoPaiJianZhenCard,
@@ -1160,7 +1160,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetRetainKeyword());
 	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetExpendKeyword());
 	StarterShenFengRuiJianZhenCard->Keywords.AddTag(GetSwordArrayKeyword());
-	StarterShenFengRuiJianZhenCard->RulesText = FText::FromString(TEXT("衍生牌。保留，消耗。获得 1 层锋锐，使下一张攻击牌伤害提高 20%。"));
+	StarterShenFengRuiJianZhenCard->RulesText = FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n获得 <num>1</> <status>锋锐</>。"));
 	StarterShenFengRuiJianZhenCard->Effects.Reset();
 	AddApplyStatusEffect(
 		StarterShenFengRuiJianZhenCard,
@@ -1188,7 +1188,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenShouZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenShouZhenCard->BaseCostAP = 1;
 	StarterShenShouZhenCard->Keywords.Reset();
-	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得相当于防御力 80% 的护盾。若手中有剑阵牌，抽 1 张牌。"));
+	StarterShenShouZhenCard->RulesText = FText::FromString(TEXT("获得 <stat>防御力</> <num>80%</> 护盾。\n若手中有 <keyword>剑阵</> 牌：抽 <num>1</> 张牌。"));
 	StarterShenShouZhenCard->Effects.Reset();
 	AddShieldEffect(
 		StarterShenShouZhenCard,
@@ -1215,7 +1215,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenYinZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenYinZhenCard->BaseCostAP = 1;
 	StarterShenYinZhenCard->Keywords.Reset();
-	StarterShenYinZhenCard->RulesText = FText::FromString(TEXT("首版固定生成 1 张过牌剑阵到手牌，并抽 1 张牌。"));
+	StarterShenYinZhenCard->RulesText = FText::FromString(TEXT("生成 <num>1</> 张 <keyword>过牌剑阵</> 到手牌。\n抽 <num>1</> 张牌。"));
 	StarterShenYinZhenCard->Effects.Reset();
 	AddGenerateCardEffect(
 		StarterShenYinZhenCard,
@@ -1241,7 +1241,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenYinBaoJianZhenCard->BaseCostAP = 1;
 	StarterShenYinBaoJianZhenCard->Keywords.Reset();
 	StarterShenYinBaoJianZhenCard->Keywords.AddTag(GetRetainKeyword());
-	StarterShenYinBaoJianZhenCard->RulesText = FText::FromString(TEXT("消耗 1 张手中的剑阵牌。若成功， 对目标造成相当于攻击力 130% 的伤害，并抽 1 张牌。"));
+	StarterShenYinBaoJianZhenCard->RulesText = FText::FromString(TEXT("消耗 <num>1</> 张手牌 <keyword>剑阵</>。\n若成功：造成 <stat>攻击力</> <num>130%</> 伤害，抽 <num>1</> 张牌。"));
 	StarterShenYinBaoJianZhenCard->Effects.Reset();
 	AddMoveCardsEffect(
 		StarterShenYinBaoJianZhenCard,
@@ -1296,7 +1296,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenYuanFengChengZhenCard->Rarity = EFinalRarity::Common;
 	StarterShenYuanFengChengZhenCard->BaseCostAP = 1;
 	StarterShenYuanFengChengZhenCard->Keywords.Reset();
-	StarterShenYuanFengChengZhenCard->RulesText = FText::FromString(TEXT("本回合中，其他友方当前手牌中的攻击牌费用 -1，伤害提高 20%，直到打出或玩家回合结束。"));
+	StarterShenYuanFengChengZhenCard->RulesText = FText::FromString(TEXT("其他友方当前手牌攻击牌：-<cost>1 AP</>，<good>20%</> 最终伤害。\n直到打出或玩家回合结束。"));
 	StarterShenYuanFengChengZhenCard->Effects.Reset();
 	{
 		FFinalTriggeredCardModifierDefinition AllyAttackModifier;
@@ -1304,7 +1304,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		AllyAttackModifier.bRequireCardType = true;
 		AllyAttackModifier.RequiredCardType = EFinalCardType::Attack;
 		AllyAttackModifier.CostDeltaAP = -1;
-		AllyAttackModifier.OutgoingDamagePercentDelta = 20;
+		AllyAttackModifier.FinalDamagePercentDelta = 20;
 		AllyAttackModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		AllyAttackModifier.bExpireAtPlayerTurnEnd = true;
 		AddApplyCardModifiersEffect(

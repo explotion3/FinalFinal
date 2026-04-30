@@ -19,7 +19,8 @@ struct FFinalBattleStatusProjectedCardModifierInstance
 	bool bRequireCardType = false;
 	EFinalCardType RequiredCardType = EFinalCardType::Attack;
 	int32 CostDeltaAPPerStack = 0;
-	int32 OutgoingDamagePercentPerStack = 0;
+	int32 DamagePowerPercentPointDeltaPerStack = 0;
+	int32 FinalDamagePercentDeltaPerStack = 0;
 	EFinalStatusProjectedCardModifierLifetimePolicy LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 	bool bExpireAtPlayerTurnEnd = false;
 };

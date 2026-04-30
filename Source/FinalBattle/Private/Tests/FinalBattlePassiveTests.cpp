@@ -161,7 +161,7 @@ namespace FinalBattlePassiveTests
 		TriggeredModifier.bRequireCardType = true;
 		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
 		TriggeredModifier.CostDeltaAP = -1;
-		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.FinalDamagePercentDelta = 20;
 		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
 		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 		return PassiveDefinition;
@@ -795,7 +795,7 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 
 	const FFinalBattleCardProjectionView BuffedAttackProjection = Session->GetCardProjectionView(BuffedAttackHandCard->CardInstanceId);
 	TestEqual(TEXT("Triggered passive should reduce remaining hand attack AP cost by 1."), BuffedAttackProjection.EffectiveCostAP, BuffedAttackCard->BaseCostAP - 1);
-	TestEqual(TEXT("Triggered passive should add +20% outgoing damage to remaining hand attack."), BuffedAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Triggered passive should add +20% final damage to remaining hand attack."), BuffedAttackProjection.EffectiveFinalDamagePercentDelta, 20);
 	const TArray<FFinalBattleEvent> TriggerEvents = Session->GetBattleLogEntries();
 	const FFinalBattleEvent* PassiveTriggeredEvent = FindFirstBattleEventByTypeAndRelatedTag(
 		TriggerEvents,
@@ -816,7 +816,7 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 
 	const FFinalBattleCardProjectionView RemainingSkillProjection = Session->GetCardProjectionView(RemainingSkillCard->CardInstanceId);
 	TestEqual(TEXT("Non-attack skills should keep their base AP cost."), RemainingSkillProjection.EffectiveCostAP, SkillCard->BaseCostAP);
-	TestEqual(TEXT("Non-attack skills should not gain outgoing damage from the passive."), RemainingSkillProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Non-attack skills should not gain final damage from the passive."), RemainingSkillProjection.EffectiveFinalDamagePercentDelta, 0);
 
 	FFinalBattleCommand BuffedAttackCommand;
 	BuffedAttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
@@ -825,7 +825,7 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 	TestNotEqual(TEXT("Buffed hand attack should resolve successfully."), Session->SubmitCommand(BuffedAttackCommand).EventType, EFinalBattleEventType::CommandRejected);
 
 	const FFinalBattleCardProjectionView ProjectionAfterPlay = Session->GetCardProjectionView(BuffedAttackHandCard->CardInstanceId);
-	TestEqual(TEXT("Triggered passive modifier should clear after the buffed attack is played."), ProjectionAfterPlay.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Triggered passive modifier should clear after the buffed attack is played."), ProjectionAfterPlay.EffectiveFinalDamagePercentDelta, 0);
 	TestEqual(TEXT("Triggered passive cost reduction should clear after the buffed attack is played."), ProjectionAfterPlay.EffectiveCostAP, BuffedAttackCard->BaseCostAP);
 	return true;
 }
@@ -915,14 +915,14 @@ bool FFinalBattlePassiveFirstAttackDoesNotReapplySecondAttackSameTurnTest::RunTe
 		return false;
 	}
 
-	TestEqual(TEXT("Attacks drawn after the passive already triggered should not inherit the previous buff."), Session->GetCardProjectionView(DrawnAttackTwoHandCard->CardInstanceId).EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Attacks drawn after the passive already triggered should not inherit the previous buff."), Session->GetCardProjectionView(DrawnAttackTwoHandCard->CardInstanceId).EffectiveFinalDamagePercentDelta, 0);
 
 	Command.CardInstanceId = DrawnAttackOneHandCard->CardInstanceId;
 	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
 	TestNotEqual(TEXT("Second attack of the turn should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
 
 	const FFinalBattleCardProjectionView RemainingAttackProjection = Session->GetCardProjectionView(DrawnAttackTwoHandCard->CardInstanceId);
-	TestEqual(TEXT("Second attack in the same turn should not apply a new projected outgoing damage bonus."), RemainingAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Second attack in the same turn should not apply a new projected final damage bonus."), RemainingAttackProjection.EffectiveFinalDamagePercentDelta, 0);
 	TestEqual(TEXT("Second attack in the same turn should not reduce the remaining attack AP cost."), RemainingAttackProjection.EffectiveCostAP, DrawnAttackTwo->BaseCostAP);
 	return true;
 }
@@ -993,7 +993,7 @@ bool FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest::RunTest(const FS
 	}
 
 	const FFinalBattleCardProjectionView ProjectionBeforeEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
-	TestEqual(TEXT("Retained attack should be buffed before end-turn cleanup."), ProjectionBeforeEndTurn.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Retained attack should be buffed before end-turn cleanup."), ProjectionBeforeEndTurn.EffectiveFinalDamagePercentDelta, 20);
 
 	Command.CommandType = EFinalBattleCommandType::EndTurn;
 	Command.CardInstanceId = FGuid();
@@ -1008,7 +1008,7 @@ bool FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest::RunTest(const FS
 	}
 
 	const FFinalBattleCardProjectionView ProjectionAfterEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
-	TestEqual(TEXT("Turn end should clear the passive-projected outgoing damage bonus."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Turn end should clear the passive-projected final damage bonus."), ProjectionAfterEndTurn.EffectiveFinalDamagePercentDelta, 0);
 	TestEqual(TEXT("Turn end should clear the passive-projected AP reduction."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
 	return true;
 }

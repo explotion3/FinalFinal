@@ -483,7 +483,9 @@ namespace FinalDataAssetValidation
 					AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
 				}
 
-				if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+				if (ModifierDefinition.CostDeltaAP == 0
+					&& ModifierDefinition.DamagePowerPercentPointDelta == 0
+					&& ModifierDefinition.FinalDamagePercentDelta == 0)
 				{
 					AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
 				}
@@ -822,7 +824,9 @@ namespace FinalDataAssetValidation
 					AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
 				}
 
-				if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+				if (ModifierDefinition.CostDeltaAP == 0
+					&& ModifierDefinition.DamagePowerPercentPointDelta == 0
+					&& ModifierDefinition.FinalDamagePercentDelta == 0)
 				{
 					AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
 				}
@@ -840,6 +844,42 @@ namespace FinalDataAssetValidation
 		RequireText(Context, bIsValid, Card->DisplayName, TEXT("DisplayName"));
 		ValidateNonNegative(Context, bIsValid, Card->BaseCostAP, TEXT("BaseCostAP"));
 		ValidateEffectArray(Context, bIsValid, Card->Effects, TEXT("Effects"), true);
+
+		const FString CardIdString = Card->CardId.Value.ToString();
+		if (CardIdString.StartsWith(TEXT("card.starter.")))
+		{
+			if (Card->RulesText.IsEmpty())
+			{
+				AddWarning(Context, FString::Printf(TEXT("Starter card %s should define RulesText using Card Text Style v0.1."), *CardIdString));
+			}
+
+			const FString RulesText = Card->RulesText.ToString();
+			static const TCHAR* DeprecatedFragments[] =
+			{
+				TEXT("相当于攻击力"),
+				TEXT("相当于防御力"),
+				TEXT("ATK"),
+				TEXT("BaseDamagePower"),
+				TEXT("获得 1 层刀势"),
+				TEXT("获得 1 层药引"),
+				TEXT("获得 2 层药引"),
+				TEXT("额外造成"),
+				TEXT("点削韧")
+			};
+
+			for (const TCHAR* DeprecatedFragment : DeprecatedFragments)
+			{
+				if (RulesText.Contains(DeprecatedFragment))
+				{
+					AddWarning(
+						Context,
+						FString::Printf(
+							TEXT("Starter card %s RulesText contains deprecated card text fragment '%s'; use Card Text Style v0.1 tags and short phrases."),
+							*CardIdString,
+							DeprecatedFragment));
+				}
+			}
+		}
 	}
 
 	void ValidateCharacterDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalCharacterDefinition* Character)
@@ -1167,7 +1207,9 @@ namespace FinalDataAssetValidation
 				AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
 			}
 
-			if (ModifierDefinition.CostDeltaAPPerStack == 0 && ModifierDefinition.OutgoingDamagePercentPerStack == 0)
+			if (ModifierDefinition.CostDeltaAPPerStack == 0
+				&& ModifierDefinition.DamagePowerPercentPointDeltaPerStack == 0
+				&& ModifierDefinition.FinalDamagePercentDeltaPerStack == 0)
 			{
 				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
 			}
