@@ -1121,8 +1121,6 @@ namespace FinalDataAssetValidation
 			if (ModifierDefinition.OutgoingDamagePercentPerStack == 0
 				&& ModifierDefinition.IncomingDamagePercentPerStack == 0
 				&& ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack == 0
-				&& !ModifierDefinition.bConsumeOnSuccessfulOwnerDamage
-				&& !ModifierDefinition.bConsumeOnPreventedTeamHealthDamage
 				&& !ModifierDefinition.bOnlyAffectAttackCards)
 			{
 				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-default runtime modifier payload."), *ModifierFieldName));
@@ -1142,6 +1140,21 @@ namespace FinalDataAssetValidation
 			if (ModifierDefinition.CostDeltaAPPerStack == 0 && ModifierDefinition.OutgoingDamagePercentPerStack == 0)
 			{
 				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
+			}
+		}
+
+		for (int32 RuleIndex = 0; RuleIndex < Status->ConsumptionRules.Num(); ++RuleIndex)
+		{
+			const FFinalStatusConsumptionRuleDefinition& RuleDefinition = Status->ConsumptionRules[RuleIndex];
+			const FString RuleFieldName = FString::Printf(TEXT("ConsumptionRules[%d]"), RuleIndex);
+			if (RuleDefinition.Window == EFinalStatusConsumptionWindow::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Window must not be None."), *RuleFieldName));
+			}
+
+			if (RuleDefinition.StacksToConsume <= 0)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.StacksToConsume must be > 0."), *RuleFieldName));
 			}
 		}
 

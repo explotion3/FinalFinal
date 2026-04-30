@@ -66,6 +66,14 @@ enum class EFinalStatusResourceBehavior : uint8
 };
 
 UENUM(BlueprintType)
+enum class EFinalStatusConsumptionWindow : uint8
+{
+	None,
+	SuccessfulOwnerDamage,
+	PreventedTeamHealthDamage
+};
+
+UENUM(BlueprintType)
 enum class EFinalStatusAppliesTo : uint8
 {
 	Shared,
@@ -89,12 +97,6 @@ struct FINALDATA_API FFinalStatusRuntimeModifierDefinition
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
 	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
-	bool bConsumeOnSuccessfulOwnerDamage = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
-	bool bConsumeOnPreventedTeamHealthDamage = false;
 };
 
 USTRUCT(BlueprintType)
@@ -122,6 +124,21 @@ struct FINALDATA_API FFinalStatusProjectedCardModifierDefinition
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|ProjectedCardModifiers")
 	bool bExpireAtPlayerTurnEnd = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALDATA_API FFinalStatusConsumptionRuleDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Consumption")
+	EFinalStatusConsumptionWindow Window = EFinalStatusConsumptionWindow::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Consumption")
+	int32 StacksToConsume = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Consumption")
+	bool bRequireAttackCardDamage = false;
 };
 
 UCLASS(BlueprintType)
@@ -191,35 +208,8 @@ public:
 	TArray<FFinalStatusProjectedCardModifierDefinition> ProjectedCardModifiers;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status", meta = (TitleProperty = "Window"))
+	TArray<FFinalStatusConsumptionRuleDefinition> ConsumptionRules;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status", meta = (TitleProperty = "Window"))
 	TArray<FFinalRuntimeTriggerDefinition> RuntimeTriggers;
-
-	// LegacyRuntimeFields: current battle runtime still reads these fields directly.
-	// Keep them until the full status system migration completes, then delete them.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	int32 OutgoingDamagePercentPerStack = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	bool bExpireAtPlayerTurnEnd = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	bool bConsumeOnSuccessfulOwnerDamage = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	bool bOnlyAffectAttackCards = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	bool bConsumeOnPreventedTeamHealthDamage = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	bool bProjectToOwnedHandCards = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	EFinalCardType ProjectedCardTypeFilter = EFinalCardType::Attack;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
-	int32 ProjectedOutgoingDamagePercentPerStack = 0;
-
 };

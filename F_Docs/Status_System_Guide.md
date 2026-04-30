@@ -315,7 +315,6 @@
   * 结算：`FinalBattleStatusService.GetOutgoingDamageModifierPercent()`
 * `starter 第一波 RuntimeModifiers 落点`：
   * `OutgoingDamagePercentPerStack = 20`
-  * `bConsumeOnSuccessfulOwnerDamage = false`
   * `bOnlyAffectAttackCards = false`
   * `DurationType = PlayerTurns`
   * `ExpireWindow = PlayerTurnEnd`
@@ -331,10 +330,13 @@
   * `OutgoingDamagePercentPerStack = 20`
   * `LifetimePolicy = WhileStatusActive`
   * `bExpireAtPlayerTurnEnd = true`
-* `保留的状态生命周期字段`：
-  * `bExpireAtPlayerTurnEnd = true`
-  * `bConsumeOnSuccessfulOwnerDamage = true`
-  * `bOnlyAffectAttackCards = true`
+* `ConsumptionRules`：
+  * `Window = SuccessfulOwnerDamage`
+  * `StacksToConsume = 1`
+  * `bRequireAttackCardDamage = true`
+* `持续配置`：
+  * `DurationType = PlayerTurns`
+  * `ExpireWindow = PlayerTurnEnd`
 * `当前 Battle 规则口径`：
   * `锋锐` 不再走通用状态伤害修正路径。
   * 当前由 `FinalBattle` 基于 `ProjectedCardModifiers` 把 `锋锐` 同步为手牌攻击牌上的 derived `BattleCard` modifier。
@@ -388,9 +390,11 @@
   * `摘要文本`：抵消下一次穿透护盾的玩家共享生命 HP damage；触发后消耗，若到玩家回合结束仍未触发则过期。
 * `生命免疫 RuntimeModifiers / 持续配置`：
   * `RuntimeModifiers.IncomingTeamHealthDamageReductionPercentPerStack = 100`
-  * `RuntimeModifiers.bConsumeOnPreventedTeamHealthDamage = true`
   * `DurationType = PlayerTurns`
   * `ExpireWindow = PlayerTurnEnd`
+* `生命免疫 ConsumptionRules`：
+  * `Window = PreventedTeamHealthDamage`
+  * `StacksToConsume = 1`
 * `生命免疫结算顺序`：先由护盾抵消总伤害，再由生命免疫抵消剩余 pending Team HP damage，保护后的实际 HP damage 才扣 `TeamCurrentHP`。
 * `生命免疫触发边界`：若生命免疫完全抵消本次 HP damage，则不触发 `OwnerTookHealthDamage`。
 * `未落地范围`：免疫中毒、免疫控制、免疫压力、免疫崩溃等更泛化负面效果免疫，仍需要后续补独立协议。

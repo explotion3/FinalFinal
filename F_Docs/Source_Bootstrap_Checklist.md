@@ -415,7 +415,7 @@
 * Battle 当前已把 effect requirements 第一阶段收口到对象化 `Effect.Conditions[]`：`HandCard / TargetState / StatusChanged / MovedCards` 四类条件对象定义在 `FinalData/Public/Battle/Conditions`，Runtime 判定统一由 `FinalBattleConditionService` 执行；condition 类通过 `GetConditionContext()` 显式声明上下文阶段，concrete effect 子类只保留 payload 字段；`StatusChanged` 第一版只消费 `RemoveStatus -> Removed` 的链路记录
 * Battle 当前已把 effect list scratch state 拆成 `ChainRecord` 与 `Transient` 两层：`StatusChanged / MovedCards` 这类后续条件会读 `ChainRecord` 中的真实记录，而只服务本条执行流程的临时标记继续留在 `Transient`
 * starter bundle 当前已把 `守阵` 的“若手中有剑阵牌”改成真实规则：护盾部分无条件结算，抽牌部分只有在当前手牌里存在满足 `SwordArray + GeneratedOnly` 条件的衍生剑阵牌时才会执行
-* Battle 当前已补最小“状态驱动的伤害修正”协议：`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正百分比、在一次成功对敌伤害后消费带 `bConsumeOnSuccessfulOwnerDamage` 的状态 1 层，并在玩家结束回合进入敌方行动前统一递减 `bExpireAtPlayerTurnEnd` 状态
+* Battle 当前已补正式“状态驱动的伤害修正”协议：`FinalBattleStatusService` 负责在运行时统计 owner 的总伤害修正百分比；状态扣层统一由 `ConsumptionRules` 承载，玩家回合结束过期统一读取 `DurationType / ExpireWindow`
 * starter bundle 当前已把 `锋锐剑阵` 接回 Runtime：该衍生牌现在会为自身施加 1 层 `锋锐` 状态，使下一张攻击牌伤害提高 20%，若本回合内至少一次成功对敌生命伤害则消耗，否则在玩家回合结束时过期
 * starter bundle 当前已把 `万象归阵` 改成真实规则：抽 2 张牌、生成 1 张剑阵牌到手牌，并为每名角色施加 1 层 `士气`；不再用团队护盾近似团队增益
 * starter bundle 当前已补共享 trigger schema：霍断岳角色定义通过 `InitialPassiveGrants` 挂载 innate passive `OwnerTookHealthDamage -> ApplyStatus(刀势)`；护心铜镜与阵门木签使用同一 `RuntimeTriggerDefinition` 表达遗物触发窗口

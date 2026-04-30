@@ -170,26 +170,24 @@
 - 按固定窗口结算通用状态与专属状态
 - 处理共享血条下 `team_player` 与角色个人状态边界
 - 支持状态驱动的伤害修正、生命保护、触发条件判断
-- 当前 `StatusDefinition` 已进入“双轨 schema”阶段：
-  - 新 schema：`RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers / StackKeyPolicy / StackRule / DurationType / ExpireWindow / AppliesTo`
-  - 旧字段：继续作为未迁移状态的 battle runtime 生效口径
+- 当前 `StatusDefinition` 已收口到正式 schema：
+  - `RuntimeModifiers / ProjectedCardModifiers / ConsumptionRules / RuntimeTriggers`
+  - `StackKeyPolicy / StackRule / DurationType / ExpireWindow / AppliesTo`
+  - resource 与 DOT 专用字段
 - `AppliesTo` 当前是状态定义级约束：
   - `Shared / PlayerOnly / EnemyOnly`
   - `team_player` 归类为玩家侧，因此 `PlayerOnly` 包含 `team_player`
   - 运行时在 `FinalBattleStatusService::AddStatusStacks()` 做硬拦截
-- 当前第一批 runtime 迁移已落地到 `士气 / 生命免疫`：
-  - `FinalBattleStatusService` 对这两条状态改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
-  - `锋锐` 当前已改为读取 `FFinalBattleStatusInstance.ProjectedCardModifiers`
+- 当前状态 runtime 只读取正式结构化载荷：
+  - `士气 / 生命免疫 / 易伤 / 虚弱` 读取 `FFinalBattleStatusInstance.RuntimeModifiers`
+  - `锋锐` 读取 `FFinalBattleStatusInstance.ProjectedCardModifiers`
+  - `生命免疫 / 锋锐` 的扣层读取状态级 `ConsumptionRules`
   - `刀势 / 药引` 当前已归位为正式资源型状态：
     - 获得继续走 `ApplyStatus`
     - 消费改走 `ConsumeStatusResource`
     - 默认不进入 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`
-  - `易伤 / 虚弱` 当前已改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
   - `中毒` 已进入首版 DOT 专用解析路径；`腐蚀 / 流血` 不再视为当前有效 starter 状态
-- 迁移期不允许对同一条状态做“新旧字段同时生效并合并”的双真相结算
-- 状态系统完整迁移顺序当前已固定为：
-  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 中毒 DOT 专轮`
-  - 最后再删除旧字段与旧读取路径
+- 状态系统不再保留 legacy 字段读取路径；新增状态 authoring 必须选择正式状态类别或明确作为纯展示/标签状态。
 
 优先级：`P0`
 

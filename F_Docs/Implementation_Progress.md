@@ -1,16 +1,30 @@
 # Implementation Progress
 
+## 2026-04-30 Step 24：状态系统 legacy 字段清理与 authoring 收口
+
+- `UFinalStatusDefinition` 与 `FFinalBattleStatusInstance` 上的 legacy 状态字段已删除；状态规则当前只通过正式 schema authoring。
+- `FinalBattleStatusService` 已移除 legacy fallback：
+  - 直接规则读取 `RuntimeModifiers`
+  - 手牌投影读取 `ProjectedCardModifiers`
+  - 资源消费读取 `ConsumeStatusResource`
+  - DOT 读取 `DamageOverTime` 专用字段
+- 新增状态级 `ConsumptionRules`，用于承载状态扣层窗口：
+  - `锋锐`：`SuccessfulOwnerDamage + require attack + consume 1`
+  - `生命免疫`：`PreventedTeamHealthDamage + consume 1`
+- `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 已进入 battle runtime 主路径；旧 `bExpireAtPlayerTurnEnd` 不再存在。
+
 ## 2026-04-30 Step 19A：状态系统第一步，只补 schema，不改玩法
 
 - `UFinalStatusDefinition` 当前已补终版状态框架需要的结构化 schema：
   - `RuntimeModifiers`
   - `ProjectedCardModifiers`
   - `RuntimeTriggers`
+  - `ConsumptionRules`
   - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
-- 旧状态字段当前继续保留，并明确标记为 `LegacyRuntimeFields`；battle 运行时仍只消费旧字段，不切换到新 schema。
-- `FinalDataAssetValidator` 当前已开始校验新 schema 的基础合法性，但允许 starter/status 资产保持“旧字段有效、新字段为空”的过渡状态。
+- 旧状态字段已在 Step 24 删除；本节记录的是当时的迁移起点。
+- `FinalDataAssetValidator` 当时开始校验新 schema 的基础合法性；Step 24 后已改为正式 schema 校验。
 - 本步骤不改变 `FinalBattleStatusService` 的 apply/remove/expire/query/projection 行为，因此 starter 实际玩法口径保持不变。
-- 后续完整状态系统迁移顺序当前已固定为：
+- 当时固定的完整状态系统迁移顺序为：
   - `士气`
   - `生命免疫`
   - `锋锐`
@@ -23,14 +37,9 @@
 
 - `士气` 与 `生命免疫` 当前已进入新 `RuntimeModifiers` schema 的正式 authoring 路径；starter builder 不再为这两条状态回填 direct-rule legacy 字段。
 - `FFinalBattleStatusInstance` 当前已新增结构化 `RuntimeModifiers` 运行时载荷，用于承载 battle 直接规则修正，不与 card projection 混用。
-- `FinalBattleStatusService` 当前已开始对“已迁移状态”读取结构化 runtime modifiers：
-  - `士气` 的伤害修正与伤害后消耗逻辑改为读新载荷
-  - `生命免疫` 的 team HP protection 与触发后消耗逻辑改为读新载荷
-- 其他状态当前仍保留在 legacy 路径：
-  - `刀势 / 药引` 继续按资源型状态使用
-  - `易伤 / 虚弱` 仍待后续迁移
-  - `中毒` 已迁入首版 DOT 专用解析路径
-- 本步骤不切 `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 的运行时主逻辑；回合结束过期仍保持现有结果，只是对 `士气 / 生命免疫` 从新 schema 预编译出 `bExpireAtPlayerTurnEnd`。
+- `FinalBattleStatusService` 当前已开始对“已迁移状态”读取结构化 runtime modifiers。
+- 生命免疫的 team HP protection 后续已改为 `RuntimeModifiers + ConsumptionRules`。
+- `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 后续已进入 runtime 主路径。
 
 ## 2026-04-30 Step 19C：迁移 `锋锐` 到 `ProjectedCardModifiers`
 
@@ -45,7 +54,7 @@
   - 新抽进手或生成进手的攻击牌，在 `锋锐` 仍存在时也会立即获得投影
   - 成功造成伤害后仍消耗 1 层
   - 玩家回合结束仍会过期并清理投影
-- 其他状态当前仍保留在各自现有路径：
+- 其他状态当前仍保留在各自正式路径：
   - `士气 / 生命免疫` 走 `RuntimeModifiers`
 - `刀势 / 药引` 已归位为正式资源型状态
 - `易伤 / 虚弱` 已迁入正式 `RuntimeModifiers`
@@ -101,7 +110,7 @@
   - `生命免疫` 不再回填 direct-rule legacy 字段
   - `士气` 不再回填 direct-rule legacy 字段
   - `锋锐` 不再回填 owned-hand projection legacy 字段
-- 仍在运行时消费中的 legacy 字段保持不动；本步骤只清理“已经没有 runtime 用途”的残留，不改变状态玩法口径。
+- 后续 Step 24 已删除剩余 legacy 字段与 runtime fallback。
 
 ## 2026-04-30 Step 21：补 `AppliesTo` 状态适用域约束
 
@@ -222,7 +231,7 @@
 ## 2026-04-29 Step 12：`锋锐` 接入 BattleCard modifier / projection
 
 - `锋锐` 当前已从通用状态伤害修正路径迁移为“状态驱动的 BattleCard modifier”；玩法语义保持为“下一张攻击牌伤害提高 20%”。
-- `StatusDefinition` 当前已补最小 card projection 字段：`bProjectToOwnedHandCards / ProjectedCardTypeFilter / ProjectedOutgoingDamagePercentPerStack`。
+- `StatusDefinition` 当时补了最小 card projection 字段；该路径后续已收口为 `ProjectedCardModifiers`。
 - `FinalBattle` 当前会根据角色身上的 `锋锐` 层数，把拥有者当前手牌中的攻击牌同步为 derived `BattleCard` modifiers，并在抽牌进手、生成牌进手、手牌移动、状态叠层/消耗/过期后立即重建同步。
 - `锋锐` 当前只作用于手牌中的攻击牌；抽牌堆、弃牌堆、消耗区和持续区中的牌不投影这条状态。
 - `士气` 继续保留通用状态伤害修正路径，因此当前 `士气 + 锋锐` 会正确叠加为“全局状态伤害加成 + 当前出牌卡局部加成”。

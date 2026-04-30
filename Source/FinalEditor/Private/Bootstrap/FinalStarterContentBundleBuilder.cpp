@@ -280,6 +280,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoStatus->bAutoProjectToCards = false;
 	StarterHuoStatus->RuntimeModifiers.Reset();
 	StarterHuoStatus->ProjectedCardModifiers.Reset();
+	StarterHuoStatus->ConsumptionRules.Reset();
 	StarterHuoStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterHuoStatus, PackagesToSave);
 
@@ -355,6 +356,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeStatus->bAutoProjectToCards = false;
 	StarterYeStatus->RuntimeModifiers.Reset();
 	StarterYeStatus->ProjectedCardModifiers.Reset();
+	StarterYeStatus->ConsumptionRules.Reset();
 	StarterYeStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterYeStatus, PackagesToSave);
 
@@ -372,9 +374,15 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	{
 		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StarterYeImmunityStatus->RuntimeModifiers.AddDefaulted_GetRef();
 		RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack = 100;
-		RuntimeModifier.bConsumeOnPreventedTeamHealthDamage = true;
 	}
 	StarterYeImmunityStatus->ProjectedCardModifiers.Reset();
+	StarterYeImmunityStatus->ConsumptionRules.Reset();
+	{
+		FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StarterYeImmunityStatus->ConsumptionRules.AddDefaulted_GetRef();
+		ConsumptionRule.Window = EFinalStatusConsumptionWindow::PreventedTeamHealthDamage;
+		ConsumptionRule.StacksToConsume = 1;
+		ConsumptionRule.bRequireAttackCardDamage = false;
+	}
 	StarterYeImmunityStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterYeImmunityStatus, PackagesToSave);
 
@@ -386,10 +394,10 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenStatus->SummaryText = FText::FromString(TEXT("沈清弦的剑阵本体已改为 Battle 内衍生牌协议；此签名状态资产仅保留角色签名展示占位。"));
 	StarterShenStatus->MaxStacks = 9;
 	StarterShenStatus->DefaultDuration = 0;
-	StarterShenStatus->OutgoingDamagePercentPerStack = 0;
-	StarterShenStatus->bExpireAtPlayerTurnEnd = false;
-	StarterShenStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterShenStatus->bOnlyAffectAttackCards = false;
+	StarterShenStatus->RuntimeModifiers.Reset();
+	StarterShenStatus->ProjectedCardModifiers.Reset();
+	StarterShenStatus->ConsumptionRules.Reset();
+	StarterShenStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterShenStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterShenShiQiStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenShiQiStatusPath, bCreatedAsset);
@@ -408,6 +416,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		RuntimeModifier.OutgoingDamagePercentPerStack = 20;
 	}
 	StarterShenShiQiStatus->ProjectedCardModifiers.Reset();
+	StarterShenShiQiStatus->ConsumptionRules.Reset();
 	StarterShenShiQiStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterShenShiQiStatus, PackagesToSave);
 
@@ -419,6 +428,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiStatus->SummaryText = FText::FromString(TEXT("下一张攻击牌伤害提高 20%，若本回合未触发则在回合结束时失效。"));
 	StarterShenFengRuiStatus->MaxStacks = 9;
 	StarterShenFengRuiStatus->DefaultDuration = 0;
+	StarterShenFengRuiStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterShenFengRuiStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
 	StarterShenFengRuiStatus->ProjectedCardModifiers.Reset();
 	{
 		FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StarterShenFengRuiStatus->ProjectedCardModifiers.AddDefaulted_GetRef();
@@ -429,9 +440,15 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 		ProjectedModifier.bExpireAtPlayerTurnEnd = true;
 	}
-	StarterShenFengRuiStatus->bExpireAtPlayerTurnEnd = true;
-	StarterShenFengRuiStatus->bConsumeOnSuccessfulOwnerDamage = true;
-	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
+	StarterShenFengRuiStatus->RuntimeModifiers.Reset();
+	StarterShenFengRuiStatus->ConsumptionRules.Reset();
+	{
+		FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StarterShenFengRuiStatus->ConsumptionRules.AddDefaulted_GetRef();
+		ConsumptionRule.Window = EFinalStatusConsumptionWindow::SuccessfulOwnerDamage;
+		ConsumptionRule.StacksToConsume = 1;
+		ConsumptionRule.bRequireAttackCardDamage = true;
+	}
+	StarterShenFengRuiStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterVulnerableStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterVulnerableStatusPath, bCreatedAsset);
@@ -450,16 +467,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		RuntimeModifier.IncomingDamagePercentPerStack = 25;
 	}
 	StarterVulnerableStatus->ProjectedCardModifiers.Reset();
+	StarterVulnerableStatus->ConsumptionRules.Reset();
 	StarterVulnerableStatus->RuntimeTriggers.Reset();
-	StarterVulnerableStatus->OutgoingDamagePercentPerStack = 0;
-	StarterVulnerableStatus->bExpireAtPlayerTurnEnd = true;
-	StarterVulnerableStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterVulnerableStatus->bOnlyAffectAttackCards = false;
-	StarterVulnerableStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	StarterVulnerableStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterVulnerableStatus->bProjectToOwnedHandCards = false;
-	StarterVulnerableStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
-	StarterVulnerableStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterVulnerableStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterPoisonStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterPoisonStatusPath, bCreatedAsset);
@@ -483,16 +492,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterPoisonStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
 	StarterPoisonStatus->RuntimeModifiers.Reset();
 	StarterPoisonStatus->ProjectedCardModifiers.Reset();
+	StarterPoisonStatus->ConsumptionRules.Reset();
 	StarterPoisonStatus->RuntimeTriggers.Reset();
-	StarterPoisonStatus->OutgoingDamagePercentPerStack = 0;
-	StarterPoisonStatus->bExpireAtPlayerTurnEnd = false;
-	StarterPoisonStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterPoisonStatus->bOnlyAffectAttackCards = false;
-	StarterPoisonStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	StarterPoisonStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterPoisonStatus->bProjectToOwnedHandCards = false;
-	StarterPoisonStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
-	StarterPoisonStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterPoisonStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterWeakStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterWeakStatusPath, bCreatedAsset);
@@ -511,16 +512,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		RuntimeModifier.OutgoingDamagePercentPerStack = -25;
 	}
 	StarterWeakStatus->ProjectedCardModifiers.Reset();
+	StarterWeakStatus->ConsumptionRules.Reset();
 	StarterWeakStatus->RuntimeTriggers.Reset();
-	StarterWeakStatus->OutgoingDamagePercentPerStack = 0;
-	StarterWeakStatus->bExpireAtPlayerTurnEnd = true;
-	StarterWeakStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterWeakStatus->bOnlyAffectAttackCards = false;
-	StarterWeakStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	StarterWeakStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterWeakStatus->bProjectToOwnedHandCards = false;
-	StarterWeakStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
-	StarterWeakStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterWeakStatus, PackagesToSave);
 
 	UFinalRelicDefinition* StarterBronzeMirrorGuardRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterBronzeMirrorGuardRelicPath, bCreatedAsset);

@@ -118,9 +118,9 @@ namespace FinalBattleCardProjectionTests
 	TStrongObjectPtr<UFinalStatusDefinition> MakeProjectedStatusDefinition(
 		const FName StatusName,
 		const int32 OutgoingDamagePercentPerStack,
-		const int32 ProjectedOutgoingDamagePercentPerStack,
-		const bool bProjectToOwnedHandCards,
-		const bool bConsumeOnSuccessfulOwnerDamage,
+		const int32 ProjectedDamagePercentPerStack,
+		const bool bProjectCurrentOwnedHandAttackCards,
+		const bool bConsumeOnSuccessfulDamage,
 		const bool bExpireAtPlayerTurnEnd,
 		const bool bOnlyAffectAttackCards)
 	{
@@ -129,24 +129,34 @@ namespace FinalBattleCardProjectionTests
 		StatusDefinition->DisplayName = FText::FromName(StatusName);
 		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
 		StatusDefinition->MaxStacks = 9;
-		StatusDefinition->OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
-		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
-		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
-		StatusDefinition->bOnlyAffectAttackCards = bOnlyAffectAttackCards;
+		StatusDefinition->DurationType = EFinalStatusDurationType::PlayerTurns;
+		StatusDefinition->ExpireWindow = bExpireAtPlayerTurnEnd ? EFinalStatusExpireWindow::PlayerTurnEnd : EFinalStatusExpireWindow::None;
+		StatusDefinition->RuntimeModifiers.Reset();
+		if (OutgoingDamagePercentPerStack != 0)
+		{
+			FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StatusDefinition->RuntimeModifiers.AddDefaulted_GetRef();
+			RuntimeModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
+			RuntimeModifier.bOnlyAffectAttackCards = bOnlyAffectAttackCards;
+		}
 		StatusDefinition->ProjectedCardModifiers.Reset();
-		if (bProjectToOwnedHandCards && ProjectedOutgoingDamagePercentPerStack != 0)
+		if (bProjectCurrentOwnedHandAttackCards && ProjectedDamagePercentPerStack != 0)
 		{
 			FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StatusDefinition->ProjectedCardModifiers.AddDefaulted_GetRef();
 			ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
 			ProjectedModifier.bRequireCardType = true;
 			ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
-			ProjectedModifier.OutgoingDamagePercentPerStack = ProjectedOutgoingDamagePercentPerStack;
+			ProjectedModifier.OutgoingDamagePercentPerStack = ProjectedDamagePercentPerStack;
 			ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 			ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
 		}
-		StatusDefinition->bProjectToOwnedHandCards = false;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
+		StatusDefinition->ConsumptionRules.Reset();
+		if (bConsumeOnSuccessfulDamage)
+		{
+			FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StatusDefinition->ConsumptionRules.AddDefaulted_GetRef();
+			ConsumptionRule.Window = EFinalStatusConsumptionWindow::SuccessfulOwnerDamage;
+			ConsumptionRule.StacksToConsume = 1;
+			ConsumptionRule.bRequireAttackCardDamage = bOnlyAffectAttackCards;
+		}
 		return StatusDefinition;
 	}
 

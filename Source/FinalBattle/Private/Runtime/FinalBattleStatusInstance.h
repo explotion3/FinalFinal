@@ -11,8 +11,6 @@ struct FFinalBattleStatusRuntimeModifierInstance
 	int32 IncomingDamagePercentPerStack = 0;
 	bool bOnlyAffectAttackCards = false;
 	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	bool bConsumeOnSuccessfulOwnerDamage = false;
-	bool bConsumeOnPreventedTeamHealthDamage = false;
 };
 
 struct FFinalBattleStatusProjectedCardModifierInstance
@@ -26,6 +24,13 @@ struct FFinalBattleStatusProjectedCardModifierInstance
 	bool bExpireAtPlayerTurnEnd = false;
 };
 
+struct FFinalBattleStatusConsumptionRuleInstance
+{
+	EFinalStatusConsumptionWindow Window = EFinalStatusConsumptionWindow::None;
+	int32 StacksToConsume = 1;
+	bool bRequireAttackCardDamage = false;
+};
+
 struct FFinalBattleStatusInstance
 {
 	FGuid StatusInstanceId;
@@ -36,6 +41,8 @@ struct FFinalBattleStatusInstance
 	int32 CurrentStacks = 0;
 	int32 RemainingDuration = 0;
 	EFinalStatusStackKeyPolicy StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwner;
+	EFinalStatusDurationType DurationType = EFinalStatusDurationType::PlayerTurns;
+	EFinalStatusExpireWindow ExpireWindow = EFinalStatusExpireWindow::None;
 	bool bIsResourceStatus = false;
 	EFinalStatusResourceBehavior ResourceBehavior = EFinalStatusResourceBehavior::None;
 	bool bAutoAffectBattleRules = false;
@@ -45,13 +52,5 @@ struct FFinalBattleStatusInstance
 	int32 DamageOverTimeAttackPowerPercentPerStack = 0;
 	TArray<FFinalBattleStatusRuntimeModifierInstance> RuntimeModifiers;
 	TArray<FFinalBattleStatusProjectedCardModifierInstance> ProjectedCardModifiers;
-	int32 OutgoingDamagePercentPerStack = 0;
-	bool bExpireAtPlayerTurnEnd = false;
-	bool bConsumeOnSuccessfulOwnerDamage = false;
-	bool bOnlyAffectAttackCards = false;
-	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	bool bConsumeOnPreventedTeamHealthDamage = false;
-	bool bProjectToOwnedHandCards = false;
-	EFinalCardType ProjectedCardTypeFilter = EFinalCardType::Attack;
-	int32 ProjectedOutgoingDamagePercentPerStack = 0;
+	TArray<FFinalBattleStatusConsumptionRuleInstance> ConsumptionRules;
 };

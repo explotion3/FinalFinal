@@ -537,7 +537,7 @@ EvolutionStage: Evolved
 
 这些定义不应承载角色升级三选一或 Run 内卡牌进化的主逻辑。
 
-其中 `StatusDefinition` 当前已进入“双轨 schema”阶段：
+其中 `StatusDefinition` 当前已完成 legacy 字段收口，正式规则入口如下：
 
 - **新 schema** 已补齐终版结构入口：
   - `RuntimeModifiers`
@@ -545,53 +545,29 @@ EvolutionStage: Evolved
   - `RuntimeTriggers`
   - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
   - `AppliesTo`
-- **旧字段** 仍然保留，并且当前 battle 运行时仍作为未迁移状态的生效口径；完整迁移完成后再删除。
-
-当前新 schema 的意图如下：
-
 | 字段组 | 说明 |
 |---|---|
-| `RuntimeModifiers` | 承载直接 battle 规则修正，例如伤害百分比、防护百分比、按攻击牌过滤、触发后消耗等 |
+| `RuntimeModifiers` | 承载直接 battle 规则修正，例如伤害百分比、防护百分比、按攻击牌过滤等 |
 | `ProjectedCardModifiers` | 承载状态驱动的 `BattleCard` 投影修正，例如 owned-hand 攻击牌增伤、减费等；其生命周期 schema 现在使用状态专属 `LifetimePolicy`，而不是复用 trigger 的 `DurationPolicy` |
+| `ConsumptionRules` | 承载状态级扣层规则，例如成功造成伤害后消耗、成功抵消共享生命伤害后消耗 |
 | `RuntimeTriggers` | 预留为状态终版的正式触发入口；首版先只进入 schema，不切换 runtime 消费 |
-| `StackKeyPolicy / StackRule / DurationType / ExpireWindow` | 预留为终版状态归并、叠层和持续时间模型 |
+| `StackKeyPolicy / StackRule / DurationType / ExpireWindow` | 终版状态归并、叠层和持续时间模型 |
 | `bIsResourceStatus / ResourceBehavior / bAutoAffectBattleRules / bAutoProjectToCards` | 承载正式资源型状态 schema；用于明确 `刀势 / 药引` 这类专属层数资源不自动进入 battle 规则修正和卡牌投影 |
 | `AppliesTo` | 状态定义级拥有者约束。`Shared` 允许玩家与敌人单位拥有；`PlayerOnly` 允许玩家角色与 `team_player`；`EnemyOnly` 只允许敌人单位 |
 
 当前 `AppliesTo` 只约束状态拥有者归属，不改变状态的具体规则类别。battle runtime 会在 `AddStatusStacks()` 入口硬拦截不合法归属。
 
-当前首批已迁移状态：
-
-- `士气`
-- `生命免疫`
-
-这两条状态在 authoring 层当前只写 `RuntimeModifiers`，并在 battle 初始化或叠层刷新时编译为 `FFinalBattleStatusInstance.RuntimeModifiers`。`FinalBattleStatusService` 对这两条状态已经改为读取结构化 runtime modifiers，不再依赖 direct-rule legacy 字段。
-
-当前仍在生效的 legacy 字段包括：
-
-| 旧字段 | 当前用途 |
-|---|---|
-| `OutgoingDamagePercentPerStack` | 通用状态伤害修正，每层百分比 |
-| `IncomingDamagePercentPerStack` | 目标受击伤害修正，每层百分比 |
-| `bOnlyAffectAttackCards` | 通用状态伤害修正是否只影响攻击牌 |
-| `IncomingTeamHealthDamageReductionPercentPerStack` | 队伍共享生命伤害减免 |
-| `bConsumeOnSuccessfulOwnerDamage` | 造成有效伤害后消耗 1 层 |
-| `bConsumeOnPreventedTeamHealthDamage` | 成功抵消共享生命伤害后消耗 1 层 |
-| `bProjectToOwnedHandCards` | 是否把这条状态投影到拥有者当前手牌 |
-| `ProjectedCardTypeFilter` | 投影到手牌时的卡牌类型过滤 |
-| `ProjectedOutgoingDamagePercentPerStack` | 投影到手牌卡 modifier 的每层伤害百分比 |
-
 当前首版运行时约束：
 
 - `士气` 当前已走结构化 `RuntimeModifiers` 的通用状态伤害修正路径。
-- `生命免疫` 当前已走结构化 `RuntimeModifiers` 的 team HP protection 路径。
-- `锋锐` 当前已通过 `ProjectedCardModifiers` 驱动 owned-hand `BattleCard` modifier。
+- `生命免疫` 当前已走结构化 `RuntimeModifiers` 的 team HP protection 路径，并通过 `ConsumptionRules(PreventedTeamHealthDamage)` 扣层。
+- `锋锐` 当前已通过 `ProjectedCardModifiers` 驱动 owned-hand `BattleCard` modifier，并通过 `ConsumptionRules(SuccessfulOwnerDamage)` 扣层。
 - `刀势 / 药引` 当前已归位为正式资源型状态：获得继续走 `ApplyStatus`，消费改走 `ConsumeStatusResource`，且默认不参与 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`。
 - `易伤 / 虚弱` 当前已走结构化 `RuntimeModifiers` 路径。
 - `中毒` 已进入正式 DOT schema，按 `ByOwnerAndSource` 叠层；`腐蚀 / 流血` 已退出当前首章有效规则口径。
 - `OnTickEffects` 旧入口已删除；后续持续/触发型状态统一收口到 `RuntimeTriggers`，不再保留第二套未消费 schema。
-- `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 当前仍只停留在 schema，不接运行时主逻辑。
-- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 中毒 DOT 专轮 -> 删除旧字段与旧读取路径`。
+- `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 已进入 battle runtime 主路径。
+- 旧状态字段和旧读取路径已删除，状态规则不再允许新旧字段双真相。
 
 资源型状态当前的正式消费条件口径：
 

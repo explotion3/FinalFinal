@@ -110,8 +110,8 @@ namespace FinalBattleStatusTests
 		const int32 OutgoingDamagePercentPerStack,
 		const int32 IncomingDamagePercentPerStack,
 		const int32 IncomingTeamHealthDamageReductionPercentPerStack,
-		const bool bConsumeOnSuccessfulOwnerDamage,
-		const bool bConsumeOnPreventedTeamHealthDamage,
+		const bool bConsumeOnSuccessfulDamage,
+		const bool bConsumeOnPreventedDamage,
 		const bool bOnlyAffectAttackCards,
 		const bool bExpireAtPlayerTurnEnd,
 		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::Shared,
@@ -131,19 +131,22 @@ namespace FinalBattleStatusTests
 		RuntimeModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
 		RuntimeModifier.IncomingDamagePercentPerStack = IncomingDamagePercentPerStack;
 		RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack = IncomingTeamHealthDamageReductionPercentPerStack;
-		RuntimeModifier.bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
-		RuntimeModifier.bConsumeOnPreventedTeamHealthDamage = bConsumeOnPreventedTeamHealthDamage;
 		RuntimeModifier.bOnlyAffectAttackCards = bOnlyAffectAttackCards;
 
-		StatusDefinition->OutgoingDamagePercentPerStack = 0;
-		StatusDefinition->bExpireAtPlayerTurnEnd = false;
-		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = false;
-		StatusDefinition->bOnlyAffectAttackCards = false;
-		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
-		StatusDefinition->bProjectToOwnedHandCards = false;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
+		if (bConsumeOnSuccessfulDamage)
+		{
+			FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StatusDefinition->ConsumptionRules.AddDefaulted_GetRef();
+			ConsumptionRule.Window = EFinalStatusConsumptionWindow::SuccessfulOwnerDamage;
+			ConsumptionRule.StacksToConsume = 1;
+			ConsumptionRule.bRequireAttackCardDamage = bOnlyAffectAttackCards;
+		}
+		if (bConsumeOnPreventedDamage)
+		{
+			FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StatusDefinition->ConsumptionRules.AddDefaulted_GetRef();
+			ConsumptionRule.Window = EFinalStatusConsumptionWindow::PreventedTeamHealthDamage;
+			ConsumptionRule.StacksToConsume = 1;
+			ConsumptionRule.bRequireAttackCardDamage = false;
+		}
 		return StatusDefinition;
 	}
 
@@ -168,16 +171,8 @@ namespace FinalBattleStatusTests
 		StatusDefinition->bAutoProjectToCards = false;
 		StatusDefinition->RuntimeModifiers.Reset();
 		StatusDefinition->ProjectedCardModifiers.Reset();
+		StatusDefinition->ConsumptionRules.Reset();
 		StatusDefinition->RuntimeTriggers.Reset();
-		StatusDefinition->OutgoingDamagePercentPerStack = 0;
-		StatusDefinition->bExpireAtPlayerTurnEnd = false;
-		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = false;
-		StatusDefinition->bOnlyAffectAttackCards = false;
-		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
-		StatusDefinition->bProjectToOwnedHandCards = false;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
 		return StatusDefinition;
 	}
 
@@ -185,7 +180,7 @@ namespace FinalBattleStatusTests
 		const FName StatusName,
 		const FString& DisplayName,
 		const int32 OutgoingDamagePercentPerStack,
-		const bool bConsumeOnSuccessfulOwnerDamage,
+		const bool bConsumeOnSuccessfulDamage,
 		const bool bExpireAtPlayerTurnEnd,
 		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::PlayerOnly,
 		const int32 MaxStacks = 9)
@@ -204,16 +199,17 @@ namespace FinalBattleStatusTests
 		ProjectedModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
 		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
 		ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
-
-		StatusDefinition->OutgoingDamagePercentPerStack = 0;
-		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
-		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
-		StatusDefinition->bOnlyAffectAttackCards = true;
-		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
-		StatusDefinition->bProjectToOwnedHandCards = false;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
+		StatusDefinition->DurationType = EFinalStatusDurationType::PlayerTurns;
+		StatusDefinition->ExpireWindow = bExpireAtPlayerTurnEnd ? EFinalStatusExpireWindow::PlayerTurnEnd : EFinalStatusExpireWindow::None;
+		StatusDefinition->RuntimeModifiers.Reset();
+		StatusDefinition->ConsumptionRules.Reset();
+		if (bConsumeOnSuccessfulDamage)
+		{
+			FFinalStatusConsumptionRuleDefinition& ConsumptionRule = StatusDefinition->ConsumptionRules.AddDefaulted_GetRef();
+			ConsumptionRule.Window = EFinalStatusConsumptionWindow::SuccessfulOwnerDamage;
+			ConsumptionRule.StacksToConsume = 1;
+			ConsumptionRule.bRequireAttackCardDamage = true;
+		}
 		return StatusDefinition;
 	}
 
@@ -240,16 +236,8 @@ namespace FinalBattleStatusTests
 		StatusDefinition->DamageOverTimeAttackPowerPercentPerStack = 20;
 		StatusDefinition->RuntimeModifiers.Reset();
 		StatusDefinition->ProjectedCardModifiers.Reset();
+		StatusDefinition->ConsumptionRules.Reset();
 		StatusDefinition->RuntimeTriggers.Reset();
-		StatusDefinition->OutgoingDamagePercentPerStack = 0;
-		StatusDefinition->bExpireAtPlayerTurnEnd = false;
-		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = false;
-		StatusDefinition->bOnlyAffectAttackCards = false;
-		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
-		StatusDefinition->bProjectToOwnedHandCards = false;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
 		return StatusDefinition;
 	}
 
