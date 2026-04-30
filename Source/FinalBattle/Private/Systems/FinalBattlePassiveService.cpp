@@ -7,6 +7,8 @@
 
 namespace
 {
+const FName PassiveRemovedExpiredReasonTag(TEXT("passive.removed.expired"));
+
 int32 ResolveInitialRemainingDuration(
 	const UFinalPassiveDefinition* PassiveDefinition,
 	const int32 DurationOverride)
@@ -26,7 +28,7 @@ int32 ResolveInitialRemainingDuration(
 
 }
 
-int32 FFinalBattlePassiveService::ApplyPassive(
+FFinalBattlePassiveApplyResult FFinalBattlePassiveService::ApplyPassive(
 	FFinalBattleState& BattleState,
 	const FName OwnerUnitId,
 	const FName SourceUnitId,
@@ -35,15 +37,15 @@ int32 FFinalBattlePassiveService::ApplyPassive(
 	const int32 StacksToAdd,
 	const int32 DurationOverride) const
 {
+	FFinalBattlePassiveApplyResult Result;
 	if (OwnerUnitId.IsNone() || !PassiveId.IsValid() || PassiveDefinition == nullptr || StacksToAdd <= 0)
 	{
-		return 0;
+		return Result;
 	}
 
 	FFinalBattlePassiveInstance* ExistingInstance = FindPassiveInstance(BattleState, OwnerUnitId, PassiveId);
 	if (PassiveDefinition->StackPolicy == EFinalPassiveStackPolicy::RefreshExisting && ExistingInstance != nullptr)
 	{
-		const int32 PreviousStacks = ExistingInstance->CurrentStacks;
 		ExistingInstance->CurrentStacks = PassiveDefinition->MaxStacks > 0
 			? FMath::Min(ExistingInstance->CurrentStacks + StacksToAdd, PassiveDefinition->MaxStacks)
 			: ExistingInstance->CurrentStacks + StacksToAdd;
@@ -54,7 +56,16 @@ int32 FFinalBattlePassiveService::ApplyPassive(
 		ExistingInstance->RemainingDuration = FMath::Max(
 			ExistingInstance->RemainingDuration,
 			ResolveInitialRemainingDuration(PassiveDefinition, DurationOverride));
-		return FMath::Max(ExistingInstance->CurrentStacks - PreviousStacks, 0);
+		Result.bApplied = true;
+		Result.bCreatedNewInstance = false;
+		Result.PassiveInstanceId = ExistingInstance->PassiveInstanceId;
+		Result.PassiveId = ExistingInstance->PassiveId;
+		Result.DisplayName = ExistingInstance->DisplayName.IsEmpty() ? FText::FromName(PassiveId.Value) : ExistingInstance->DisplayName;
+		Result.OwnerUnitId = ExistingInstance->OwnerUnitId;
+		Result.SourceUnitId = ExistingInstance->SourceUnitId;
+		Result.CurrentStacks = ExistingInstance->CurrentStacks;
+		Result.RemainingDuration = ExistingInstance->RemainingDuration;
+		return Result;
 	}
 
 	FFinalBattlePassiveInstance& PassiveInstance = BattleState.PassiveInstances.AddDefaulted_GetRef();
@@ -83,7 +94,16 @@ int32 FFinalBattlePassiveService::ApplyPassive(
 		TriggerState.TriggerDefinition = TriggerDefinition;
 	}
 
-	return PassiveInstance.CurrentStacks;
+	Result.bApplied = true;
+	Result.bCreatedNewInstance = true;
+	Result.PassiveInstanceId = PassiveInstance.PassiveInstanceId;
+	Result.PassiveId = PassiveInstance.PassiveId;
+	Result.DisplayName = PassiveInstance.DisplayName.IsEmpty() ? FText::FromName(PassiveId.Value) : PassiveInstance.DisplayName;
+	Result.OwnerUnitId = PassiveInstance.OwnerUnitId;
+	Result.SourceUnitId = PassiveInstance.SourceUnitId;
+	Result.CurrentStacks = PassiveInstance.CurrentStacks;
+	Result.RemainingDuration = PassiveInstance.RemainingDuration;
+	return Result;
 }
 
 void FFinalBattlePassiveService::ResetPlayerTurnTriggerCounts(FFinalBattleState& BattleState) const
@@ -100,20 +120,35 @@ void FFinalBattlePassiveService::ResetPlayerTurnTriggerCounts(FFinalBattleState&
 	}
 }
 
-void FFinalBattlePassiveService::ResolvePlayerTurnEndPassives(FFinalBattleState& BattleState) const
+TArray<FFinalBattlePassiveRemovalResult> FFinalBattlePassiveService::ResolvePlayerTurnEndPassives(FFinalBattleState& BattleState) const
 {
+	TArray<FFinalBattlePassiveRemovalResult> RemovalResults;
 	for (int32 PassiveIndex = BattleState.PassiveInstances.Num() - 1; PassiveIndex >= 0; --PassiveIndex)
 	{
 		FFinalBattlePassiveInstance& PassiveInstance = BattleState.PassiveInstances[PassiveIndex];
 		if (PassiveInstance.DurationType == EFinalPassiveDurationType::PlayerTurns)
 		{
+			const int32 RemainingDurationBeforeTick = PassiveInstance.RemainingDuration;
 			PassiveInstance.RemainingDuration = FMath::Max(PassiveInstance.RemainingDuration - 1, 0);
 			if (PassiveInstance.RemainingDuration <= 0)
 			{
+				FFinalBattlePassiveRemovalResult& RemovalResult = RemovalResults.AddDefaulted_GetRef();
+				RemovalResult.PassiveInstanceId = PassiveInstance.PassiveInstanceId;
+				RemovalResult.PassiveId = PassiveInstance.PassiveId;
+				RemovalResult.DisplayName = PassiveInstance.DisplayName.IsEmpty()
+					? FText::FromName(PassiveInstance.PassiveId.Value)
+					: PassiveInstance.DisplayName;
+				RemovalResult.OwnerUnitId = PassiveInstance.OwnerUnitId;
+				RemovalResult.SourceUnitId = PassiveInstance.SourceUnitId;
+				RemovalResult.CurrentStacksBeforeRemoval = PassiveInstance.CurrentStacks;
+				RemovalResult.RemainingDurationBeforeRemoval = RemainingDurationBeforeTick;
+				RemovalResult.RemovalReasonTag = PassiveRemovedExpiredReasonTag;
 				BattleState.PassiveInstances.RemoveAt(PassiveIndex);
 			}
 		}
 	}
+
+	return RemovalResults;
 }
 
 void FFinalBattlePassiveService::BuildPassiveSnapshotData(

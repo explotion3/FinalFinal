@@ -256,7 +256,7 @@ FText ResolveRejectReasonLabel(const FFinalBattleEvent& Event)
 	return FText::GetEmpty();
 }
 
-FText ResolveFeedbackTitleText(
+FText ResolveFeedbackTitleTextInternal(
 	const FFinalBattleEvent& Event,
 	const FText& FallbackMessage,
 	const TArray<FFinalBattleStartRelicInput>& ActiveRelics)
@@ -291,6 +291,12 @@ FText ResolveFeedbackTitleText(
 			? FText::Format(NSLOCTEXT("FinalBattleHUD", "FeedbackRelicTriggeredWithName", "遗物触发 · {0}"), RelicName)
 			: NSLOCTEXT("FinalBattleHUD", "FeedbackRelicTriggered", "遗物触发");
 	}
+	case EFinalBattleEventType::PassiveApplied:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackPassiveApplied", "被动获得");
+	case EFinalBattleEventType::PassiveTriggered:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackPassiveTriggered", "被动触发");
+	case EFinalBattleEventType::PassiveRemoved:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackPassiveRemoved", "被动失效");
 	case EFinalBattleEventType::CommandAccepted:
 		return NSLOCTEXT("FinalBattleHUD", "FeedbackCommandAccepted", "命令已接受");
 	case EFinalBattleEventType::TargetChanged:
@@ -313,6 +319,14 @@ FText ResolveFeedbackTitleText(
 
 	return FallbackMessage.IsEmpty() ? FText::GetEmpty() : NSLOCTEXT("FinalBattleHUD", "FeedbackGenericTitle", "交互反馈");
 }
+}
+
+FText ResolveBattleHUDEventFeedbackTitleText(
+	const FFinalBattleEvent& Event,
+	const FText& FallbackMessage,
+	const TArray<FFinalBattleStartRelicInput>& ActiveRelics)
+{
+	return ResolveFeedbackTitleTextInternal(Event, FallbackMessage, ActiveRelics);
 }
 
 void UFinalBattleHUDPanelControllerBase::InitializePanelController(UFinalBattleWidgetController* InCoordinator)
@@ -418,7 +432,7 @@ void UFinalBattleFeedbackPanelController::RefreshFromCoordinatorData(const FFina
 			FinalBattleEventPresentation::BuildPresentation(CoordinatorData.LastInteractionEvent, *CoordinatorData.Snapshot, CoordinatorData.DataRegistry);
 		Data.FeedbackTitleText = !EventPresentation.TitleText.IsEmpty()
 			? EventPresentation.TitleText
-			: ResolveFeedbackTitleText(CoordinatorData.LastInteractionEvent, EffectiveFeedbackText, CoordinatorData.Snapshot->ActiveRelics);
+			: ResolveBattleHUDEventFeedbackTitleText(CoordinatorData.LastInteractionEvent, EffectiveFeedbackText, CoordinatorData.Snapshot->ActiveRelics);
 		Data.FeedbackText = FinalBattleEventPresentation::BuildCombinedBodyText(EventPresentation);
 		if (Data.FeedbackText.IsEmpty())
 		{

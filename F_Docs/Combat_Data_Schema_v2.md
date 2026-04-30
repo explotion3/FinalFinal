@@ -885,6 +885,47 @@ EvolutionStage: Evolved
 - `DrawnCardInstanceIds` 是 `RuntimeTriggers -> TriggeredCardModifiers` 的稳定目标协议之一。
 - 对 `CurrentOwnedHandCards` 这类目标来源，`FinalBattle` 不依赖 effect summary，而是直接按 trigger source owner 扫描当前手牌实例。
 
+### 7.10 BattleEvent
+
+用途：描述战斗内发生的结构化事件，并作为 HUD、战斗日志与调试界面的统一消费入口。
+
+当前与被动可见性直接相关的事件类型已补齐：
+
+```text
+PassiveApplied
+PassiveTriggered
+PassiveRemoved
+```
+
+`BattleEvent` 中与被动相关的最小字段语义固定为：
+
+| 字段 | 说明 |
+|---|---|
+| `PassiveInstanceId` | 被动实例 ID |
+| `PassiveId` | 被动模板 ID |
+| `SourceUnitId` | 被动来源单位 |
+| `TargetUnitId` | 被动拥有者 |
+| `RelatedTag` | 触发窗口标签，仅 `PassiveTriggered` 使用 |
+| `ReasonTag` | 应用/移除原因标签 |
+| `PrimaryValue` | 当前层数 |
+| `SecondaryValue` | 当前剩余持续值 |
+| `Message` | 直接可展示的事件文本，必须带被动显示名 |
+
+当前首版原因标签口径：
+
+```text
+passive.applied.initial_grant
+passive.applied.effect
+passive.removed.expired
+```
+
+说明：
+
+- `PassiveApplied` 会在 battle 初始化应用 `InitialPassiveGrants` 时发出，也会在 `ApplyPassive` effect 成功挂上或刷新被动时发出。
+- `PassiveTriggered` 会在被动的某条 `RuntimeTriggerDefinition` 条件满足且成功执行后发出，无论后续效果是 `Effects` 还是 `TriggeredCardModifiers`。
+- `PassiveRemoved` 当前统一承载“失效 / 移除”事件；本首版先通过 `ReasonTag` 区分原因，不再拆单独的 `Expired` 事件类型。
+- battle snapshot / debug query 继续保留被动实例视图；事件流只负责“发生了什么”，不创建第二套被动真相。
+
 ## 8. 关键数据流
 
 ### 8.1 战斗初始化

@@ -147,3 +147,25 @@
   - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后，为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`，持续到打出或玩家回合结束
 - battle snapshot / debug 查询当前已补最小 passive 视图，便于验证 innate passive 与能力牌赋予被动是否生效。
 - `RuntimeTriggers -> TriggeredCardModifiers` 当前已新增 `CurrentOwnedHandCards` 目标来源，第一条正式 passive-driven card projection 已由 `压势追刀` 落地。
+
+## 2026-04-30 Step 18：补齐“被动获得 / 触发 / 失效”的正式事件可见性
+
+- `FinalBattleEvent` 当前已正式补齐三类被动事件：
+  - `PassiveApplied`
+  - `PassiveTriggered`
+  - `PassiveRemoved`
+- `BattleEvent` 当前已直接携带 `PassiveInstanceId / PassiveId / RelatedTag / ReasonTag`，并要求 `Message` 直接包含被动显示名，避免 HUD 或日志再做反查。
+- `FinalBattlePassiveService` 当前仍只负责被动实例生命周期，但其 `ApplyPassive()` 与 `ResolvePlayerTurnEndPassives()` 现在会返回结构化 apply / removal 结果，供调用方统一发射 battle event。
+- battle 初始化应用 `InitialPassiveGrants` 时，当前会发出 `PassiveApplied(initial_grant)`。
+- `ApplyPassive` effect 成功创建或刷新被动时，当前会发出 `PassiveApplied(effect)`。
+- passive 的 `RuntimeTriggers` 成功执行时，当前会发出 `PassiveTriggered`，并通过 `RelatedTag` 记录触发窗口，例如：
+  - `battle.trigger.owner_took_health_damage`
+  - `battle.trigger.player_card_resolved`
+- `PlayerTurns` 类型 passive 在玩家回合结束自然到期时，当前会发出 `PassiveRemoved(expired)`。
+- `FinalApp` 的 battle HUD 当前已直接消费这三类事件，并映射为：
+  - `被动获得`
+  - `被动触发`
+  - `被动失效`
+- 当前仍不新增正式被动 HUD 栏位；被动的可见性继续依赖：
+  - battle event / battle log
+  - battle snapshot / debug passive 列表

@@ -697,6 +697,24 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - 暴击倍率读取角色当前 `RuntimeCritDamage`，并作为总倍率乘到该 hit 的基础伤害上。
 - 暴击属于 `FinalBattle` 内的权威伤害规则，不是仅用于 HUD 展示的附加字段。
 
+### 10.4 被动事件可见性
+
+当前 battle event 流已把被动视为正式可观测对象。
+
+首版固定事件类型：
+
+- `PassiveApplied`
+- `PassiveTriggered`
+- `PassiveRemoved`
+
+事件语义固定为：
+
+- `PassiveApplied`：被动实例已经存在后才发；既包括 battle 初始化时的 `InitialPassiveGrants`，也包括 `ApplyPassive` effect 成功挂上或刷新被动。
+- `PassiveTriggered`：被动某条 `RuntimeTriggerDefinition` 条件满足且成功执行后才发；无论这次 trigger 后续走的是普通 `Effects` 还是 `TriggeredCardModifiers`。
+- `PassiveRemoved`：被动实例真正移除后才发；首版统一用一个事件类型，具体原因通过 `ReasonTag` 区分，例如 `passive.removed.expired`。
+
+HUD 与调试展示当前都直接消费 battle event，不另起第二套被动事件缓存。
+
 ---
 
 ## 11. 待补项

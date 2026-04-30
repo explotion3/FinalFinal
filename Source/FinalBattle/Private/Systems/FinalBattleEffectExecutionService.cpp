@@ -34,6 +34,7 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const FName PassiveAppliedEffectReasonTag(TEXT("passive.applied.effect"));
 
 const FFinalBattleCardService& GetCardService();
 const FFinalBattleConditionService& GetConditionService();
@@ -106,6 +107,25 @@ const FFinalBattlePassiveService& GetPassiveService()
 {
 	static const FFinalBattlePassiveService PassiveService;
 	return PassiveService;
+}
+
+FFinalBattleEvent BuildPassiveAppliedEvent(
+	const FFinalBattlePassiveApplyResult& ApplyResult,
+	const FName ReasonTag)
+{
+	FFinalBattleEvent Event;
+	Event.EventType = EFinalBattleEventType::PassiveApplied;
+	Event.PassiveInstanceId = ApplyResult.PassiveInstanceId;
+	Event.PassiveId = ApplyResult.PassiveId;
+	Event.SourceUnitId = ApplyResult.SourceUnitId;
+	Event.TargetUnitId = ApplyResult.OwnerUnitId;
+	Event.ReasonTag = ReasonTag;
+	Event.PrimaryValue = ApplyResult.CurrentStacks;
+	Event.SecondaryValue = ApplyResult.RemainingDuration;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FinalBattleEffectExecutionService", "PassiveAppliedMessage", "获得被动：{0}。"),
+		ApplyResult.DisplayName);
+	return Event;
 }
 
 void RefreshEnemyIntentState(FFinalBattleState& State, FFinalBattleEnemyState& EnemyState, const int32 PreviewRound, const bool bEmitPhaseChangeEvent)
@@ -561,7 +581,12 @@ int32 ApplyTeamIncomingDamageAndTriggersInternal(
 			GetEventService().AppendBattleEvent(State, RelicEvent);
 		}
 
-		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, GetConditionService(), EffectExecutionService, Summary);
+		TArray<FFinalBattleEvent> PassiveEvents;
+		TriggerService.HandleOwnerTookHealthDamage(State, UnitService, GetConditionService(), EffectExecutionService, Summary, PassiveEvents);
+		for (const FFinalBattleEvent& PassiveEvent : PassiveEvents)
+		{
+			GetEventService().AppendBattleEvent(State, PassiveEvent);
+		}
 	}
 	return HpDamage;
 }
@@ -875,10 +900,10 @@ bool ExecuteApplyPassiveEffect(
 		SourceCharacterState,
 		SourceEnemyState,
 		UnitService);
-	int32 AppliedStacks = 0;
+	int32 AppliedCount = 0;
 	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
 	{
-		AppliedStacks += GetPassiveService().ApplyPassive(
+		const FFinalBattlePassiveApplyResult ApplyResult = GetPassiveService().ApplyPassive(
 			State,
 			TargetOwnerUnitId,
 			SourceOwnerUnitId,
@@ -886,9 +911,16 @@ bool ExecuteApplyPassiveEffect(
 			ApplyPassiveEffect->PassiveDefinition,
 			ApplyPassiveEffect->Stacks,
 			ApplyPassiveEffect->DurationOverride);
+		if (!ApplyResult.bApplied)
+		{
+			continue;
+		}
+
+		++AppliedCount;
+		GetEventService().AppendBattleEvent(State, BuildPassiveAppliedEvent(ApplyResult, PassiveAppliedEffectReasonTag));
 	}
 
-	if (AppliedStacks <= 0)
+	if (AppliedCount <= 0)
 	{
 		return false;
 	}

@@ -40,7 +40,8 @@ public:
 		const FFinalBattleUnitService& UnitService,
 		const FFinalBattleConditionService& ConditionService,
 		const FFinalBattleEffectExecutionService& EffectExecutionService,
-		FFinalBattleEffectExecutionSummary& InOutSummary) const;
+		FFinalBattleEffectExecutionSummary& InOutSummary,
+		TArray<FFinalBattleEvent>& OutGeneratedEvents) const;
 
 	void HandlePlayerTeamTookHealthDamage(
 		FFinalBattleState& BattleState,

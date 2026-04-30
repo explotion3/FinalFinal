@@ -185,6 +185,12 @@
 - `ApplyPassive` 当前已接入 `FinalBattleEffectExecutionService`，能力牌可以把被动挂到目标单位
 - 角色自带被动当前通过 `CharacterDefinition.InitialPassiveGrants` 在 battle 初始化时创建 `PassiveInstance`
 - `FinalBattleTriggerService` 是被动与遗物共享的唯一 trigger 执行器；`FinalBattlePassiveService` 只负责被动实例生命周期与查询投影
+- 当前被动正式事件面已补齐：
+  - `PassiveApplied`
+  - `PassiveTriggered`
+  - `PassiveRemoved`
+- `FinalBattlePassiveService` 当前不直接写 battle event；它返回结构化 apply / remove 结果，再由 battle 初始化、effect execution、turn service 与 trigger service 在正确窗口发射事件
+- `FinalApp` 的 battle HUD 当前已直接消费这三类 passive event，并映射为 `被动获得 / 被动触发 / 被动失效`
 
 优先级：`P1`
 
@@ -207,6 +213,12 @@
 - 为 UI、表现层、调试工具提供统一事件流
 - 提供 `BattleSnapshot / BattleEvent / EventsSince`
 - 为后续回放、战斗日志、QA 检查保留基础
+- 当前 `BattleEvent` 已正式承载被动事件字段：
+  - `PassiveInstanceId`
+  - `PassiveId`
+  - `ReasonTag`
+  - `RelatedTag`
+- HUD 与调试工具当前不需要自己反查 passive 名称；`Event.Message` 必须直接带被动显示名
 
 优先级：`P1`
 
@@ -646,6 +658,11 @@
   - innate passive：通过 `CharacterDefinition.InitialPassiveGrants` 在战斗初始化时创建 `PassiveInstance`
   - 能力牌赋予 passive：通过 `ApplyPassive` effect 在战斗中创建 `PassiveInstance`
 - `FinalBattleTriggerService` 当前统一执行 relic / passive 的 `RuntimeTriggers`；`FinalBattlePassiveService` 只负责 passive instance 生命周期，不直接执行 battle window trigger。
+- 当前 passive 生命周期事件也已正式接入 battle event 流：
+  - `InitialPassiveGrants` 创建实例时发 `PassiveApplied(initial_grant)`
+  - `ApplyPassive` effect 成功时发 `PassiveApplied(effect)`
+  - passive runtime trigger 成功执行时发 `PassiveTriggered`
+  - `PlayerTurns` 类型 passive 到期时发 `PassiveRemoved(expired)`
 - `RuntimeTriggers -> TriggeredCardModifiers` 当前已支持：
   - `DrawnCardsFromExecutedEffects`
   - `CurrentOwnedHandCards`

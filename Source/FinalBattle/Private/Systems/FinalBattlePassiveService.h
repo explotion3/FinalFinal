@@ -9,10 +9,35 @@ struct FFinalBattlePassiveInstance;
 struct FFinalBattlePassiveViewData;
 struct FFinalBattleState;
 
+struct FFinalBattlePassiveApplyResult
+{
+	bool bApplied = false;
+	bool bCreatedNewInstance = false;
+	FGuid PassiveInstanceId;
+	FFinalPassiveId PassiveId;
+	FText DisplayName;
+	FName OwnerUnitId = NAME_None;
+	FName SourceUnitId = NAME_None;
+	int32 CurrentStacks = 0;
+	int32 RemainingDuration = 0;
+};
+
+struct FFinalBattlePassiveRemovalResult
+{
+	FGuid PassiveInstanceId;
+	FFinalPassiveId PassiveId;
+	FText DisplayName;
+	FName OwnerUnitId = NAME_None;
+	FName SourceUnitId = NAME_None;
+	int32 CurrentStacksBeforeRemoval = 0;
+	int32 RemainingDurationBeforeRemoval = 0;
+	FName RemovalReasonTag = NAME_None;
+};
+
 class FFinalBattlePassiveService
 {
 public:
-	int32 ApplyPassive(
+	FFinalBattlePassiveApplyResult ApplyPassive(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,
 		FName SourceUnitId,
@@ -22,7 +47,7 @@ public:
 		int32 DurationOverride = 0) const;
 
 	void ResetPlayerTurnTriggerCounts(FFinalBattleState& BattleState) const;
-	void ResolvePlayerTurnEndPassives(FFinalBattleState& BattleState) const;
+	TArray<FFinalBattlePassiveRemovalResult> ResolvePlayerTurnEndPassives(FFinalBattleState& BattleState) const;
 	void BuildPassiveSnapshotData(const FFinalBattleState& BattleState, TArray<FFinalBattlePassiveViewData>& OutPassives) const;
 
 	const FFinalBattlePassiveInstance* FindPassiveInstance(const FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalPassiveId& PassiveId) const;

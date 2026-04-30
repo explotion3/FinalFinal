@@ -30,6 +30,11 @@ struct FFinalBattleHUDCoordinatorData
 	FFinalBattleEvent LastInteractionEvent;
 };
 
+FINALAPP_API FText ResolveBattleHUDEventFeedbackTitleText(
+	const FFinalBattleEvent& Event,
+	const FText& FallbackMessage,
+	const TArray<FFinalBattleStartRelicInput>& ActiveRelics);
+
 UCLASS(Abstract, BlueprintType)
 class FINALAPP_API UFinalBattleHUDPanelControllerBase : public UFinalWidgetControllerBase
 {

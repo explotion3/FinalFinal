@@ -18,6 +18,8 @@
 namespace
 {
 const FName TeamPlayerUnitId(TEXT("team_player"));
+const FName PassiveRemovedExpiredReasonTag(TEXT("passive.removed.expired"));
+
 const FFinalBattlePassiveService& GetPassiveService()
 {
 	static const FFinalBattlePassiveService PassiveService;
@@ -28,6 +30,23 @@ const FFinalEnemyIntentService& GetEnemyIntentService()
 {
 	static const FFinalEnemyIntentService IntentService;
 	return IntentService;
+}
+
+FFinalBattleEvent BuildPassiveRemovedEvent(const FFinalBattlePassiveRemovalResult& RemovalResult)
+{
+	FFinalBattleEvent Event;
+	Event.EventType = EFinalBattleEventType::PassiveRemoved;
+	Event.PassiveInstanceId = RemovalResult.PassiveInstanceId;
+	Event.PassiveId = RemovalResult.PassiveId;
+	Event.SourceUnitId = RemovalResult.SourceUnitId;
+	Event.TargetUnitId = RemovalResult.OwnerUnitId;
+	Event.ReasonTag = RemovalResult.RemovalReasonTag.IsNone() ? PassiveRemovedExpiredReasonTag : RemovalResult.RemovalReasonTag;
+	Event.PrimaryValue = RemovalResult.CurrentStacksBeforeRemoval;
+	Event.SecondaryValue = RemovalResult.RemainingDurationBeforeRemoval;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FinalBattleTurnService", "PassiveRemovedMessage", "被动失效：{0}。"),
+		RemovalResult.DisplayName);
+	return Event;
 }
 }
 
@@ -47,7 +66,11 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	FFinalBattleEndTurnResult Result;
 	CardService.ResolveEndTurnHandCleanup(BattleState);
 	StatusService.ResolvePlayerTurnEndStatuses(BattleState);
-	GetPassiveService().ResolvePlayerTurnEndPassives(BattleState);
+	const TArray<FFinalBattlePassiveRemovalResult> PassiveRemovalResults = GetPassiveService().ResolvePlayerTurnEndPassives(BattleState);
+	for (const FFinalBattlePassiveRemovalResult& RemovalResult : PassiveRemovalResults)
+	{
+		Result.GeneratedEvents.Add(BuildPassiveRemovedEvent(RemovalResult));
+	}
 	for (const FFinalBattleCharacterState& CharacterState : BattleState.Characters)
 	{
 		StatusService.ResyncProjectedHandCardModifiers(BattleState, CardService, CharacterState.RuntimeUnitId);

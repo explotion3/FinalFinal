@@ -94,6 +94,25 @@ FFinalBattleEvent BuildTriggeredEvent(
 	return RelicEvent;
 }
 
+FFinalBattleEvent BuildPassiveTriggeredEvent(
+	const FFinalBattlePassiveInstance& PassiveInstance,
+	const FName RelatedTag)
+{
+	FFinalBattleEvent PassiveEvent;
+	PassiveEvent.EventType = EFinalBattleEventType::PassiveTriggered;
+	PassiveEvent.PassiveInstanceId = PassiveInstance.PassiveInstanceId;
+	PassiveEvent.PassiveId = PassiveInstance.PassiveId;
+	PassiveEvent.SourceUnitId = PassiveInstance.SourceUnitId;
+	PassiveEvent.TargetUnitId = PassiveInstance.OwnerUnitId;
+	PassiveEvent.RelatedTag = RelatedTag;
+	PassiveEvent.PrimaryValue = PassiveInstance.CurrentStacks;
+	PassiveEvent.SecondaryValue = PassiveInstance.RemainingDuration;
+	PassiveEvent.Message = FText::Format(
+		NSLOCTEXT("FinalBattleTriggerService", "PassiveTriggeredMessage", "被动触发：{0}。"),
+		PassiveInstance.DisplayName.IsEmpty() ? FText::FromName(PassiveInstance.PassiveId.Value) : PassiveInstance.DisplayName);
+	return PassiveEvent;
+}
+
 bool IsValidBattleRuntimeTrigger(const FFinalRuntimeTriggerDefinition& TriggerDefinition)
 {
 	return TriggerDefinition.Domain == EFinalRuntimeTriggerDomain::Battle
@@ -448,7 +467,8 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 	const FFinalBattleUnitService& UnitService,
 	const FFinalBattleConditionService& ConditionService,
 	const FFinalBattleEffectExecutionService& EffectExecutionService,
-	FFinalBattleEffectExecutionSummary& InOutSummary) const
+	FFinalBattleEffectExecutionSummary& InOutSummary,
+	TArray<FFinalBattleEvent>& OutGeneratedEvents) const
 {
 	for (FFinalBattlePassiveInstance& PassiveInstance : BattleState.PassiveInstances)
 	{
@@ -489,6 +509,7 @@ void FFinalBattleTriggerService::HandleOwnerTookHealthDamage(
 
 			MarkTriggered(TriggerState);
 			AccumulateExecutionSummary(InOutSummary, TriggerSummary);
+			OutGeneratedEvents.Add(BuildPassiveTriggeredEvent(PassiveInstance, ResolveTriggerWindowTag(TriggerDefinition.Window)));
 		}
 	}
 }
@@ -661,6 +682,7 @@ void FFinalBattleTriggerService::HandlePlayerCardResolved(
 			};
 			ApplyTriggeredCardModifiers(BattleState, SourceContext, TriggerDefinition, TriggerSummary, SourceCharacterState);
 			MarkTriggered(TriggerState);
+			OutGeneratedEvents.Add(BuildPassiveTriggeredEvent(PassiveInstance, ResolveTriggerWindowTag(TriggerDefinition.Window)));
 		}
 	}
 }

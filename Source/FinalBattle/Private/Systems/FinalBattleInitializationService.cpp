@@ -27,6 +27,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogFinalBattleInitializationService, Log, All);
 
 namespace
 {
+const FName PassiveAppliedInitialGrantReasonTag(TEXT("passive.applied.initial_grant"));
+
 FName MakePlayerUnitId(const int32 Index)
 {
 	return FName(*FString::Printf(TEXT("unit_player_%d"), Index + 1));
@@ -95,6 +97,25 @@ const FFinalBattlePassiveService& GetPassiveService()
 {
 	static const FFinalBattlePassiveService PassiveService;
 	return PassiveService;
+}
+
+FFinalBattleEvent BuildPassiveAppliedEvent(
+	const FFinalBattlePassiveApplyResult& ApplyResult,
+	const FName ReasonTag)
+{
+	FFinalBattleEvent Event;
+	Event.EventType = EFinalBattleEventType::PassiveApplied;
+	Event.PassiveInstanceId = ApplyResult.PassiveInstanceId;
+	Event.PassiveId = ApplyResult.PassiveId;
+	Event.SourceUnitId = ApplyResult.SourceUnitId;
+	Event.TargetUnitId = ApplyResult.OwnerUnitId;
+	Event.ReasonTag = ReasonTag;
+	Event.PrimaryValue = ApplyResult.CurrentStacks;
+	Event.SecondaryValue = ApplyResult.RemainingDuration;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FinalBattleInitializationService", "PassiveAppliedMessage", "获得被动：{0}。"),
+		ApplyResult.DisplayName);
+	return Event;
 }
 }
 
@@ -183,7 +204,7 @@ void FFinalBattleInitializationService::InitializeBattle(
 				continue;
 			}
 
-			GetPassiveService().ApplyPassive(
+			const FFinalBattlePassiveApplyResult ApplyResult = GetPassiveService().ApplyPassive(
 				State,
 				State.Characters.Last().RuntimeUnitId,
 				State.Characters.Last().RuntimeUnitId,
@@ -191,6 +212,10 @@ void FFinalBattleInitializationService::InitializeBattle(
 				InitialPassiveGrant.PassiveDefinition,
 				InitialPassiveGrant.InitialStacks,
 				InitialPassiveGrant.DurationOverride);
+			if (ApplyResult.bApplied)
+			{
+				EventService.AppendBattleEvent(State, BuildPassiveAppliedEvent(ApplyResult, PassiveAppliedInitialGrantReasonTag));
+			}
 		}
 	}
 

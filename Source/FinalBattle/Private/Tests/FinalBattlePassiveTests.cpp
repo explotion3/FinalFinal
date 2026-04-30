@@ -165,6 +165,19 @@ namespace FinalBattlePassiveTests
 		return PassiveDefinition;
 	}
 
+	TStrongObjectPtr<UFinalPassiveDefinition> MakePlayerTurnDurationPassive()
+	{
+		TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition(NewObject<UFinalPassiveDefinition>(GetTransientPackage()));
+		PassiveDefinition->PassiveId = FFinalPassiveId(FName(TEXT("passive.test.player_turn_duration")));
+		PassiveDefinition->DisplayId = TEXT("Passive.Test.PlayerTurnDuration");
+		PassiveDefinition->DisplayName = FText::FromString(TEXT("瞬息蓄势"));
+		PassiveDefinition->SummaryText = FText::FromString(TEXT("持续到玩家回合结束。"));
+		PassiveDefinition->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
+		PassiveDefinition->DurationType = EFinalPassiveDurationType::PlayerTurns;
+		PassiveDefinition->MaxStacks = 1;
+		return PassiveDefinition;
+	}
+
 	TStrongObjectPtr<UFinalCardDefinition> MakeApplyPassiveCard(
 		const FFinalCardId& CardId,
 		const FFinalCharacterId& CharacterId,
@@ -317,6 +330,38 @@ namespace FinalBattlePassiveTests
 			return CardView.CardId == CardId;
 		});
 	}
+
+	const FFinalBattleEvent* FindFirstBattleEventByType(
+		const TArray<FFinalBattleEvent>& Events,
+		const EFinalBattleEventType EventType)
+	{
+		return Events.FindByPredicate([EventType](const FFinalBattleEvent& Event)
+		{
+			return Event.EventType == EventType;
+		});
+	}
+
+	const FFinalBattleEvent* FindFirstBattleEventByTypeAndReason(
+		const TArray<FFinalBattleEvent>& Events,
+		const EFinalBattleEventType EventType,
+		const FName ReasonTag)
+	{
+		return Events.FindByPredicate([EventType, ReasonTag](const FFinalBattleEvent& Event)
+		{
+			return Event.EventType == EventType && Event.ReasonTag == ReasonTag;
+		});
+	}
+
+	const FFinalBattleEvent* FindFirstBattleEventByTypeAndRelatedTag(
+		const TArray<FFinalBattleEvent>& Events,
+		const EFinalBattleEventType EventType,
+		const FName RelatedTag)
+	{
+		return Events.FindByPredicate([EventType, RelatedTag](const FFinalBattleEvent& Event)
+		{
+			return Event.EventType == EventType && Event.RelatedTag == RelatedTag;
+		});
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -364,6 +409,17 @@ bool FFinalBattlePassiveApplyCreatesRuntimeInstanceTest::RunTest(const FString& 
 	const FFinalBattlePassiveViewData& PassiveView = SnapshotAfterPlay.Passives[0];
 	TestEqual(TEXT("PassiveId should match the applied passive definition."), PassiveView.PassiveId, PassiveDefinition->PassiveId);
 	TestEqual(TEXT("Passive owner should be the acting character."), PassiveView.OwnerUnitId, InitialSnapshot.Characters[0].RuntimeUnitId);
+	const TArray<FFinalBattleEvent> BattleLogEntries = Session->GetBattleLogEntries();
+	const FFinalBattleEvent* PassiveAppliedEvent = FindFirstBattleEventByTypeAndReason(
+		BattleLogEntries,
+		EFinalBattleEventType::PassiveApplied,
+		FName(TEXT("passive.applied.effect")));
+	if (!TestNotNull(TEXT("ApplyPassive effect should emit PassiveApplied(effect)."), PassiveAppliedEvent))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("ApplyPassive event should carry the applied passive id."), PassiveAppliedEvent->PassiveId, PassiveDefinition->PassiveId);
 	return true;
 }
 
@@ -417,6 +473,17 @@ bool FFinalBattlePassiveTookDamageAppliesDaoShiTest::RunTest(const FString& Para
 	}
 
 	TestEqual(TEXT("Passive-granted DaoShi should add one stack."), DaoShiView->CurrentStacks, 1);
+	const TArray<FFinalBattleEvent> BattleLogEntries = Session->GetBattleLogEntries();
+	const FFinalBattleEvent* PassiveTriggeredEvent = FindFirstBattleEventByTypeAndRelatedTag(
+		BattleLogEntries,
+		EFinalBattleEventType::PassiveTriggered,
+		FName(TEXT("battle.trigger.owner_took_health_damage")));
+	if (!TestNotNull(TEXT("Owner-took-damage passive should emit PassiveTriggered."), PassiveTriggeredEvent))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Triggered passive event should carry the correct passive id."), PassiveTriggeredEvent->PassiveId, PassiveDefinition->PassiveId);
 	return true;
 }
 
@@ -455,6 +522,17 @@ bool FFinalBattlePassiveInitialGrantCreatesRuntimeInstanceTest::RunTest(const FS
 	}
 
 	TestEqual(TEXT("Innate passive id should match granted passive."), Snapshot.Passives[0].PassiveId, PassiveDefinition->PassiveId);
+	const TArray<FFinalBattleEvent> BattleLogEntries = Session->GetBattleLogEntries();
+	const FFinalBattleEvent* PassiveAppliedEvent = FindFirstBattleEventByTypeAndReason(
+		BattleLogEntries,
+		EFinalBattleEventType::PassiveApplied,
+		FName(TEXT("passive.applied.initial_grant")));
+	if (!TestNotNull(TEXT("Initial passive grants should emit PassiveApplied(initial_grant)."), PassiveAppliedEvent))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Initial passive grant event should carry the granted passive id."), PassiveAppliedEvent->PassiveId, PassiveDefinition->PassiveId);
 	return true;
 }
 
@@ -537,6 +615,17 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 	const FFinalBattleCardProjectionView BuffedAttackProjection = Session->GetCardProjectionView(BuffedAttackHandCard->CardInstanceId);
 	TestEqual(TEXT("Triggered passive should reduce remaining hand attack AP cost by 1."), BuffedAttackProjection.EffectiveCostAP, BuffedAttackCard->BaseCostAP - 1);
 	TestEqual(TEXT("Triggered passive should add +20% outgoing damage to remaining hand attack."), BuffedAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	const TArray<FFinalBattleEvent> TriggerEvents = Session->GetBattleLogEntries();
+	const FFinalBattleEvent* PassiveTriggeredEvent = FindFirstBattleEventByTypeAndRelatedTag(
+		TriggerEvents,
+		EFinalBattleEventType::PassiveTriggered,
+		FName(TEXT("battle.trigger.player_card_resolved")));
+	if (!TestNotNull(TEXT("First-attack passive should emit PassiveTriggered when it projects hand modifiers."), PassiveTriggeredEvent))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("First-attack passive event should carry the correct passive id."), PassiveTriggeredEvent->PassiveId, PassiveDefinition->PassiveId);
 
 	const FFinalBattleCardViewData* RemainingSkillCard = FindHandCardById(Snapshot, SkillCardId);
 	if (!TestNotNull(TEXT("Non-attack skill should remain in hand after trigger attack resolves."), RemainingSkillCard))
@@ -730,6 +819,57 @@ bool FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest::RunTest(const FS
 	const FFinalBattleCardProjectionView ProjectionAfterEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
 	TestEqual(TEXT("Turn end should clear the passive-projected outgoing damage bonus."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
 	TestEqual(TEXT("Turn end should clear the passive-projected AP reduction."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassivePlayerTurnDurationExpiresWithEventTest,
+	"Final.Battle.Passive.PlayerTurnsPassiveExpiresWithEvent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassivePlayerTurnDurationExpiresWithEventTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.player_turn_expire")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.passive.player_turn_expire.attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig();
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakePlayerTurnDurationPassive();
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeAttackCard(AttackCardId, CharacterId);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ AttackCard.Get() },
+		{ PassiveDefinition.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	TestEqual(TEXT("Initial player-turn passive grant should create one passive instance."), Snapshot.Passives.Num(), 1);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	const FFinalBattleEvent EndTurnEvent = Session->SubmitCommand(EndTurnCommand);
+	TestNotEqual(TEXT("EndTurn should resolve successfully."), EndTurnEvent.EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	TestEqual(TEXT("Player-turn passive should be removed after end turn."), Snapshot.Passives.Num(), 0);
+
+	const TArray<FFinalBattleEvent> BattleLogEntries = Session->GetBattleLogEntries();
+	const FFinalBattleEvent* PassiveRemovedEvent = FindFirstBattleEventByTypeAndReason(
+		BattleLogEntries,
+		EFinalBattleEventType::PassiveRemoved,
+		FName(TEXT("passive.removed.expired")));
+	if (!TestNotNull(TEXT("Expiring player-turn passive should emit PassiveRemoved(expired)."), PassiveRemovedEvent))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Expired passive removal event should carry the correct passive id."), PassiveRemovedEvent->PassiveId, PassiveDefinition->PassiveId);
 	return true;
 }
 

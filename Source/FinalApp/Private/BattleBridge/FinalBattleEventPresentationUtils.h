@@ -156,6 +156,33 @@ inline FText ResolveRelicDisplayName(const FFinalBattleSnapshot& Snapshot, const
 	return FText::FromName(RelicId.Value);
 }
 
+inline FText ResolvePassiveDisplayName(const FFinalBattleSnapshot& Snapshot, const FFinalPassiveId& PassiveId)
+{
+	if (!PassiveId.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	if (const FFinalBattlePassiveViewData* PassiveView = Snapshot.Passives.FindByPredicate(
+			[&PassiveId](const FFinalBattlePassiveViewData& Candidate)
+			{
+				return Candidate.PassiveId == PassiveId;
+			}))
+	{
+		if (!PassiveView->DisplayName.IsEmpty())
+		{
+			return PassiveView->DisplayName;
+		}
+
+		if (!PassiveView->DisplayId.IsNone())
+		{
+			return FText::FromName(PassiveView->DisplayId);
+		}
+	}
+
+	return FText::FromName(PassiveId.Value);
+}
+
 inline FText GetEventTypeText(const EFinalBattleEventType EventType)
 {
 	switch (EventType)
@@ -164,6 +191,12 @@ inline FText GetEventTypeText(const EFinalBattleEventType EventType)
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeSessionStarted", "SessionStarted");
 	case EFinalBattleEventType::RelicTriggered:
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeRelicTriggered", "RelicTriggered");
+	case EFinalBattleEventType::PassiveApplied:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypePassiveApplied", "PassiveApplied");
+	case EFinalBattleEventType::PassiveTriggered:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypePassiveTriggered", "PassiveTriggered");
+	case EFinalBattleEventType::PassiveRemoved:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypePassiveRemoved", "PassiveRemoved");
 	case EFinalBattleEventType::CommandAccepted:
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeCommandAccepted", "CommandAccepted");
 	case EFinalBattleEventType::CommandRejected:
@@ -262,6 +295,13 @@ inline FText BuildTitleText(
 			? FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "TitleRelicTriggered", "遗物触发 · {0}"), RelicName)
 			: NSLOCTEXT("FinalBattleEventPresentation", "TitleRelicTriggeredFallback", "遗物触发");
 	}
+
+	case EFinalBattleEventType::PassiveApplied:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitlePassiveApplied", "被动获得");
+	case EFinalBattleEventType::PassiveTriggered:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitlePassiveTriggered", "被动触发");
+	case EFinalBattleEventType::PassiveRemoved:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitlePassiveRemoved", "被动失效");
 
 	case EFinalBattleEventType::CommandRejected:
 	{
@@ -392,6 +432,21 @@ inline FText BuildSummaryText(
 		break;
 	}
 
+	case EFinalBattleEventType::PassiveApplied:
+	case EFinalBattleEventType::PassiveTriggered:
+	case EFinalBattleEventType::PassiveRemoved:
+	{
+		const FText PassiveName = ResolvePassiveDisplayName(Snapshot, Event.PassiveId);
+		if (!PassiveName.IsEmpty())
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalBattleEventPresentation", "SummaryPassiveEvent", "{0} · {1}"),
+				BuildTitleText(Event, Snapshot, DataRegistry),
+				PassiveName);
+		}
+		break;
+	}
+
 	case EFinalBattleEventType::SessionStarted:
 		return NSLOCTEXT("FinalBattleEventPresentation", "SummarySessionStarted", "战斗初始化已完成。");
 
@@ -487,6 +542,16 @@ inline FText BuildDetailText(
 		if (!RelicName.IsEmpty())
 		{
 			Segments.Add(FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "DetailRelic", "Relic {0}"), RelicName));
+		}
+	}
+	else if (Event.EventType == EFinalBattleEventType::PassiveApplied
+		|| Event.EventType == EFinalBattleEventType::PassiveTriggered
+		|| Event.EventType == EFinalBattleEventType::PassiveRemoved)
+	{
+		const FText PassiveName = ResolvePassiveDisplayName(Snapshot, Event.PassiveId);
+		if (!PassiveName.IsEmpty())
+		{
+			Segments.Add(FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "DetailPassive", "Passive {0}"), PassiveName));
 		}
 	}
 
