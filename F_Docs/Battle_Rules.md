@@ -277,11 +277,14 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 
 首版已落地口径：
 
-- follow-up 目标来源当前支持 `DrawnCardsFromExecutedEffects`
+- follow-up 目标来源当前支持：
+  - `DrawnCardsFromExecutedEffects`
+  - `CurrentOwnedHandCards`
 - modifier 直接挂到 battle card instance，而不是回写 `RunCardInstance`
 - 同源联动仅在目标 battle card 带 `SourceRunCardInstanceId` 时生效
 - card modifier 继续只通过 `BattleCard projection` 生效，不额外走第二条全局遗物伤害修正路径
 - `阵门木签` 当前是第一条正式落地的 relic-driven card modifier：玩家每回合第一次打出 `0 AP` 牌后，先抽 1，再把 `-1 AP / +20% 伤害` 挂到本次抽到的攻击牌及其同源实例上，持续到打出或玩家回合结束
+- `压势追刀` 当前是第一条正式落地的 passive-driven card modifier：能力牌授予该 passive 后，角色每回合第一次打出攻击牌时，把 `-1 AP / +20% 伤害` 挂到触发当下自己手牌中的攻击牌上，持续到打出或玩家回合结束
 
 ### 6.6 状态结算顺序
 

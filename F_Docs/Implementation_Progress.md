@@ -140,9 +140,10 @@
   - `FinalBattlePassiveService`
 - passive 首条验证链路当前分成两条：
   - 霍断岳 innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
-  - 霍断岳 starter 能力牌“受压蓄势”：打牌后授予 passive“压势追刀”，在每回合第一次打出攻击牌后获得 1 层刀势
+  - 霍断岳 starter 能力牌“受压蓄势”：打牌后授予 passive“压势追刀”，在每回合第一次打出攻击牌后为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`
 - 本步骤已切断旧 `CharacterDefinition.BattleTriggers` 运行时链，角色自带被动正式改为 `InitialPassiveGrants -> PassiveDefinition -> BattlePassiveInstance`。
 - 霍断岳当前同时具备两条正式被动链：
   - innate passive“受压得刀势”：共享生命受损后获得 1 层刀势
-  - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后获得 1 层刀势
+  - 能力牌“受压蓄势”授予 passive“压势追刀”：每回合第一次打出攻击牌后，为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`，持续到打出或玩家回合结束
 - battle snapshot / debug 查询当前已补最小 passive 视图，便于验证 innate passive 与能力牌赋予被动是否生效。
+- `RuntimeTriggers -> TriggeredCardModifiers` 当前已新增 `CurrentOwnedHandCards` 目标来源，第一条正式 passive-driven card projection 已由 `压势追刀` 落地。

@@ -303,7 +303,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoFirstAttackDaoShiPassive->PassiveId = FFinalPassiveId(StarterHuoFirstAttackDaoShiPassiveId);
 	StarterHuoFirstAttackDaoShiPassive->DisplayId = StarterHuoFirstAttackDaoShiPassiveId;
 	StarterHuoFirstAttackDaoShiPassive->DisplayName = FText::FromString(TEXT("压势追刀"));
-	StarterHuoFirstAttackDaoShiPassive->SummaryText = FText::FromString(TEXT("本场战斗中，每回合第一次打出攻击牌后，获得 1 层刀势。"));
+	StarterHuoFirstAttackDaoShiPassive->SummaryText = FText::FromString(TEXT("本场战斗中，每回合第一次打出攻击牌后，当前手牌中的攻击牌本回合费用 -1 AP，且伤害提高 20%。"));
 	StarterHuoFirstAttackDaoShiPassive->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 	StarterHuoFirstAttackDaoShiPassive->DurationType = EFinalPassiveDurationType::Battle;
 	StarterHuoFirstAttackDaoShiPassive->MaxStacks = 1;
@@ -319,14 +319,14 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		ResolvedCardRequirement.RequiredCardType = EFinalCardType::Attack;
 		AddResolvedCardCondition(StarterHuoFirstAttackDaoShiPassive, TriggerDefinition.Conditions, ResolvedCardRequirement);
 
-		AddApplyStatusEffect(
-			StarterHuoFirstAttackDaoShiPassive,
-			TriggerDefinition.Effects,
-			TEXT("effect.starter.huo.passive.first_attack.daoshi"),
-			EFinalBattleUnitTargetRule::Self,
-			StarterHuoStatus,
-			1,
-			FText::FromString(TEXT("每回合第一次打出攻击牌后，获得 1 层刀势。")));
+		FFinalTriggeredCardModifierDefinition& TriggeredModifier = TriggerDefinition.TriggeredCardModifiers.AddDefaulted_GetRef();
+		TriggeredModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
+		TriggeredModifier.bRequireCardType = true;
+		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
+		TriggeredModifier.CostDeltaAP = -1;
+		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 	}
 	TrackPackage(StarterHuoFirstAttackDaoShiPassive, PackagesToSave);
 
@@ -883,7 +883,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoShouYaXuShiCard->CardType = EFinalCardType::Ability;
 	StarterHuoShouYaXuShiCard->Rarity = EFinalRarity::Common;
 	StarterHuoShouYaXuShiCard->BaseCostAP = 1;
-	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“压势追刀”。本场战斗中，每回合第一次打出攻击牌后，获得 1 层刀势。"));
+	StarterHuoShouYaXuShiCard->RulesText = FText::FromString(TEXT("赋予自己“压势追刀”。本场战斗中，每回合第一次打出攻击牌后，当前手牌中的攻击牌本回合费用 -1 AP，且伤害提高 20%。"));
 	StarterHuoShouYaXuShiCard->Effects.Reset();
 	AddApplyPassiveEffect(
 		StarterHuoShouYaXuShiCard,

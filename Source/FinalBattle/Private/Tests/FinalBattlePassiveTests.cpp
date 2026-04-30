@@ -14,6 +14,7 @@
 #include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Facade/FinalBattleSession.h"
 #include "Facade/FinalBattleSessionTypes.h"
@@ -129,13 +130,13 @@ namespace FinalBattlePassiveTests
 		return PassiveDefinition;
 	}
 
-	TStrongObjectPtr<UFinalPassiveDefinition> MakeFirstAttackPassive(UFinalStatusDefinition* StatusDefinition)
+	TStrongObjectPtr<UFinalPassiveDefinition> MakeFirstAttackPassive()
 	{
 		TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition(NewObject<UFinalPassiveDefinition>(GetTransientPackage()));
 		PassiveDefinition->PassiveId = FFinalPassiveId(FName(TEXT("passive.test.first_attack_gain_daoshi")));
 		PassiveDefinition->DisplayId = TEXT("Passive.Test.FirstAttackGainDaoShi");
 		PassiveDefinition->DisplayName = FText::FromString(TEXT("压势追刀"));
-		PassiveDefinition->SummaryText = FText::FromString(TEXT("每回合第一次打出攻击牌后，获得 1 层刀势。"));
+		PassiveDefinition->SummaryText = FText::FromString(TEXT("每回合第一次打出攻击牌后，当前手牌中的攻击牌本回合费用 -1 AP，且伤害提高 20%。"));
 		PassiveDefinition->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 		PassiveDefinition->DurationType = EFinalPassiveDurationType::Battle;
 		PassiveDefinition->MaxStacks = 1;
@@ -153,13 +154,14 @@ namespace FinalBattlePassiveTests
 		ResolvedCardCondition->Requirement = Requirement;
 		Trigger.Conditions.Add(ResolvedCardCondition);
 
-		UFinalBattleEffectApplyStatus* ApplyStatusEffect = NewObject<UFinalBattleEffectApplyStatus>(PassiveDefinition.Get());
-		ApplyStatusEffect->EffectId = TEXT("effect.test.passive.first_attack_daoshi");
-		ApplyStatusEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
-		ApplyStatusEffect->StatusDefinition = StatusDefinition;
-		ApplyStatusEffect->StatusId = StatusDefinition->StatusId;
-		ApplyStatusEffect->Stacks = 1;
-		Trigger.Effects.Add(ApplyStatusEffect);
+		FFinalTriggeredCardModifierDefinition& TriggeredModifier = Trigger.TriggeredCardModifiers.AddDefaulted_GetRef();
+		TriggeredModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
+		TriggeredModifier.bRequireCardType = true;
+		TriggeredModifier.RequiredCardType = EFinalCardType::Attack;
+		TriggeredModifier.CostDeltaAP = -1;
+		TriggeredModifier.OutgoingDamagePercentDelta = 20;
+		TriggeredModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		TriggeredModifier.bExpireAtPlayerTurnEnd = true;
 		return PassiveDefinition;
 	}
 
@@ -182,6 +184,51 @@ namespace FinalBattlePassiveTests
 		ApplyPassiveEffect->PassiveId = PassiveDefinition->PassiveId;
 		ApplyPassiveEffect->Stacks = 1;
 		CardDefinition->Effects.Add(ApplyPassiveEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeDrawCardsSkill(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP,
+		const int32 DrawCount)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = BaseCostAP;
+		CardDefinition->CardType = EFinalCardType::Skill;
+
+		UFinalBattleEffectDrawCards* DrawCardsEffect = NewObject<UFinalBattleEffectDrawCards>(CardDefinition.Get());
+		DrawCardsEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.draw"), *CardId.Value.ToString()));
+		DrawCardsEffect->DrawCount = DrawCount;
+		CardDefinition->Effects.Add(DrawCardsEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeApplyStatusSkill(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 Stacks)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = 1;
+		CardDefinition->CardType = EFinalCardType::Skill;
+
+		UFinalBattleEffectApplyStatus* ApplyStatusEffect = NewObject<UFinalBattleEffectApplyStatus>(CardDefinition.Get());
+		ApplyStatusEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.apply_status"), *CardId.Value.ToString()));
+		ApplyStatusEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		ApplyStatusEffect->StatusDefinition = StatusDefinition;
+		ApplyStatusEffect->StatusId = StatusDefinition != nullptr ? StatusDefinition->StatusId : FFinalStatusId();
+		ApplyStatusEffect->Stacks = Stacks;
+		CardDefinition->Effects.Add(ApplyStatusEffect);
 		return CardDefinition;
 	}
 
@@ -412,34 +459,40 @@ bool FFinalBattlePassiveInitialGrantCreatesRuntimeInstanceTest::RunTest(const FS
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FFinalBattlePassiveFirstAttackGainDaoShiOncePerTurnTest,
-	"Final.Battle.Passive.PlayerCardResolvedAttackAppliesDaoShiOncePerTurn",
+	FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest,
+	"Final.Battle.Passive.PlayerCardResolvedAttackProjectsHandAttackModifiers",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FFinalBattlePassiveFirstAttackGainDaoShiOncePerTurnTest::RunTest(const FString& Parameters)
+bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(const FString& Parameters)
 {
 	using namespace FinalBattlePassiveTests;
 
-	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.first_attack")));
-	const FFinalCardId AbilityCardId(FName(TEXT("card.test.passive.first_attack.apply")));
-	const FFinalCardId AttackCardOneId(FName(TEXT("card.test.passive.first_attack.attack_one")));
-	const FFinalCardId AttackCardTwoId(FName(TEXT("card.test.passive.first_attack.attack_two")));
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.project_attack")));
+	const FFinalCardId AbilityCardId(FName(TEXT("card.test.passive.project_attack.apply")));
+	const FFinalCardId TriggerAttackCardId(FName(TEXT("card.test.passive.project_attack.trigger")));
+	const FFinalCardId BuffedAttackCardId(FName(TEXT("card.test.passive.project_attack.buff_target")));
+	const FFinalCardId SkillCardId(FName(TEXT("card.test.passive.project_attack.skill_target")));
 
-	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(4);
 	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
 	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
 	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
 	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
 	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeDaoShiStatus();
-	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakeFirstAttackPassive(DaoShiStatus.Get());
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakeFirstAttackPassive();
 	TStrongObjectPtr<UFinalCardDefinition> AbilityCard = MakeApplyPassiveCard(AbilityCardId, CharacterId, PassiveDefinition.Get());
-	TStrongObjectPtr<UFinalCardDefinition> AttackCardOne = MakeAttackCard(AttackCardOneId, CharacterId);
-	TStrongObjectPtr<UFinalCardDefinition> AttackCardTwo = MakeAttackCard(AttackCardTwoId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> TriggerAttackCard = MakeAttackCard(TriggerAttackCardId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> BuffedAttackCard = MakeAttackCard(BuffedAttackCardId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> SkillCard = MakeApplyStatusSkill(SkillCardId, CharacterId, TEXT("测试调息"), DaoShiStatus.Get(), 1);
+	AbilityCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TriggerAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	BuffedAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	SkillCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
 	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
 		EncounterDefinition.Get(),
 		RuleConfig.Get(),
 		CharacterDefinition.Get(),
-		{ AbilityCard.Get(), AttackCardOne.Get(), AttackCardTwo.Get() });
+		{ AbilityCard.Get(), TriggerAttackCard.Get(), BuffedAttackCard.Get(), SkillCard.Get() });
 
 	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
 	const FFinalBattleCardViewData* HandAbilityCard = FindHandCardById(Snapshot, AbilityCardId);
@@ -463,8 +516,8 @@ bool FFinalBattlePassiveFirstAttackGainDaoShiOncePerTurnTest::RunTest(const FStr
 		return false;
 	}
 
-	const FFinalBattleCardViewData* FirstAttackCard = FindHandCardById(Snapshot, AttackCardOneId);
-	if (!TestNotNull(TEXT("First attack card should still be in hand after ability resolves."), FirstAttackCard))
+	const FFinalBattleCardViewData* FirstAttackCard = FindHandCardById(Snapshot, TriggerAttackCardId);
+	if (!TestNotNull(TEXT("Trigger attack card should still be in hand after ability resolves."), FirstAttackCard))
 	{
 		return false;
 	}
@@ -475,39 +528,208 @@ bool FFinalBattlePassiveFirstAttackGainDaoShiOncePerTurnTest::RunTest(const FStr
 	TestNotEqual(TEXT("First attack card should resolve successfully."), Session->SubmitCommand(FirstAttackCommand).EventType, EFinalBattleEventType::CommandRejected);
 
 	Snapshot = Session->GetSnapshot();
-	const FFinalBattleStatusViewData* DaoShiAfterFirstAttack = Snapshot.Statuses.FindByPredicate([&](const FFinalBattleStatusViewData& StatusView)
-	{
-		return StatusView.StatusId == DaoShiStatus->StatusId
-			&& StatusView.OwnerUnitId == Snapshot.Characters[0].RuntimeUnitId;
-	});
-	if (!TestNotNull(TEXT("First attack passive should grant DaoShi after first attack."), DaoShiAfterFirstAttack))
-	{
-		return false;
-	}
-	TestEqual(TEXT("First attack passive should add one DaoShi stack."), DaoShiAfterFirstAttack->CurrentStacks, 1);
-
-	const FFinalBattleCardViewData* SecondAttackCard = FindHandCardById(Snapshot, AttackCardTwoId);
-	if (!TestNotNull(TEXT("Second attack card should still be in hand after first attack resolves."), SecondAttackCard))
+	const FFinalBattleCardViewData* BuffedAttackHandCard = FindHandCardById(Snapshot, BuffedAttackCardId);
+	if (!TestNotNull(TEXT("Remaining hand attack should still be in hand after trigger attack resolves."), BuffedAttackHandCard))
 	{
 		return false;
 	}
 
-	FFinalBattleCommand SecondAttackCommand;
-	SecondAttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
-	SecondAttackCommand.CardInstanceId = SecondAttackCard->CardInstanceId;
-	TestNotEqual(TEXT("Second attack card should resolve successfully."), Session->SubmitCommand(SecondAttackCommand).EventType, EFinalBattleEventType::CommandRejected);
+	const FFinalBattleCardProjectionView BuffedAttackProjection = Session->GetCardProjectionView(BuffedAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Triggered passive should reduce remaining hand attack AP cost by 1."), BuffedAttackProjection.EffectiveCostAP, BuffedAttackCard->BaseCostAP - 1);
+	TestEqual(TEXT("Triggered passive should add +20% outgoing damage to remaining hand attack."), BuffedAttackProjection.EffectiveOutgoingDamagePercent, 20);
+
+	const FFinalBattleCardViewData* RemainingSkillCard = FindHandCardById(Snapshot, SkillCardId);
+	if (!TestNotNull(TEXT("Non-attack skill should remain in hand after trigger attack resolves."), RemainingSkillCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView RemainingSkillProjection = Session->GetCardProjectionView(RemainingSkillCard->CardInstanceId);
+	TestEqual(TEXT("Non-attack skills should keep their base AP cost."), RemainingSkillProjection.EffectiveCostAP, SkillCard->BaseCostAP);
+	TestEqual(TEXT("Non-attack skills should not gain outgoing damage from the passive."), RemainingSkillProjection.EffectiveOutgoingDamagePercent, 0);
+
+	FFinalBattleCommand BuffedAttackCommand;
+	BuffedAttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	BuffedAttackCommand.CardInstanceId = BuffedAttackHandCard->CardInstanceId;
+	BuffedAttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Buffed hand attack should resolve successfully."), Session->SubmitCommand(BuffedAttackCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleCardProjectionView ProjectionAfterPlay = Session->GetCardProjectionView(BuffedAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Triggered passive modifier should clear after the buffed attack is played."), ProjectionAfterPlay.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Triggered passive cost reduction should clear after the buffed attack is played."), ProjectionAfterPlay.EffectiveCostAP, BuffedAttackCard->BaseCostAP);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassiveFirstAttackDoesNotReapplySecondAttackSameTurnTest,
+	"Final.Battle.Passive.PlayerCardResolvedAttackDoesNotReapplySecondAttackSameTurn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassiveFirstAttackDoesNotReapplySecondAttackSameTurnTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.second_attack_no_reapply")));
+	const FFinalCardId AbilityCardId(FName(TEXT("card.test.passive.second_attack.apply")));
+	const FFinalCardId FirstAttackCardId(FName(TEXT("card.test.passive.second_attack.trigger")));
+	const FFinalCardId DrawSkillCardId(FName(TEXT("card.test.passive.second_attack.draw_skill")));
+	const FFinalCardId DrawnAttackOneId(FName(TEXT("card.test.passive.second_attack.drawn_one")));
+	const FFinalCardId DrawnAttackTwoId(FName(TEXT("card.test.passive.second_attack.drawn_two")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeDaoShiStatus();
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakeFirstAttackPassive();
+	TStrongObjectPtr<UFinalCardDefinition> AbilityCard = MakeApplyPassiveCard(AbilityCardId, CharacterId, PassiveDefinition.Get());
+	TStrongObjectPtr<UFinalCardDefinition> FirstAttackCard = MakeAttackCard(FirstAttackCardId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> DrawSkillCard = MakeDrawCardsSkill(DrawSkillCardId, CharacterId, TEXT("测试过牌"), 0, 2);
+	TStrongObjectPtr<UFinalCardDefinition> DrawnAttackOne = MakeAttackCard(DrawnAttackOneId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> DrawnAttackTwo = MakeAttackCard(DrawnAttackTwoId, CharacterId);
+	AbilityCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	FirstAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	DrawSkillCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ AbilityCard.Get(), FirstAttackCard.Get(), DrawSkillCard.Get(), DrawnAttackOne.Get(), DrawnAttackTwo.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AbilityHandCard = FindHandCardById(Snapshot, AbilityCardId);
+	const FFinalBattleCardViewData* TriggerAttackHandCard = FindHandCardById(Snapshot, FirstAttackCardId);
+	const FFinalBattleCardViewData* DrawSkillHandCard = FindHandCardById(Snapshot, DrawSkillCardId);
+	if (!TestNotNull(TEXT("Ability card should begin in hand."), AbilityHandCard)
+		|| !TestNotNull(TEXT("First attack card should begin in hand."), TriggerAttackHandCard)
+		|| !TestNotNull(TEXT("Draw skill should begin in hand."), DrawSkillHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = AbilityHandCard->CardInstanceId;
+	TestNotEqual(TEXT("ApplyPassive ability should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
 
 	Snapshot = Session->GetSnapshot();
-	const FFinalBattleStatusViewData* DaoShiAfterSecondAttack = Snapshot.Statuses.FindByPredicate([&](const FFinalBattleStatusViewData& StatusView)
-	{
-		return StatusView.StatusId == DaoShiStatus->StatusId
-			&& StatusView.OwnerUnitId == Snapshot.Characters[0].RuntimeUnitId;
-	});
-	if (!TestNotNull(TEXT("DaoShi status should still exist after second attack."), DaoShiAfterSecondAttack))
+	TriggerAttackHandCard = FindHandCardById(Snapshot, FirstAttackCardId);
+	DrawSkillHandCard = FindHandCardById(Snapshot, DrawSkillCardId);
+	if (!TestNotNull(TEXT("First attack card should still be in hand after ability resolves."), TriggerAttackHandCard)
+		|| !TestNotNull(TEXT("Draw skill should still be in hand after ability resolves."), DrawSkillHandCard))
 	{
 		return false;
 	}
-	TestEqual(TEXT("First-attack passive should not trigger on the second attack in the same turn."), DaoShiAfterSecondAttack->CurrentStacks, 1);
+
+	Command.CardInstanceId = TriggerAttackHandCard->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("First attack card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	Command.CardInstanceId = DrawSkillHandCard->CardInstanceId;
+	Command.TargetUnitId = NAME_None;
+	TestNotEqual(TEXT("Draw skill should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* DrawnAttackOneHandCard = FindHandCardById(Snapshot, DrawnAttackOneId);
+	const FFinalBattleCardViewData* DrawnAttackTwoHandCard = FindHandCardById(Snapshot, DrawnAttackTwoId);
+	if (!TestNotNull(TEXT("First drawn attack should now be in hand."), DrawnAttackOneHandCard)
+		|| !TestNotNull(TEXT("Second drawn attack should now be in hand."), DrawnAttackTwoHandCard))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Attacks drawn after the passive already triggered should not inherit the previous buff."), Session->GetCardProjectionView(DrawnAttackTwoHandCard->CardInstanceId).EffectiveOutgoingDamagePercent, 0);
+
+	Command.CardInstanceId = DrawnAttackOneHandCard->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Second attack of the turn should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleCardProjectionView RemainingAttackProjection = Session->GetCardProjectionView(DrawnAttackTwoHandCard->CardInstanceId);
+	TestEqual(TEXT("Second attack in the same turn should not apply a new projected outgoing damage bonus."), RemainingAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Second attack in the same turn should not reduce the remaining attack AP cost."), RemainingAttackProjection.EffectiveCostAP, DrawnAttackTwo->BaseCostAP);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest,
+	"Final.Battle.Passive.PlayerCardResolvedAttackModifierClearsAtTurnEnd",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.clear_turn_end")));
+	const FFinalCardId AbilityCardId(FName(TEXT("card.test.passive.clear_turn_end.apply")));
+	const FFinalCardId TriggerAttackCardId(FName(TEXT("card.test.passive.clear_turn_end.trigger")));
+	const FFinalCardId RetainedAttackCardId(FName(TEXT("card.test.passive.clear_turn_end.retained")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeDaoShiStatus();
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakeFirstAttackPassive();
+	TStrongObjectPtr<UFinalCardDefinition> AbilityCard = MakeApplyPassiveCard(AbilityCardId, CharacterId, PassiveDefinition.Get());
+	TStrongObjectPtr<UFinalCardDefinition> TriggerAttackCard = MakeAttackCard(TriggerAttackCardId, CharacterId);
+	TStrongObjectPtr<UFinalCardDefinition> RetainedAttackCard = MakeAttackCard(RetainedAttackCardId, CharacterId);
+	AbilityCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	TriggerAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	RetainedAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening")));
+	RetainedAttackCard->Keywords.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Retain")));
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ AbilityCard.Get(), TriggerAttackCard.Get(), RetainedAttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AbilityHandCard = FindHandCardById(Snapshot, AbilityCardId);
+	const FFinalBattleCardViewData* TriggerAttackHandCard = FindHandCardById(Snapshot, TriggerAttackCardId);
+	if (!TestNotNull(TEXT("Ability card should begin in hand."), AbilityHandCard)
+		|| !TestNotNull(TEXT("Trigger attack card should begin in hand."), TriggerAttackHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = AbilityHandCard->CardInstanceId;
+	TestNotEqual(TEXT("ApplyPassive ability should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	Command.CardInstanceId = TriggerAttackHandCard->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Trigger attack should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* RetainedAttackHandCard = FindHandCardById(Snapshot, RetainedAttackCardId);
+	if (!TestNotNull(TEXT("Retained attack should remain in hand after trigger attack resolves."), RetainedAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView ProjectionBeforeEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Retained attack should be buffed before end-turn cleanup."), ProjectionBeforeEndTurn.EffectiveOutgoingDamagePercent, 20);
+
+	Command.CommandType = EFinalBattleCommandType::EndTurn;
+	Command.CardInstanceId = FGuid();
+	Command.TargetUnitId = NAME_None;
+	TestNotEqual(TEXT("Ending the turn should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	RetainedAttackHandCard = FindHandCardById(Snapshot, RetainedAttackCardId);
+	if (!TestNotNull(TEXT("Retained attack should still be in hand after end turn."), RetainedAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView ProjectionAfterEndTurn = Session->GetCardProjectionView(RetainedAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("Turn end should clear the passive-projected outgoing damage bonus."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Turn end should clear the passive-projected AP reduction."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
 	return true;
 }
 

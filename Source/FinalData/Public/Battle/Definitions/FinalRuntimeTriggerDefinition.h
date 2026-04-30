@@ -37,7 +37,8 @@ UENUM(BlueprintType)
 enum class EFinalTriggeredCardModifierTargetSource : uint8
 {
 	None,
-	DrawnCardsFromExecutedEffects
+	DrawnCardsFromExecutedEffects,
+	CurrentOwnedHandCards
 };
 
 UENUM(BlueprintType)

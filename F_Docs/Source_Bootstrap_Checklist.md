@@ -174,6 +174,7 @@
 * 再支持 `player-turn-start` 的 AP / Shield 修正，并在 Battle 权威状态里保留对应输入，供玩家回合开始窗口使用
 * 当前 battle relic 与 passive 的固定窗口、条件触发窗口都统一走共享 `RuntimeTriggerDefinition`；角色自带规则通过 `InitialPassiveGrants -> PassiveDefinition.RuntimeTriggers` authoring
 * 当前首批已落地窗口包括 `BattleStart / PlayerTurnStart / PlayerTeamTookHealthDamage / PlayerCardResolved`；`PlayerTeamTookHealthDamage -> GainShield` 用于护心铜镜，`PlayerCardResolved + ResolvedCard(RuntimeCostAP=0) -> DrawCards + TriggeredCardModifiers` 用于阵门木签
+* 当前 `TriggeredCardModifiers` 已补第二个共享目标来源 `CurrentOwnedHandCards`，霍断岳能力牌“受压蓄势”授予的被动“压势追刀”用它在 `PlayerCardResolved` 窗口下为当前手牌攻击牌挂 `-1 AP / +20% 伤害`
 
 #### 当前口径
 * `FinalBattleResolver` 继续作为唯一对外 facade / orchestrator

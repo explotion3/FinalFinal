@@ -642,3 +642,10 @@
 本文档只负责把功能拆开。
 
 实际 Unreal 模块、目录、Public / Private 边界、Build.cs 依赖，统一由 [Unreal_Source_Structure.md](Unreal_Source_Structure.md) 定义。
+- battle 内的正式被动框架当前已支持两类 starter 来源：
+  - innate passive：通过 `CharacterDefinition.InitialPassiveGrants` 在战斗初始化时创建 `PassiveInstance`
+  - 能力牌赋予 passive：通过 `ApplyPassive` effect 在战斗中创建 `PassiveInstance`
+- `FinalBattleTriggerService` 当前统一执行 relic / passive 的 `RuntimeTriggers`；`FinalBattlePassiveService` 只负责 passive instance 生命周期，不直接执行 battle window trigger。
+- `RuntimeTriggers -> TriggeredCardModifiers` 当前已支持：
+  - `DrawnCardsFromExecutedEffects`
+  - `CurrentOwnedHandCards`

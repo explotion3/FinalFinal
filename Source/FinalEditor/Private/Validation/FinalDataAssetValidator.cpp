@@ -675,9 +675,9 @@ namespace FinalDataAssetValidation
 				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Window must not be None."), *TriggerFieldName));
 			}
 
-			if (Trigger.Effects.IsEmpty())
+			if (Trigger.Effects.IsEmpty() && Trigger.TriggeredCardModifiers.IsEmpty())
 			{
-				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Effects must contain at least one effect."), *TriggerFieldName));
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s must contain at least one effect or triggered card modifier."), *TriggerFieldName));
 			}
 
 			for (int32 ConditionIndex = 0; ConditionIndex < Trigger.Conditions.Num(); ++ConditionIndex)

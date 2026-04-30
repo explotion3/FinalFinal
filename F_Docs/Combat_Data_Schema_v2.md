@@ -433,7 +433,7 @@ ApplyPassive
 - 被动本身不发明第三套 trigger schema，直接复用 `RuntimeTriggerDefinition`。
 - 当前 starter 已有两条正式被动链：
   - 霍断岳 innate passive：`OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`
-  - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> ApplyStatus(刀势 +1)`。
+  - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> TriggeredCardModifiers(CurrentOwnedHandCards, Attack, -1 AP, +20% damage, UntilPlayed + EndOfTurn cleanup)`。
 - `CharacterDefinition.BattleTriggers` 已从当前代码真相中移除；角色 battle 规则统一由 `InitialPassiveGrants` 与 `PassiveDefinition.RuntimeTriggers` 承载。
 
 ### 5.5 CardEvolutionDefinition
@@ -865,7 +865,9 @@ EvolutionStage: Evolved
 | `CustomCounters` | 特殊计数，可为空 |
 
 `RuntimeTriggers` 当前已支持在 `Effects` 之后追加 `TriggeredCardModifiers`。  
-首版 target source 为 `DrawnCardsFromExecutedEffects`，用于把 trigger follow-up modifier 直接挂到本次 effect summary 中抽到的 battle card instance 上。
+当前 target source 已支持：
+- `DrawnCardsFromExecutedEffects`：把 trigger follow-up modifier 直接挂到本次 effect summary 中抽到的 battle card instance 上
+- `CurrentOwnedHandCards`：在 trigger 结算时扫描来源角色当前手牌中的实例，并把 modifier 直接挂到这些 hand card instance 上
 
 ### 7.9 BattleEffectExecutionSummary
 
@@ -880,8 +882,8 @@ EvolutionStage: Evolved
 
 说明：
 
-- `DrawnCardInstanceIds` 是 `RuntimeTriggers -> TriggeredCardModifiers` 的稳定目标协议。
-- `FinalBattle` 不通过文本日志猜测抽到哪张牌，而是直接从 effect summary 读取这些实例 ID。
+- `DrawnCardInstanceIds` 是 `RuntimeTriggers -> TriggeredCardModifiers` 的稳定目标协议之一。
+- 对 `CurrentOwnedHandCards` 这类目标来源，`FinalBattle` 不依赖 effect summary，而是直接按 trigger source owner 扫描当前手牌实例。
 
 ## 8. 关键数据流
 

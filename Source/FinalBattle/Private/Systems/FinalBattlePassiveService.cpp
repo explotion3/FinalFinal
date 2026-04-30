@@ -74,7 +74,7 @@ int32 FFinalBattlePassiveService::ApplyPassive(
 	{
 		if (TriggerDefinition.Domain != EFinalRuntimeTriggerDomain::Battle
 			|| TriggerDefinition.Window == EFinalRuntimeTriggerWindow::None
-			|| TriggerDefinition.Effects.IsEmpty())
+			|| (TriggerDefinition.Effects.IsEmpty() && TriggerDefinition.TriggeredCardModifiers.IsEmpty()))
 		{
 			continue;
 		}

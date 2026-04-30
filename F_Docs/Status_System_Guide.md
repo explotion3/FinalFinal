@@ -177,7 +177,7 @@
 
 当前 Runtime 已落地的最小 battle trigger window：
 * `OwnerTookHealthDamage`：当玩家共享生命实际下降时触发；当前用于霍断岳 innate passive“受压得刀势”，通过 `BattlePassiveInstance.TriggerStates` 触发 `ApplyStatus(刀势 +1)`。
-* `PlayerCardResolved`：当玩家打出的卡牌完整结算后触发；当前用于霍断岳能力牌赋予的 passive“压势追刀”，在每回合第一次打出攻击牌后获得 1 层刀势。
+* `PlayerCardResolved`：当玩家打出的卡牌完整结算后触发；当前用于霍断岳能力牌赋予的 passive“压势追刀”，在每回合第一次打出攻击牌后为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`。
 
 ### 6.3 首版默认状态时点表
 * `灼烧`：当前只作用于敌方单位；在敌方回合开始窗口结算
@@ -246,7 +246,8 @@
 
 ## 9. 首版角色专属状态清单
 ### 9.1 霍断岳
-* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 当前可通过霍断岳 innate passive 的 `OwnerTookHealthDamage` 窗口获得，也可通过能力牌“受压蓄势”授予的被动，在 `PlayerCardResolved` 窗口获得，并由明确配置的攻击牌消耗来追加削韧
+* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 当前通过霍断岳 innate passive 的 `OwnerTookHealthDamage` 窗口获得，并由明确配置的攻击牌消耗来追加削韧
+* `压势追刀`：霍断岳能力牌“受压蓄势”授予的被动；在 `PlayerCardResolved` 的 `ResolvedCard(Attack) + OncePerPlayerTurn` 窗口下，为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`，持续到打出或玩家回合结束
 
 ### 9.2 叶半夏
 * `药引`：叶半夏专属状态；默认按层数累积；不自动生效，只有被牌明确消耗时才结算收益
