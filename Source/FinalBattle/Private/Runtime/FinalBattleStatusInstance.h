@@ -8,6 +8,7 @@
 struct FFinalBattleStatusRuntimeModifierInstance
 {
 	int32 OutgoingDamagePercentPerStack = 0;
+	int32 IncomingDamagePercentPerStack = 0;
 	bool bOnlyAffectAttackCards = false;
 	int32 IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	bool bConsumeOnSuccessfulOwnerDamage = false;

@@ -107,6 +107,7 @@ namespace FinalBattleStatusTests
 		const FName StatusName,
 		const FString& DisplayName,
 		const int32 OutgoingDamagePercentPerStack,
+		const int32 IncomingDamagePercentPerStack,
 		const int32 IncomingTeamHealthDamageReductionPercentPerStack,
 		const bool bConsumeOnSuccessfulOwnerDamage,
 		const bool bConsumeOnPreventedTeamHealthDamage,
@@ -125,6 +126,7 @@ namespace FinalBattleStatusTests
 		StatusDefinition->ExpireWindow = bExpireAtPlayerTurnEnd ? EFinalStatusExpireWindow::PlayerTurnEnd : EFinalStatusExpireWindow::None;
 		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StatusDefinition->RuntimeModifiers.AddDefaulted_GetRef();
 		RuntimeModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
+		RuntimeModifier.IncomingDamagePercentPerStack = IncomingDamagePercentPerStack;
 		RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack = IncomingTeamHealthDamageReductionPercentPerStack;
 		RuntimeModifier.bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
 		RuntimeModifier.bConsumeOnPreventedTeamHealthDamage = bConsumeOnPreventedTeamHealthDamage;
@@ -166,6 +168,40 @@ namespace FinalBattleStatusTests
 		StatusDefinition->bExpireAtPlayerTurnEnd = false;
 		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = false;
 		StatusDefinition->bOnlyAffectAttackCards = false;
+		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
+		StatusDefinition->bProjectToOwnedHandCards = false;
+		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
+		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
+		return StatusDefinition;
+	}
+
+	TStrongObjectPtr<UFinalStatusDefinition> MakeProjectedDamageStatusDefinition(
+		const FName StatusName,
+		const FString& DisplayName,
+		const int32 OutgoingDamagePercentPerStack,
+		const bool bConsumeOnSuccessfulOwnerDamage,
+		const bool bExpireAtPlayerTurnEnd,
+		const int32 MaxStacks = 9)
+	{
+		TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
+		StatusDefinition->StatusId = FFinalStatusId(StatusName);
+		StatusDefinition->DisplayName = FText::FromString(DisplayName);
+		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
+		StatusDefinition->MaxStacks = MaxStacks;
+		StatusDefinition->DefaultDuration = 0;
+		FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StatusDefinition->ProjectedCardModifiers.AddDefaulted_GetRef();
+		ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
+		ProjectedModifier.bRequireCardType = true;
+		ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
+		ProjectedModifier.OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
+		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
+		ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+
+		StatusDefinition->OutgoingDamagePercentPerStack = 0;
+		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
+		StatusDefinition->bOnlyAffectAttackCards = true;
 		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
 		StatusDefinition->bProjectToOwnedHandCards = false;
@@ -412,6 +448,7 @@ bool FFinalBattleStatusRuntimeModifiersShiQiAffectsDamageTest::RunTest(const FSt
 		TEXT("士气"),
 		20,
 		0,
+		0,
 		false,
 		false,
 		false,
@@ -473,6 +510,7 @@ bool FFinalBattleStatusRuntimeModifiersShiQiExpiresAtTurnEndTest::RunTest(const 
 		TEXT("士气"),
 		20,
 		0,
+		0,
 		false,
 		false,
 		false,
@@ -508,6 +546,279 @@ bool FFinalBattleStatusRuntimeModifiersShiQiExpiresAtTurnEndTest::RunTest(const 
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusRuntimeModifiersVulnerableIncreasesIncomingDamageTest,
+	"Final.Battle.Status.RuntimeModifiers.VulnerableIncreasesIncomingDamage",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusRuntimeModifiersVulnerableIncreasesIncomingDamageTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.vulnerable")));
+	const FFinalCardId VulnerableCardId(FName(TEXT("card.test.status.vulnerable_apply")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.status.vulnerable_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> VulnerableStatus = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.runtime_modifier.vulnerable"),
+		TEXT("易伤"),
+		0,
+		25,
+		0,
+		false,
+		false,
+		false,
+		true,
+		3,
+		1);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyVulnerableCard = MakeApplyStatusCard(VulnerableCardId, CharacterId, TEXT("Apply Vulnerable"), VulnerableStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 10.0f);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyVulnerableCard.Get(), AttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* ApplyCardView = FindHandCardById(Snapshot, VulnerableCardId);
+	const FFinalBattleCardViewData* AttackCardView = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Vulnerable apply card should begin in hand."), ApplyCardView)
+		|| !TestNotNull(TEXT("Attack card should begin in hand."), AttackCardView))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = ApplyCardView->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Applying Vulnerable should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	AttackCardView = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Attack card should remain in hand after applying Vulnerable."), AttackCardView))
+	{
+		return false;
+	}
+
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = AttackCardView->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Attacking a Vulnerable target should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterAttack = Session->GetSnapshot();
+	TestEqual(TEXT("Base 10 damage against Vulnerable should resolve to 13 total damage."), SnapshotAfterAttack.Enemies[0].CurrentHP, 7);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusRuntimeModifiersWeakReducesOutgoingDamageTest,
+	"Final.Battle.Status.RuntimeModifiers.WeakReducesOutgoingDamage",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusRuntimeModifiersWeakReducesOutgoingDamageTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.weak")));
+	const FFinalCardId WeakCardId(FName(TEXT("card.test.status.weak_apply")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.status.weak_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> WeakStatus = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.runtime_modifier.weak"),
+		TEXT("虚弱"),
+		-25,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true,
+		3,
+		1);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyWeakCard = MakeApplyStatusCard(WeakCardId, CharacterId, TEXT("Apply Weak"), WeakStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 10.0f);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyWeakCard.Get(), AttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* ApplyCardView = FindHandCardById(Snapshot, WeakCardId);
+	const FFinalBattleCardViewData* AttackCardView = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Weak apply card should begin in hand."), ApplyCardView)
+		|| !TestNotNull(TEXT("Attack card should begin in hand."), AttackCardView))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = ApplyCardView->CardInstanceId;
+	TestNotEqual(TEXT("Applying Weak should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	AttackCardView = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Attack card should remain in hand after applying Weak."), AttackCardView))
+	{
+		return false;
+	}
+
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = AttackCardView->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Attacking while Weak should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterAttack = Session->GetSnapshot();
+	TestEqual(TEXT("Base 10 damage while Weak should resolve to 8 total damage."), SnapshotAfterAttack.Enemies[0].CurrentHP, 12);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusRuntimeModifiersVulnerableAndShiQiStackTest,
+	"Final.Battle.Status.RuntimeModifiers.VulnerableAndShiQiStack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusRuntimeModifiersVulnerableAndShiQiStackTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.vulnerable_shiqi")));
+	const FFinalCardId ShiQiCardId(FName(TEXT("card.test.status.vulnerable_shiqi_apply_shiqi")));
+	const FFinalCardId VulnerableCardId(FName(TEXT("card.test.status.vulnerable_shiqi_apply_vulnerable")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.status.vulnerable_shiqi_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> ShiQiStatus = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.runtime_modifier.vulnerable_shiqi"),
+		TEXT("士气"),
+		20,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true);
+	TStrongObjectPtr<UFinalStatusDefinition> VulnerableStatus = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.runtime_modifier.vulnerable_stack"),
+		TEXT("易伤"),
+		0,
+		25,
+		0,
+		false,
+		false,
+		false,
+		true,
+		3,
+		1);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyShiQiCard = MakeApplyStatusCard(ShiQiCardId, CharacterId, TEXT("Apply ShiQi"), ShiQiStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyVulnerableCard = MakeApplyStatusCard(VulnerableCardId, CharacterId, TEXT("Apply Vulnerable"), VulnerableStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 10.0f);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyShiQiCard.Get(), ApplyVulnerableCard.Get(), AttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { ShiQiCardId, VulnerableCardId, AttackCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Expected setup card should begin in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		if (CardId == VulnerableCardId || CardId == AttackCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+
+		TestNotEqual(TEXT("Setup sequence card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestEqual(TEXT("Base 10 damage with ShiQi and Vulnerable should resolve to 15 total damage."), Snapshot.Enemies[0].CurrentHP, 5);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusRuntimeModifiersWeakAndFengRuiStackTest,
+	"Final.Battle.Status.RuntimeModifiers.WeakAndFengRuiStack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusRuntimeModifiersWeakAndFengRuiStackTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.weak_fengrui")));
+	const FFinalCardId WeakCardId(FName(TEXT("card.test.status.weak_fengrui_apply_weak")));
+	const FFinalCardId FengRuiCardId(FName(TEXT("card.test.status.weak_fengrui_apply_fengrui")));
+	const FFinalCardId AttackCardId(FName(TEXT("card.test.status.weak_fengrui_attack")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> WeakStatus = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.runtime_modifier.weak_stack"),
+		TEXT("虚弱"),
+		-25,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true,
+		3,
+		1);
+	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedDamageStatusDefinition(
+		TEXT("status.test.projected_modifier.fengrui"),
+		TEXT("锋锐"),
+		20,
+		true,
+		true);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyWeakCard = MakeApplyStatusCard(WeakCardId, CharacterId, TEXT("Apply Weak"), WeakStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyFengRuiCard = MakeApplyStatusCard(FengRuiCardId, CharacterId, TEXT("Apply FengRui"), FengRuiStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> AttackCard = MakeDamageCard(AttackCardId, CharacterId, TEXT("Heavy Strike"), 1, 12.0f);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyWeakCard.Get(), ApplyFengRuiCard.Get(), AttackCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { WeakCardId, FengRuiCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Expected setup card should begin in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		TestNotEqual(TEXT("Setup card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	const FFinalBattleCardViewData* AttackCardView = FindHandCardById(Snapshot, AttackCardId);
+	if (!TestNotNull(TEXT("Attack card should remain in hand after applying Weak and FengRui."), AttackCardView))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand AttackCommand;
+	AttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	AttackCommand.CardInstanceId = AttackCardView->CardInstanceId;
+	AttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Attacking with Weak and FengRui should resolve successfully."), Session->SubmitCommand(AttackCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterAttack = Session->GetSnapshot();
+	TestEqual(TEXT("Base 12 damage with Weak (-25%) and FengRui (+20%) should resolve to 11 total damage."), SnapshotAfterAttack.Enemies[0].CurrentHP, 9);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalBattleStatusRuntimeModifiersImmunityProtectsAndConsumesTest,
 	"Final.Battle.Status.RuntimeModifiers.ImmunityProtectsAndConsumes",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -527,6 +838,7 @@ bool FFinalBattleStatusRuntimeModifiersImmunityProtectsAndConsumesTest::RunTest(
 	TStrongObjectPtr<UFinalStatusDefinition> ImmunityStatus = MakeRuntimeModifierStatusDefinition(
 		TEXT("status.test.runtime_modifier.immunity"),
 		TEXT("生命免疫"),
+		0,
 		0,
 		100,
 		false,

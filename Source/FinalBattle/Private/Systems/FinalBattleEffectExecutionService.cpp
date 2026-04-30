@@ -1206,8 +1206,7 @@ bool ExecuteDamageEffect(
 		? GetStatusService().GetOutgoingDamageModifierPercent(State, SourceOwnerUnitId, bIsAttackCardDamage)
 		: 0;
 	const int32 CardOutgoingDamageModifierPercent = ResolveCurrentCardOutgoingDamageModifierPercent(State, ExecutionContext);
-	const int32 DamagePerHit = ApplyOutgoingDamageModifier(BaseDamagePerHit, DamageModifierPercent + CardOutgoingDamageModifierPercent);
-	if (DamagePerHit <= 0)
+	if (BaseDamagePerHit <= 0)
 	{
 		return false;
 	}
@@ -1224,9 +1223,26 @@ bool ExecuteDamageEffect(
 		for (int32 HitIndex = 0; HitIndex < HitCount; ++HitIndex)
 		{
 			const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
-			const int32 ResolvedDamagePerHit = bIsCriticalHit
-				? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
-				: DamagePerHit;
+			const int32 CriticalAdjustedDamagePerHit = bIsCriticalHit
+				? ApplyCriticalHitMultiplier(BaseDamagePerHit, SourceCharacterState)
+				: BaseDamagePerHit;
+			const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
+				CriticalAdjustedDamagePerHit,
+				DamageModifierPercent + CardOutgoingDamageModifierPercent);
+			const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
+				BaseDamagePerHit,
+				DamageModifierPercent + CardOutgoingDamageModifierPercent);
+			const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, TeamPlayerUnitId);
+			const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+				OutgoingAdjustedDamagePerHit,
+				IncomingDamageModifierPercent);
+			const int32 BaselineResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+				BaselineDamagePerHit,
+				IncomingDamageModifierPercent);
+			if (ResolvedDamagePerHit <= 0)
+			{
+				continue;
+			}
 			const int32 HpDamage = ApplyTeamIncomingDamageAndTriggersInternal(
 				State,
 				ResolvedDamagePerHit,
@@ -1236,7 +1252,7 @@ bool ExecuteDamageEffect(
 				Summary);
 			Summary.TotalDamageToTeam += HpDamage;
 			Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
-			Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
+			Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - BaselineResolvedDamagePerHit, 0) : 0;
 		}
 
 		++Summary.ResolvedEffectCount;
@@ -1263,16 +1279,33 @@ bool ExecuteDamageEffect(
 			for (int32 HitIndex = 0; HitIndex < HitCount && EnemyState.CurrentHP > 0; ++HitIndex)
 			{
 				const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
-				const int32 ResolvedDamagePerHit = bIsCriticalHit
-					? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
-					: DamagePerHit;
+				const int32 CriticalAdjustedDamagePerHit = bIsCriticalHit
+					? ApplyCriticalHitMultiplier(BaseDamagePerHit, SourceCharacterState)
+					: BaseDamagePerHit;
+				const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
+					CriticalAdjustedDamagePerHit,
+					DamageModifierPercent + CardOutgoingDamageModifierPercent);
+				const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
+					BaseDamagePerHit,
+					DamageModifierPercent + CardOutgoingDamageModifierPercent);
+				const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, EnemyState.RuntimeUnitId);
+				const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+					OutgoingAdjustedDamagePerHit,
+					IncomingDamageModifierPercent);
+				const int32 BaselineResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+					BaselineDamagePerHit,
+					IncomingDamageModifierPercent);
+				if (ResolvedDamagePerHit <= 0)
+				{
+					continue;
+				}
 				int32 DefeatCount = 0;
 				const int32 HpDamage = ApplyDamageToEnemy(State, EnemyState, ResolvedDamagePerHit, UnitService, DefeatCount);
 				ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 				Summary.TotalDamageToEnemies += ResolvedDamagePerHit;
 				Summary.TotalEnemiesDefeated += DefeatCount;
 				Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
-				Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
+				Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - BaselineResolvedDamagePerHit, 0) : 0;
 				bAppliedDamageToAnyEnemy = true;
 			}
 		}
@@ -1311,16 +1344,33 @@ bool ExecuteDamageEffect(
 	for (int32 HitIndex = 0; HitIndex < HitCount && TargetEnemyState->CurrentHP > 0; ++HitIndex)
 	{
 		const bool bIsCriticalHit = ShouldApplyCriticalHit(SourceCharacterState);
-		const int32 ResolvedDamagePerHit = bIsCriticalHit
-			? ApplyCriticalHitMultiplier(DamagePerHit, SourceCharacterState)
-			: DamagePerHit;
+		const int32 CriticalAdjustedDamagePerHit = bIsCriticalHit
+			? ApplyCriticalHitMultiplier(BaseDamagePerHit, SourceCharacterState)
+			: BaseDamagePerHit;
+		const int32 OutgoingAdjustedDamagePerHit = ApplyOutgoingDamageModifier(
+			CriticalAdjustedDamagePerHit,
+			DamageModifierPercent + CardOutgoingDamageModifierPercent);
+		const int32 BaselineDamagePerHit = ApplyOutgoingDamageModifier(
+			BaseDamagePerHit,
+			DamageModifierPercent + CardOutgoingDamageModifierPercent);
+		const int32 IncomingDamageModifierPercent = GetStatusService().GetIncomingDamageModifierPercent(State, TargetEnemyState->RuntimeUnitId);
+		const int32 ResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+			OutgoingAdjustedDamagePerHit,
+			IncomingDamageModifierPercent);
+		const int32 BaselineResolvedDamagePerHit = ApplyOutgoingDamageModifier(
+			BaselineDamagePerHit,
+			IncomingDamageModifierPercent);
+		if (ResolvedDamagePerHit <= 0)
+		{
+			continue;
+		}
 		int32 DefeatCount = 0;
 		const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, ResolvedDamagePerHit, UnitService, DefeatCount);
 		ExecutionContext.Transient.bAppliedSuccessfulEnemyHpDamage |= HpDamage > 0;
 		Summary.TotalDamageToEnemies += ResolvedDamagePerHit;
 		Summary.TotalEnemiesDefeated += DefeatCount;
 		Summary.TotalCriticalHits += bIsCriticalHit ? 1 : 0;
-		Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - DamagePerHit, 0) : 0;
+		Summary.TotalCriticalBonusDamage += bIsCriticalHit ? FMath::Max(ResolvedDamagePerHit - BaselineResolvedDamagePerHit, 0) : 0;
 	}
 
 	++Summary.ResolvedEffectCount;

@@ -26,6 +26,9 @@ public:
 		const FFinalBattleState& BattleState,
 		FName OwnerUnitId,
 		bool bIsAttackCardDamage) const;
+	int32 GetIncomingDamageModifierPercent(
+		const FFinalBattleState& BattleState,
+		FName OwnerUnitId) const;
 	int32 ConsumeOutgoingDamageModifierStacks(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,

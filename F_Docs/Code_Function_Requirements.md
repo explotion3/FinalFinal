@@ -180,10 +180,11 @@
     - 获得继续走 `ApplyStatus`
     - 消费改走 `ConsumeStatusResource`
     - 默认不进入 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`
-  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍然走旧字段路径
+  - `易伤 / 虚弱` 当前已改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
+  - `腐蚀 / 中毒 / 流血` 仍然走旧字段路径
 - 迁移期不允许对同一条状态做“新旧字段同时生效并合并”的双真相结算
 - 状态系统完整迁移顺序当前已固定为：
-  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血`
+  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 腐蚀/中毒/流血`
   - 最后再删除旧字段与旧读取路径
 
 优先级：`P0`

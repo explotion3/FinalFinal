@@ -566,6 +566,7 @@ EvolutionStage: Evolved
 | 旧字段 | 当前用途 |
 |---|---|
 | `OutgoingDamagePercentPerStack` | 通用状态伤害修正，每层百分比 |
+| `IncomingDamagePercentPerStack` | 目标受击伤害修正，每层百分比 |
 | `bOnlyAffectAttackCards` | 通用状态伤害修正是否只影响攻击牌 |
 | `IncomingTeamHealthDamageReductionPercentPerStack` | 队伍共享生命伤害减免 |
 | `bConsumeOnSuccessfulOwnerDamage` | 造成有效伤害后消耗 1 层 |
@@ -580,10 +581,11 @@ EvolutionStage: Evolved
 - `生命免疫` 当前已走结构化 `RuntimeModifiers` 的 team HP protection 路径。
 - `锋锐` 当前已通过 `ProjectedCardModifiers` 驱动 owned-hand `BattleCard` modifier。
 - `刀势 / 药引` 当前已归位为正式资源型状态：获得继续走 `ApplyStatus`，消费改走 `ConsumeStatusResource`，且默认不参与 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`。
-- `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 当前仍走 legacy 字段路径。
+- `易伤 / 虚弱` 当前已走结构化 `RuntimeModifiers` 路径。
+- `腐蚀 / 中毒 / 流血` 当前仍走 legacy 字段路径。
 - `OnTickEffects` 旧入口已删除；后续持续/触发型状态统一收口到 `RuntimeTriggers`，不再保留第二套未消费 schema。
 - `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 当前仍只停留在 schema，不接运行时主逻辑。
-- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血 -> 删除旧字段与旧读取路径`。
+- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 腐蚀/中毒/流血 -> 删除旧字段与旧读取路径`。
 
 资源型状态当前的正式消费条件口径：
 

@@ -716,6 +716,11 @@ bool FFinalBattlePassiveFirstAttackDoesNotReapplySecondAttackSameTurnTest::RunTe
 	TestNotEqual(TEXT("First attack card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
 
 	Snapshot = Session->GetSnapshot();
+	DrawSkillHandCard = FindHandCardById(Snapshot, DrawSkillCardId);
+	if (!TestNotNull(TEXT("Draw skill should remain in hand after the first attack resolves."), DrawSkillHandCard))
+	{
+		return false;
+	}
 	Command.CardInstanceId = DrawSkillHandCard->CardInstanceId;
 	Command.TargetUnitId = NAME_None;
 	TestNotEqual(TEXT("Draw skill should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);

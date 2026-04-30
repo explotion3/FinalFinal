@@ -430,15 +430,27 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterVulnerableStatus->StatusId = FFinalStatusId(StarterVulnerableStatusId);
 	StarterVulnerableStatus->DisplayName = FText::FromString(TEXT("易伤"));
 	StarterVulnerableStatus->StatusCategory = EFinalStatusCategory::Debuff;
-	StarterVulnerableStatus->SummaryText = FText::FromString(TEXT("首版敌人意图可施加的团队减益；当前主要用于预告和状态验证，后续补充受击增伤规则。"));
+	StarterVulnerableStatus->SummaryText = FText::FromString(TEXT("目标受到伤害提高 25%。"));
 	StarterVulnerableStatus->MaxStacks = 3;
 	StarterVulnerableStatus->DefaultDuration = 1;
+	StarterVulnerableStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterVulnerableStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+	StarterVulnerableStatus->RuntimeModifiers.Reset();
+	{
+		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StarterVulnerableStatus->RuntimeModifiers.AddDefaulted_GetRef();
+		RuntimeModifier.IncomingDamagePercentPerStack = 25;
+	}
+	StarterVulnerableStatus->ProjectedCardModifiers.Reset();
+	StarterVulnerableStatus->RuntimeTriggers.Reset();
 	StarterVulnerableStatus->OutgoingDamagePercentPerStack = 0;
 	StarterVulnerableStatus->bExpireAtPlayerTurnEnd = true;
 	StarterVulnerableStatus->bConsumeOnSuccessfulOwnerDamage = false;
 	StarterVulnerableStatus->bOnlyAffectAttackCards = false;
 	StarterVulnerableStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	StarterVulnerableStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterVulnerableStatus->bProjectToOwnedHandCards = false;
+	StarterVulnerableStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
+	StarterVulnerableStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterVulnerableStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterCorrosionStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterCorrosionStatusPath, bCreatedAsset);
@@ -460,15 +472,27 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterWeakStatus->StatusId = FFinalStatusId(StarterWeakStatusId);
 	StarterWeakStatus->DisplayName = FText::FromString(TEXT("虚弱"));
 	StarterWeakStatus->StatusCategory = EFinalStatusCategory::Debuff;
-	StarterWeakStatus->SummaryText = FText::FromString(TEXT("首版敌人软控制减益；当前可被施加和展示，实际输出削减规则后续补全。"));
+	StarterWeakStatus->SummaryText = FText::FromString(TEXT("目标造成伤害降低 25%。"));
 	StarterWeakStatus->MaxStacks = 3;
 	StarterWeakStatus->DefaultDuration = 1;
+	StarterWeakStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterWeakStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+	StarterWeakStatus->RuntimeModifiers.Reset();
+	{
+		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StarterWeakStatus->RuntimeModifiers.AddDefaulted_GetRef();
+		RuntimeModifier.OutgoingDamagePercentPerStack = -25;
+	}
+	StarterWeakStatus->ProjectedCardModifiers.Reset();
+	StarterWeakStatus->RuntimeTriggers.Reset();
 	StarterWeakStatus->OutgoingDamagePercentPerStack = 0;
 	StarterWeakStatus->bExpireAtPlayerTurnEnd = true;
 	StarterWeakStatus->bConsumeOnSuccessfulOwnerDamage = false;
 	StarterWeakStatus->bOnlyAffectAttackCards = false;
 	StarterWeakStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	StarterWeakStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterWeakStatus->bProjectToOwnedHandCards = false;
+	StarterWeakStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
+	StarterWeakStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterWeakStatus, PackagesToSave);
 
 	UFinalRelicDefinition* StarterBronzeMirrorGuardRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterBronzeMirrorGuardRelicPath, bCreatedAsset);
@@ -1486,7 +1510,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterInstructorHeavyCleaveIntent->IntentId = TEXT("intent.starter.blackwind.instructor.heavy_cleave");
 	StarterInstructorHeavyCleaveIntent->DisplayName = FText::FromString(TEXT("破阵重劈"));
 	StarterInstructorHeavyCleaveIntent->IntentType = EFinalIntentType::Attack;
-	StarterInstructorHeavyCleaveIntent->PreviewText = FText::FromString(TEXT("破阵重劈 1.6 × BaseDamagePower。易伤追加伤害仍为首版文本占位。"));
+	StarterInstructorHeavyCleaveIntent->PreviewText = FText::FromString(TEXT("破阵重劈 1.6 × BaseDamagePower。若目标处于易伤，则伤害会被进一步放大。"));
 	ResetIntentSelectionDefaults(StarterInstructorHeavyCleaveIntent);
 	StarterInstructorHeavyCleaveIntent->PhaseTags = { TEXT("phase.low") };
 	StarterInstructorHeavyCleaveIntent->CooldownTurns = 1;
@@ -1500,8 +1524,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		1.6f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::BaseDamagePower,
-		1,
-		FText::FromString(TEXT("首版占位：未实际实现对易伤目标的额外增伤。")));
+		1);
 	TrackPackage(StarterInstructorHeavyCleaveIntent, PackagesToSave);
 
 	UFinalEnemyIntentDefinition* StarterShieldGuardShieldBashIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterShieldGuardShieldBashIntentPath, bCreatedAsset);

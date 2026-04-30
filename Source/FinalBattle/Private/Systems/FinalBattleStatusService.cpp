@@ -76,6 +76,7 @@ void BuildStructuredRuntimeModifiers(
 	for (const FFinalStatusRuntimeModifierDefinition& ModifierDefinition : StatusDefinition->RuntimeModifiers)
 	{
 		if (ModifierDefinition.OutgoingDamagePercentPerStack == 0
+			&& ModifierDefinition.IncomingDamagePercentPerStack == 0
 			&& ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack == 0
 			&& !ModifierDefinition.bConsumeOnSuccessfulOwnerDamage
 			&& !ModifierDefinition.bConsumeOnPreventedTeamHealthDamage
@@ -86,6 +87,7 @@ void BuildStructuredRuntimeModifiers(
 
 		FFinalBattleStatusRuntimeModifierInstance& ModifierInstance = OutRuntimeModifiers.AddDefaulted_GetRef();
 		ModifierInstance.OutgoingDamagePercentPerStack = ModifierDefinition.OutgoingDamagePercentPerStack;
+		ModifierInstance.IncomingDamagePercentPerStack = ModifierDefinition.IncomingDamagePercentPerStack;
 		ModifierInstance.bOnlyAffectAttackCards = ModifierDefinition.bOnlyAffectAttackCards;
 		ModifierInstance.IncomingTeamHealthDamageReductionPercentPerStack = ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack;
 		ModifierInstance.bConsumeOnSuccessfulOwnerDamage = ModifierDefinition.bConsumeOnSuccessfulOwnerDamage;
@@ -415,6 +417,43 @@ int32 FFinalBattleStatusService::GetOutgoingDamageModifierPercent(
 		}
 
 		TotalModifierPercent += StatusInstance.OutgoingDamagePercentPerStack * StatusInstance.CurrentStacks;
+	}
+
+	return TotalModifierPercent;
+}
+
+int32 FFinalBattleStatusService::GetIncomingDamageModifierPercent(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId) const
+{
+	int32 TotalModifierPercent = 0;
+
+	for (const FFinalBattleStatusInstance& StatusInstance : BattleState.StatusInstances)
+	{
+		if (StatusInstance.OwnerUnitId != OwnerUnitId || StatusInstance.CurrentStacks <= 0)
+		{
+			continue;
+		}
+
+		if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoAffectBattleRules)
+		{
+			continue;
+		}
+
+		if (!UsesStructuredRuntimeModifiers(StatusInstance))
+		{
+			continue;
+		}
+
+		for (const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier : StatusInstance.RuntimeModifiers)
+		{
+			if (RuntimeModifier.IncomingDamagePercentPerStack == 0)
+			{
+				continue;
+			}
+
+			TotalModifierPercent += RuntimeModifier.IncomingDamagePercentPerStack * StatusInstance.CurrentStacks;
+		}
 	}
 
 	return TotalModifierPercent;

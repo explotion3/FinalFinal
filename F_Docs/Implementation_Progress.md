@@ -15,7 +15,8 @@
   - `生命免疫`
   - `锋锐`
   - `刀势 / 药引`
-  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血`
+  - `易伤 / 虚弱`
+  - `腐蚀 / 中毒 / 流血`
   - 最后删除旧字段与旧读取路径
 
 ## 2026-04-30 Step 19B：迁移 `士气 + 生命免疫` 到 `RuntimeModifiers`
@@ -27,7 +28,8 @@
   - `生命免疫` 的 team HP protection 与触发后消耗逻辑改为读新载荷
 - 其他状态当前仍保留在 legacy 路径：
   - `刀势 / 药引` 继续按资源型状态使用
-  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍待后续迁移
+  - `易伤 / 虚弱` 仍待后续迁移
+  - `腐蚀 / 中毒 / 流血` 仍待后续迁移
 - 本步骤不切 `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 的运行时主逻辑；回合结束过期仍保持现有结果，只是对 `士气 / 生命免疫` 从新 schema 预编译出 `bExpireAtPlayerTurnEnd`。
 
 ## 2026-04-30 Step 19C：迁移 `锋锐` 到 `ProjectedCardModifiers`
@@ -45,7 +47,22 @@
   - 玩家回合结束仍会过期并清理投影
 - 其他状态当前仍保留在各自现有路径：
   - `士气 / 生命免疫` 走 `RuntimeModifiers`
-  - `刀势 / 药引 / 易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍走 legacy 字段
+- `刀势 / 药引` 已归位为正式资源型状态
+- `易伤 / 虚弱` 已迁入正式 `RuntimeModifiers`
+- `腐蚀 / 中毒 / 流血` 仍走 legacy 字段
+
+## 2026-04-30 Step 20：迁移 `易伤 / 虚弱` 到正式 `RuntimeModifiers`
+
+- `易伤 / 虚弱` 当前已从“可挂载、可展示的负面占位状态”迁到正式 `RuntimeModifiers` 路径。
+- `FFinalStatusRuntimeModifierDefinition` 与 `FFinalBattleStatusRuntimeModifierInstance` 当前已新增 `IncomingDamagePercentPerStack`，用于承载目标侧受击伤害修正。
+- `FinalBattleStatusService` 当前已补 `GetIncomingDamageModifierPercent()`，并把伤害结算顺序明确为：
+  - 暴击等已有放大
+  - 来源方 `OutgoingDamageModifierPercent`
+  - 目标方 `IncomingDamageModifierPercent`
+  - 护盾、共享生命、防护等后续处理
+- `虚弱` 当前已正式影响目标造成的最终伤害；`易伤` 当前已正式影响目标受到的最终伤害。
+- starter 敌人内容当前继续沿用 `易伤 / 虚弱` 的施加路径，但不再把它们当作纯文本占位；`山匪教头` 的“若目标处于易伤则伤害会被进一步放大”现在由正式受击修正自然成立。
+- `中毒 / 腐蚀 / 流血` 当前继续保留为后续 DOT / 敌方状态专轮处理对象，不在这一步一并迁移。
 
 ## 2026-04-30 Step 19D：把 `刀势 / 药引` 归位成正式资源型状态
 

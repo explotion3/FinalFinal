@@ -1102,6 +1102,7 @@ namespace FinalDataAssetValidation
 			const FString ModifierFieldName = FString::Printf(TEXT("RuntimeModifiers[%d]"), ModifierIndex);
 
 			if (ModifierDefinition.OutgoingDamagePercentPerStack == 0
+				&& ModifierDefinition.IncomingDamagePercentPerStack == 0
 				&& ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack == 0
 				&& !ModifierDefinition.bConsumeOnSuccessfulOwnerDamage
 				&& !ModifierDefinition.bConsumeOnPreventedTeamHealthDamage

@@ -67,6 +67,9 @@ struct FINALDATA_API FFinalStatusRuntimeModifierDefinition
 	int32 OutgoingDamagePercentPerStack = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
+	int32 IncomingDamagePercentPerStack = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
 	bool bOnlyAffectAttackCards = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|RuntimeModifiers")
