@@ -1,14 +1,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Ids/FinalIds.h"
 
 struct FFinalBattleCharacterStatusesViewData;
 class FFinalBattleCardService;
+class FFinalBattleEffectExecutionService;
+class FFinalBattleTriggerService;
+class FFinalBattleUnitService;
 struct FFinalBattleState;
 struct FFinalBattleStatusInstance;
 struct FFinalBattleStatusViewData;
 class UFinalStatusDefinition;
+
+struct FFinalBattleDamageOverTimeResult
+{
+	int32 TotalDamageToTeam = 0;
+	int32 TotalDamageToEnemies = 0;
+	int32 TotalEnemiesDefeated = 0;
+};
 
 class FFinalBattleStatusService
 {
@@ -35,6 +46,12 @@ public:
 		bool bIsAttackCardDamage) const;
 	int32 GetIncomingTeamHealthDamageReductionPercent(const FFinalBattleState& BattleState) const;
 	int32 ApplyIncomingTeamHealthDamageProtection(FFinalBattleState& BattleState, int32 IncomingHealthDamage) const;
+	FFinalBattleDamageOverTimeResult ResolveDamageOverTimeAtTickWindow(
+		FFinalBattleState& BattleState,
+		EFinalStatusDamageOverTimeTickWindow TickWindow,
+		const FFinalBattleUnitService& UnitService,
+		const FFinalBattleTriggerService& TriggerService,
+		const FFinalBattleEffectExecutionService& EffectExecutionService) const;
 	int32 RemoveStatusStacks(
 		FFinalBattleState& BattleState,
 		FName OwnerUnitId,

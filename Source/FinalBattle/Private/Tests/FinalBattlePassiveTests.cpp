@@ -114,6 +114,7 @@ namespace FinalBattlePassiveTests
 		PassiveDefinition->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 		PassiveDefinition->DurationType = EFinalPassiveDurationType::Battle;
 		PassiveDefinition->MaxStacks = 1;
+		PassiveDefinition->AppliesTo = EFinalPassiveAppliesTo::PlayerOnly;
 
 		FFinalRuntimeTriggerDefinition& Trigger = PassiveDefinition->RuntimeTriggers.AddDefaulted_GetRef();
 		Trigger.Domain = EFinalRuntimeTriggerDomain::Battle;
@@ -140,6 +141,7 @@ namespace FinalBattlePassiveTests
 		PassiveDefinition->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 		PassiveDefinition->DurationType = EFinalPassiveDurationType::Battle;
 		PassiveDefinition->MaxStacks = 1;
+		PassiveDefinition->AppliesTo = EFinalPassiveAppliesTo::PlayerOnly;
 
 		FFinalRuntimeTriggerDefinition& Trigger = PassiveDefinition->RuntimeTriggers.AddDefaulted_GetRef();
 		Trigger.Domain = EFinalRuntimeTriggerDomain::Battle;
@@ -165,7 +167,7 @@ namespace FinalBattlePassiveTests
 		return PassiveDefinition;
 	}
 
-	TStrongObjectPtr<UFinalPassiveDefinition> MakePlayerTurnDurationPassive()
+	TStrongObjectPtr<UFinalPassiveDefinition> MakePlayerTurnDurationPassive(const EFinalPassiveAppliesTo AppliesTo = EFinalPassiveAppliesTo::PlayerOnly)
 	{
 		TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition(NewObject<UFinalPassiveDefinition>(GetTransientPackage()));
 		PassiveDefinition->PassiveId = FFinalPassiveId(FName(TEXT("passive.test.player_turn_duration")));
@@ -175,24 +177,27 @@ namespace FinalBattlePassiveTests
 		PassiveDefinition->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 		PassiveDefinition->DurationType = EFinalPassiveDurationType::PlayerTurns;
 		PassiveDefinition->MaxStacks = 1;
+		PassiveDefinition->AppliesTo = AppliesTo;
 		return PassiveDefinition;
 	}
 
 	TStrongObjectPtr<UFinalCardDefinition> MakeApplyPassiveCard(
 		const FFinalCardId& CardId,
 		const FFinalCharacterId& CharacterId,
-		UFinalPassiveDefinition* PassiveDefinition)
+		UFinalPassiveDefinition* PassiveDefinition,
+		const EFinalBattleUnitTargetRule UnitTargetRule = EFinalBattleUnitTargetRule::Self,
+		const int32 BaseCostAP = 1)
 	{
 		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
 		CardDefinition->CardId = CardId;
 		CardDefinition->OwnerUnitId = CharacterId.Value;
 		CardDefinition->DisplayName = FText::FromString(TEXT("受压蓄势"));
-		CardDefinition->BaseCostAP = 1;
+		CardDefinition->BaseCostAP = BaseCostAP;
 		CardDefinition->CardType = EFinalCardType::Ability;
 
 		UFinalBattleEffectApplyPassive* ApplyPassiveEffect = NewObject<UFinalBattleEffectApplyPassive>(CardDefinition.Get());
 		ApplyPassiveEffect->EffectId = TEXT("effect.test.card.apply_passive");
-		ApplyPassiveEffect->UnitTargetRule = EFinalBattleUnitTargetRule::Self;
+		ApplyPassiveEffect->UnitTargetRule = UnitTargetRule;
 		ApplyPassiveEffect->PassiveDefinition = PassiveDefinition;
 		ApplyPassiveEffect->PassiveId = PassiveDefinition->PassiveId;
 		ApplyPassiveEffect->Stacks = 1;
@@ -362,6 +367,182 @@ namespace FinalBattlePassiveTests
 			return Event.EventType == EventType && Event.RelatedTag == RelatedTag;
 		});
 	}
+
+	const FFinalBattlePassiveViewData* FindPassiveViewByOwnerAndId(
+		const FFinalBattleSnapshot& Snapshot,
+		const FName OwnerUnitId,
+		const FFinalPassiveId& PassiveId)
+	{
+		return Snapshot.Passives.FindByPredicate([&OwnerUnitId, &PassiveId](const FFinalBattlePassiveViewData& PassiveView)
+		{
+			return PassiveView.OwnerUnitId == OwnerUnitId && PassiveView.PassiveId == PassiveId;
+		});
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassiveAppliesToPlayerOnlyTest,
+	"Final.Battle.Passive.AppliesTo.PlayerOnly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassiveAppliesToPlayerOnlyTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.applies_to.player_only")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.passive.applies_to.player_only.self")));
+	const FFinalCardId TeamPlayerCardId(FName(TEXT("card.test.passive.applies_to.player_only.team_player")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.passive.applies_to.player_only.enemy")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	RuleConfig->InitialAP = 6;
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakePlayerTurnDurationPassive(EFinalPassiveAppliesTo::PlayerOnly);
+	TStrongObjectPtr<UFinalCardDefinition> SelfCard = MakeApplyPassiveCard(SelfCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::Self, 0);
+	TStrongObjectPtr<UFinalCardDefinition> TeamPlayerCard = MakeApplyPassiveCard(TeamPlayerCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::TeamPlayer, 0);
+	TStrongObjectPtr<UFinalCardDefinition> EnemyCard = MakeApplyPassiveCard(EnemyCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::SelectedEnemy, 0);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ SelfCard.Get(), TeamPlayerCard.Get(), EnemyCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { SelfCardId, TeamPlayerCardId, EnemyCardId })
+	{
+		const FFinalBattleCardViewData* HandCard = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("ApplyPassive test cards should begin in hand."), HandCard))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = HandCard->CardInstanceId;
+		if (CardId == EnemyCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+		TestNotEqual(TEXT("PlayerOnly apply card should still resolve command path."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestNotNull(TEXT("PlayerOnly passive should apply to the player character."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Characters[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	TestNotNull(TEXT("PlayerOnly passive should apply to team_player."), FindPassiveViewByOwnerAndId(Snapshot, FName(TEXT("team_player")), PassiveDefinition->PassiveId));
+	TestNull(TEXT("PlayerOnly passive should be rejected on enemy owners."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassiveAppliesToEnemyOnlyTest,
+	"Final.Battle.Passive.AppliesTo.EnemyOnly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassiveAppliesToEnemyOnlyTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.applies_to.enemy_only")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.passive.applies_to.enemy_only.self")));
+	const FFinalCardId TeamPlayerCardId(FName(TEXT("card.test.passive.applies_to.enemy_only.team_player")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.passive.applies_to.enemy_only.enemy")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	RuleConfig->InitialAP = 6;
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakePlayerTurnDurationPassive(EFinalPassiveAppliesTo::EnemyOnly);
+	TStrongObjectPtr<UFinalCardDefinition> SelfCard = MakeApplyPassiveCard(SelfCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::Self, 0);
+	TStrongObjectPtr<UFinalCardDefinition> TeamPlayerCard = MakeApplyPassiveCard(TeamPlayerCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::TeamPlayer, 0);
+	TStrongObjectPtr<UFinalCardDefinition> EnemyCard = MakeApplyPassiveCard(EnemyCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::SelectedEnemy, 0);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ SelfCard.Get(), TeamPlayerCard.Get(), EnemyCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { SelfCardId, TeamPlayerCardId, EnemyCardId })
+	{
+		const FFinalBattleCardViewData* HandCard = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("ApplyPassive test cards should begin in hand."), HandCard))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = HandCard->CardInstanceId;
+		if (CardId == EnemyCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+		TestNotEqual(TEXT("EnemyOnly apply card should still resolve command path."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestNotNull(TEXT("EnemyOnly passive should apply to enemy owners."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	TestNull(TEXT("EnemyOnly passive should be rejected on player characters."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Characters[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	TestNull(TEXT("EnemyOnly passive should be rejected on team_player."), FindPassiveViewByOwnerAndId(Snapshot, FName(TEXT("team_player")), PassiveDefinition->PassiveId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattlePassiveAppliesToSharedTest,
+	"Final.Battle.Passive.AppliesTo.Shared",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattlePassiveAppliesToSharedTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattlePassiveTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.passive.applies_to.shared")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.passive.applies_to.shared.self")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.passive.applies_to.shared.enemy")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	RuleConfig->InitialAP = 4;
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get());
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition = MakePlayerTurnDurationPassive(EFinalPassiveAppliesTo::Shared);
+	TStrongObjectPtr<UFinalCardDefinition> SelfCard = MakeApplyPassiveCard(SelfCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::Self, 0);
+	TStrongObjectPtr<UFinalCardDefinition> EnemyCard = MakeApplyPassiveCard(EnemyCardId, CharacterId, PassiveDefinition.Get(), EFinalBattleUnitTargetRule::SelectedEnemy, 0);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ SelfCard.Get(), EnemyCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* SelfHandCard = FindHandCardById(Snapshot, SelfCardId);
+	const FFinalBattleCardViewData* EnemyHandCard = FindHandCardById(Snapshot, EnemyCardId);
+	if (!TestNotNull(TEXT("Shared passive self card should begin in hand."), SelfHandCard)
+		|| !TestNotNull(TEXT("Shared passive enemy card should begin in hand."), EnemyHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = SelfHandCard->CardInstanceId;
+	TestNotEqual(TEXT("Shared self-target apply card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	Command.CardInstanceId = FindHandCardById(Snapshot, EnemyCardId)->CardInstanceId;
+	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Shared enemy-target apply card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	TestNotNull(TEXT("Shared passive should apply to player owners."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Characters[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	TestNotNull(TEXT("Shared passive should apply to enemy owners."), FindPassiveViewByOwnerAndId(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, PassiveDefinition->PassiveId));
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(

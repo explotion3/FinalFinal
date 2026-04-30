@@ -36,4 +36,11 @@ public:
 		const FFinalBattleUnitService& UnitService,
 		const FFinalBattleTriggerService& TriggerService,
 		FFinalBattleEffectExecutionSummary& Summary) const;
+
+	int32 ApplyEnemyIncomingDamage(
+		FFinalBattleState& State,
+		FName TargetEnemyUnitId,
+		int32 TotalIncomingDamage,
+		const FFinalBattleUnitService& UnitService,
+		FFinalBattleEffectExecutionSummary& Summary) const;
 };

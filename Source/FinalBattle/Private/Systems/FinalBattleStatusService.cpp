@@ -5,9 +5,13 @@
 #include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Runtime/FinalBattleCharacterState.h"
+#include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
 #include "Runtime/FinalBattleStatusInstance.h"
 #include "Systems/FinalBattleCardService.h"
+#include "Systems/FinalBattleEffectExecutionService.h"
+#include "Systems/FinalBattleTriggerService.h"
+#include "Systems/FinalBattleUnitService.h"
 
 namespace
 {
@@ -45,6 +49,21 @@ bool IsResourceStatus(const UFinalStatusDefinition* StatusDefinition)
 	return StatusDefinition != nullptr
 		&& StatusDefinition->bIsResourceStatus
 		&& StatusDefinition->ResourceBehavior == EFinalStatusResourceBehavior::AccumulateAndConsume;
+}
+
+bool IsDamageOverTimeStatus(const FFinalBattleStatusInstance& StatusInstance)
+{
+	return StatusInstance.bIsDamageOverTime
+		&& StatusInstance.DamageOverTimeTickWindow != EFinalStatusDamageOverTimeTickWindow::None
+		&& StatusInstance.DamageOverTimeAttackPowerPercentPerStack > 0;
+}
+
+bool IsDamageOverTimeStatus(const UFinalStatusDefinition* StatusDefinition)
+{
+	return StatusDefinition != nullptr
+		&& StatusDefinition->bIsDamageOverTime
+		&& StatusDefinition->DamageOverTimeTickWindow != EFinalStatusDamageOverTimeTickWindow::None
+		&& StatusDefinition->DamageOverTimeAttackPowerPercentPerStack > 0;
 }
 
 bool ShouldExpireAtPlayerTurnEnd(const UFinalStatusDefinition* StatusDefinition)
@@ -141,6 +160,131 @@ bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName Owner
 		{
 			return Candidate.RuntimeUnitId == OwnerUnitId;
 		});
+}
+
+bool IsEnemyOwnedStatus(const FFinalBattleState& BattleState, const FName OwnerUnitId)
+{
+	return BattleState.Enemies.ContainsByPredicate(
+		[&OwnerUnitId](const FFinalBattleEnemyState& Candidate)
+		{
+			return Candidate.RuntimeUnitId == OwnerUnitId;
+		});
+}
+
+bool IsStatusOwnerAllowedByAppliesTo(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const EFinalStatusAppliesTo AppliesTo)
+{
+	if (OwnerUnitId.IsNone())
+	{
+		return false;
+	}
+
+	const bool bIsPlayerOwned = IsPlayerOwnedStatus(BattleState, OwnerUnitId);
+	const bool bIsEnemyOwned = IsEnemyOwnedStatus(BattleState, OwnerUnitId);
+	if (!bIsPlayerOwned && !bIsEnemyOwned)
+	{
+		return false;
+	}
+
+	switch (AppliesTo)
+	{
+	case EFinalStatusAppliesTo::Shared:
+		return true;
+	case EFinalStatusAppliesTo::PlayerOnly:
+		return bIsPlayerOwned;
+	case EFinalStatusAppliesTo::EnemyOnly:
+		return bIsEnemyOwned;
+	default:
+		return false;
+	}
+}
+
+const FFinalBattleStatusInstance* FindStatusInstanceForAdd(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const FName SourceUnitId,
+	const FFinalStatusId& StatusId,
+	const UFinalStatusDefinition* StatusDefinition)
+{
+	const EFinalStatusStackKeyPolicy StackKeyPolicy = StatusDefinition != nullptr
+		? StatusDefinition->StackKeyPolicy
+		: EFinalStatusStackKeyPolicy::ByOwner;
+
+	return BattleState.StatusInstances.FindByPredicate(
+		[&OwnerUnitId, &SourceUnitId, &StatusId, StackKeyPolicy](const FFinalBattleStatusInstance& Candidate)
+		{
+			if (Candidate.OwnerUnitId != OwnerUnitId || Candidate.StatusId != StatusId)
+			{
+				return false;
+			}
+
+			switch (StackKeyPolicy)
+			{
+			case EFinalStatusStackKeyPolicy::ByOwner:
+				return true;
+			case EFinalStatusStackKeyPolicy::ByOwnerAndSource:
+				return Candidate.SourceUnitId == SourceUnitId;
+			case EFinalStatusStackKeyPolicy::SeparateInstances:
+			default:
+				return false;
+			}
+		});
+}
+
+FFinalBattleStatusInstance* FindStatusInstanceForAdd(
+	FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const FName SourceUnitId,
+	const FFinalStatusId& StatusId,
+	const UFinalStatusDefinition* StatusDefinition)
+{
+	return BattleState.StatusInstances.FindByPredicate(
+		[&OwnerUnitId, &SourceUnitId, &StatusId, StatusDefinition](const FFinalBattleStatusInstance& Candidate)
+		{
+			if (Candidate.OwnerUnitId != OwnerUnitId || Candidate.StatusId != StatusId)
+			{
+				return false;
+			}
+
+			const EFinalStatusStackKeyPolicy StackKeyPolicy = StatusDefinition != nullptr
+				? StatusDefinition->StackKeyPolicy
+				: EFinalStatusStackKeyPolicy::ByOwner;
+			switch (StackKeyPolicy)
+			{
+			case EFinalStatusStackKeyPolicy::ByOwner:
+				return true;
+			case EFinalStatusStackKeyPolicy::ByOwnerAndSource:
+				return Candidate.SourceUnitId == SourceUnitId;
+			case EFinalStatusStackKeyPolicy::SeparateInstances:
+			default:
+				return false;
+			}
+		});
+}
+
+int32 ResolveSourceAttackPower(
+	const FFinalBattleState& BattleState,
+	const FFinalBattleUnitService& UnitService,
+	const FName SourceUnitId)
+{
+	if (SourceUnitId.IsNone())
+	{
+		return 0;
+	}
+
+	if (const FFinalBattleCharacterState* SourceCharacter = UnitService.FindCharacterState(BattleState, SourceUnitId))
+	{
+		return SourceCharacter->RuntimeAttack;
+	}
+
+	if (const FFinalBattleEnemyState* SourceEnemy = UnitService.FindEnemyState(BattleState, SourceUnitId))
+	{
+		return SourceEnemy->RuntimeDamagePower;
+	}
+
+	return 0;
 }
 
 bool IsStructuredOutgoingDamageModifierApplicable(
@@ -303,7 +447,20 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 		return 0;
 	}
 
-	FFinalBattleStatusInstance* ExistingInstance = FindStatusInstance(BattleState, OwnerUnitId, StatusId);
+	if (!IsStatusOwnerAllowedByAppliesTo(
+		BattleState,
+		OwnerUnitId,
+		StatusDefinition != nullptr ? StatusDefinition->AppliesTo : EFinalStatusAppliesTo::Shared))
+	{
+		return 0;
+	}
+
+	FFinalBattleStatusInstance* ExistingInstance = FindStatusInstanceForAdd(
+		BattleState,
+		OwnerUnitId,
+		SourceUnitId,
+		StatusId,
+		StatusDefinition);
 	const int32 MaxStacks = StatusDefinition ? StatusDefinition->MaxStacks : 0;
 	int32 BaseDuration = DurationOverride > 0
 		? DurationOverride
@@ -326,10 +483,14 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 			: FText::FromName(StatusId.Value);
 		NewInstance.CurrentStacks = MaxStacks > 0 ? FMath::Min(StacksToAdd, MaxStacks) : StacksToAdd;
 		NewInstance.RemainingDuration = BaseDuration;
+		NewInstance.StackKeyPolicy = StatusDefinition != nullptr ? StatusDefinition->StackKeyPolicy : EFinalStatusStackKeyPolicy::ByOwner;
 		NewInstance.bIsResourceStatus = IsResourceStatus(StatusDefinition);
 		NewInstance.ResourceBehavior = StatusDefinition != nullptr ? StatusDefinition->ResourceBehavior : EFinalStatusResourceBehavior::None;
 		NewInstance.bAutoAffectBattleRules = StatusDefinition != nullptr && StatusDefinition->bAutoAffectBattleRules;
 		NewInstance.bAutoProjectToCards = StatusDefinition != nullptr && StatusDefinition->bAutoProjectToCards;
+		NewInstance.bIsDamageOverTime = IsDamageOverTimeStatus(StatusDefinition);
+		NewInstance.DamageOverTimeTickWindow = StatusDefinition != nullptr ? StatusDefinition->DamageOverTimeTickWindow : EFinalStatusDamageOverTimeTickWindow::None;
+		NewInstance.DamageOverTimeAttackPowerPercentPerStack = StatusDefinition != nullptr ? StatusDefinition->DamageOverTimeAttackPowerPercentPerStack : 0;
 		BuildStructuredRuntimeModifiers(StatusDefinition, NewInstance.RuntimeModifiers);
 		BuildStructuredProjectedCardModifiers(StatusDefinition, NewInstance.ProjectedCardModifiers);
 		NewInstance.OutgoingDamagePercentPerStack = UsesStructuredRuntimeModifiers(NewInstance) ? 0 : (StatusDefinition ? StatusDefinition->OutgoingDamagePercentPerStack : 0);
@@ -355,10 +516,14 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 	}
 	if (StatusDefinition != nullptr)
 	{
+		ExistingInstance->StackKeyPolicy = StatusDefinition->StackKeyPolicy;
 		ExistingInstance->bIsResourceStatus = IsResourceStatus(StatusDefinition);
 		ExistingInstance->ResourceBehavior = StatusDefinition->ResourceBehavior;
 		ExistingInstance->bAutoAffectBattleRules = StatusDefinition->bAutoAffectBattleRules;
 		ExistingInstance->bAutoProjectToCards = StatusDefinition->bAutoProjectToCards;
+		ExistingInstance->bIsDamageOverTime = IsDamageOverTimeStatus(StatusDefinition);
+		ExistingInstance->DamageOverTimeTickWindow = StatusDefinition->DamageOverTimeTickWindow;
+		ExistingInstance->DamageOverTimeAttackPowerPercentPerStack = StatusDefinition->DamageOverTimeAttackPowerPercentPerStack;
 		BuildStructuredRuntimeModifiers(StatusDefinition, ExistingInstance->RuntimeModifiers);
 		BuildStructuredProjectedCardModifiers(StatusDefinition, ExistingInstance->ProjectedCardModifiers);
 		ExistingInstance->OutgoingDamagePercentPerStack = UsesStructuredRuntimeModifiers(*ExistingInstance) ? 0 : StatusDefinition->OutgoingDamagePercentPerStack;
@@ -736,6 +901,69 @@ int32 FFinalBattleStatusService::ApplyIncomingTeamHealthDamageProtection(
 	}
 
 	return FMath::Max(ClampedIncomingHealthDamage - PreventedHealthDamage, 0);
+}
+
+FFinalBattleDamageOverTimeResult FFinalBattleStatusService::ResolveDamageOverTimeAtTickWindow(
+	FFinalBattleState& BattleState,
+	const EFinalStatusDamageOverTimeTickWindow TickWindow,
+	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleTriggerService& TriggerService,
+	const FFinalBattleEffectExecutionService& EffectExecutionService) const
+{
+	FFinalBattleDamageOverTimeResult Result;
+
+	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
+	{
+		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
+		if (!IsDamageOverTimeStatus(StatusInstance)
+			|| StatusInstance.DamageOverTimeTickWindow != TickWindow
+			|| StatusInstance.CurrentStacks <= 0)
+		{
+			continue;
+		}
+
+		const int32 SourceAttackPower = ResolveSourceAttackPower(BattleState, UnitService, StatusInstance.SourceUnitId);
+		const int32 BaseDamage = FMath::Max(
+			FMath::RoundToInt(static_cast<float>(SourceAttackPower) * static_cast<float>(StatusInstance.DamageOverTimeAttackPowerPercentPerStack) / 100.0f),
+			0);
+		const int32 TotalIncomingDamage = FMath::Max(BaseDamage * StatusInstance.CurrentStacks, 0);
+		if (TotalIncomingDamage > 0)
+		{
+			FFinalBattleEffectExecutionSummary Summary;
+			if (StatusInstance.OwnerUnitId == TeamPlayerUnitId)
+			{
+				const int32 HpDamage = EffectExecutionService.ApplyTeamIncomingDamageAndTriggers(
+					BattleState,
+					TotalIncomingDamage,
+					UnitService,
+					TriggerService,
+					Summary);
+				Result.TotalDamageToTeam += HpDamage;
+			}
+			else if (UnitService.FindEnemyState(BattleState, StatusInstance.OwnerUnitId) != nullptr)
+			{
+				const int32 HpDamage = EffectExecutionService.ApplyEnemyIncomingDamage(
+					BattleState,
+					StatusInstance.OwnerUnitId,
+					TotalIncomingDamage,
+					UnitService,
+					Summary);
+				Result.TotalDamageToEnemies += HpDamage;
+				Result.TotalEnemiesDefeated += Summary.TotalEnemiesDefeated;
+			}
+		}
+
+		if (StatusInstance.RemainingDuration > 0)
+		{
+			StatusInstance.RemainingDuration = FMath::Max(StatusInstance.RemainingDuration - 1, 0);
+			if (StatusInstance.RemainingDuration <= 0)
+			{
+				BattleState.StatusInstances.RemoveAt(StatusIndex);
+			}
+		}
+	}
+
+	return Result;
 }
 
 int32 FFinalBattleStatusService::RemoveStatusStacks(

@@ -15,6 +15,7 @@
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Facade/FinalBattleSession.h"
@@ -113,6 +114,7 @@ namespace FinalBattleStatusTests
 		const bool bConsumeOnPreventedTeamHealthDamage,
 		const bool bOnlyAffectAttackCards,
 		const bool bExpireAtPlayerTurnEnd,
+		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::Shared,
 		const int32 MaxStacks = 9,
 		const int32 DefaultDuration = 0)
 	{
@@ -120,6 +122,7 @@ namespace FinalBattleStatusTests
 		StatusDefinition->StatusId = FFinalStatusId(StatusName);
 		StatusDefinition->DisplayName = FText::FromString(DisplayName);
 		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
+		StatusDefinition->AppliesTo = AppliesTo;
 		StatusDefinition->MaxStacks = MaxStacks;
 		StatusDefinition->DefaultDuration = DefaultDuration;
 		StatusDefinition->DurationType = EFinalStatusDurationType::PlayerTurns;
@@ -147,12 +150,14 @@ namespace FinalBattleStatusTests
 	TStrongObjectPtr<UFinalStatusDefinition> MakeResourceStatusDefinition(
 		const FName StatusName,
 		const FString& DisplayName,
+		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::PlayerOnly,
 		const int32 MaxStacks = 9)
 	{
 		TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
 		StatusDefinition->StatusId = FFinalStatusId(StatusName);
 		StatusDefinition->DisplayName = FText::FromString(DisplayName);
 		StatusDefinition->StatusCategory = EFinalStatusCategory::Signature;
+		StatusDefinition->AppliesTo = AppliesTo;
 		StatusDefinition->MaxStacks = MaxStacks;
 		StatusDefinition->DefaultDuration = 0;
 		StatusDefinition->DurationType = EFinalStatusDurationType::Battle;
@@ -182,12 +187,14 @@ namespace FinalBattleStatusTests
 		const int32 OutgoingDamagePercentPerStack,
 		const bool bConsumeOnSuccessfulOwnerDamage,
 		const bool bExpireAtPlayerTurnEnd,
+		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::PlayerOnly,
 		const int32 MaxStacks = 9)
 	{
 		TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
 		StatusDefinition->StatusId = FFinalStatusId(StatusName);
 		StatusDefinition->DisplayName = FText::FromString(DisplayName);
 		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
+		StatusDefinition->AppliesTo = AppliesTo;
 		StatusDefinition->MaxStacks = MaxStacks;
 		StatusDefinition->DefaultDuration = 0;
 		FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StatusDefinition->ProjectedCardModifiers.AddDefaulted_GetRef();
@@ -202,6 +209,42 @@ namespace FinalBattleStatusTests
 		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
 		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
 		StatusDefinition->bOnlyAffectAttackCards = true;
+		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
+		StatusDefinition->bProjectToOwnedHandCards = false;
+		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
+		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
+		return StatusDefinition;
+	}
+
+	TStrongObjectPtr<UFinalStatusDefinition> MakePoisonStatusDefinition(
+		const FName StatusName,
+		const FString& DisplayName = TEXT("中毒"),
+		const EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::Shared,
+		const int32 DefaultDuration = 3,
+		const int32 MaxStacks = 9)
+	{
+		TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
+		StatusDefinition->StatusId = FFinalStatusId(StatusName);
+		StatusDefinition->DisplayName = FText::FromString(DisplayName);
+		StatusDefinition->StatusCategory = EFinalStatusCategory::Debuff;
+		StatusDefinition->AppliesTo = AppliesTo;
+		StatusDefinition->MaxStacks = MaxStacks;
+		StatusDefinition->DefaultDuration = DefaultDuration;
+		StatusDefinition->StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwnerAndSource;
+		StatusDefinition->StackRule = EFinalStatusStackRule::AddAndClamp;
+		StatusDefinition->DurationType = EFinalStatusDurationType::PlayerTurns;
+		StatusDefinition->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+		StatusDefinition->bIsDamageOverTime = true;
+		StatusDefinition->DamageOverTimeTickWindow = EFinalStatusDamageOverTimeTickWindow::PlayerTurnEndBeforeEnemyActions;
+		StatusDefinition->DamageOverTimeAttackPowerPercentPerStack = 20;
+		StatusDefinition->RuntimeModifiers.Reset();
+		StatusDefinition->ProjectedCardModifiers.Reset();
+		StatusDefinition->RuntimeTriggers.Reset();
+		StatusDefinition->OutgoingDamagePercentPerStack = 0;
+		StatusDefinition->bExpireAtPlayerTurnEnd = false;
+		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = false;
+		StatusDefinition->bOnlyAffectAttackCards = false;
 		StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 		StatusDefinition->bConsumeOnPreventedTeamHealthDamage = false;
 		StatusDefinition->bProjectToOwnedHandCards = false;
@@ -332,6 +375,49 @@ namespace FinalBattleStatusTests
 		return CardDefinition;
 	}
 
+	TStrongObjectPtr<UFinalCardDefinition> MakeTeamShieldCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 ShieldAmount)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = 0;
+		CardDefinition->CardType = EFinalCardType::Skill;
+
+		UFinalBattleEffectGainShield* GainShieldEffect = NewObject<UFinalBattleEffectGainShield>(CardDefinition.Get());
+		GainShieldEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.team_shield"), *CardId.Value.ToString()));
+		GainShieldEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+		GainShieldEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+		GainShieldEffect->Scalar.BaseValue = static_cast<float>(ShieldAmount);
+		CardDefinition->Effects.Add(GainShieldEffect);
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> MakeEnemyApplyStatusIntent(
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 Stacks)
+	{
+		TStrongObjectPtr<UFinalEnemyIntentDefinition> Intent(NewObject<UFinalEnemyIntentDefinition>(GetTransientPackage()));
+		Intent->IntentId = TEXT("intent.test.status.apply_status");
+		Intent->DisplayName = FText::FromString(TEXT("Apply Status"));
+		Intent->PreviewText = FText::FromString(TEXT("Apply a status to team_player"));
+		Intent->IntentType = EFinalIntentType::Debuff;
+		Intent->Weight = 1;
+
+		UFinalBattleEffectApplyStatus* ApplyStatusEffect = NewObject<UFinalBattleEffectApplyStatus>(Intent.Get());
+		ApplyStatusEffect->EffectId = TEXT("effect.test.status.apply_status");
+		ApplyStatusEffect->UnitTargetRule = EFinalBattleUnitTargetRule::TeamPlayer;
+		ApplyStatusEffect->StatusDefinition = StatusDefinition;
+		ApplyStatusEffect->StatusId = StatusDefinition != nullptr ? StatusDefinition->StatusId : FFinalStatusId();
+		ApplyStatusEffect->Stacks = Stacks;
+		Intent->Effects.Add(ApplyStatusEffect);
+		return Intent;
+	}
+
 	TStrongObjectPtr<UFinalCardDefinition> MakeYaoYinConsumerCard(
 		const FFinalCardId& CardId,
 		const FFinalCharacterId& CharacterId,
@@ -416,12 +502,117 @@ namespace FinalBattleStatusTests
 		return Session;
 	}
 
+	TStrongObjectPtr<UFinalBattleSession> CreateSessionForParty(
+		UFinalBattleEncounterDefinition* EncounterDefinition,
+		UFinalBattleRuleConfig* RuleConfig,
+		const TArray<UFinalCharacterDefinition*>& CharacterDefinitions,
+		const TArray<UFinalCardDefinition*>& CardDefinitions)
+	{
+		FFinalBattleInitContext InitContext;
+		InitContext.TeamCurrentHP = 20;
+
+		for (UFinalCharacterDefinition* CharacterDefinition : CharacterDefinitions)
+		{
+			if (CharacterDefinition == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCharacterInitData& CharacterInit = InitContext.PartyMembers.AddDefaulted_GetRef();
+			CharacterInit.CharacterDefinition = CharacterDefinition;
+			CharacterInit.CurrentStress = 0;
+			CharacterInit.bCollapsed = false;
+			CharacterInit.CurrentAwakenCount = 0;
+			CharacterInit.CollapseCount = 0;
+			CharacterInit.VitalShare = CharacterDefinition->BaseVitalShare;
+			CharacterInit.StressCap = CharacterDefinition->BaseStressCap;
+			CharacterInit.RuntimeAttack = CharacterDefinition->BaseAttack;
+			CharacterInit.RuntimeDefense = CharacterDefinition->BaseDefense;
+			CharacterInit.RuntimeBreakRate = CharacterDefinition->BaseBreakRate;
+			CharacterInit.RuntimeCritChance = CharacterDefinition->BaseCritChance;
+			CharacterInit.RuntimeCritDamage = CharacterDefinition->BaseCritDamage;
+		}
+
+		for (UFinalCardDefinition* CardDefinition : CardDefinitions)
+		{
+			if (CardDefinition == nullptr)
+			{
+				continue;
+			}
+
+			const UFinalCharacterDefinition* OwnerCharacter = nullptr;
+			for (const UFinalCharacterDefinition* Candidate : CharacterDefinitions)
+			{
+				if (Candidate != nullptr && Candidate->CharacterId.Value == CardDefinition->OwnerUnitId)
+				{
+					OwnerCharacter = Candidate;
+					break;
+				}
+			}
+			if (OwnerCharacter == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCardInitData& CardInit = InitContext.DeckCards.AddDefaulted_GetRef();
+			CardInit.CardDefinition = CardDefinition;
+			CardInit.CardId = CardDefinition->CardId;
+			CardInit.OwnerCharacterId = OwnerCharacter->CharacterId;
+			InitContext.DeckDefinitions.Add(CardDefinition);
+		}
+
+		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
+		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+		return Session;
+	}
+
 	const FFinalBattleCardViewData* FindHandCardById(const FFinalBattleSnapshot& Snapshot, const FFinalCardId& CardId)
 	{
 		return Snapshot.HandCards.FindByPredicate(
 			[&CardId](const FFinalBattleCardViewData& Candidate)
 			{
 				return Candidate.CardId == CardId;
+			});
+	}
+
+	const FFinalBattleStatusViewData* FindStatusView(
+		const FFinalBattleSnapshot& Snapshot,
+		const FName OwnerUnitId,
+		const FFinalStatusId& StatusId)
+	{
+		if (OwnerUnitId == FName(TEXT("team_player")))
+		{
+			if (const FFinalBattleStatusViewData* TeamStatusView = Snapshot.TeamStatuses.FindByPredicate(
+				[&](const FFinalBattleStatusViewData& Candidate)
+				{
+					return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
+				}))
+			{
+				return TeamStatusView;
+			}
+		}
+
+		for (const FFinalBattleCharacterStatusesViewData& CharacterStatuses : Snapshot.CharacterStatuses)
+		{
+			if (CharacterStatuses.OwnerUnitId != OwnerUnitId)
+			{
+				continue;
+			}
+
+			if (const FFinalBattleStatusViewData* CharacterStatusView = CharacterStatuses.StatusEntries.FindByPredicate(
+				[&](const FFinalBattleStatusViewData& Candidate)
+				{
+					return Candidate.StatusId == StatusId;
+				}))
+			{
+				return CharacterStatusView;
+			}
+		}
+
+		return Snapshot.Statuses.FindByPredicate(
+			[&](const FFinalBattleStatusViewData& Candidate)
+			{
+				return Candidate.OwnerUnitId == OwnerUnitId && Candidate.StatusId == StatusId;
 			});
 	}
 }
@@ -572,6 +763,7 @@ bool FFinalBattleStatusRuntimeModifiersVulnerableIncreasesIncomingDamageTest::Ru
 		false,
 		false,
 		true,
+		EFinalStatusAppliesTo::Shared,
 		3,
 		1);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyVulnerableCard = MakeApplyStatusCard(VulnerableCardId, CharacterId, TEXT("Apply Vulnerable"), VulnerableStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
@@ -637,6 +829,7 @@ bool FFinalBattleStatusRuntimeModifiersWeakReducesOutgoingDamageTest::RunTest(co
 		false,
 		false,
 		true,
+		EFinalStatusAppliesTo::Shared,
 		3,
 		1);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyWeakCard = MakeApplyStatusCard(WeakCardId, CharacterId, TEXT("Apply Weak"), WeakStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
@@ -712,6 +905,7 @@ bool FFinalBattleStatusRuntimeModifiersVulnerableAndShiQiStackTest::RunTest(cons
 		false,
 		false,
 		true,
+		EFinalStatusAppliesTo::Shared,
 		3,
 		1);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyShiQiCard = MakeApplyStatusCard(ShiQiCardId, CharacterId, TEXT("Apply ShiQi"), ShiQiStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
@@ -772,6 +966,7 @@ bool FFinalBattleStatusRuntimeModifiersWeakAndFengRuiStackTest::RunTest(const FS
 		false,
 		false,
 		true,
+		EFinalStatusAppliesTo::Shared,
 		3,
 		1);
 	TStrongObjectPtr<UFinalStatusDefinition> FengRuiStatus = MakeProjectedDamageStatusDefinition(
@@ -845,6 +1040,7 @@ bool FFinalBattleStatusRuntimeModifiersImmunityProtectsAndConsumesTest::RunTest(
 		true,
 		false,
 		true,
+		EFinalStatusAppliesTo::PlayerOnly,
 		1,
 		1);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyImmunityCard = MakeApplyStatusCard(ImmunityCardId, CharacterId, TEXT("Apply Immunity"), ImmunityStatus.Get(), 1, EFinalBattleUnitTargetRule::TeamPlayer);
@@ -904,7 +1100,7 @@ bool FFinalBattleStatusResourceDaoShiAccumulatesAndConsumesTest::RunTest(const F
 	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
 	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
 	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
-	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.daoshi"), TEXT("刀势"), 6);
+	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.daoshi"), TEXT("刀势"), EFinalStatusAppliesTo::PlayerOnly, 6);
 	TStrongObjectPtr<UFinalCardDefinition> ApplyCard = MakeApplyStatusCard(ApplyCardId, CharacterId, TEXT("Gain DaoShi"), DaoShiStatus.Get(), 2, EFinalBattleUnitTargetRule::Self);
 	TStrongObjectPtr<UFinalCardDefinition> ConsumerCard = MakeDaoShiConsumerCard(ConsumerCardId, CharacterId, DaoShiStatus.Get());
 	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyCard.Get(), ConsumerCard.Get() });
@@ -981,7 +1177,7 @@ bool FFinalBattleStatusResourceDuanYueZhanRequiresDaoShiForBonusBreakTest::RunTe
 		TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
 		TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
 		TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
-		TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.duanyue_daoshi"), TEXT("刀势"), 6);
+		TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.duanyue_daoshi"), TEXT("刀势"), EFinalStatusAppliesTo::PlayerOnly, 6);
 		TStrongObjectPtr<UFinalCardDefinition> ApplyCard = MakeApplyStatusCard(ApplyCardId, CharacterId, TEXT("Gain DaoShi"), DaoShiStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
 		TStrongObjectPtr<UFinalCardDefinition> ConsumerCard = MakeDaoShiConsumerCard(ConsumerCardId, CharacterId, DaoShiStatus.Get());
 		TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyCard.Get(), ConsumerCard.Get() });
@@ -1055,7 +1251,7 @@ bool FFinalBattleStatusResourceYaoYinConsumerEffectsRequireConsumeTest::RunTest(
 		TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
 		TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
 		TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
-		TStrongObjectPtr<UFinalStatusDefinition> YaoYinStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.yaoyin"), TEXT("药引"), 9);
+		TStrongObjectPtr<UFinalStatusDefinition> YaoYinStatus = MakeResourceStatusDefinition(TEXT("status.test.resource.yaoyin"), TEXT("药引"), EFinalStatusAppliesTo::PlayerOnly, 9);
 		TStrongObjectPtr<UFinalCardDefinition> ApplyCard = MakeApplyStatusCard(ApplyCardId, CharacterId, TEXT("Gain YaoYin"), YaoYinStatus.Get(), 1, EFinalBattleUnitTargetRule::Self);
 		TStrongObjectPtr<UFinalCardDefinition> ConsumerCard = MakeYaoYinConsumerCard(ConsumerCardId, CharacterId, YaoYinStatus.Get());
 		TStrongObjectPtr<UFinalCardDefinition> FillerCard = MakeDamageCard(FillerCardId, CharacterId, TEXT("Reserve"), 1, 4.0f);
@@ -1148,6 +1344,405 @@ bool FFinalBattleStatusResourceYaoYinConsumerEffectsRequireConsumeTest::RunTest(
 	TestEqual(TEXT("With YaoYin, consumer should refund 1 AP."), APWithResource, 3);
 	TestEqual(TEXT("With YaoYin, consumer should draw exactly one replacement card."), HandWithResource, 1);
 	TestEqual(TEXT("With YaoYin, consumed resource should be removed."), RemainingWithResource, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusAppliesToPlayerOnlyTest,
+	"Final.Battle.Status.AppliesTo.PlayerOnly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusAppliesToPlayerOnlyTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.applies_to_player_only")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.status.applies_to_player_only_self")));
+	const FFinalCardId TeamCardId(FName(TEXT("card.test.status.applies_to_player_only_team")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.status.applies_to_player_only_enemy")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.applies_to.player_only"),
+		TEXT("PlayerOnly Status"),
+		10,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true,
+		EFinalStatusAppliesTo::PlayerOnly);
+	TStrongObjectPtr<UFinalCardDefinition> ApplySelfCard = MakeApplyStatusCard(SelfCardId, CharacterId, TEXT("Apply Self"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyTeamCard = MakeApplyStatusCard(TeamCardId, CharacterId, TEXT("Apply Team"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::TeamPlayer);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyEnemyCard = MakeApplyStatusCard(EnemyCardId, CharacterId, TEXT("Apply Enemy"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplySelfCard.Get(), ApplyTeamCard.Get(), ApplyEnemyCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { SelfCardId, TeamCardId, EnemyCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Expected setup card should begin in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		if (CardId == EnemyCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+
+		TestNotEqual(TEXT("PlayerOnly apply card should still resolve command path."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestNotNull(TEXT("PlayerOnly status should apply to the player character."), FindStatusView(Snapshot, Snapshot.Characters[0].RuntimeUnitId, StatusDefinition->StatusId));
+	TestNotNull(TEXT("PlayerOnly status should apply to team_player."), FindStatusView(Snapshot, FName(TEXT("team_player")), StatusDefinition->StatusId));
+	TestNull(TEXT("PlayerOnly status should be rejected on enemy owners."), FindStatusView(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, StatusDefinition->StatusId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusAppliesToEnemyOnlyTest,
+	"Final.Battle.Status.AppliesTo.EnemyOnly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusAppliesToEnemyOnlyTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.applies_to_enemy_only")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.status.applies_to_enemy_only_enemy")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.status.applies_to_enemy_only_self")));
+	const FFinalCardId TeamCardId(FName(TEXT("card.test.status.applies_to_enemy_only_team")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(3);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.applies_to.enemy_only"),
+		TEXT("EnemyOnly Status"),
+		10,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true,
+		EFinalStatusAppliesTo::EnemyOnly);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyEnemyCard = MakeApplyStatusCard(EnemyCardId, CharacterId, TEXT("Apply Enemy"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalCardDefinition> ApplySelfCard = MakeApplyStatusCard(SelfCardId, CharacterId, TEXT("Apply Self"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyTeamCard = MakeApplyStatusCard(TeamCardId, CharacterId, TEXT("Apply Team"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::TeamPlayer);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplyEnemyCard.Get(), ApplySelfCard.Get(), ApplyTeamCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { EnemyCardId, SelfCardId, TeamCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Expected setup card should begin in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		if (CardId == EnemyCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+
+		TestNotEqual(TEXT("EnemyOnly apply card should still resolve command path."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestNotNull(TEXT("EnemyOnly status should apply to enemy owners."), FindStatusView(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, StatusDefinition->StatusId));
+	TestNull(TEXT("EnemyOnly status should be rejected on player characters."), FindStatusView(Snapshot, Snapshot.Characters[0].RuntimeUnitId, StatusDefinition->StatusId));
+	TestNull(TEXT("EnemyOnly status should be rejected on team_player."), FindStatusView(Snapshot, FName(TEXT("team_player")), StatusDefinition->StatusId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusAppliesToSharedTest,
+	"Final.Battle.Status.AppliesTo.Shared",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusAppliesToSharedTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.applies_to_shared")));
+	const FFinalCardId SelfCardId(FName(TEXT("card.test.status.applies_to_shared_self")));
+	const FFinalCardId EnemyCardId(FName(TEXT("card.test.status.applies_to_shared_enemy")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	TStrongObjectPtr<UFinalStatusDefinition> StatusDefinition = MakeRuntimeModifierStatusDefinition(
+		TEXT("status.test.applies_to.shared"),
+		TEXT("Shared Status"),
+		10,
+		0,
+		0,
+		false,
+		false,
+		false,
+		true,
+		EFinalStatusAppliesTo::Shared);
+	TStrongObjectPtr<UFinalCardDefinition> ApplySelfCard = MakeApplyStatusCard(SelfCardId, CharacterId, TEXT("Apply Self"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::Self);
+	TStrongObjectPtr<UFinalCardDefinition> ApplyEnemyCard = MakeApplyStatusCard(EnemyCardId, CharacterId, TEXT("Apply Enemy"), StatusDefinition.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ApplySelfCard.Get(), ApplyEnemyCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { SelfCardId, EnemyCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Expected setup card should begin in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		if (CardId == EnemyCardId)
+		{
+			Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		}
+
+		TestNotEqual(TEXT("Shared apply card should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TestNotNull(TEXT("Shared status should apply to player owners."), FindStatusView(Snapshot, Snapshot.Characters[0].RuntimeUnitId, StatusDefinition->StatusId));
+	TestNotNull(TEXT("Shared status should apply to enemy owners."), FindStatusView(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, StatusDefinition->StatusId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusDamageOverTimePoisonStacksBySourceTest,
+	"Final.Battle.Status.DamageOverTime.PoisonStacksBySource",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusDamageOverTimePoisonStacksBySourceTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterAId(FName(TEXT("character.test.status.poison_source_a")));
+	const FFinalCharacterId CharacterBId(FName(TEXT("character.test.status.poison_source_b")));
+	const FFinalCardId PoisonCardAId(FName(TEXT("card.test.status.poison_source_a")));
+	const FFinalCardId PoisonCardBId(FName(TEXT("card.test.status.poison_source_b")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	RuleConfig->InitialHandSize = 2;
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterA = MakeCharacterDefinition(CharacterAId);
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterB = MakeCharacterDefinition(CharacterBId);
+	CharacterA->BaseAttack = 10;
+	CharacterB->BaseAttack = 20;
+	TStrongObjectPtr<UFinalStatusDefinition> PoisonStatus = MakePoisonStatusDefinition(TEXT("status.test.dot.poison.by_source"));
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCardA = MakeApplyStatusCard(PoisonCardAId, CharacterAId, TEXT("Poison A"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCardB = MakeApplyStatusCard(PoisonCardBId, CharacterBId, TEXT("Poison B"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionForParty(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		{ CharacterA.Get(), CharacterB.Get() },
+		{ PoisonCardA.Get(), PoisonCardB.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { PoisonCardAId, PoisonCardBId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Poison apply card should be in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		TestNotEqual(TEXT("Applying poison should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	TArray<const FFinalBattleStatusViewData*> PoisonEntries;
+	for (const FFinalBattleStatusViewData& StatusView : Snapshot.Statuses)
+	{
+		if (StatusView.OwnerUnitId == Snapshot.Enemies[0].RuntimeUnitId && StatusView.StatusId == PoisonStatus->StatusId)
+		{
+			PoisonEntries.Add(&StatusView);
+		}
+	}
+
+	TestEqual(TEXT("Poison from different sources should create separate instances."), PoisonEntries.Num(), 2);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestNotEqual(TEXT("Ending the turn should resolve DOT successfully."), Session->SubmitCommand(EndTurnCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterTick = Session->GetSnapshot();
+	TestEqual(TEXT("Poison should deal 2 + 4 damage from the two sources before enemy acts."), SnapshotAfterTick.Enemies[0].CurrentHP, 14);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusDamageOverTimePoisonMergesSameSourceStacksTest,
+	"Final.Battle.Status.DamageOverTime.PoisonMergesSameSourceStacks",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusDamageOverTimePoisonMergesSameSourceStacksTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.poison_same_source")));
+	const FFinalCardId PoisonCardAId(FName(TEXT("card.test.status.poison_same_source_a")));
+	const FFinalCardId PoisonCardBId(FName(TEXT("card.test.status.poison_same_source_b")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	CharacterDefinition->BaseAttack = 10;
+	TStrongObjectPtr<UFinalStatusDefinition> PoisonStatus = MakePoisonStatusDefinition(TEXT("status.test.dot.poison.same_source"));
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCardA = MakeApplyStatusCard(PoisonCardAId, CharacterId, TEXT("Poison A"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCardB = MakeApplyStatusCard(PoisonCardBId, CharacterId, TEXT("Poison B"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { PoisonCardA.Get(), PoisonCardB.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { PoisonCardAId, PoisonCardBId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Poison apply card should be in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+		TestNotEqual(TEXT("Applying poison should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	const FFinalBattleStatusViewData* PoisonView = FindStatusView(Snapshot, Snapshot.Enemies[0].RuntimeUnitId, PoisonStatus->StatusId);
+	if (!TestNotNull(TEXT("Merged poison should be present on the enemy."), PoisonView))
+	{
+		return false;
+	}
+	TestEqual(TEXT("Repeated poison from the same source should stack on one instance."), PoisonView->CurrentStacks, 2);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestNotEqual(TEXT("Ending the turn should resolve poison."), Session->SubmitCommand(EndTurnCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterTick = Session->GetSnapshot();
+	TestEqual(TEXT("Two poison stacks from the same source should deal 4 damage."), SnapshotAfterTick.Enemies[0].CurrentHP, 16);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusDamageOverTimePoisonTicksBeforeEnemyActsTest,
+	"Final.Battle.Status.DamageOverTime.PoisonTicksBeforeEnemyActs",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusDamageOverTimePoisonTicksBeforeEnemyActsTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.poison_pre_enemy_action")));
+	const FFinalCardId PoisonCardId(FName(TEXT("card.test.status.poison_pre_enemy_action")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyIntentDefinition> EnemyIntent = MakeEnemyAttackIntent();
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(EnemyIntent.Get(), 1);
+	EnemyDefinition->BaseDamagePower = 3;
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	CharacterDefinition->BaseAttack = 10;
+	TStrongObjectPtr<UFinalStatusDefinition> PoisonStatus = MakePoisonStatusDefinition(TEXT("status.test.dot.poison.pre_enemy_action"));
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCard = MakeApplyStatusCard(PoisonCardId, CharacterId, TEXT("Poison"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::SelectedEnemy);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { PoisonCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* PoisonCardView = FindHandCardById(Snapshot, PoisonCardId);
+	if (!TestNotNull(TEXT("Poison card should be in hand."), PoisonCardView))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ApplyCommand;
+	ApplyCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ApplyCommand.CardInstanceId = PoisonCardView->CardInstanceId;
+	ApplyCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestNotEqual(TEXT("Applying poison should resolve successfully."), Session->SubmitCommand(ApplyCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestNotEqual(TEXT("Ending the turn should resolve poison before the enemy action."), Session->SubmitCommand(EndTurnCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterTick = Session->GetSnapshot();
+	TestEqual(TEXT("Poison should kill the enemy before it acts."), SnapshotAfterTick.Enemies[0].CurrentHP, 0);
+	TestEqual(TEXT("The dead enemy should not damage team HP this round."), SnapshotAfterTick.TeamCurrentHP, 20);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleStatusDamageOverTimePoisonUsesNormalTeamDamageRouteTest,
+	"Final.Battle.Status.DamageOverTime.PoisonUsesNormalTeamDamageRoute",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleStatusDamageOverTimePoisonUsesNormalTeamDamageRouteTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleStatusTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.status.poison_team_route")));
+	const FFinalCardId ShieldCardId(FName(TEXT("card.test.status.poison_team_route_shield")));
+	const FFinalCardId PoisonCardId(FName(TEXT("card.test.status.poison_team_route_poison")));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(nullptr, 20);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition(CharacterId);
+	CharacterDefinition->BaseAttack = 10;
+	TStrongObjectPtr<UFinalStatusDefinition> PoisonStatus = MakePoisonStatusDefinition(TEXT("status.test.dot.poison.team_route"));
+	TStrongObjectPtr<UFinalCardDefinition> ShieldCard = MakeTeamShieldCard(ShieldCardId, CharacterId, TEXT("Shield Team"), 3);
+	TStrongObjectPtr<UFinalCardDefinition> PoisonCard = MakeApplyStatusCard(PoisonCardId, CharacterId, TEXT("Poison Team"), PoisonStatus.Get(), 1, EFinalBattleUnitTargetRule::TeamPlayer);
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), { ShieldCard.Get(), PoisonCard.Get() });
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	for (const FFinalCardId CardId : { ShieldCardId, PoisonCardId })
+	{
+		const FFinalBattleCardViewData* CardView = FindHandCardById(Snapshot, CardId);
+		if (!TestNotNull(TEXT("Setup card should be in hand."), CardView))
+		{
+			return false;
+		}
+
+		FFinalBattleCommand Command;
+		Command.CommandType = EFinalBattleCommandType::PlayCard;
+		Command.CardInstanceId = CardView->CardInstanceId;
+		TestNotEqual(TEXT("Setup command should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
+		Snapshot = Session->GetSnapshot();
+	}
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestNotEqual(TEXT("Ending the turn should resolve poison through the team damage pipeline."), Session->SubmitCommand(EndTurnCommand).EventType, EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot SnapshotAfterTick = Session->GetSnapshot();
+	TestEqual(TEXT("Poison should consume team shield before HP."), SnapshotAfterTick.TeamShield, 1);
+	TestEqual(TEXT("Poison should not reduce team HP while shield remains."), SnapshotAfterTick.TeamCurrentHP, 20);
 	return true;
 }
 

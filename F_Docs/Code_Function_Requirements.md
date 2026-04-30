@@ -171,8 +171,12 @@
 - 处理共享血条下 `team_player` 与角色个人状态边界
 - 支持状态驱动的伤害修正、生命保护、触发条件判断
 - 当前 `StatusDefinition` 已进入“双轨 schema”阶段：
-  - 新 schema：`RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers / StackKeyPolicy / StackRule / DurationType / ExpireWindow`
+  - 新 schema：`RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers / StackKeyPolicy / StackRule / DurationType / ExpireWindow / AppliesTo`
   - 旧字段：继续作为未迁移状态的 battle runtime 生效口径
+- `AppliesTo` 当前是状态定义级约束：
+  - `Shared / PlayerOnly / EnemyOnly`
+  - `team_player` 归类为玩家侧，因此 `PlayerOnly` 包含 `team_player`
+  - 运行时在 `FinalBattleStatusService::AddStatusStacks()` 做硬拦截
 - 当前第一批 runtime 迁移已落地到 `士气 / 生命免疫`：
   - `FinalBattleStatusService` 对这两条状态改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
   - `锋锐` 当前已改为读取 `FFinalBattleStatusInstance.ProjectedCardModifiers`
@@ -181,10 +185,10 @@
     - 消费改走 `ConsumeStatusResource`
     - 默认不进入 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`
   - `易伤 / 虚弱` 当前已改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
-  - `腐蚀 / 中毒 / 流血` 仍然走旧字段路径
+  - `中毒` 已进入首版 DOT 专用解析路径；`腐蚀 / 流血` 不再视为当前有效 starter 状态
 - 迁移期不允许对同一条状态做“新旧字段同时生效并合并”的双真相结算
 - 状态系统完整迁移顺序当前已固定为：
-  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 腐蚀/中毒/流血`
+  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 中毒 DOT 专轮`
   - 最后再删除旧字段与旧读取路径
 
 优先级：`P0`
@@ -198,7 +202,11 @@
 - 记录每回合、每战斗、每效果的触发次数
 - 不允许遗物或角色触发绕过命令与规则结算层直接改状态
 - battle 内正式被动当前由 `PassiveDefinition + BattlePassiveInstance + FinalBattlePassiveService` 承载
+- `PassiveDefinition` 当前已新增定义级 `AppliesTo` 约束：
+  - `Shared / PlayerOnly / EnemyOnly`
+  - `team_player` 归类为玩家侧，因此 `PlayerOnly` 包含 `team_player`
 - `ApplyPassive` 当前已接入 `FinalBattleEffectExecutionService`，能力牌可以把被动挂到目标单位
+- `FinalBattlePassiveService::ApplyPassive(...)` 当前会按 `AppliesTo` 对被动拥有者做 runtime 硬拦截；不合法归属不会创建或刷新被动实例，也不会发 `PassiveApplied`
 - 角色自带被动当前通过 `CharacterDefinition.InitialPassiveGrants` 在 battle 初始化时创建 `PassiveInstance`
 - `FinalBattleTriggerService` 是被动与遗物共享的唯一 trigger 执行器；`FinalBattlePassiveService` 只负责被动实例生命周期与查询投影
 - 当前被动正式事件面已补齐：

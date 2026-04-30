@@ -16,7 +16,7 @@
   - `锋锐`
   - `刀势 / 药引`
   - `易伤 / 虚弱`
-  - `腐蚀 / 中毒 / 流血`
+  - `中毒 DOT`
   - 最后删除旧字段与旧读取路径
 
 ## 2026-04-30 Step 19B：迁移 `士气 + 生命免疫` 到 `RuntimeModifiers`
@@ -29,7 +29,7 @@
 - 其他状态当前仍保留在 legacy 路径：
   - `刀势 / 药引` 继续按资源型状态使用
   - `易伤 / 虚弱` 仍待后续迁移
-  - `腐蚀 / 中毒 / 流血` 仍待后续迁移
+  - `中毒` 已迁入首版 DOT 专用解析路径
 - 本步骤不切 `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 的运行时主逻辑；回合结束过期仍保持现有结果，只是对 `士气 / 生命免疫` 从新 schema 预编译出 `bExpireAtPlayerTurnEnd`。
 
 ## 2026-04-30 Step 19C：迁移 `锋锐` 到 `ProjectedCardModifiers`
@@ -49,7 +49,7 @@
   - `士气 / 生命免疫` 走 `RuntimeModifiers`
 - `刀势 / 药引` 已归位为正式资源型状态
 - `易伤 / 虚弱` 已迁入正式 `RuntimeModifiers`
-- `腐蚀 / 中毒 / 流血` 仍走 legacy 字段
+- `中毒` 已走 DOT 专用 schema/runtime；`腐蚀 / 流血` 退出当前首章有效规则
 
 ## 2026-04-30 Step 20：迁移 `易伤 / 虚弱` 到正式 `RuntimeModifiers`
 
@@ -62,7 +62,7 @@
   - 护盾、共享生命、防护等后续处理
 - `虚弱` 当前已正式影响目标造成的最终伤害；`易伤` 当前已正式影响目标受到的最终伤害。
 - starter 敌人内容当前继续沿用 `易伤 / 虚弱` 的施加路径，但不再把它们当作纯文本占位；`山匪教头` 的“若目标处于易伤则伤害会被进一步放大”现在由正式受击修正自然成立。
-- `中毒 / 腐蚀 / 流血` 当前继续保留为后续 DOT / 敌方状态专轮处理对象，不在这一步一并迁移。
+- 当前唯一正式 DOT 为 `中毒`；`腐蚀 / 流血` 已从 starter 与当前规则文档中移除。
 
 ## 2026-04-30 Step 19D：把 `刀势 / 药引` 归位成正式资源型状态
 
@@ -102,6 +102,22 @@
   - `士气` 不再回填 direct-rule legacy 字段
   - `锋锐` 不再回填 owned-hand projection legacy 字段
 - 仍在运行时消费中的 legacy 字段保持不动；本步骤只清理“已经没有 runtime 用途”的残留，不改变状态玩法口径。
+
+## 2026-04-30 Step 21：补 `AppliesTo` 状态适用域约束
+
+- `UFinalStatusDefinition` 当前已新增 `AppliesTo` 定义级约束，取值为：
+  - `Shared`
+  - `PlayerOnly`
+  - `EnemyOnly`
+- `FinalBattleStatusService::AddStatusStacks()` 当前已成为状态适用域的唯一 runtime 硬约束点：
+  - `team_player` 视为玩家侧单位
+  - `PlayerOnly` 允许玩家角色与 `team_player`
+  - `EnemyOnly` 只允许敌人单位
+  - 非法归属会在施加入口被直接拒绝，不创建、不叠层
+- starter 当前已把现用状态全部补齐 `AppliesTo`：
+  - `士气 / 易伤 / 虚弱`：`Shared`
+  - `生命免疫 / 锋锐 / 刀势 / 药引 / 阵诀`：`PlayerOnly`
+- 本步骤不扩 DOT，不改变状态规则类别；`AppliesTo` 只约束状态拥有者归属。
 
 ## 2026-04-29 - FinalRun RunDeck instance migration step 1
 
@@ -272,3 +288,16 @@
 - 当前仍不新增正式被动 HUD 栏位；被动的可见性继续依赖：
   - battle event / battle log
   - battle snapshot / debug passive 列表
+
+## 2026-04-30 Step 22：给被动系统补 `AppliesTo` 定义级约束
+
+- `UFinalPassiveDefinition` 当前已新增 `AppliesTo` 定义级约束，取值为：
+  - `Shared`
+  - `PlayerOnly`
+  - `EnemyOnly`
+- `team_player` 当前明确归为玩家侧单位，因此 `PlayerOnly` 被动允许挂到玩家角色与 `team_player`，不允许挂到敌人单位。
+- `FinalBattlePassiveService::ApplyPassive()` 当前已成为被动 owner-domain 的唯一 runtime 硬拦截点；不合法归属不会创建或刷新被动实例，也不会发出 `PassiveApplied`。
+- starter 当前已把现用被动补齐 `AppliesTo`：
+  - `受压得刀势`：`PlayerOnly`
+  - `压势追刀`：`PlayerOnly`
+- 本步骤不改变被动玩法，不改变 trigger 语义；`AppliesTo` 只约束被动拥有者归属。

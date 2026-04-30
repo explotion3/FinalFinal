@@ -429,11 +429,13 @@ ApplyPassive
 | `StackPolicy` | 叠层或刷新策略 |
 | `DurationType` | 持续类型 |
 | `MaxStacks` | 最大层数 |
+| `AppliesTo` | 被动定义级拥有者约束。`Shared` 允许玩家与敌人单位拥有；`PlayerOnly` 允许玩家角色与 `team_player`；`EnemyOnly` 只允许敌人单位 |
 | `RuntimeTriggers` | 被动触发定义列表 |
 
 说明：
 
 - 被动本身不发明第三套 trigger schema，直接复用 `RuntimeTriggerDefinition`。
+- `AppliesTo` 当前只约束被动拥有者归属，不改变 trigger / effect 语义。battle runtime 会在 `ApplyPassive()` 入口硬拦截不合法归属。
 - 当前 starter 已有两条正式被动链：
   - 霍断岳 innate passive：`OwnerTookHealthDamage -> ApplyStatus(刀势 +1)`
   - 霍断岳能力牌“受压蓄势”：`ApplyPassive(Self)`，授予 `PlayerCardResolved + ResolvedCard(Attack) + OncePerPlayerTurn -> TriggeredCardModifiers(CurrentOwnedHandCards, Attack, -1 AP, +20% damage, UntilPlayed + EndOfTurn cleanup)`。
@@ -542,6 +544,7 @@ EvolutionStage: Evolved
   - `ProjectedCardModifiers`
   - `RuntimeTriggers`
   - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
+  - `AppliesTo`
 - **旧字段** 仍然保留，并且当前 battle 运行时仍作为未迁移状态的生效口径；完整迁移完成后再删除。
 
 当前新 schema 的意图如下：
@@ -553,6 +556,9 @@ EvolutionStage: Evolved
 | `RuntimeTriggers` | 预留为状态终版的正式触发入口；首版先只进入 schema，不切换 runtime 消费 |
 | `StackKeyPolicy / StackRule / DurationType / ExpireWindow` | 预留为终版状态归并、叠层和持续时间模型 |
 | `bIsResourceStatus / ResourceBehavior / bAutoAffectBattleRules / bAutoProjectToCards` | 承载正式资源型状态 schema；用于明确 `刀势 / 药引` 这类专属层数资源不自动进入 battle 规则修正和卡牌投影 |
+| `AppliesTo` | 状态定义级拥有者约束。`Shared` 允许玩家与敌人单位拥有；`PlayerOnly` 允许玩家角色与 `team_player`；`EnemyOnly` 只允许敌人单位 |
+
+当前 `AppliesTo` 只约束状态拥有者归属，不改变状态的具体规则类别。battle runtime 会在 `AddStatusStacks()` 入口硬拦截不合法归属。
 
 当前首批已迁移状态：
 
@@ -582,10 +588,10 @@ EvolutionStage: Evolved
 - `锋锐` 当前已通过 `ProjectedCardModifiers` 驱动 owned-hand `BattleCard` modifier。
 - `刀势 / 药引` 当前已归位为正式资源型状态：获得继续走 `ApplyStatus`，消费改走 `ConsumeStatusResource`，且默认不参与 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`。
 - `易伤 / 虚弱` 当前已走结构化 `RuntimeModifiers` 路径。
-- `腐蚀 / 中毒 / 流血` 当前仍走 legacy 字段路径。
+- `中毒` 已进入正式 DOT schema，按 `ByOwnerAndSource` 叠层；`腐蚀 / 流血` 已退出当前首章有效规则口径。
 - `OnTickEffects` 旧入口已删除；后续持续/触发型状态统一收口到 `RuntimeTriggers`，不再保留第二套未消费 schema。
 - `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 当前仍只停留在 schema，不接运行时主逻辑。
-- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 腐蚀/中毒/流血 -> 删除旧字段与旧读取路径`。
+- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱 -> 中毒 DOT 专轮 -> 删除旧字段与旧读取路径`。
 
 资源型状态当前的正式消费条件口径：
 

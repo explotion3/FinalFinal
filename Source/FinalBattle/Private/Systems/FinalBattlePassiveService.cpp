@@ -2,11 +2,14 @@
 
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Queries/FinalBattleQueryTypes.h"
+#include "Runtime/FinalBattleCharacterState.h"
+#include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattlePassiveInstance.h"
 #include "Runtime/FinalBattleState.h"
 
 namespace
 {
+const FName TeamPlayerUnitId(TEXT("team_player"));
 const FName PassiveRemovedExpiredReasonTag(TEXT("passive.removed.expired"));
 
 int32 ResolveInitialRemainingDuration(
@@ -26,6 +29,59 @@ int32 ResolveInitialRemainingDuration(
 	return DurationOverride > 0 ? DurationOverride : 1;
 }
 
+bool IsPlayerOwnedPassive(const FFinalBattleState& BattleState, const FName OwnerUnitId)
+{
+	if (OwnerUnitId == TeamPlayerUnitId)
+	{
+		return true;
+	}
+
+	return BattleState.Characters.ContainsByPredicate(
+		[&OwnerUnitId](const FFinalBattleCharacterState& Candidate)
+		{
+			return Candidate.RuntimeUnitId == OwnerUnitId;
+		});
+}
+
+bool IsEnemyOwnedPassive(const FFinalBattleState& BattleState, const FName OwnerUnitId)
+{
+	return BattleState.Enemies.ContainsByPredicate(
+		[&OwnerUnitId](const FFinalBattleEnemyState& Candidate)
+		{
+			return Candidate.RuntimeUnitId == OwnerUnitId;
+		});
+}
+
+bool IsPassiveOwnerAllowedByAppliesTo(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const EFinalPassiveAppliesTo AppliesTo)
+{
+	if (OwnerUnitId.IsNone())
+	{
+		return false;
+	}
+
+	const bool bIsPlayerOwned = IsPlayerOwnedPassive(BattleState, OwnerUnitId);
+	const bool bIsEnemyOwned = IsEnemyOwnedPassive(BattleState, OwnerUnitId);
+	if (!bIsPlayerOwned && !bIsEnemyOwned)
+	{
+		return false;
+	}
+
+	switch (AppliesTo)
+	{
+	case EFinalPassiveAppliesTo::Shared:
+		return true;
+	case EFinalPassiveAppliesTo::PlayerOnly:
+		return bIsPlayerOwned;
+	case EFinalPassiveAppliesTo::EnemyOnly:
+		return bIsEnemyOwned;
+	default:
+		return false;
+	}
+}
+
 }
 
 FFinalBattlePassiveApplyResult FFinalBattlePassiveService::ApplyPassive(
@@ -39,6 +95,11 @@ FFinalBattlePassiveApplyResult FFinalBattlePassiveService::ApplyPassive(
 {
 	FFinalBattlePassiveApplyResult Result;
 	if (OwnerUnitId.IsNone() || !PassiveId.IsValid() || PassiveDefinition == nullptr || StacksToAdd <= 0)
+	{
+		return Result;
+	}
+
+	if (!IsPassiveOwnerAllowedByAppliesTo(BattleState, OwnerUnitId, PassiveDefinition->AppliesTo))
 	{
 		return Result;
 	}

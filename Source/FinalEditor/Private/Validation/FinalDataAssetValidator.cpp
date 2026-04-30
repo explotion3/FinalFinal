@@ -1025,6 +1025,23 @@ namespace FinalDataAssetValidation
 		RequireText(Context, bIsValid, Passive->DisplayName, TEXT("DisplayName"));
 		ValidatePositive(Context, bIsValid, Passive->MaxStacks, TEXT("MaxStacks"));
 		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Passive->RuntimeTriggers, TEXT("RuntimeTriggers"));
+
+		if (Passive->AppliesTo == EFinalPassiveAppliesTo::EnemyOnly)
+		{
+			for (const FFinalRuntimeTriggerDefinition& TriggerDefinition : Passive->RuntimeTriggers)
+			{
+				for (const FFinalTriggeredCardModifierDefinition& TriggeredModifier : TriggerDefinition.TriggeredCardModifiers)
+				{
+					if (TriggeredModifier.TargetSource == EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards)
+					{
+						AddWarning(
+							Context,
+							TEXT("EnemyOnly passives currently have no starter-backed hand/card ownership scenario; current-hand triggered card modifiers may be authored for future use but are unusual in the current project scope."));
+						return;
+					}
+				}
+			}
+		}
 	}
 
 	void ValidateRuleConfig(FDataValidationContext& Context, bool& bIsValid, const UFinalBattleRuleConfig* RuleConfig)
@@ -1128,6 +1145,13 @@ namespace FinalDataAssetValidation
 			}
 		}
 
+		if (Status->AppliesTo == EFinalStatusAppliesTo::EnemyOnly && !Status->ProjectedCardModifiers.IsEmpty())
+		{
+			AddWarning(
+				Context,
+				TEXT("EnemyOnly statuses currently have no starter-backed hand/card ownership scenario; projected card modifiers may be authored for future use but are unusual in the current project scope."));
+		}
+
 		if (Status->bIsResourceStatus)
 		{
 			if (Status->ResourceBehavior == EFinalStatusResourceBehavior::None)
@@ -1143,6 +1167,24 @@ namespace FinalDataAssetValidation
 			if (!Status->ProjectedCardModifiers.IsEmpty())
 			{
 				AddError(Context, bIsValid, TEXT("Resource statuses must not author ProjectedCardModifiers."));
+			}
+		}
+
+		if (Status->bIsDamageOverTime)
+		{
+			if (Status->DamageOverTimeTickWindow == EFinalStatusDamageOverTimeTickWindow::None)
+			{
+				AddError(Context, bIsValid, TEXT("Damage-over-time statuses must define DamageOverTimeTickWindow."));
+			}
+
+			if (Status->DamageOverTimeAttackPowerPercentPerStack <= 0)
+			{
+				AddError(Context, bIsValid, TEXT("Damage-over-time statuses must define a positive DamageOverTimeAttackPowerPercentPerStack."));
+			}
+
+			if (Status->bIsResourceStatus)
+			{
+				AddError(Context, bIsValid, TEXT("A status cannot be both a resource status and a damage-over-time status."));
 			}
 		}
 

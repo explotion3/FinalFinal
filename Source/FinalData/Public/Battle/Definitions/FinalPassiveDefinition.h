@@ -7,6 +7,14 @@
 #include "Types/FinalCoreTypes.h"
 #include "FinalPassiveDefinition.generated.h"
 
+UENUM(BlueprintType)
+enum class EFinalPassiveAppliesTo : uint8
+{
+	Shared,
+	PlayerOnly,
+	EnemyOnly
+};
+
 UCLASS(BlueprintType)
 class FINALDATA_API UFinalPassiveDefinition : public UPrimaryDataAsset
 {
@@ -33,6 +41,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Passive", meta = (ClampMin = "1"))
 	int32 MaxStacks = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Passive")
+	EFinalPassiveAppliesTo AppliesTo = EFinalPassiveAppliesTo::Shared;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Passive")
 	TArray<FFinalRuntimeTriggerDefinition> RuntimeTriggers;

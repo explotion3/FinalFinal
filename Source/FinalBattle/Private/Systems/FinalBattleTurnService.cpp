@@ -71,9 +71,22 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 	{
 		Result.GeneratedEvents.Add(BuildPassiveRemovedEvent(RemovalResult));
 	}
+	const FFinalBattleDamageOverTimeResult DamageOverTimeResult = StatusService.ResolveDamageOverTimeAtTickWindow(
+		BattleState,
+		EFinalStatusDamageOverTimeTickWindow::PlayerTurnEndBeforeEnemyActions,
+		UnitService,
+		TriggerService,
+		EffectExecutionService);
+	Result.TotalDamageToTeam += DamageOverTimeResult.TotalDamageToTeam;
 	for (const FFinalBattleCharacterState& CharacterState : BattleState.Characters)
 	{
 		StatusService.ResyncProjectedHandCardModifiers(BattleState, CardService, CharacterState.RuntimeUnitId);
+	}
+
+	if (BattleState.TeamCurrentHP <= 0)
+	{
+		Result.bBattleLost = true;
+		return Result;
 	}
 
 	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)

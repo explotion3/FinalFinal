@@ -35,10 +35,14 @@ struct FFinalBattleStatusInstance
 	FText DisplayName;
 	int32 CurrentStacks = 0;
 	int32 RemainingDuration = 0;
+	EFinalStatusStackKeyPolicy StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwner;
 	bool bIsResourceStatus = false;
 	EFinalStatusResourceBehavior ResourceBehavior = EFinalStatusResourceBehavior::None;
 	bool bAutoAffectBattleRules = false;
 	bool bAutoProjectToCards = false;
+	bool bIsDamageOverTime = false;
+	EFinalStatusDamageOverTimeTickWindow DamageOverTimeTickWindow = EFinalStatusDamageOverTimeTickWindow::None;
+	int32 DamageOverTimeAttackPowerPercentPerStack = 0;
 	TArray<FFinalBattleStatusRuntimeModifierInstance> RuntimeModifiers;
 	TArray<FFinalBattleStatusProjectedCardModifierInstance> ProjectedCardModifiers;
 	int32 OutgoingDamagePercentPerStack = 0;

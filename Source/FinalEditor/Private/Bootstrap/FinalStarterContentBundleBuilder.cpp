@@ -71,7 +71,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenShiQiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenShiQi");
 	const FString StarterShenFengRuiStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_ShenFengRui");
 	const FString StarterVulnerableStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Vulnerable");
-	const FString StarterCorrosionStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Corrosion");
+	const FString StarterPoisonStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Poison");
 	const FString StarterWeakStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_Weak");
 	const FString StarterHuoUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_HuoDuanyue");
 	const FString StarterYeUltimatePath = StarterRootPath / TEXT("Ultimates/DA_Ultimate_Starter_YeBanxia");
@@ -88,7 +88,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShieldGuardShieldBashIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardShieldBash");
 	const FString StarterShieldGuardProtectIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardProtect");
 	const FString StarterShieldGuardHeavySlamIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ShieldGuardHeavySlam");
-	const FString StarterSmokeCorrosionBombIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeCorrosionBomb");
+	const FString StarterSmokePoisonBombIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokePoisonBomb");
 	const FString StarterSmokeDullingSmokeIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeDullingSmoke");
 	const FString StarterSmokeFireJarIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_SmokeFireJar");
 	const FString StarterToxicMistSpreadIntentPath = StarterRootPath / TEXT("EnemyIntents/DA_EnemyIntent_Starter_ToxicMistSpread");
@@ -139,7 +139,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenShiQiStatusId(TEXT("status.starter.shen.shiqi"));
 	const FName StarterShenFengRuiStatusId(TEXT("status.starter.shen.fengrui"));
 	const FName StarterVulnerableStatusId(TEXT("status.starter.enemy.vulnerable"));
-	const FName StarterCorrosionStatusId(TEXT("status.starter.enemy.corrosion"));
+	const FName StarterPoisonStatusId(TEXT("status.starter.dot.poison"));
 	const FName StarterWeakStatusId(TEXT("status.starter.enemy.weak"));
 	const FName StarterHuoUltimateId(TEXT("ultimate.starter.huo.duanyuejueshi"));
 	const FName StarterYeUltimateId(TEXT("ultimate.starter.ye.huitianxumai"));
@@ -270,6 +270,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoStatus->StatusId = FFinalStatusId(StarterHuoStatusId);
 	StarterHuoStatus->DisplayName = FText::FromString(TEXT("刀势"));
 	StarterHuoStatus->StatusCategory = EFinalStatusCategory::Signature;
+	StarterHuoStatus->AppliesTo = EFinalStatusAppliesTo::PlayerOnly;
 	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的签名资源。Runtime 已支持通过牌效果和 OwnerTookHealthDamage 触发获得层数，并由断岳斩显式消耗来追加削韧。"));
 	StarterHuoStatus->MaxStacks = 6;
 	StarterHuoStatus->DefaultDuration = 0;
@@ -290,6 +291,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoTookDamageDaoShiPassive->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 	StarterHuoTookDamageDaoShiPassive->DurationType = EFinalPassiveDurationType::Battle;
 	StarterHuoTookDamageDaoShiPassive->MaxStacks = 1;
+	StarterHuoTookDamageDaoShiPassive->AppliesTo = EFinalPassiveAppliesTo::PlayerOnly;
 	StarterHuoTookDamageDaoShiPassive->RuntimeTriggers.Reset();
 	{
 		FFinalRuntimeTriggerDefinition& TookDamageTrigger = StarterHuoTookDamageDaoShiPassive->RuntimeTriggers.AddDefaulted_GetRef();
@@ -315,6 +317,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoFirstAttackDaoShiPassive->StackPolicy = EFinalPassiveStackPolicy::RefreshExisting;
 	StarterHuoFirstAttackDaoShiPassive->DurationType = EFinalPassiveDurationType::Battle;
 	StarterHuoFirstAttackDaoShiPassive->MaxStacks = 1;
+	StarterHuoFirstAttackDaoShiPassive->AppliesTo = EFinalPassiveAppliesTo::PlayerOnly;
 	StarterHuoFirstAttackDaoShiPassive->RuntimeTriggers.Reset();
 	{
 		FFinalRuntimeTriggerDefinition& TriggerDefinition = StarterHuoFirstAttackDaoShiPassive->RuntimeTriggers.AddDefaulted_GetRef();
@@ -342,6 +345,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeStatus->StatusId = FFinalStatusId(StarterYeStatusId);
 	StarterYeStatus->DisplayName = FText::FromString(TEXT("药引"));
 	StarterYeStatus->StatusCategory = EFinalStatusCategory::Signature;
+	StarterYeStatus->AppliesTo = EFinalStatusAppliesTo::PlayerOnly;
 	StarterYeStatus->SummaryText = FText::FromString(TEXT("叶半夏的签名资源。首波 Runtime 已支持通过行针与调息获得层数，并由化引与回春散显式消耗换取 AP 与过牌收益。"));
 	StarterYeStatus->MaxStacks = 9;
 	StarterYeStatus->DefaultDuration = 0;
@@ -358,6 +362,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeImmunityStatus->StatusId = FFinalStatusId(StarterYeImmunityStatusId);
 	StarterYeImmunityStatus->DisplayName = FText::FromString(TEXT("生命免疫"));
 	StarterYeImmunityStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterYeImmunityStatus->AppliesTo = EFinalStatusAppliesTo::PlayerOnly;
 	StarterYeImmunityStatus->SummaryText = FText::FromString(TEXT("抵消下一次穿透护盾的共享生命伤害；这是免疫体系下的首版生命保护子类。触发后消耗，若到玩家回合结束仍未触发则失效。"));
 	StarterYeImmunityStatus->MaxStacks = 1;
 	StarterYeImmunityStatus->DefaultDuration = 1;
@@ -377,6 +382,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenStatus->StatusId = FFinalStatusId(StarterShenStatusId);
 	StarterShenStatus->DisplayName = FText::FromString(TEXT("阵诀"));
 	StarterShenStatus->StatusCategory = EFinalStatusCategory::Signature;
+	StarterShenStatus->AppliesTo = EFinalStatusAppliesTo::PlayerOnly;
 	StarterShenStatus->SummaryText = FText::FromString(TEXT("沈清弦的剑阵本体已改为 Battle 内衍生牌协议；此签名状态资产仅保留角色签名展示占位。"));
 	StarterShenStatus->MaxStacks = 9;
 	StarterShenStatus->DefaultDuration = 0;
@@ -390,6 +396,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenShiQiStatus->StatusId = FFinalStatusId(StarterShenShiQiStatusId);
 	StarterShenShiQiStatus->DisplayName = FText::FromString(TEXT("士气"));
 	StarterShenShiQiStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterShenShiQiStatus->AppliesTo = EFinalStatusAppliesTo::Shared;
 	StarterShenShiQiStatus->SummaryText = FText::FromString(TEXT("本回合内伤害提高 20%。"));
 	StarterShenShiQiStatus->MaxStacks = 9;
 	StarterShenShiQiStatus->DefaultDuration = 0;
@@ -408,6 +415,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiStatus->StatusId = FFinalStatusId(StarterShenFengRuiStatusId);
 	StarterShenFengRuiStatus->DisplayName = FText::FromString(TEXT("锋锐"));
 	StarterShenFengRuiStatus->StatusCategory = EFinalStatusCategory::Buff;
+	StarterShenFengRuiStatus->AppliesTo = EFinalStatusAppliesTo::PlayerOnly;
 	StarterShenFengRuiStatus->SummaryText = FText::FromString(TEXT("下一张攻击牌伤害提高 20%，若本回合未触发则在回合结束时失效。"));
 	StarterShenFengRuiStatus->MaxStacks = 9;
 	StarterShenFengRuiStatus->DefaultDuration = 0;
@@ -430,6 +438,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterVulnerableStatus->StatusId = FFinalStatusId(StarterVulnerableStatusId);
 	StarterVulnerableStatus->DisplayName = FText::FromString(TEXT("易伤"));
 	StarterVulnerableStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterVulnerableStatus->AppliesTo = EFinalStatusAppliesTo::Shared;
 	StarterVulnerableStatus->SummaryText = FText::FromString(TEXT("目标受到伤害提高 25%。"));
 	StarterVulnerableStatus->MaxStacks = 3;
 	StarterVulnerableStatus->DefaultDuration = 1;
@@ -453,25 +462,44 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterVulnerableStatus->ProjectedOutgoingDamagePercentPerStack = 0;
 	TrackPackage(StarterVulnerableStatus, PackagesToSave);
 
-	UFinalStatusDefinition* StarterCorrosionStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterCorrosionStatusPath, bCreatedAsset);
-	StarterCorrosionStatus->StatusId = FFinalStatusId(StarterCorrosionStatusId);
-	StarterCorrosionStatus->DisplayName = FText::FromString(TEXT("腐蚀"));
-	StarterCorrosionStatus->StatusCategory = EFinalStatusCategory::Debuff;
-	StarterCorrosionStatus->SummaryText = FText::FromString(TEXT("首版持续伤害减益；当前可被敌人意图施加，OnTick 伤害规则后续补全。"));
-	StarterCorrosionStatus->MaxStacks = 9;
-	StarterCorrosionStatus->DefaultDuration = 3;
-	StarterCorrosionStatus->OutgoingDamagePercentPerStack = 0;
-	StarterCorrosionStatus->bExpireAtPlayerTurnEnd = false;
-	StarterCorrosionStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterCorrosionStatus->bOnlyAffectAttackCards = false;
-	StarterCorrosionStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
-	StarterCorrosionStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	TrackPackage(StarterCorrosionStatus, PackagesToSave);
+	UFinalStatusDefinition* StarterPoisonStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterPoisonStatusPath, bCreatedAsset);
+	StarterPoisonStatus->StatusId = FFinalStatusId(StarterPoisonStatusId);
+	StarterPoisonStatus->DisplayName = FText::FromString(TEXT("中毒"));
+	StarterPoisonStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterPoisonStatus->AppliesTo = EFinalStatusAppliesTo::Shared;
+	StarterPoisonStatus->SummaryText = FText::FromString(TEXT("在玩家回合结束、敌人行动前结算持续伤害。按施加者攻击力的 20% × 当前层数计算。"));
+	StarterPoisonStatus->MaxStacks = 9;
+	StarterPoisonStatus->DefaultDuration = 3;
+	StarterPoisonStatus->bIsResourceStatus = false;
+	StarterPoisonStatus->ResourceBehavior = EFinalStatusResourceBehavior::None;
+	StarterPoisonStatus->bAutoAffectBattleRules = false;
+	StarterPoisonStatus->bAutoProjectToCards = false;
+	StarterPoisonStatus->bIsDamageOverTime = true;
+	StarterPoisonStatus->DamageOverTimeTickWindow = EFinalStatusDamageOverTimeTickWindow::PlayerTurnEndBeforeEnemyActions;
+	StarterPoisonStatus->DamageOverTimeAttackPowerPercentPerStack = 20;
+	StarterPoisonStatus->StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwnerAndSource;
+	StarterPoisonStatus->StackRule = EFinalStatusStackRule::AddAndClamp;
+	StarterPoisonStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterPoisonStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+	StarterPoisonStatus->RuntimeModifiers.Reset();
+	StarterPoisonStatus->ProjectedCardModifiers.Reset();
+	StarterPoisonStatus->RuntimeTriggers.Reset();
+	StarterPoisonStatus->OutgoingDamagePercentPerStack = 0;
+	StarterPoisonStatus->bExpireAtPlayerTurnEnd = false;
+	StarterPoisonStatus->bConsumeOnSuccessfulOwnerDamage = false;
+	StarterPoisonStatus->bOnlyAffectAttackCards = false;
+	StarterPoisonStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
+	StarterPoisonStatus->bConsumeOnPreventedTeamHealthDamage = false;
+	StarterPoisonStatus->bProjectToOwnedHandCards = false;
+	StarterPoisonStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
+	StarterPoisonStatus->ProjectedOutgoingDamagePercentPerStack = 0;
+	TrackPackage(StarterPoisonStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterWeakStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterWeakStatusPath, bCreatedAsset);
 	StarterWeakStatus->StatusId = FFinalStatusId(StarterWeakStatusId);
 	StarterWeakStatus->DisplayName = FText::FromString(TEXT("虚弱"));
 	StarterWeakStatus->StatusCategory = EFinalStatusCategory::Debuff;
+	StarterWeakStatus->AppliesTo = EFinalStatusAppliesTo::Shared;
 	StarterWeakStatus->SummaryText = FText::FromString(TEXT("目标造成伤害降低 25%。"));
 	StarterWeakStatus->MaxStacks = 3;
 	StarterWeakStatus->DefaultDuration = 1;
@@ -1592,31 +1620,31 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleSourceStat::BaseDamagePower);
 	TrackPackage(StarterShieldGuardHeavySlamIntent, PackagesToSave);
 
-	UFinalEnemyIntentDefinition* StarterSmokeCorrosionBombIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokeCorrosionBombIntentPath, bCreatedAsset);
-	StarterSmokeCorrosionBombIntent->IntentId = TEXT("intent.starter.bandit.smoke.corrosion_bomb");
-	StarterSmokeCorrosionBombIntent->DisplayName = FText::FromString(TEXT("腐烟包"));
-	StarterSmokeCorrosionBombIntent->IntentType = EFinalIntentType::Debuff;
-	StarterSmokeCorrosionBombIntent->PreviewText = FText::FromString(TEXT("0.7 × BaseDamagePower，并施加 2 层腐蚀"));
-	ResetIntentSelectionDefaults(StarterSmokeCorrosionBombIntent);
-	StarterSmokeCorrosionBombIntent->CooldownTurns = 0;
-	StarterSmokeCorrosionBombIntent->UseLimitPerBattle = 0;
-	StarterSmokeCorrosionBombIntent->Effects.Reset();
+	UFinalEnemyIntentDefinition* StarterSmokePoisonBombIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokePoisonBombIntentPath, bCreatedAsset);
+	StarterSmokePoisonBombIntent->IntentId = TEXT("intent.starter.bandit.smoke.poison_bomb");
+	StarterSmokePoisonBombIntent->DisplayName = FText::FromString(TEXT("毒烟包"));
+	StarterSmokePoisonBombIntent->IntentType = EFinalIntentType::Debuff;
+	StarterSmokePoisonBombIntent->PreviewText = FText::FromString(TEXT("0.7 × BaseDamagePower，并施加 2 层中毒"));
+	ResetIntentSelectionDefaults(StarterSmokePoisonBombIntent);
+	StarterSmokePoisonBombIntent->CooldownTurns = 0;
+	StarterSmokePoisonBombIntent->UseLimitPerBattle = 0;
+	StarterSmokePoisonBombIntent->Effects.Reset();
 	AddDamageEffect(
-		StarterSmokeCorrosionBombIntent,
-		StarterSmokeCorrosionBombIntent->Effects,
-		TEXT("effect.starter.enemy.smoke.corrosion_bomb.damage"),
+		StarterSmokePoisonBombIntent,
+		StarterSmokePoisonBombIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.poison_bomb.damage"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
 		0.7f,
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::BaseDamagePower);
 	AddApplyStatusEffect(
-		StarterSmokeCorrosionBombIntent,
-		StarterSmokeCorrosionBombIntent->Effects,
-		TEXT("effect.starter.enemy.smoke.corrosion_bomb.corrosion"),
+		StarterSmokePoisonBombIntent,
+		StarterSmokePoisonBombIntent->Effects,
+		TEXT("effect.starter.enemy.smoke.poison_bomb.poison"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		StarterCorrosionStatus,
+		StarterPoisonStatus,
 		2);
-	TrackPackage(StarterSmokeCorrosionBombIntent, PackagesToSave);
+	TrackPackage(StarterSmokePoisonBombIntent, PackagesToSave);
 
 	UFinalEnemyIntentDefinition* StarterSmokeDullingSmokeIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterSmokeDullingSmokeIntentPath, bCreatedAsset);
 	StarterSmokeDullingSmokeIntent->IntentId = TEXT("intent.starter.bandit.smoke.dulling_smoke");
@@ -1665,9 +1693,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 
 	UFinalEnemyIntentDefinition* StarterToxicMistSpreadIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterToxicMistSpreadIntentPath, bCreatedAsset);
 	StarterToxicMistSpreadIntent->IntentId = TEXT("intent.starter.toxic.mist_spread");
-	StarterToxicMistSpreadIntent->DisplayName = FText::FromString(TEXT("腐烟弥散"));
+	StarterToxicMistSpreadIntent->DisplayName = FText::FromString(TEXT("毒烟弥散"));
 	StarterToxicMistSpreadIntent->IntentType = EFinalIntentType::Debuff;
-	StarterToxicMistSpreadIntent->PreviewText = FText::FromString(TEXT("0.8 × BaseDamagePower，并施加 2 层腐蚀"));
+	StarterToxicMistSpreadIntent->PreviewText = FText::FromString(TEXT("0.8 × BaseDamagePower，并施加 2 层中毒"));
 	ResetIntentSelectionDefaults(StarterToxicMistSpreadIntent);
 	StarterToxicMistSpreadIntent->CooldownTurns = 0;
 	StarterToxicMistSpreadIntent->UseLimitPerBattle = 0;
@@ -1683,9 +1711,9 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	AddApplyStatusEffect(
 		StarterToxicMistSpreadIntent,
 		StarterToxicMistSpreadIntent->Effects,
-		TEXT("effect.starter.enemy.toxic.mist_spread.corrosion"),
+		TEXT("effect.starter.enemy.toxic.mist_spread.poison"),
 		EFinalBattleUnitTargetRule::TeamPlayer,
-		StarterCorrosionStatus,
+		StarterPoisonStatus,
 		2);
 	TrackPackage(StarterToxicMistSpreadIntent, PackagesToSave);
 
@@ -1693,7 +1721,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterToxicIgniteIntent->IntentId = TEXT("intent.starter.toxic.ignite");
 	StarterToxicIgniteIntent->DisplayName = FText::FromString(TEXT("焚香引爆"));
 	StarterToxicIgniteIntent->IntentType = EFinalIntentType::Attack;
-	StarterToxicIgniteIntent->PreviewText = FText::FromString(TEXT("1.45 × BaseDamagePower；腐蚀追加伤害为首版占位"));
+	StarterToxicIgniteIntent->PreviewText = FText::FromString(TEXT("1.45 × BaseDamagePower；中毒追加伤害为首版占位"));
 	ResetIntentSelectionDefaults(StarterToxicIgniteIntent);
 	StarterToxicIgniteIntent->CooldownTurns = 1;
 	StarterToxicIgniteIntent->UseLimitPerBattle = 0;
@@ -1707,7 +1735,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleScalarMode::SourceStatMultiplier,
 		EFinalBattleSourceStat::BaseDamagePower,
 		1,
-		FText::FromString(TEXT("首版占位：未实际检查目标腐蚀层数。")));
+		FText::FromString(TEXT("首版占位：未实际检查目标中毒层数。")));
 	TrackPackage(StarterToxicIgniteIntent, PackagesToSave);
 
 	UFinalEnemyIntentDefinition* StarterToxicCallBanditIntent = LoadOrCreateAsset<UFinalEnemyIntentDefinition>(StarterToxicCallBanditIntentPath, bCreatedAsset);
@@ -1902,7 +1930,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterSmokeEnemy->PhaseSequence.Reset();
 	StarterSmokeEnemy->ScriptedIntentSequence.Reset();
 	StarterSmokeEnemy->IntentPool = {
-		StarterSmokeCorrosionBombIntent,
+		StarterSmokePoisonBombIntent,
 		StarterSmokeDullingSmokeIntent,
 		StarterSmokeFireJarIntent
 	};

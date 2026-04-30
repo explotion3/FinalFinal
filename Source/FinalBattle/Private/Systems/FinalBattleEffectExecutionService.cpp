@@ -1603,3 +1603,28 @@ int32 FFinalBattleEffectExecutionService::ApplyTeamIncomingDamageAndTriggers(
 {
 	return ApplyTeamIncomingDamageAndTriggersInternal(State, TotalIncomingDamage, UnitService, TriggerService, *this, Summary);
 }
+
+int32 FFinalBattleEffectExecutionService::ApplyEnemyIncomingDamage(
+	FFinalBattleState& State,
+	const FName TargetEnemyUnitId,
+	const int32 TotalIncomingDamage,
+	const FFinalBattleUnitService& UnitService,
+	FFinalBattleEffectExecutionSummary& Summary) const
+{
+	if (TargetEnemyUnitId.IsNone() || TotalIncomingDamage <= 0)
+	{
+		return 0;
+	}
+
+	FFinalBattleEnemyState* TargetEnemyState = UnitService.FindEnemyState(State, TargetEnemyUnitId);
+	if (TargetEnemyState == nullptr || TargetEnemyState->CurrentHP <= 0)
+	{
+		return 0;
+	}
+
+	int32 DefeatCount = 0;
+	const int32 HpDamage = ApplyDamageToEnemy(State, *TargetEnemyState, TotalIncomingDamage, UnitService, DefeatCount);
+	Summary.TotalDamageToEnemies += TotalIncomingDamage;
+	Summary.TotalEnemiesDefeated += DefeatCount;
+	return HpDamage;
+}

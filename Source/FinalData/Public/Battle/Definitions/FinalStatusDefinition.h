@@ -44,6 +44,13 @@ enum class EFinalStatusExpireWindow : uint8
 };
 
 UENUM(BlueprintType)
+enum class EFinalStatusDamageOverTimeTickWindow : uint8
+{
+	None,
+	PlayerTurnEndBeforeEnemyActions
+};
+
+UENUM(BlueprintType)
 enum class EFinalStatusProjectedCardModifierLifetimePolicy : uint8
 {
 	WhileStatusActive,
@@ -56,6 +63,14 @@ enum class EFinalStatusResourceBehavior : uint8
 {
 	None,
 	AccumulateAndConsume
+};
+
+UENUM(BlueprintType)
+enum class EFinalStatusAppliesTo : uint8
+{
+	Shared,
+	PlayerOnly,
+	EnemyOnly
 };
 
 USTRUCT(BlueprintType)
@@ -125,6 +140,9 @@ public:
 	EFinalStatusCategory StatusCategory = EFinalStatusCategory::Buff;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
+	EFinalStatusAppliesTo AppliesTo = EFinalStatusAppliesTo::Shared;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	int32 MaxStacks = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
@@ -144,6 +162,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Resource", meta = (EditCondition = "bIsResourceStatus"))
 	bool bAutoProjectToCards = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|DamageOverTime")
+	bool bIsDamageOverTime = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|DamageOverTime", meta = (EditCondition = "bIsDamageOverTime"))
+	EFinalStatusDamageOverTimeTickWindow DamageOverTimeTickWindow = EFinalStatusDamageOverTimeTickWindow::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|DamageOverTime", meta = (EditCondition = "bIsDamageOverTime"))
+	int32 DamageOverTimeAttackPowerPercentPerStack = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	EFinalStatusStackKeyPolicy StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwner;
