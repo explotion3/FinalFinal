@@ -3,6 +3,7 @@
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResourceConsumed.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
@@ -24,6 +25,7 @@
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
@@ -198,6 +200,24 @@ namespace FinalPrototypeContentBootstrap
 		UFinalBattleConditionStatusChanged* Condition = NewObject<UFinalBattleConditionStatusChanged>(Effect);
 		Condition->ConditionId = TEXT("condition.status_changed");
 		Condition->Requirement.ChangeKind = EFinalBattleStatusChangeKind::Removed;
+		Condition->Requirement.RequiredStatusId = StatusId;
+		Condition->Requirement.MinimumStacks = FMath::Max(MinimumStacks, 1);
+		Effect->Conditions.Add(Condition);
+		return Condition;
+	}
+
+	UFinalBattleConditionResourceConsumed* AddResourceConsumedCondition(
+		UFinalBattleEffectDefinition* Effect,
+		const FFinalStatusId& StatusId,
+		const int32 MinimumStacks)
+	{
+		if (Effect == nullptr)
+		{
+			return nullptr;
+		}
+
+		UFinalBattleConditionResourceConsumed* Condition = NewObject<UFinalBattleConditionResourceConsumed>(Effect);
+		Condition->ConditionId = TEXT("condition.resource_consumed");
 		Condition->Requirement.RequiredStatusId = StatusId;
 		Condition->Requirement.MinimumStacks = FMath::Max(MinimumStacks, 1);
 		Effect->Conditions.Add(Condition);
@@ -415,6 +435,26 @@ namespace FinalPrototypeContentBootstrap
 		RemoveStatusEffect->Notes = Notes;
 		Effects.Add(RemoveStatusEffect);
 		return RemoveStatusEffect;
+	}
+
+	UFinalBattleEffectConsumeStatusResource* AddConsumeStatusResourceEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const EFinalBattleUnitTargetRule TargetRule,
+		UFinalStatusDefinition* StatusDefinition,
+		const int32 StacksToConsume,
+		const FText& Notes)
+	{
+		UFinalBattleEffectConsumeStatusResource* ConsumeEffect = NewObject<UFinalBattleEffectConsumeStatusResource>(Owner);
+		ConsumeEffect->EffectId = EffectId;
+		ConsumeEffect->UnitTargetRule = TargetRule;
+		ConsumeEffect->StatusDefinition = StatusDefinition;
+		ConsumeEffect->StatusId = StatusDefinition ? StatusDefinition->StatusId : FFinalStatusId();
+		ConsumeEffect->StacksToConsume = FMath::Max(StacksToConsume, 1);
+		ConsumeEffect->Notes = Notes;
+		Effects.Add(ConsumeEffect);
+		return ConsumeEffect;
 	}
 
 	UFinalBattleEffectGainAP* AddGainApEffect(

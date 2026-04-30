@@ -130,12 +130,23 @@ namespace FinalBattleCardProjectionTests
 		StatusDefinition->StatusCategory = EFinalStatusCategory::Buff;
 		StatusDefinition->MaxStacks = 9;
 		StatusDefinition->OutgoingDamagePercentPerStack = OutgoingDamagePercentPerStack;
-		StatusDefinition->bProjectToOwnedHandCards = bProjectToOwnedHandCards;
-		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
-		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = ProjectedOutgoingDamagePercentPerStack;
 		StatusDefinition->bConsumeOnSuccessfulOwnerDamage = bConsumeOnSuccessfulOwnerDamage;
 		StatusDefinition->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
 		StatusDefinition->bOnlyAffectAttackCards = bOnlyAffectAttackCards;
+		StatusDefinition->ProjectedCardModifiers.Reset();
+		if (bProjectToOwnedHandCards && ProjectedOutgoingDamagePercentPerStack != 0)
+		{
+			FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StatusDefinition->ProjectedCardModifiers.AddDefaulted_GetRef();
+			ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
+			ProjectedModifier.bRequireCardType = true;
+			ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
+			ProjectedModifier.OutgoingDamagePercentPerStack = ProjectedOutgoingDamagePercentPerStack;
+			ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
+			ProjectedModifier.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+		}
+		StatusDefinition->bProjectToOwnedHandCards = false;
+		StatusDefinition->ProjectedCardTypeFilter = EFinalCardType::Attack;
+		StatusDefinition->ProjectedOutgoingDamagePercentPerStack = 0;
 		return StatusDefinition;
 	}
 

@@ -172,8 +172,16 @@
 - 支持状态驱动的伤害修正、生命保护、触发条件判断
 - 当前 `StatusDefinition` 已进入“双轨 schema”阶段：
   - 新 schema：`RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers / StackKeyPolicy / StackRule / DurationType / ExpireWindow`
-  - 旧字段：继续作为当前 battle runtime 的唯一生效口径
-- 本阶段只允许在定义层和校验层补新 schema；未完成完整迁移前，不允许 `FinalBattleStatusService` 同时双读新旧字段
+  - 旧字段：继续作为未迁移状态的 battle runtime 生效口径
+- 当前第一批 runtime 迁移已落地到 `士气 / 生命免疫`：
+  - `FinalBattleStatusService` 对这两条状态改为读取 `FFinalBattleStatusInstance.RuntimeModifiers`
+  - `锋锐` 当前已改为读取 `FFinalBattleStatusInstance.ProjectedCardModifiers`
+  - `刀势 / 药引` 当前已归位为正式资源型状态：
+    - 获得继续走 `ApplyStatus`
+    - 消费改走 `ConsumeStatusResource`
+    - 默认不进入 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`
+  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍然走旧字段路径
+- 迁移期不允许对同一条状态做“新旧字段同时生效并合并”的双真相结算
 - 状态系统完整迁移顺序当前已固定为：
   - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血`
   - 最后再删除旧字段与旧读取路径

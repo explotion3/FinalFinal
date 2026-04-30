@@ -40,6 +40,11 @@ public:
 		EFinalBattleCardZoneRule SourceZone,
 		EFinalBattleCardZoneRule DestinationZone,
 		int32 MovedCount) const;
+	void RecordResourceConsumed(
+		FFinalBattleEffectChainRecordContext& ChainRecords,
+		FName OwnerUnitId,
+		const FFinalStatusId& StatusId,
+		int32 ConsumedStacks) const;
 
 private:
 	bool EvaluateCondition(

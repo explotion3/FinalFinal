@@ -21,6 +21,15 @@
 * 敌人与角色都使用状态栏
 * 规则关键词与状态名严格分层，不混写
 * 状态结算应统一挂接到少量固定窗口，不为单个状态临时发明新时点
+* 当前工程实现已明确分为三类运行时语义：
+  * 直接规则型状态：直接参与 battle 数值结算
+  * 卡牌投影型状态：把修正投影到当前手牌中的 `BattleCard`
+  * 资源型状态：只保存层数与持续信息，由牌或被动显式读取和消耗
+* 当前迁移状态：
+  * `士气`、`生命免疫` 已迁到新 `RuntimeModifiers`
+  * `锋锐` 已迁移到 `ProjectedCardModifiers`
+  * `刀势 / 药引` 已归位为正式资源型状态：获得继续走 `ApplyStatus`，消费改走 `ConsumeStatusResource`
+  * `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍待后续迁移
 
 ## 3. 状态分类
 ### 3.1 设计口径
@@ -246,11 +255,11 @@
 
 ## 9. 首版角色专属状态清单
 ### 9.1 霍断岳
-* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 当前通过霍断岳 innate passive 的 `OwnerTookHealthDamage` 窗口获得，并由明确配置的攻击牌消耗来追加削韧
+* `刀势`：霍断岳专属状态；默认按层数累积；starter Runtime 当前通过霍断岳 innate passive 的 `OwnerTookHealthDamage` 窗口获得，并由明确配置的攻击牌通过 `ConsumeStatusResource` 消耗来追加削韧
 * `压势追刀`：霍断岳能力牌“受压蓄势”授予的被动；在 `PlayerCardResolved` 的 `ResolvedCard(Attack) + OncePerPlayerTurn` 窗口下，为当前手牌中的攻击牌投影 `-1 AP / +20% 伤害`，持续到打出或玩家回合结束
 
 ### 9.2 叶半夏
-* `药引`：叶半夏专属状态；默认按层数累积；不自动生效，只有被牌明确消耗时才结算收益
+* `药引`：叶半夏专属状态；默认按层数累积；不自动生效，只有被牌通过 `ConsumeStatusResource` 明确消耗时才结算收益
 
 ### 9.3 沈清弦
 * 沈清弦当前不以专属状态承载核心机制；`剑阵` 相关内容属于衍生牌体系，不纳入状态系统
@@ -297,28 +306,35 @@
 * `StatusRefreshRule`：`KeepLonger`
 * `摘要文本`：在造成伤害时参与攻击修正。
 * `适用理由`：士气当前更像角色个人输出修正，首版默认以单层刷新模型更容易控数值。
-* `starter 第一波 Runtime 字段落点`：
+* `当前 authoring / runtime 口径`：
+  * authoring：`StatusDefinition.RuntimeModifiers`
+  * runtime：`BattleStatusInstance.RuntimeModifiers`
+  * 结算：`FinalBattleStatusService.GetOutgoingDamageModifierPercent()`
+* `starter 第一波 RuntimeModifiers 落点`：
   * `OutgoingDamagePercentPerStack = 20`
-  * `bExpireAtPlayerTurnEnd = true`
   * `bConsumeOnSuccessfulOwnerDamage = false`
   * `bOnlyAffectAttackCards = false`
+  * `DurationType = PlayerTurns`
+  * `ExpireWindow = PlayerTurnEnd`
 
 ### 10.4.1 锋锐
 * `StatusId`：`status_shen_feng_rui`
 * `StatusCategory`：`Buff`
 * `默认归属`：沈清弦当前实际出牌的角色运行时单位
 * `摘要文本`：下一张攻击牌伤害提高 20%；若本回合未触发，则在回合结束时移除。
-* `starter 第一波 Runtime 字段落点`：
-  * `OutgoingDamagePercentPerStack = 0`
+* `starter 第一波 ProjectedCardModifiers 落点`：
+  * `TargetSource = CurrentOwnedHandCards`
+  * `RequiredCardType = Attack`
+  * `OutgoingDamagePercentPerStack = 20`
+  * `LifetimePolicy = WhileStatusActive`
+  * `bExpireAtPlayerTurnEnd = true`
+* `保留的状态生命周期字段`：
   * `bExpireAtPlayerTurnEnd = true`
   * `bConsumeOnSuccessfulOwnerDamage = true`
   * `bOnlyAffectAttackCards = true`
-  * `bProjectToOwnedHandCards = true`
-  * `ProjectedCardTypeFilter = Attack`
-  * `ProjectedOutgoingDamagePercentPerStack = 20`
 * `当前 Battle 规则口径`：
   * `锋锐` 不再走通用状态伤害修正路径。
-  * 当前由 `FinalBattle` 把 `锋锐` 同步为手牌攻击牌上的 derived `BattleCard` modifier。
+  * 当前由 `FinalBattle` 基于 `ProjectedCardModifiers` 把 `锋锐` 同步为手牌攻击牌上的 derived `BattleCard` modifier。
   * 首版只作用于当前手牌中的攻击牌；抽到手或生成进手的新攻击牌，只要 `锋锐` 仍在，也会立即获得同样投影。
   * 弃牌堆、抽牌堆、消耗区、持续区中的牌默认不带 `锋锐` 投影。
   * 成功造成一次伤害后仍只消耗 1 层；若本回合未触发，则在玩家回合结束时移除。
@@ -333,6 +349,10 @@
 * `StatusRefreshRule`：`NoRefresh`
 * `摘要文本`：按层数累积；starter Runtime 已支持已配置牌获得、受队伍生命伤害触发获得，以及由明确配置的攻击牌消耗来追加削韧。
 * `适用理由`：刀势是典型层数资源，重点在累积与消耗，不需要按回合刷新持续值；完整“所有攻击默认消耗”的通用挂钩留待后续深化。
+* `当前资源协议口径`：
+  * 获得：`ApplyStatus`
+  * 消费：`ConsumeStatusResource`
+  * 资源状态默认不参与 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`
 
 ### 10.6 药引
 * `StatusId`：`status_yao_yin`
@@ -344,6 +364,10 @@
 * `StatusRefreshRule`：`NoRefresh`
 * `摘要文本`：按层数累积；不自动生效，只有被牌明确消耗时才结算收益。
 * `适用理由`：药引本质上是专属储备资源，首版默认按战斗内累积资源处理。
+* `当前资源协议口径`：
+  * 获得：`ApplyStatus`
+  * 消费：`ConsumeStatusResource`
+  * 典型消费牌：`化引 / 回春散`
 
 ### 10.7 免疫
 * `StatusId`：`status_immunity`
@@ -359,10 +383,11 @@
   * `StatusId`：`status.starter.ye.mianyi`
   * `DisplayName`：`生命免疫`
   * `摘要文本`：抵消下一次穿透护盾的玩家共享生命 HP damage；触发后消耗，若到玩家回合结束仍未触发则过期。
-* `生命免疫 Runtime 字段`：
-  * `IncomingTeamHealthDamageReductionPercentPerStack = 100`
-  * `bConsumeOnPreventedTeamHealthDamage = true`
-  * `bExpireAtPlayerTurnEnd = true`
+* `生命免疫 RuntimeModifiers / 持续配置`：
+  * `RuntimeModifiers.IncomingTeamHealthDamageReductionPercentPerStack = 100`
+  * `RuntimeModifiers.bConsumeOnPreventedTeamHealthDamage = true`
+  * `DurationType = PlayerTurns`
+  * `ExpireWindow = PlayerTurnEnd`
 * `生命免疫结算顺序`：先由护盾抵消总伤害，再由生命免疫抵消剩余 pending Team HP damage，保护后的实际 HP damage 才扣 `TeamCurrentHP`。
 * `生命免疫触发边界`：若生命免疫完全抵消本次 HP damage，则不触发 `OwnerTookHealthDamage`。
 * `未落地范围`：免疫中毒、免疫控制、免疫压力、免疫崩溃等更泛化负面效果免疫，仍需要后续补独立协议。

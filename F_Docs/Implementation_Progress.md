@@ -18,6 +18,74 @@
   - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血`
   - 最后删除旧字段与旧读取路径
 
+## 2026-04-30 Step 19B：迁移 `士气 + 生命免疫` 到 `RuntimeModifiers`
+
+- `士气` 与 `生命免疫` 当前已进入新 `RuntimeModifiers` schema 的正式 authoring 路径；starter builder 不再为这两条状态回填 direct-rule legacy 字段。
+- `FFinalBattleStatusInstance` 当前已新增结构化 `RuntimeModifiers` 运行时载荷，用于承载 battle 直接规则修正，不与 card projection 混用。
+- `FinalBattleStatusService` 当前已开始对“已迁移状态”读取结构化 runtime modifiers：
+  - `士气` 的伤害修正与伤害后消耗逻辑改为读新载荷
+  - `生命免疫` 的 team HP protection 与触发后消耗逻辑改为读新载荷
+- 其他状态当前仍保留在 legacy 路径：
+  - `刀势 / 药引` 继续按资源型状态使用
+  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍待后续迁移
+- 本步骤不切 `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 的运行时主逻辑；回合结束过期仍保持现有结果，只是对 `士气 / 生命免疫` 从新 schema 预编译出 `bExpireAtPlayerTurnEnd`。
+
+## 2026-04-30 Step 19C：迁移 `锋锐` 到 `ProjectedCardModifiers`
+
+- `锋锐` 当前已进入新 `ProjectedCardModifiers` schema 的正式 authoring 路径；starter builder 不再为这条状态回填 owned-hand projection legacy 字段。
+- `FFinalBattleStatusInstance` 当前已新增结构化 `ProjectedCardModifiers` 运行时载荷，用于承载状态驱动的 `BattleCard` 投影修正。
+- `FinalBattleStatusService.ResyncProjectedHandCardModifiers()` 当前已开始对“已迁移状态”读取结构化 projected-card modifiers：
+  - `TargetSource = CurrentOwnedHandCards`
+  - `RequiredCardType = Attack`
+  - `OutgoingDamagePercentPerStack = 20`
+- `锋锐` 的玩法语义保持不变：
+  - 只作用于拥有者当前手牌中的攻击牌
+  - 新抽进手或生成进手的攻击牌，在 `锋锐` 仍存在时也会立即获得投影
+  - 成功造成伤害后仍消耗 1 层
+  - 玩家回合结束仍会过期并清理投影
+- 其他状态当前仍保留在各自现有路径：
+  - `士气 / 生命免疫` 走 `RuntimeModifiers`
+  - `刀势 / 药引 / 易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 仍走 legacy 字段
+
+## 2026-04-30 Step 19D：把 `刀势 / 药引` 归位成正式资源型状态
+
+- `刀势 / 药引` 当前已从“普通状态 + RemoveStatus 临时消费”迁到正式资源型状态框架。
+- `UFinalStatusDefinition` 当前已补资源型 schema：
+  - `bIsResourceStatus`
+  - `ResourceBehavior`
+  - `bAutoAffectBattleRules`
+  - `bAutoProjectToCards`
+- `FFinalBattleStatusInstance` 当前已正式承载资源型状态标记；`FinalBattleStatusService` 也已新增：
+  - `CanConsumeStatusResource()`
+  - `ConsumeStatusResource()`
+- 资源型状态当前继续复用 `StatusInstance` 容器：
+  - 获得：继续 `ApplyStatus`
+  - 消费：正式改为 `ConsumeStatusResource`
+- `刀势 / 药引` 当前默认不参与：
+  - `RuntimeModifiers`
+  - `ProjectedCardModifiers`
+  - `RuntimeTriggers`
+- starter 内容当前已迁移：
+  - `断岳斩 / 断岳斩·破阵`：改为 `ConsumeStatusResource(刀势, 1) + ResourceConsumedCondition`
+  - `化引 / 回春散`：改为 `ConsumeStatusResource(药引, 1) + ResourceConsumedCondition`
+- 获得路径保持不变：
+  - `行针 / 调息 / 裂锋 / 铁壁回锋 / 受压得刀势` 继续通过 `ApplyStatus` 增加 `刀势 / 药引`
+- 当前状态系统第一批三条主干已明确：
+  - `士气 / 生命免疫`：直接规则型
+  - `锋锐`：卡牌投影型
+  - `刀势 / 药引`：资源型
+
+## 2026-04-30 Step 19E：清理状态系统无用 legacy 残留
+
+- `UFinalStatusDefinition.OnTickEffects` 当前已从 schema 中删除；该字段在 battle runtime 中没有消费者，继续保留只会形成第二套无效扩展入口。
+- `FinalDataAssetValidator` 当前不再校验 `OnTickEffects`。
+- starter/test bundle 当前已移除所有 `OnTickEffects.Reset()` 写入，避免 bootstrap 继续维护无效字段。
+- 对已完成迁移的 starter 状态，builder 当前已移除不会再被读取的 legacy 回填：
+  - `生命免疫` 不再回填 direct-rule legacy 字段
+  - `士气` 不再回填 direct-rule legacy 字段
+  - `锋锐` 不再回填 owned-hand projection legacy 字段
+- 仍在运行时消费中的 legacy 字段保持不动；本步骤只清理“已经没有 runtime 用途”的残留，不改变状态玩法口径。
+
 ## 2026-04-29 - FinalRun RunDeck instance migration step 1
 
 - `FFinalRunState.RunDeck` is now the single run deck truth source and stores `FFinalRunCardInstance` entries instead of raw `FFinalCardId` values.

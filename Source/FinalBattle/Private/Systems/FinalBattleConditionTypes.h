@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Battle/Conditions/Requirements/FinalBattleResourceConsumeRequirement.h"
 #include "Battle/Conditions/Requirements/FinalBattleResolvedCardRequirement.h"
 #include "Types/FinalCoreTypes.h"
 #include "Battle/Conditions/Requirements/FinalBattleStatusChangeRequirement.h"
@@ -32,11 +33,19 @@ struct FFinalBattleMovedCardRecord
 	EFinalBattleCardZoneRule DestinationZone = EFinalBattleCardZoneRule::ConsumePile;
 };
 
+struct FFinalBattleResourceConsumeRecord
+{
+	FName OwnerUnitId = NAME_None;
+	FFinalStatusId StatusId;
+	int32 ConsumedStacks = 0;
+};
+
 // Persistent for one effect list. Later Conditions may read these facts.
 struct FFinalBattleEffectChainRecordContext
 {
 	TArray<FFinalBattleStatusChangeRecord> StatusChangeRecords;
 	TArray<FFinalBattleMovedCardRecord> MovedCardRecords;
+	TArray<FFinalBattleResourceConsumeRecord> ResourceConsumeRecords;
 };
 
 // Scratch flags for effect-list execution that should not be exposed as records.

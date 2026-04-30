@@ -5,7 +5,6 @@
 #include "Ids/FinalIds.h"
 #include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Types/FinalCoreTypes.h"
-#include "Battle/Effects/FinalBattleEffectDefinition.h"
 #include "FinalStatusDefinition.generated.h"
 
 UENUM(BlueprintType)
@@ -50,6 +49,13 @@ enum class EFinalStatusProjectedCardModifierLifetimePolicy : uint8
 	WhileStatusActive,
 	UntilPlayed,
 	ManualClear
+};
+
+UENUM(BlueprintType)
+enum class EFinalStatusResourceBehavior : uint8
+{
+	None,
+	AccumulateAndConsume
 };
 
 USTRUCT(BlueprintType)
@@ -124,6 +130,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	FText SummaryText;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Resource")
+	bool bIsResourceStatus = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Resource", meta = (EditCondition = "bIsResourceStatus"))
+	EFinalStatusResourceBehavior ResourceBehavior = EFinalStatusResourceBehavior::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Resource", meta = (EditCondition = "bIsResourceStatus"))
+	bool bAutoAffectBattleRules = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|Resource", meta = (EditCondition = "bIsResourceStatus"))
+	bool bAutoProjectToCards = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status")
 	EFinalStatusStackKeyPolicy StackKeyPolicy = EFinalStatusStackKeyPolicy::ByOwner;
 
@@ -174,6 +192,4 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Final|Status|LegacyRuntimeFields")
 	int32 ProjectedOutgoingDamagePercentPerStack = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Instanced, Category = "Final|Status|LegacyRuntimeFields")
-	TArray<TObjectPtr<UFinalBattleEffectDefinition>> OnTickEffects;
 };

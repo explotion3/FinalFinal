@@ -3,6 +3,7 @@
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResourceConsumed.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
@@ -22,6 +23,7 @@
 #include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectGainAP.h"
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
@@ -231,6 +233,17 @@ namespace FinalDataAssetValidation
 			return;
 		}
 
+		if (const UFinalBattleConditionResourceConsumed* ResourceConsumedCondition = Cast<const UFinalBattleConditionResourceConsumed>(Condition))
+		{
+			const FFinalBattleResourceConsumeRequirement& Requirement = ResourceConsumedCondition->Requirement;
+			if (!Requirement.RequiredStatusId.IsValid())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.Requirement.RequiredStatusId must be set."), *FieldName));
+			}
+			ValidatePositive(Context, bIsValid, Requirement.MinimumStacks, *FString::Printf(TEXT("%s.Requirement.MinimumStacks"), *FieldName));
+			return;
+		}
+
 		if (const UFinalBattleConditionMovedCards* MovedCardsCondition = Cast<const UFinalBattleConditionMovedCards>(Condition))
 		{
 			const FFinalBattleMovedCardRequirement& Requirement = MovedCardsCondition->Requirement;
@@ -393,6 +406,17 @@ namespace FinalDataAssetValidation
 			return;
 		}
 
+		if (const UFinalBattleEffectConsumeStatusResource* ConsumeStatusResourceEffect = Cast<const UFinalBattleEffectConsumeStatusResource>(Effect))
+		{
+			if (ConsumeStatusResourceEffect->EffectType != EFinalBattleEffectType::ConsumeStatusResource)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be ConsumeStatusResource for UFinalBattleEffectConsumeStatusResource."), *FieldName));
+			}
+
+			ValidatePositive(Context, bIsValid, ConsumeStatusResourceEffect->StacksToConsume, *FString::Printf(TEXT("%s.StacksToConsume"), *FieldName));
+			return;
+		}
+
 		if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<const UFinalBattleEffectDrawCards>(Effect))
 		{
 			if (DrawCardsEffect->EffectType != EFinalBattleEffectType::DrawCards)
@@ -494,6 +518,34 @@ namespace FinalDataAssetValidation
 			&& RemoveStatusEffect->Stacks >= FMath::Max(Requirement.MinimumStacks, 1);
 	}
 
+	FFinalStatusId ResolveConsumeStatusResourceEffectStatusId(const UFinalBattleEffectConsumeStatusResource* ConsumeStatusResourceEffect)
+	{
+		if (ConsumeStatusResourceEffect == nullptr)
+		{
+			return FFinalStatusId();
+		}
+
+		if (ConsumeStatusResourceEffect->StatusId.IsValid())
+		{
+			return ConsumeStatusResourceEffect->StatusId;
+		}
+
+		return ConsumeStatusResourceEffect->StatusDefinition ? ConsumeStatusResourceEffect->StatusDefinition->StatusId : FFinalStatusId();
+	}
+
+	bool CanEarlierConsumeStatusResourceSatisfy(
+		const UFinalBattleEffectConsumeStatusResource* ConsumeStatusResourceEffect,
+		const FFinalBattleResourceConsumeRequirement& Requirement)
+	{
+		if (ConsumeStatusResourceEffect == nullptr || !Requirement.RequiredStatusId.IsValid())
+		{
+			return false;
+		}
+
+		return ResolveConsumeStatusResourceEffectStatusId(ConsumeStatusResourceEffect) == Requirement.RequiredStatusId
+			&& ConsumeStatusResourceEffect->StacksToConsume >= FMath::Max(Requirement.MinimumStacks, 1);
+	}
+
 	bool CanEarlierMoveCardsRecordMovedCardsSatisfy(
 		const UFinalBattleEffectMoveCards* MoveCardsEffect,
 		const FFinalBattleMovedCardRequirement& Requirement)
@@ -575,6 +627,23 @@ namespace FinalDataAssetValidation
 	}
 
 	template<typename EffectArrayType>
+	bool HasEarlierConsumeStatusResourceProducer(
+		const EffectArrayType& Effects,
+		const int32 ConditionEffectIndex,
+		const FFinalBattleResourceConsumeRequirement& Requirement)
+	{
+		for (int32 ProducerIndex = 0; ProducerIndex < ConditionEffectIndex; ++ProducerIndex)
+		{
+			if (CanEarlierConsumeStatusResourceSatisfy(Cast<const UFinalBattleEffectConsumeStatusResource>(Effects[ProducerIndex].Get()), Requirement))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template<typename EffectArrayType>
 	void ValidateEffectConditionChain(
 		FDataValidationContext& Context,
 		const EffectArrayType& Effects,
@@ -604,6 +673,23 @@ namespace FinalDataAssetValidation
 							Context,
 							FString::Printf(
 								TEXT("%s requires removed status '%s', but no earlier RemoveStatus effect in %s can obviously produce that chain record."),
+								*ConditionFieldName,
+								*Requirement.RequiredStatusId.Value.ToString(),
+								FieldName));
+					}
+					continue;
+				}
+
+				if (const UFinalBattleConditionResourceConsumed* ResourceConsumedCondition = Cast<const UFinalBattleConditionResourceConsumed>(Condition))
+				{
+					const FFinalBattleResourceConsumeRequirement& Requirement = ResourceConsumedCondition->Requirement;
+					if (Requirement.RequiredStatusId.IsValid()
+						&& !HasEarlierConsumeStatusResourceProducer(Effects, EffectIndex, Requirement))
+					{
+						AddWarning(
+							Context,
+							FString::Printf(
+								TEXT("%s requires consumed resource status '%s', but no earlier ConsumeStatusResource effect in %s can obviously produce that chain record."),
 								*ConditionFieldName,
 								*Requirement.RequiredStatusId.Value.ToString(),
 								FieldName));
@@ -1010,6 +1096,21 @@ namespace FinalDataAssetValidation
 		ValidateNonNegative(Context, bIsValid, Status->DefaultDuration, TEXT("DefaultDuration"));
 		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Status->RuntimeTriggers, TEXT("RuntimeTriggers"));
 
+		for (int32 ModifierIndex = 0; ModifierIndex < Status->RuntimeModifiers.Num(); ++ModifierIndex)
+		{
+			const FFinalStatusRuntimeModifierDefinition& ModifierDefinition = Status->RuntimeModifiers[ModifierIndex];
+			const FString ModifierFieldName = FString::Printf(TEXT("RuntimeModifiers[%d]"), ModifierIndex);
+
+			if (ModifierDefinition.OutgoingDamagePercentPerStack == 0
+				&& ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack == 0
+				&& !ModifierDefinition.bConsumeOnSuccessfulOwnerDamage
+				&& !ModifierDefinition.bConsumeOnPreventedTeamHealthDamage
+				&& !ModifierDefinition.bOnlyAffectAttackCards)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-default runtime modifier payload."), *ModifierFieldName));
+			}
+		}
+
 		for (int32 ModifierIndex = 0; ModifierIndex < Status->ProjectedCardModifiers.Num(); ++ModifierIndex)
 		{
 			const FFinalStatusProjectedCardModifierDefinition& ModifierDefinition = Status->ProjectedCardModifiers[ModifierIndex];
@@ -1026,7 +1127,24 @@ namespace FinalDataAssetValidation
 			}
 		}
 
-		ValidateEffectArray(Context, bIsValid, Status->OnTickEffects, TEXT("OnTickEffects"), false);
+		if (Status->bIsResourceStatus)
+		{
+			if (Status->ResourceBehavior == EFinalStatusResourceBehavior::None)
+			{
+				AddError(Context, bIsValid, TEXT("Resource statuses must define ResourceBehavior."));
+			}
+
+			if (!Status->RuntimeModifiers.IsEmpty())
+			{
+				AddError(Context, bIsValid, TEXT("Resource statuses must not author RuntimeModifiers."));
+			}
+
+			if (!Status->ProjectedCardModifiers.IsEmpty())
+			{
+				AddError(Context, bIsValid, TEXT("Resource statuses must not author ProjectedCardModifiers."));
+			}
+		}
+
 	}
 
 	void ValidateUltimateDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalUltimateDefinition* Ultimate)

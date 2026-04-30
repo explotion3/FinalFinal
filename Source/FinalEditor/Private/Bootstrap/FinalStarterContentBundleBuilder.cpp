@@ -6,6 +6,7 @@
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResourceConsumed.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
 #include "Battle/Definitions/FinalBattleEncounterDefinition.h"
@@ -27,6 +28,7 @@
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Run/Definitions/FinalCardEvolutionDefinition.h"
@@ -271,7 +273,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterHuoStatus->SummaryText = FText::FromString(TEXT("霍断岳的签名资源。Runtime 已支持通过牌效果和 OwnerTookHealthDamage 触发获得层数，并由断岳斩显式消耗来追加削韧。"));
 	StarterHuoStatus->MaxStacks = 6;
 	StarterHuoStatus->DefaultDuration = 0;
-	StarterHuoStatus->OnTickEffects.Reset();
+	StarterHuoStatus->bIsResourceStatus = true;
+	StarterHuoStatus->ResourceBehavior = EFinalStatusResourceBehavior::AccumulateAndConsume;
+	StarterHuoStatus->bAutoAffectBattleRules = false;
+	StarterHuoStatus->bAutoProjectToCards = false;
+	StarterHuoStatus->RuntimeModifiers.Reset();
+	StarterHuoStatus->ProjectedCardModifiers.Reset();
+	StarterHuoStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterHuoStatus, PackagesToSave);
 
 	UFinalPassiveDefinition* StarterHuoTookDamageDaoShiPassive = LoadOrCreateAsset<UFinalPassiveDefinition>(StarterHuoTookDamageDaoShiPassivePath, bCreatedAsset);
@@ -337,7 +345,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeStatus->SummaryText = FText::FromString(TEXT("叶半夏的签名资源。首波 Runtime 已支持通过行针与调息获得层数，并由化引与回春散显式消耗换取 AP 与过牌收益。"));
 	StarterYeStatus->MaxStacks = 9;
 	StarterYeStatus->DefaultDuration = 0;
-	StarterYeStatus->OnTickEffects.Reset();
+	StarterYeStatus->bIsResourceStatus = true;
+	StarterYeStatus->ResourceBehavior = EFinalStatusResourceBehavior::AccumulateAndConsume;
+	StarterYeStatus->bAutoAffectBattleRules = false;
+	StarterYeStatus->bAutoProjectToCards = false;
+	StarterYeStatus->RuntimeModifiers.Reset();
+	StarterYeStatus->ProjectedCardModifiers.Reset();
+	StarterYeStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterYeStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterYeImmunityStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterYeImmunityStatusPath, bCreatedAsset);
@@ -347,13 +361,16 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterYeImmunityStatus->SummaryText = FText::FromString(TEXT("抵消下一次穿透护盾的共享生命伤害；这是免疫体系下的首版生命保护子类。触发后消耗，若到玩家回合结束仍未触发则失效。"));
 	StarterYeImmunityStatus->MaxStacks = 1;
 	StarterYeImmunityStatus->DefaultDuration = 1;
-	StarterYeImmunityStatus->OutgoingDamagePercentPerStack = 0;
-	StarterYeImmunityStatus->bExpireAtPlayerTurnEnd = true;
-	StarterYeImmunityStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterYeImmunityStatus->bOnlyAffectAttackCards = false;
-	StarterYeImmunityStatus->IncomingTeamHealthDamageReductionPercentPerStack = 100;
-	StarterYeImmunityStatus->bConsumeOnPreventedTeamHealthDamage = true;
-	StarterYeImmunityStatus->OnTickEffects.Reset();
+	StarterYeImmunityStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterYeImmunityStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+	StarterYeImmunityStatus->RuntimeModifiers.Reset();
+	{
+		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StarterYeImmunityStatus->RuntimeModifiers.AddDefaulted_GetRef();
+		RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack = 100;
+		RuntimeModifier.bConsumeOnPreventedTeamHealthDamage = true;
+	}
+	StarterYeImmunityStatus->ProjectedCardModifiers.Reset();
+	StarterYeImmunityStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterYeImmunityStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterShenStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenStatusPath, bCreatedAsset);
@@ -367,7 +384,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenStatus->bExpireAtPlayerTurnEnd = false;
 	StarterShenStatus->bConsumeOnSuccessfulOwnerDamage = false;
 	StarterShenStatus->bOnlyAffectAttackCards = false;
-	StarterShenStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterShenShiQiStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenShiQiStatusPath, bCreatedAsset);
@@ -377,11 +393,15 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenShiQiStatus->SummaryText = FText::FromString(TEXT("本回合内伤害提高 20%。"));
 	StarterShenShiQiStatus->MaxStacks = 9;
 	StarterShenShiQiStatus->DefaultDuration = 0;
-	StarterShenShiQiStatus->OutgoingDamagePercentPerStack = 20;
-	StarterShenShiQiStatus->bExpireAtPlayerTurnEnd = true;
-	StarterShenShiQiStatus->bConsumeOnSuccessfulOwnerDamage = false;
-	StarterShenShiQiStatus->bOnlyAffectAttackCards = false;
-	StarterShenShiQiStatus->OnTickEffects.Reset();
+	StarterShenShiQiStatus->DurationType = EFinalStatusDurationType::PlayerTurns;
+	StarterShenShiQiStatus->ExpireWindow = EFinalStatusExpireWindow::PlayerTurnEnd;
+	StarterShenShiQiStatus->RuntimeModifiers.Reset();
+	{
+		FFinalStatusRuntimeModifierDefinition& RuntimeModifier = StarterShenShiQiStatus->RuntimeModifiers.AddDefaulted_GetRef();
+		RuntimeModifier.OutgoingDamagePercentPerStack = 20;
+	}
+	StarterShenShiQiStatus->ProjectedCardModifiers.Reset();
+	StarterShenShiQiStatus->RuntimeTriggers.Reset();
 	TrackPackage(StarterShenShiQiStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterShenFengRuiStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterShenFengRuiStatusPath, bCreatedAsset);
@@ -391,14 +411,19 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterShenFengRuiStatus->SummaryText = FText::FromString(TEXT("下一张攻击牌伤害提高 20%，若本回合未触发则在回合结束时失效。"));
 	StarterShenFengRuiStatus->MaxStacks = 9;
 	StarterShenFengRuiStatus->DefaultDuration = 0;
-	StarterShenFengRuiStatus->OutgoingDamagePercentPerStack = 0;
+	StarterShenFengRuiStatus->ProjectedCardModifiers.Reset();
+	{
+		FFinalStatusProjectedCardModifierDefinition& ProjectedModifier = StarterShenFengRuiStatus->ProjectedCardModifiers.AddDefaulted_GetRef();
+		ProjectedModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards;
+		ProjectedModifier.bRequireCardType = true;
+		ProjectedModifier.RequiredCardType = EFinalCardType::Attack;
+		ProjectedModifier.OutgoingDamagePercentPerStack = 20;
+		ProjectedModifier.LifetimePolicy = EFinalStatusProjectedCardModifierLifetimePolicy::WhileStatusActive;
+		ProjectedModifier.bExpireAtPlayerTurnEnd = true;
+	}
 	StarterShenFengRuiStatus->bExpireAtPlayerTurnEnd = true;
 	StarterShenFengRuiStatus->bConsumeOnSuccessfulOwnerDamage = true;
 	StarterShenFengRuiStatus->bOnlyAffectAttackCards = true;
-	StarterShenFengRuiStatus->bProjectToOwnedHandCards = true;
-	StarterShenFengRuiStatus->ProjectedCardTypeFilter = EFinalCardType::Attack;
-	StarterShenFengRuiStatus->ProjectedOutgoingDamagePercentPerStack = 20;
-	StarterShenFengRuiStatus->OnTickEffects.Reset();
 	TrackPackage(StarterShenFengRuiStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterVulnerableStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterVulnerableStatusPath, bCreatedAsset);
@@ -414,7 +439,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterVulnerableStatus->bOnlyAffectAttackCards = false;
 	StarterVulnerableStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	StarterVulnerableStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterVulnerableStatus->OnTickEffects.Reset();
 	TrackPackage(StarterVulnerableStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterCorrosionStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterCorrosionStatusPath, bCreatedAsset);
@@ -430,7 +454,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterCorrosionStatus->bOnlyAffectAttackCards = false;
 	StarterCorrosionStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	StarterCorrosionStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterCorrosionStatus->OnTickEffects.Reset();
 	TrackPackage(StarterCorrosionStatus, PackagesToSave);
 
 	UFinalStatusDefinition* StarterWeakStatus = LoadOrCreateAsset<UFinalStatusDefinition>(StarterWeakStatusPath, bCreatedAsset);
@@ -446,7 +469,6 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	StarterWeakStatus->bOnlyAffectAttackCards = false;
 	StarterWeakStatus->IncomingTeamHealthDamageReductionPercentPerStack = 0;
 	StarterWeakStatus->bConsumeOnPreventedTeamHealthDamage = false;
-	StarterWeakStatus->OnTickEffects.Reset();
 	TrackPackage(StarterWeakStatus, PackagesToSave);
 
 	UFinalRelicDefinition* StarterBronzeMirrorGuardRelic = LoadOrCreateAsset<UFinalRelicDefinition>(StarterBronzeMirrorGuardRelicPath, bCreatedAsset);
@@ -768,7 +790,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		3.0f,
 		EFinalBattleScalarMode::Flat);
-	AddRemoveStatusEffect(
+	AddConsumeStatusResourceEffect(
 		StarterHuoDuanYueZhanCard,
 		StarterHuoDuanYueZhanCard->Effects,
 		TEXT("effect.starter.huo.duanyuezhan.consume_daoshi"),
@@ -782,7 +804,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		2.0f,
 		EFinalBattleScalarMode::Flat);
-	AddStatusChangedCondition(StarterHuoDuanYueZhanConsumeBreak, StarterHuoStatus->StatusId, 1);
+	AddResourceConsumedCondition(StarterHuoDuanYueZhanConsumeBreak, StarterHuoStatus->StatusId, 1);
 	AddDamageEffect(
 		StarterHuoDuanYueZhanCard,
 		StarterHuoDuanYueZhanCard->Effects,
@@ -810,7 +832,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		4.0f,
 		EFinalBattleScalarMode::Flat);
-	AddRemoveStatusEffect(
+	AddConsumeStatusResourceEffect(
 		StarterHuoDuanYueZhanPoZhenCard,
 		StarterHuoDuanYueZhanPoZhenCard->Effects,
 		TEXT("effect.starter.huo.duanyuezhan_pozhen.consume_daoshi"),
@@ -824,7 +846,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleUnitTargetRule::SelectedEnemy,
 		3.0f,
 		EFinalBattleScalarMode::Flat);
-	AddStatusChangedCondition(StarterHuoDuanYueZhanPoZhenConsumeBreak, StarterHuoStatus->StatusId, 1);
+	AddResourceConsumedCondition(StarterHuoDuanYueZhanPoZhenConsumeBreak, StarterHuoStatus->StatusId, 1);
 	AddDamageEffect(
 		StarterHuoDuanYueZhanPoZhenCard,
 		StarterHuoDuanYueZhanPoZhenCard->Effects,
@@ -966,7 +988,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		5.0f,
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None);
-	AddRemoveStatusEffect(
+	AddConsumeStatusResourceEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.consume_yaoyin"),
@@ -978,13 +1000,13 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.draw"),
 		1);
-	AddStatusChangedCondition(StarterYeHuaYinDrawEffect, StarterYeStatus->StatusId, 1);
+	AddResourceConsumedCondition(StarterYeHuaYinDrawEffect, StarterYeStatus->StatusId, 1);
 	UFinalBattleEffectGainAP* StarterYeHuaYinGainApEffect = AddGainApEffect(
 		StarterYeHuaYinCard,
 		StarterYeHuaYinCard->Effects,
 		TEXT("effect.starter.ye.huayin.gain_ap"),
 		1);
-	AddStatusChangedCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
+	AddResourceConsumedCondition(StarterYeHuaYinGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuaYinCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterYeHuiChunSanCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterYeHuiChunSanCardPath, bCreatedAsset);
@@ -1005,7 +1027,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleScalarMode::Flat,
 		EFinalBattleSourceStat::None,
 		FText::FromString(TEXT("当前生命免疫入口集中在回天续脉；回春散只保留治疗与药引回 AP。")));
-	AddRemoveStatusEffect(
+	AddConsumeStatusResourceEffect(
 		StarterYeHuiChunSanCard,
 		StarterYeHuiChunSanCard->Effects,
 		TEXT("effect.starter.ye.huichunsan.consume_yaoyin"),
@@ -1018,7 +1040,7 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		TEXT("effect.starter.ye.huichunsan.gain_ap"),
 		1,
 		FText::FromString(TEXT("首波 Runtime 仅落地药引消耗后的回 AP。")));
-	AddStatusChangedCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);
+	AddResourceConsumedCondition(StarterYeHuiChunSanGainApEffect, StarterYeStatus->StatusId, 1);
 	TrackPackage(StarterYeHuiChunSanCard, PackagesToSave);
 
 	UFinalCardDefinition* StarterShenBuFengCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenBuFengCardPath, bCreatedAsset);

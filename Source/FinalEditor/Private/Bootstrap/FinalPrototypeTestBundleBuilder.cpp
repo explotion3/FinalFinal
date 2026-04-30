@@ -114,7 +114,6 @@ void FFinalPrototypeTestBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	GuardianStatus->SummaryText = FText::FromString(TEXT("测试先锋的签名状态占位。"));
 	GuardianStatus->MaxStacks = 1;
 	GuardianStatus->DefaultDuration = 0;
-	GuardianStatus->OnTickEffects.Reset();
 	TrackPackage(GuardianStatus, PackagesToSave);
 
 	UFinalStatusDefinition* SupportStatus = LoadOrCreateAsset<UFinalStatusDefinition>(SupportStatusPath, bCreatedAsset);
@@ -123,7 +122,6 @@ void FFinalPrototypeTestBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 	SupportStatus->SummaryText = FText::FromString(TEXT("测试策应的签名状态占位。"));
 	SupportStatus->MaxStacks = 1;
 	SupportStatus->DefaultDuration = 0;
-	SupportStatus->OnTickEffects.Reset();
 	TrackPackage(SupportStatus, PackagesToSave);
 
 	UFinalUltimateDefinition* GuardianUltimate = LoadOrCreateAsset<UFinalUltimateDefinition>(GuardianUltimatePath, bCreatedAsset);

@@ -37,6 +37,16 @@ public:
 		FName OwnerUnitId,
 		const FFinalStatusId& StatusId,
 		int32 StacksToRemove) const;
+	bool CanConsumeStatusResource(
+		const FFinalBattleState& BattleState,
+		FName OwnerUnitId,
+		const FFinalStatusId& StatusId,
+		int32 StacksToConsume) const;
+	int32 ConsumeStatusResource(
+		FFinalBattleState& BattleState,
+		FName OwnerUnitId,
+		const FFinalStatusId& StatusId,
+		int32 StacksToConsume) const;
 	int32 GetStatusStacks(const FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;
 	const FFinalBattleStatusInstance* FindStatusInstance(const FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;
 	FFinalBattleStatusInstance* FindStatusInstance(FFinalBattleState& BattleState, FName OwnerUnitId, const FFinalStatusId& StatusId) const;

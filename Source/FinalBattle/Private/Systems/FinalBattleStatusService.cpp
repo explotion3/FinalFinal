@@ -14,6 +14,119 @@ namespace
 const FName TeamPlayerUnitId(TEXT("team_player"));
 const TCHAR* DerivedStatusHandProjectionPrefix = TEXT("status.hand_projection.");
 
+bool UsesStructuredRuntimeModifiers(const FFinalBattleStatusInstance& StatusInstance)
+{
+	return StatusInstance.RuntimeModifiers.Num() > 0;
+}
+
+bool UsesStructuredProjectedCardModifiers(const FFinalBattleStatusInstance& StatusInstance)
+{
+	return StatusInstance.ProjectedCardModifiers.Num() > 0;
+}
+
+bool UsesStructuredRuntimeModifiers(const UFinalStatusDefinition* StatusDefinition)
+{
+	return StatusDefinition != nullptr && StatusDefinition->RuntimeModifiers.Num() > 0;
+}
+
+bool UsesStructuredProjectedCardModifiers(const UFinalStatusDefinition* StatusDefinition)
+{
+	return StatusDefinition != nullptr && StatusDefinition->ProjectedCardModifiers.Num() > 0;
+}
+
+bool IsResourceStatus(const FFinalBattleStatusInstance& StatusInstance)
+{
+	return StatusInstance.bIsResourceStatus
+		&& StatusInstance.ResourceBehavior == EFinalStatusResourceBehavior::AccumulateAndConsume;
+}
+
+bool IsResourceStatus(const UFinalStatusDefinition* StatusDefinition)
+{
+	return StatusDefinition != nullptr
+		&& StatusDefinition->bIsResourceStatus
+		&& StatusDefinition->ResourceBehavior == EFinalStatusResourceBehavior::AccumulateAndConsume;
+}
+
+bool ShouldExpireAtPlayerTurnEnd(const UFinalStatusDefinition* StatusDefinition)
+{
+	if (StatusDefinition == nullptr)
+	{
+		return false;
+	}
+
+	if (UsesStructuredRuntimeModifiers(StatusDefinition))
+	{
+		return StatusDefinition->DurationType == EFinalStatusDurationType::PlayerTurns
+			&& StatusDefinition->ExpireWindow == EFinalStatusExpireWindow::PlayerTurnEnd;
+	}
+
+	return StatusDefinition->bExpireAtPlayerTurnEnd;
+}
+
+void BuildStructuredRuntimeModifiers(
+	const UFinalStatusDefinition* StatusDefinition,
+	TArray<FFinalBattleStatusRuntimeModifierInstance>& OutRuntimeModifiers)
+{
+	OutRuntimeModifiers.Reset();
+	if (StatusDefinition == nullptr)
+	{
+		return;
+	}
+
+	for (const FFinalStatusRuntimeModifierDefinition& ModifierDefinition : StatusDefinition->RuntimeModifiers)
+	{
+		if (ModifierDefinition.OutgoingDamagePercentPerStack == 0
+			&& ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack == 0
+			&& !ModifierDefinition.bConsumeOnSuccessfulOwnerDamage
+			&& !ModifierDefinition.bConsumeOnPreventedTeamHealthDamage
+			&& !ModifierDefinition.bOnlyAffectAttackCards)
+		{
+			continue;
+		}
+
+		FFinalBattleStatusRuntimeModifierInstance& ModifierInstance = OutRuntimeModifiers.AddDefaulted_GetRef();
+		ModifierInstance.OutgoingDamagePercentPerStack = ModifierDefinition.OutgoingDamagePercentPerStack;
+		ModifierInstance.bOnlyAffectAttackCards = ModifierDefinition.bOnlyAffectAttackCards;
+		ModifierInstance.IncomingTeamHealthDamageReductionPercentPerStack = ModifierDefinition.IncomingTeamHealthDamageReductionPercentPerStack;
+		ModifierInstance.bConsumeOnSuccessfulOwnerDamage = ModifierDefinition.bConsumeOnSuccessfulOwnerDamage;
+		ModifierInstance.bConsumeOnPreventedTeamHealthDamage = ModifierDefinition.bConsumeOnPreventedTeamHealthDamage;
+	}
+}
+
+void BuildStructuredProjectedCardModifiers(
+	const UFinalStatusDefinition* StatusDefinition,
+	TArray<FFinalBattleStatusProjectedCardModifierInstance>& OutProjectedCardModifiers)
+{
+	OutProjectedCardModifiers.Reset();
+	if (StatusDefinition == nullptr)
+	{
+		return;
+	}
+
+	for (const FFinalStatusProjectedCardModifierDefinition& ModifierDefinition : StatusDefinition->ProjectedCardModifiers)
+	{
+		if (ModifierDefinition.TargetSource == EFinalTriggeredCardModifierTargetSource::None)
+		{
+			continue;
+		}
+
+		if (ModifierDefinition.CostDeltaAPPerStack == 0
+			&& ModifierDefinition.OutgoingDamagePercentPerStack == 0)
+		{
+			continue;
+		}
+
+		FFinalBattleStatusProjectedCardModifierInstance& ModifierInstance = OutProjectedCardModifiers.AddDefaulted_GetRef();
+		ModifierInstance.TargetSource = ModifierDefinition.TargetSource;
+		ModifierInstance.bRequireCardType = ModifierDefinition.bRequireCardType;
+		ModifierInstance.RequiredCardType = ModifierDefinition.RequiredCardType;
+		ModifierInstance.CostDeltaAPPerStack = ModifierDefinition.CostDeltaAPPerStack;
+		ModifierInstance.OutgoingDamagePercentPerStack = ModifierDefinition.OutgoingDamagePercentPerStack;
+		ModifierInstance.LifetimePolicy = ModifierDefinition.LifetimePolicy;
+		ModifierInstance.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
+	}
+}
+
 bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName OwnerUnitId)
 {
 	if (OwnerUnitId == TeamPlayerUnitId)
@@ -28,9 +141,33 @@ bool IsPlayerOwnedStatus(const FFinalBattleState& BattleState, const FName Owner
 		});
 }
 
+bool IsStructuredOutgoingDamageModifierApplicable(
+	const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier,
+	const bool bIsAttackCardDamage)
+{
+	if (RuntimeModifier.OutgoingDamagePercentPerStack == 0)
+	{
+		return false;
+	}
+
+	if (RuntimeModifier.bOnlyAffectAttackCards && !bIsAttackCardDamage)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& StatusInstance, const bool bIsAttackCardDamage)
 {
-	if (StatusInstance.bProjectToOwnedHandCards || StatusInstance.OutgoingDamagePercentPerStack == 0)
+	if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoAffectBattleRules)
+	{
+		return false;
+	}
+
+	if (UsesStructuredRuntimeModifiers(StatusInstance)
+		|| StatusInstance.bProjectToOwnedHandCards
+		|| StatusInstance.OutgoingDamagePercentPerStack == 0)
 	{
 		return false;
 	}
@@ -45,9 +182,41 @@ bool IsOutgoingDamageModifierApplicable(const FFinalBattleStatusInstance& Status
 
 bool IsProjectedHandCardModifierApplicable(const FFinalBattleStatusInstance& StatusInstance, const bool bIsAttackCardDamage)
 {
+	if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoProjectToCards)
+	{
+		return false;
+	}
+
+	if (StatusInstance.CurrentStacks <= 0)
+	{
+		return false;
+	}
+
+	if (UsesStructuredProjectedCardModifiers(StatusInstance))
+	{
+		for (const FFinalBattleStatusProjectedCardModifierInstance& ModifierInstance : StatusInstance.ProjectedCardModifiers)
+		{
+			if (ModifierInstance.TargetSource != EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards
+				|| ModifierInstance.OutgoingDamagePercentPerStack == 0)
+			{
+				continue;
+			}
+
+			if (ModifierInstance.bRequireCardType
+				&& ModifierInstance.RequiredCardType == EFinalCardType::Attack
+				&& !bIsAttackCardDamage)
+			{
+				continue;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	if (!StatusInstance.bProjectToOwnedHandCards
-		|| StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0
-		|| StatusInstance.CurrentStacks <= 0)
+		|| StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0)
 	{
 		return false;
 	}
@@ -77,6 +246,23 @@ FName BuildDerivedStatusHandProjectionModifierId(const FGuid& StatusInstanceId, 
 
 bool IsIncomingTeamHealthDamageProtectionApplicable(const FFinalBattleStatusInstance& StatusInstance)
 {
+	if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoAffectBattleRules)
+	{
+		return false;
+	}
+
+	if (UsesStructuredRuntimeModifiers(StatusInstance))
+	{
+		const bool bHasApplicableModifier = StatusInstance.RuntimeModifiers.ContainsByPredicate(
+			[](const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier)
+			{
+				return RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack > 0;
+			});
+		return StatusInstance.OwnerUnitId == TeamPlayerUnitId
+			&& StatusInstance.CurrentStacks > 0
+			&& bHasApplicableModifier;
+	}
+
 	return StatusInstance.OwnerUnitId == TeamPlayerUnitId
 		&& StatusInstance.CurrentStacks > 0
 		&& StatusInstance.IncomingTeamHealthDamageReductionPercentPerStack > 0;
@@ -120,7 +306,8 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 	int32 BaseDuration = DurationOverride > 0
 		? DurationOverride
 		: (StatusDefinition ? StatusDefinition->DefaultDuration : 0);
-	if (StatusDefinition != nullptr && StatusDefinition->bExpireAtPlayerTurnEnd && BaseDuration <= 0)
+	const bool bExpireAtPlayerTurnEnd = ShouldExpireAtPlayerTurnEnd(StatusDefinition);
+	if (bExpireAtPlayerTurnEnd && BaseDuration <= 0)
 	{
 		BaseDuration = 1;
 	}
@@ -137,15 +324,21 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 			: FText::FromName(StatusId.Value);
 		NewInstance.CurrentStacks = MaxStacks > 0 ? FMath::Min(StacksToAdd, MaxStacks) : StacksToAdd;
 		NewInstance.RemainingDuration = BaseDuration;
-		NewInstance.OutgoingDamagePercentPerStack = StatusDefinition ? StatusDefinition->OutgoingDamagePercentPerStack : 0;
-		NewInstance.bExpireAtPlayerTurnEnd = StatusDefinition ? StatusDefinition->bExpireAtPlayerTurnEnd : false;
-		NewInstance.bConsumeOnSuccessfulOwnerDamage = StatusDefinition ? StatusDefinition->bConsumeOnSuccessfulOwnerDamage : false;
-		NewInstance.bOnlyAffectAttackCards = StatusDefinition ? StatusDefinition->bOnlyAffectAttackCards : false;
-		NewInstance.IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition ? StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack : 0;
-		NewInstance.bConsumeOnPreventedTeamHealthDamage = StatusDefinition ? StatusDefinition->bConsumeOnPreventedTeamHealthDamage : false;
-		NewInstance.bProjectToOwnedHandCards = StatusDefinition ? StatusDefinition->bProjectToOwnedHandCards : false;
-		NewInstance.ProjectedCardTypeFilter = StatusDefinition ? StatusDefinition->ProjectedCardTypeFilter : EFinalCardType::Attack;
-		NewInstance.ProjectedOutgoingDamagePercentPerStack = StatusDefinition ? StatusDefinition->ProjectedOutgoingDamagePercentPerStack : 0;
+		NewInstance.bIsResourceStatus = IsResourceStatus(StatusDefinition);
+		NewInstance.ResourceBehavior = StatusDefinition != nullptr ? StatusDefinition->ResourceBehavior : EFinalStatusResourceBehavior::None;
+		NewInstance.bAutoAffectBattleRules = StatusDefinition != nullptr && StatusDefinition->bAutoAffectBattleRules;
+		NewInstance.bAutoProjectToCards = StatusDefinition != nullptr && StatusDefinition->bAutoProjectToCards;
+		BuildStructuredRuntimeModifiers(StatusDefinition, NewInstance.RuntimeModifiers);
+		BuildStructuredProjectedCardModifiers(StatusDefinition, NewInstance.ProjectedCardModifiers);
+		NewInstance.OutgoingDamagePercentPerStack = UsesStructuredRuntimeModifiers(NewInstance) ? 0 : (StatusDefinition ? StatusDefinition->OutgoingDamagePercentPerStack : 0);
+		NewInstance.bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+		NewInstance.bConsumeOnSuccessfulOwnerDamage = UsesStructuredRuntimeModifiers(NewInstance) ? false : (StatusDefinition ? StatusDefinition->bConsumeOnSuccessfulOwnerDamage : false);
+		NewInstance.bOnlyAffectAttackCards = UsesStructuredRuntimeModifiers(NewInstance) ? false : (StatusDefinition ? StatusDefinition->bOnlyAffectAttackCards : false);
+		NewInstance.IncomingTeamHealthDamageReductionPercentPerStack = UsesStructuredRuntimeModifiers(NewInstance) ? 0 : (StatusDefinition ? StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack : 0);
+		NewInstance.bConsumeOnPreventedTeamHealthDamage = UsesStructuredRuntimeModifiers(NewInstance) ? false : (StatusDefinition ? StatusDefinition->bConsumeOnPreventedTeamHealthDamage : false);
+		NewInstance.bProjectToOwnedHandCards = UsesStructuredProjectedCardModifiers(NewInstance) ? false : (StatusDefinition ? StatusDefinition->bProjectToOwnedHandCards : false);
+		NewInstance.ProjectedCardTypeFilter = UsesStructuredProjectedCardModifiers(NewInstance) ? EFinalCardType::Attack : (StatusDefinition ? StatusDefinition->ProjectedCardTypeFilter : EFinalCardType::Attack);
+		NewInstance.ProjectedOutgoingDamagePercentPerStack = UsesStructuredProjectedCardModifiers(NewInstance) ? 0 : (StatusDefinition ? StatusDefinition->ProjectedOutgoingDamagePercentPerStack : 0);
 		return NewInstance.CurrentStacks;
 	}
 
@@ -160,15 +353,21 @@ int32 FFinalBattleStatusService::AddStatusStacks(
 	}
 	if (StatusDefinition != nullptr)
 	{
-		ExistingInstance->OutgoingDamagePercentPerStack = StatusDefinition->OutgoingDamagePercentPerStack;
-		ExistingInstance->bExpireAtPlayerTurnEnd = StatusDefinition->bExpireAtPlayerTurnEnd;
-		ExistingInstance->bConsumeOnSuccessfulOwnerDamage = StatusDefinition->bConsumeOnSuccessfulOwnerDamage;
-		ExistingInstance->bOnlyAffectAttackCards = StatusDefinition->bOnlyAffectAttackCards;
-		ExistingInstance->IncomingTeamHealthDamageReductionPercentPerStack = StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack;
-		ExistingInstance->bConsumeOnPreventedTeamHealthDamage = StatusDefinition->bConsumeOnPreventedTeamHealthDamage;
-		ExistingInstance->bProjectToOwnedHandCards = StatusDefinition->bProjectToOwnedHandCards;
-		ExistingInstance->ProjectedCardTypeFilter = StatusDefinition->ProjectedCardTypeFilter;
-		ExistingInstance->ProjectedOutgoingDamagePercentPerStack = StatusDefinition->ProjectedOutgoingDamagePercentPerStack;
+		ExistingInstance->bIsResourceStatus = IsResourceStatus(StatusDefinition);
+		ExistingInstance->ResourceBehavior = StatusDefinition->ResourceBehavior;
+		ExistingInstance->bAutoAffectBattleRules = StatusDefinition->bAutoAffectBattleRules;
+		ExistingInstance->bAutoProjectToCards = StatusDefinition->bAutoProjectToCards;
+		BuildStructuredRuntimeModifiers(StatusDefinition, ExistingInstance->RuntimeModifiers);
+		BuildStructuredProjectedCardModifiers(StatusDefinition, ExistingInstance->ProjectedCardModifiers);
+		ExistingInstance->OutgoingDamagePercentPerStack = UsesStructuredRuntimeModifiers(*ExistingInstance) ? 0 : StatusDefinition->OutgoingDamagePercentPerStack;
+		ExistingInstance->bExpireAtPlayerTurnEnd = bExpireAtPlayerTurnEnd;
+		ExistingInstance->bConsumeOnSuccessfulOwnerDamage = UsesStructuredRuntimeModifiers(*ExistingInstance) ? false : StatusDefinition->bConsumeOnSuccessfulOwnerDamage;
+		ExistingInstance->bOnlyAffectAttackCards = UsesStructuredRuntimeModifiers(*ExistingInstance) ? false : StatusDefinition->bOnlyAffectAttackCards;
+		ExistingInstance->IncomingTeamHealthDamageReductionPercentPerStack = UsesStructuredRuntimeModifiers(*ExistingInstance) ? 0 : StatusDefinition->IncomingTeamHealthDamageReductionPercentPerStack;
+		ExistingInstance->bConsumeOnPreventedTeamHealthDamage = UsesStructuredRuntimeModifiers(*ExistingInstance) ? false : StatusDefinition->bConsumeOnPreventedTeamHealthDamage;
+		ExistingInstance->bProjectToOwnedHandCards = UsesStructuredProjectedCardModifiers(*ExistingInstance) ? false : StatusDefinition->bProjectToOwnedHandCards;
+		ExistingInstance->ProjectedCardTypeFilter = UsesStructuredProjectedCardModifiers(*ExistingInstance) ? EFinalCardType::Attack : StatusDefinition->ProjectedCardTypeFilter;
+		ExistingInstance->ProjectedOutgoingDamagePercentPerStack = UsesStructuredProjectedCardModifiers(*ExistingInstance) ? 0 : StatusDefinition->ProjectedOutgoingDamagePercentPerStack;
 	}
 	if (BaseDuration > 0)
 	{
@@ -186,8 +385,31 @@ int32 FFinalBattleStatusService::GetOutgoingDamageModifierPercent(
 
 	for (const FFinalBattleStatusInstance& StatusInstance : BattleState.StatusInstances)
 	{
-		if (StatusInstance.OwnerUnitId != OwnerUnitId
-			|| !IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage))
+		if (StatusInstance.OwnerUnitId != OwnerUnitId || StatusInstance.CurrentStacks <= 0)
+		{
+			continue;
+		}
+
+		if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoAffectBattleRules)
+		{
+			continue;
+		}
+
+		if (UsesStructuredRuntimeModifiers(StatusInstance))
+		{
+			for (const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier : StatusInstance.RuntimeModifiers)
+			{
+				if (!IsStructuredOutgoingDamageModifierApplicable(RuntimeModifier, bIsAttackCardDamage))
+				{
+					continue;
+				}
+
+				TotalModifierPercent += RuntimeModifier.OutgoingDamagePercentPerStack * StatusInstance.CurrentStacks;
+			}
+			continue;
+		}
+
+		if (!IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage))
 		{
 			continue;
 		}
@@ -208,10 +430,34 @@ int32 FFinalBattleStatusService::ConsumeOutgoingDamageModifierStacks(
 	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
 	{
 		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
-		if (StatusInstance.OwnerUnitId != OwnerUnitId
-			|| !StatusInstance.bConsumeOnSuccessfulOwnerDamage
-			|| (!IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage)
-				&& !IsProjectedHandCardModifierApplicable(StatusInstance, bIsAttackCardDamage)))
+		if (StatusInstance.OwnerUnitId != OwnerUnitId)
+		{
+			continue;
+		}
+
+		if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoAffectBattleRules)
+		{
+			continue;
+		}
+
+		bool bShouldConsumeStack = false;
+		if (UsesStructuredRuntimeModifiers(StatusInstance))
+		{
+			bShouldConsumeStack = StatusInstance.RuntimeModifiers.ContainsByPredicate(
+				[bIsAttackCardDamage](const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier)
+				{
+					return RuntimeModifier.bConsumeOnSuccessfulOwnerDamage
+						&& IsStructuredOutgoingDamageModifierApplicable(RuntimeModifier, bIsAttackCardDamage);
+				});
+		}
+		else
+		{
+			bShouldConsumeStack = StatusInstance.bConsumeOnSuccessfulOwnerDamage
+				&& (IsOutgoingDamageModifierApplicable(StatusInstance, bIsAttackCardDamage)
+					|| IsProjectedHandCardModifierApplicable(StatusInstance, bIsAttackCardDamage));
+		}
+
+		if (!bShouldConsumeStack)
 		{
 			continue;
 		}
@@ -260,8 +506,68 @@ void FFinalBattleStatusService::ResyncProjectedHandCardModifiers(
 	{
 		if (StatusInstance.OwnerUnitId != OwnerUnitId
 			|| StatusInstance.CurrentStacks <= 0
-			|| !StatusInstance.bProjectToOwnedHandCards
-			|| StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0)
+			|| (!StatusInstance.bProjectToOwnedHandCards && !UsesStructuredProjectedCardModifiers(StatusInstance)))
+		{
+			continue;
+		}
+
+		if (IsResourceStatus(StatusInstance) && !StatusInstance.bAutoProjectToCards)
+		{
+			continue;
+		}
+
+		if (UsesStructuredProjectedCardModifiers(StatusInstance))
+		{
+			for (const FFinalBattleStatusProjectedCardModifierInstance& ProjectedModifier : StatusInstance.ProjectedCardModifiers)
+			{
+				if (ProjectedModifier.TargetSource != EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards)
+				{
+					continue;
+				}
+
+				if (ProjectedModifier.CostDeltaAPPerStack == 0
+					&& ProjectedModifier.OutgoingDamagePercentPerStack == 0)
+				{
+					continue;
+				}
+
+				for (const FGuid& HandCardInstanceId : BattleState.DeckState.HandCardInstanceIds)
+				{
+					FFinalBattleCardInstance* CardInstance = CardService.FindCardInstance(BattleState, HandCardInstanceId);
+					if (CardInstance == nullptr || CardInstance->RuntimeOwnerUnitId != OwnerUnitId)
+					{
+						continue;
+					}
+
+					const UFinalCardDefinition* EffectiveCardDefinition = CardInstance->ProjectedDefinition != nullptr
+						? CardInstance->ProjectedDefinition
+						: CardInstance->BaseDefinition;
+					if (EffectiveCardDefinition == nullptr)
+					{
+						continue;
+					}
+
+					if (ProjectedModifier.bRequireCardType && EffectiveCardDefinition->CardType != ProjectedModifier.RequiredCardType)
+					{
+						continue;
+					}
+
+					FFinalBattleCardModifierRecord ModifierRecord;
+					ModifierRecord.ModifierId = BuildDerivedStatusHandProjectionModifierId(StatusInstance.StatusInstanceId, CardInstance->CardInstanceId);
+					ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Status;
+					ModifierRecord.DurationPolicy = EFinalBattleCardModifierDuration::ManualClear;
+					ModifierRecord.ApplyOrder = 1000;
+					ModifierRecord.CostDeltaAP = StatusInstance.CurrentStacks * ProjectedModifier.CostDeltaAPPerStack;
+					ModifierRecord.OutgoingDamagePercentDelta = StatusInstance.CurrentStacks * ProjectedModifier.OutgoingDamagePercentPerStack;
+					CardInstance->ModifierRecords.Add(MoveTemp(ModifierRecord));
+					CardInstanceIdsToReproject.AddUnique(CardInstance->CardInstanceId);
+				}
+			}
+
+			continue;
+		}
+
+		if (StatusInstance.ProjectedOutgoingDamagePercentPerStack == 0)
 		{
 			continue;
 		}
@@ -310,6 +616,20 @@ int32 FFinalBattleStatusService::GetIncomingTeamHealthDamageReductionPercent(con
 			continue;
 		}
 
+		if (UsesStructuredRuntimeModifiers(StatusInstance))
+		{
+			for (const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier : StatusInstance.RuntimeModifiers)
+			{
+				if (RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack <= 0)
+				{
+					continue;
+				}
+
+				TotalReductionPercent += RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack * StatusInstance.CurrentStacks;
+			}
+			continue;
+		}
+
 		TotalReductionPercent += StatusInstance.IncomingTeamHealthDamageReductionPercentPerStack * StatusInstance.CurrentStacks;
 	}
 
@@ -344,8 +664,27 @@ int32 FFinalBattleStatusService::ApplyIncomingTeamHealthDamageProtection(
 	for (int32 StatusIndex = BattleState.StatusInstances.Num() - 1; StatusIndex >= 0; --StatusIndex)
 	{
 		FFinalBattleStatusInstance& StatusInstance = BattleState.StatusInstances[StatusIndex];
-		if (!IsIncomingTeamHealthDamageProtectionApplicable(StatusInstance)
-			|| !StatusInstance.bConsumeOnPreventedTeamHealthDamage)
+		if (!IsIncomingTeamHealthDamageProtectionApplicable(StatusInstance))
+		{
+			continue;
+		}
+
+		bool bShouldConsumeStack = false;
+		if (UsesStructuredRuntimeModifiers(StatusInstance))
+		{
+			bShouldConsumeStack = StatusInstance.RuntimeModifiers.ContainsByPredicate(
+				[](const FFinalBattleStatusRuntimeModifierInstance& RuntimeModifier)
+				{
+					return RuntimeModifier.IncomingTeamHealthDamageReductionPercentPerStack > 0
+						&& RuntimeModifier.bConsumeOnPreventedTeamHealthDamage;
+				});
+		}
+		else
+		{
+			bShouldConsumeStack = StatusInstance.bConsumeOnPreventedTeamHealthDamage;
+		}
+
+		if (!bShouldConsumeStack)
 		{
 			continue;
 		}
@@ -389,6 +728,33 @@ int32 FFinalBattleStatusService::RemoveStatusStacks(
 		BattleState.StatusInstances.RemoveAt(StatusIndex);
 	}
 	return RemovedStacks;
+}
+
+bool FFinalBattleStatusService::CanConsumeStatusResource(
+	const FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const FFinalStatusId& StatusId,
+	const int32 StacksToConsume) const
+{
+	const FFinalBattleStatusInstance* StatusInstance = FindStatusInstance(BattleState, OwnerUnitId, StatusId);
+	return StatusInstance != nullptr
+		&& IsResourceStatus(*StatusInstance)
+		&& StacksToConsume > 0
+		&& StatusInstance->CurrentStacks >= StacksToConsume;
+}
+
+int32 FFinalBattleStatusService::ConsumeStatusResource(
+	FFinalBattleState& BattleState,
+	const FName OwnerUnitId,
+	const FFinalStatusId& StatusId,
+	const int32 StacksToConsume) const
+{
+	if (!CanConsumeStatusResource(BattleState, OwnerUnitId, StatusId, StacksToConsume))
+	{
+		return 0;
+	}
+
+	return RemoveStatusStacks(BattleState, OwnerUnitId, StatusId, StacksToConsume);
 }
 
 int32 FFinalBattleStatusService::GetStatusStacks(

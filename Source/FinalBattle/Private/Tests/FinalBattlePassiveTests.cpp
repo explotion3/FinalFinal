@@ -790,6 +790,11 @@ bool FFinalBattlePassiveFirstAttackModifierClearsAtTurnEndTest::RunTest(const FS
 	TestNotEqual(TEXT("ApplyPassive ability should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);
 
 	Snapshot = Session->GetSnapshot();
+	TriggerAttackHandCard = FindHandCardById(Snapshot, TriggerAttackCardId);
+	if (!TestNotNull(TEXT("Trigger attack card should remain in hand after applying passive."), TriggerAttackHandCard))
+	{
+		return false;
+	}
 	Command.CardInstanceId = TriggerAttackHandCard->CardInstanceId;
 	Command.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
 	TestNotEqual(TEXT("Trigger attack should resolve successfully."), Session->SubmitCommand(Command).EventType, EFinalBattleEventType::CommandRejected);

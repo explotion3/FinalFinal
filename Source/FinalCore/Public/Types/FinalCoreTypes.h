@@ -38,6 +38,7 @@ enum class EFinalBattleEffectType : uint8
 	Heal,
 	ApplyStatus,
 	RemoveStatus,
+	ConsumeStatusResource,
 	DrawCards,
 	GainAP,
 	GainEP,

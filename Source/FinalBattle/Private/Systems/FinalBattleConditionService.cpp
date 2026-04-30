@@ -3,6 +3,7 @@
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionHandCard.h"
 #include "Battle/Conditions/FinalBattleConditionMovedCards.h"
+#include "Battle/Conditions/FinalBattleConditionResourceConsumed.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Conditions/FinalBattleConditionStatusChanged.h"
 #include "Battle/Conditions/FinalBattleConditionTargetState.h"
@@ -156,6 +157,30 @@ bool SatisfiesMovedCardRequirement(
 			*Context.ChainRecords,
 			Context.SourceOwnerUnitId,
 			Requirement) >= FMath::Max(Requirement.MinimumCount, 1);
+}
+
+bool SatisfiesResourceConsumeRequirement(
+	const FFinalBattleResourceConsumeRequirement& Requirement,
+	const FFinalBattleConditionEvaluationContext& Context)
+{
+	if (Context.ChainRecords == nullptr
+		|| !Requirement.RequiredStatusId.IsValid()
+		|| Context.SourceOwnerUnitId.IsNone())
+	{
+		return false;
+	}
+
+	if (const FFinalBattleResourceConsumeRecord* ExistingRecord = Context.ChainRecords->ResourceConsumeRecords.FindByPredicate(
+		[&Requirement, &Context](const FFinalBattleResourceConsumeRecord& Candidate)
+		{
+			return Candidate.OwnerUnitId == Context.SourceOwnerUnitId
+				&& Candidate.StatusId == Requirement.RequiredStatusId;
+		}))
+	{
+		return ExistingRecord->ConsumedStacks >= FMath::Max(Requirement.MinimumStacks, 1);
+	}
+
+	return false;
 }
 
 bool SatisfiesHandCardRequirement(
@@ -394,6 +419,34 @@ void FFinalBattleConditionService::RecordMovedCard(
 	NewRecord.DestinationZone = DestinationZone;
 }
 
+void FFinalBattleConditionService::RecordResourceConsumed(
+	FFinalBattleEffectChainRecordContext& ChainRecords,
+	const FName OwnerUnitId,
+	const FFinalStatusId& StatusId,
+	const int32 ConsumedStacks) const
+{
+	if (OwnerUnitId.IsNone() || !StatusId.IsValid() || ConsumedStacks <= 0)
+	{
+		return;
+	}
+
+	if (FFinalBattleResourceConsumeRecord* ExistingRecord = ChainRecords.ResourceConsumeRecords.FindByPredicate(
+		[&OwnerUnitId, &StatusId](const FFinalBattleResourceConsumeRecord& Candidate)
+		{
+			return Candidate.OwnerUnitId == OwnerUnitId
+				&& Candidate.StatusId == StatusId;
+		}))
+	{
+		ExistingRecord->ConsumedStacks += ConsumedStacks;
+		return;
+	}
+
+	FFinalBattleResourceConsumeRecord& NewRecord = ChainRecords.ResourceConsumeRecords.AddDefaulted_GetRef();
+	NewRecord.OwnerUnitId = OwnerUnitId;
+	NewRecord.StatusId = StatusId;
+	NewRecord.ConsumedStacks = ConsumedStacks;
+}
+
 bool FFinalBattleConditionService::EvaluateCondition(
 	const UFinalBattleConditionDefinition* Condition,
 	const FFinalBattleConditionEvaluationContext& Context) const
@@ -416,6 +469,11 @@ bool FFinalBattleConditionService::EvaluateCondition(
 		if (const UFinalBattleConditionStatusChanged* StatusChangedCondition = Cast<UFinalBattleConditionStatusChanged>(Condition))
 		{
 			return SatisfiesStatusChangeRequirement(StatusChangedCondition->Requirement, Context);
+		}
+
+		if (const UFinalBattleConditionResourceConsumed* ResourceConsumedCondition = Cast<UFinalBattleConditionResourceConsumed>(Condition))
+		{
+			return SatisfiesResourceConsumeRequirement(ResourceConsumedCondition->Requirement, Context);
 		}
 
 		if (const UFinalBattleConditionMovedCards* MovedCardsCondition = Cast<UFinalBattleConditionMovedCards>(Condition))

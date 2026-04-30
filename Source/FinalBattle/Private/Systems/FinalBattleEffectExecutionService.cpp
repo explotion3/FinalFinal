@@ -13,6 +13,7 @@
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectMoveCards.h"
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Commands/FinalBattleCommand.h"
@@ -162,6 +163,7 @@ bool HasSupportedEffectListInternal(const TArray<TObjectPtr<UFinalBattleEffectDe
 			|| Cast<UFinalBattleEffectApplyPassive>(EffectDefinition)
 			|| Cast<UFinalBattleEffectApplyStatus>(EffectDefinition)
 			|| Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition)
+			|| Cast<UFinalBattleEffectConsumeStatusResource>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainShield>(EffectDefinition)
 			|| Cast<UFinalBattleEffectDrawCards>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainAP>(EffectDefinition)
@@ -295,6 +297,21 @@ FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectApplyStatus* Effect
 }
 
 FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectRemoveStatus* EffectDefinition)
+{
+	if (EffectDefinition == nullptr)
+	{
+		return FFinalStatusId();
+	}
+
+	if (EffectDefinition->StatusId.IsValid())
+	{
+		return EffectDefinition->StatusId;
+	}
+
+	return EffectDefinition->StatusDefinition ? EffectDefinition->StatusDefinition->StatusId : FFinalStatusId();
+}
+
+FFinalStatusId ResolveEffectStatusId(const UFinalBattleEffectConsumeStatusResource* EffectDefinition)
 {
 	if (EffectDefinition == nullptr)
 	{
@@ -1081,6 +1098,63 @@ bool ExecuteDrawCardsEffect(
 	return true;
 }
 
+bool ExecuteConsumeStatusResourceEffect(
+	FFinalBattleState& State,
+	const UFinalBattleEffectConsumeStatusResource* ConsumeStatusResourceEffect,
+	const FFinalBattleCommand* Command,
+	const FFinalBattleCharacterState* SourceCharacterState,
+	FFinalBattleEnemyState* SourceEnemyState,
+	const FFinalBattleUnitService& UnitService,
+	FFinalBattleEffectExecutionContext& ExecutionContext,
+	FFinalBattleEffectExecutionSummary& Summary)
+{
+	const FName SourceOwnerUnitId = ResolveSourceOwnerUnitId(SourceCharacterState, SourceEnemyState);
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		ConsumeStatusResourceEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
+	{
+		return false;
+	}
+
+	const FFinalStatusId StatusId = ResolveEffectStatusId(ConsumeStatusResourceEffect);
+	if (!StatusId.IsValid() || ConsumeStatusResourceEffect->StacksToConsume <= 0)
+	{
+		return false;
+	}
+
+	const TArray<FName> TargetOwnerUnitIds = ResolveStatusTargetOwnerUnitIds(
+		State,
+		Command,
+		ConsumeStatusResourceEffect->UnitTargetRule,
+		SourceCharacterState,
+		SourceEnemyState,
+		UnitService);
+	int32 ConsumedStacks = 0;
+	for (const FName TargetOwnerUnitId : TargetOwnerUnitIds)
+	{
+		const int32 ConsumedStacksForTarget = GetStatusService().ConsumeStatusResource(
+			State,
+			TargetOwnerUnitId,
+			StatusId,
+			ConsumeStatusResourceEffect->StacksToConsume);
+		ConsumedStacks += ConsumedStacksForTarget;
+		GetConditionService().RecordResourceConsumed(
+			ExecutionContext.ChainRecords,
+			TargetOwnerUnitId,
+			StatusId,
+			ConsumedStacksForTarget);
+	}
+
+	if (ConsumedStacks <= 0)
+	{
+		return false;
+	}
+
+	Summary.TotalStatusStacksRemoved += ConsumedStacks;
+	++Summary.ResolvedEffectCount;
+	return true;
+}
+
 bool ExecuteGainAPEffect(
 	FFinalBattleState& State,
 	const UFinalBattleEffectGainAP* GainAPEffect,
@@ -1398,6 +1472,12 @@ bool ExecuteEffectListInternal(
 		if (const UFinalBattleEffectRemoveStatus* RemoveStatusEffect = Cast<UFinalBattleEffectRemoveStatus>(EffectDefinition))
 		{
 			ExecuteRemoveStatusEffect(State, RemoveStatusEffect, Command, SourceCharacterState, SourceEnemyState, UnitService, ExecutionContext, Summary);
+			continue;
+		}
+
+		if (const UFinalBattleEffectConsumeStatusResource* ConsumeStatusResourceEffect = Cast<UFinalBattleEffectConsumeStatusResource>(EffectDefinition))
+		{
+			ExecuteConsumeStatusResourceEffect(State, ConsumeStatusResourceEffect, Command, SourceCharacterState, SourceEnemyState, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 

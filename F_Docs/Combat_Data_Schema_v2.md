@@ -400,6 +400,7 @@ GainShield
 Heal
 ApplyStatus
 RemoveStatus
+ConsumeStatusResource
 DrawCards
 GainAP
 GainEP
@@ -410,6 +411,8 @@ ApplyPassive
 ```
 
 `ApplyPassive` 当前已成为 battle 内正式 effect 类型；首版用于把能力牌效果转成 `BattlePassiveInstance`，再由被动自己的 `RuntimeTriggers` 继续驱动后续效果。
+
+`ConsumeStatusResource` 当前已成为资源型状态的正式消费 effect；首版用于 `刀势 / 药引` 这类 `Signature Resource` 状态的显式扣减，不再把通用 `RemoveStatus` 作为长期资源消费协议。
 
 ### 5.4 PassiveDefinition
 
@@ -539,7 +542,7 @@ EvolutionStage: Evolved
   - `ProjectedCardModifiers`
   - `RuntimeTriggers`
   - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
-- **旧字段** 仍然保留，并且当前 battle 运行时仍只读取旧字段；完整迁移完成后再删除。
+- **旧字段** 仍然保留，并且当前 battle 运行时仍作为未迁移状态的生效口径；完整迁移完成后再删除。
 
 当前新 schema 的意图如下：
 
@@ -549,6 +552,14 @@ EvolutionStage: Evolved
 | `ProjectedCardModifiers` | 承载状态驱动的 `BattleCard` 投影修正，例如 owned-hand 攻击牌增伤、减费等；其生命周期 schema 现在使用状态专属 `LifetimePolicy`，而不是复用 trigger 的 `DurationPolicy` |
 | `RuntimeTriggers` | 预留为状态终版的正式触发入口；首版先只进入 schema，不切换 runtime 消费 |
 | `StackKeyPolicy / StackRule / DurationType / ExpireWindow` | 预留为终版状态归并、叠层和持续时间模型 |
+| `bIsResourceStatus / ResourceBehavior / bAutoAffectBattleRules / bAutoProjectToCards` | 承载正式资源型状态 schema；用于明确 `刀势 / 药引` 这类专属层数资源不自动进入 battle 规则修正和卡牌投影 |
+
+当前首批已迁移状态：
+
+- `士气`
+- `生命免疫`
+
+这两条状态在 authoring 层当前只写 `RuntimeModifiers`，并在 battle 初始化或叠层刷新时编译为 `FFinalBattleStatusInstance.RuntimeModifiers`。`FinalBattleStatusService` 对这两条状态已经改为读取结构化 runtime modifiers，不再依赖 direct-rule legacy 字段。
 
 当前仍在生效的 legacy 字段包括：
 
@@ -562,14 +573,26 @@ EvolutionStage: Evolved
 | `bProjectToOwnedHandCards` | 是否把这条状态投影到拥有者当前手牌 |
 | `ProjectedCardTypeFilter` | 投影到手牌时的卡牌类型过滤 |
 | `ProjectedOutgoingDamagePercentPerStack` | 投影到手牌卡 modifier 的每层伤害百分比 |
-| `OnTickEffects` | legacy tick/持续效果入口；当前仍保留，不在本轮删除 |
 
 当前首版运行时约束：
 
-- `士气` 继续走 legacy 通用状态伤害修正路径。
-- `锋锐` 当前仍通过 legacy owned-hand projection 字段驱动 `BattleCard` modifier。
-- 新 schema 本轮只进入定义层、校验层和文档层，不会回写 Run，也不会改变任何 starter 现有玩法。
+- `士气` 当前已走结构化 `RuntimeModifiers` 的通用状态伤害修正路径。
+- `生命免疫` 当前已走结构化 `RuntimeModifiers` 的 team HP protection 路径。
+- `锋锐` 当前已通过 `ProjectedCardModifiers` 驱动 owned-hand `BattleCard` modifier。
+- `刀势 / 药引` 当前已归位为正式资源型状态：获得继续走 `ApplyStatus`，消费改走 `ConsumeStatusResource`，且默认不参与 `RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers`。
+- `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血` 当前仍走 legacy 字段路径。
+- `OnTickEffects` 旧入口已删除；后续持续/触发型状态统一收口到 `RuntimeTriggers`，不再保留第二套未消费 schema。
+- `DurationType / ExpireWindow / StackKeyPolicy / StackRule` 当前仍只停留在 schema，不接运行时主逻辑。
 - 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血 -> 删除旧字段与旧读取路径`。
+
+资源型状态当前的正式消费条件口径：
+
+- `ConsumeStatusResource` effect 会把成功消费结果写入 effect chain record。
+- `ResourceConsumedCondition` 用于判断本次 effect chain 中，指定 `StatusId` 是否成功消费了至少 N 层。
+- starter 当前已把：
+  - `断岳斩 / 断岳斩·破阵`
+  - `化引 / 回春散`
+ 迁到 `ConsumeStatusResource + ResourceConsumedCondition` 链。
 
 ## 6. Run 内持久结构
 
