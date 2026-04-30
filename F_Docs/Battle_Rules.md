@@ -278,11 +278,22 @@ Break 判定只读取敌方权威状态中的 `CurrentBreakValue <= 0`，不新�
 - follow-up 目标来源当前支持：
   - `DrawnCardsFromExecutedEffects`
   - `CurrentOwnedHandCards`
+  - `CurrentAllyHandCards`
 - modifier 直接挂到 battle card instance，而不是回写 `RunCardInstance`
 - 同源联动仅在目标 battle card 带 `SourceRunCardInstanceId` 时生效
 - card modifier 继续只通过 `BattleCard projection` 生效，不额外走第二条全局遗物伤害修正路径
 - `阵门木签` 当前是第一条正式落地的 relic-driven card modifier：玩家每回合第一次打出 `0 AP` 牌后，先抽 1，再把 `-1 AP / +20% 伤害` 挂到本次抽到的攻击牌及其同源实例上，持续到打出或玩家回合结束
 - `压势追刀` 当前是第一条正式落地的 passive-driven card modifier：能力牌授予该 passive 后，角色每回合第一次打出攻击牌时，把 `-1 AP / +20% 伤害` 挂到触发当下自己手牌中的攻击牌上，持续到打出或玩家回合结束
+
+### 6.5.1 卡牌即时派生 BattleCard modifier
+
+普通卡牌可通过 `ApplyCardModifiers` 直接给当前手牌实例挂临时 modifier。当前首版用于沈清弦 `援锋成阵`：
+
+- 目标来源：`CurrentAllyHandCards`
+- 作用范围：其他玩家角色当前手牌中的攻击牌
+- 不作用于来源角色自己的牌、敌人、`team_player` 或后续新抽入手的牌
+- 修正：`-1 AP / +20% 伤害`
+- 生命周期：打出后清理；若未打出，则玩家回合结束清理
 
 ### 6.6 状态结算顺序
 

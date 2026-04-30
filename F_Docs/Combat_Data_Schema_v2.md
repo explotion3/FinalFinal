@@ -406,6 +406,7 @@ GainAP
 GainEP
 BonusBreak
 GenerateCard
+ApplyCardModifiers
 CopyCard
 ApplyPassive
 ```
@@ -413,6 +414,8 @@ ApplyPassive
 `ApplyPassive` 当前已成为 battle 内正式 effect 类型；首版用于把能力牌效果转成 `BattlePassiveInstance`，再由被动自己的 `RuntimeTriggers` 继续驱动后续效果。
 
 `ConsumeStatusResource` 当前已成为资源型状态的正式消费 effect；首版用于 `刀势 / 药引` 这类 `Signature Resource` 状态的显式扣减，不再把通用 `RemoveStatus` 作为长期资源消费协议。
+
+`ApplyCardModifiers` 用于卡牌效果即时向 battle hand card instance 挂临时 modifier。当前用于沈清弦 `援锋成阵`，目标来源为 `CurrentAllyHandCards`，只影响其他友方当前手牌中的攻击牌，不追踪后续新抽入手的牌。
 
 ### 5.4 PassiveDefinition
 
@@ -898,6 +901,7 @@ EvolutionStage: Evolved
 当前 target source 已支持：
 - `DrawnCardsFromExecutedEffects`：把 trigger follow-up modifier 直接挂到本次 effect summary 中抽到的 battle card instance 上
 - `CurrentOwnedHandCards`：在 trigger 结算时扫描来源角色当前手牌中的实例，并把 modifier 直接挂到这些 hand card instance 上
+- `CurrentAllyHandCards`：扫描来源角色之外的其他玩家角色当前手牌实例；不包含来源角色自己、敌人或 `team_player`
 
 ### 7.9 BattleEffectExecutionSummary
 
@@ -913,7 +917,7 @@ EvolutionStage: Evolved
 说明：
 
 - `DrawnCardInstanceIds` 是 `RuntimeTriggers -> TriggeredCardModifiers` 的稳定目标协议之一。
-- 对 `CurrentOwnedHandCards` 这类目标来源，`FinalBattle` 不依赖 effect summary，而是直接按 trigger source owner 扫描当前手牌实例。
+- 对 `CurrentOwnedHandCards / CurrentAllyHandCards` 这类目标来源，`FinalBattle` 不依赖 effect summary，而是直接按 source owner 扫描当前手牌实例。
 
 ### 7.10 BattleEvent
 

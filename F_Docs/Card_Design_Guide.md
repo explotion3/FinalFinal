@@ -32,6 +32,8 @@ BattleCardInstance：本场战斗 / 当前手牌中的临时卡牌实例
 - `BaseCardId` 表示这张牌最初是什么招式。
 - `CurrentCardId` 表示这张牌当前使用哪一套规则、名称和文本。
 
+跨角色即时改卡也属于 `BattleCardInstance` 层的临时修正。卡牌可以通过 `ApplyCardModifiers` 修改其他友方当前手牌实例，但这类效果不回写 Run 卡牌，不影响后续新抽入手的牌，除非效果文本和 schema 明确另有持续追踪规则。
+
 示例：
 
 ```text

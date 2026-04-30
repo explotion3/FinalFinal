@@ -4,6 +4,7 @@
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
 #include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
@@ -167,11 +168,12 @@ bool HasSupportedEffectListInternal(const TArray<TObjectPtr<UFinalBattleEffectDe
 			|| Cast<UFinalBattleEffectGainShield>(EffectDefinition)
 			|| Cast<UFinalBattleEffectDrawCards>(EffectDefinition)
 			|| Cast<UFinalBattleEffectGainAP>(EffectDefinition)
-			|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition)
-			|| Cast<UFinalBattleEffectGenerateCard>(EffectDefinition)
-			|| Cast<UFinalBattleEffectMoveCards>(EffectDefinition))
-		{
-			return true;
+		|| Cast<UFinalBattleEffectBonusBreak>(EffectDefinition)
+		|| Cast<UFinalBattleEffectGenerateCard>(EffectDefinition)
+		|| Cast<UFinalBattleEffectApplyCardModifiers>(EffectDefinition)
+		|| Cast<UFinalBattleEffectMoveCards>(EffectDefinition))
+	{
+		return true;
 		}
 	}
 
@@ -755,6 +757,208 @@ bool ExecuteMoveCardsEffect(
 					1);
 			}
 		}
+	}
+
+	++Summary.ResolvedEffectCount;
+	return true;
+}
+
+EFinalBattleCardModifierDuration ConvertTriggeredModifierDuration(
+	const EFinalTriggeredCardModifierDurationPolicy DurationPolicy)
+{
+	switch (DurationPolicy)
+	{
+	case EFinalTriggeredCardModifierDurationPolicy::UntilPlayed:
+		return EFinalBattleCardModifierDuration::UntilPlayed;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfTurn:
+		return EFinalBattleCardModifierDuration::EndOfTurn;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfRound:
+		return EFinalBattleCardModifierDuration::EndOfRound;
+
+	case EFinalTriggeredCardModifierDurationPolicy::EndOfBattle:
+		return EFinalBattleCardModifierDuration::EndOfBattle;
+
+	case EFinalTriggeredCardModifierDurationPolicy::ManualClear:
+	default:
+		return EFinalBattleCardModifierDuration::ManualClear;
+	}
+}
+
+bool MatchesCardModifierFilter(
+	const FFinalBattleCardInstance& CardInstance,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition)
+{
+	if (!ModifierDefinition.bRequireCardType)
+	{
+		return true;
+	}
+
+	const UFinalCardDefinition* EffectiveDefinition = CardInstance.ProjectedDefinition != nullptr
+		? CardInstance.ProjectedDefinition
+		: CardInstance.BaseDefinition;
+	return EffectiveDefinition != nullptr
+		&& EffectiveDefinition->CardType == ModifierDefinition.RequiredCardType;
+}
+
+FName BuildCardEffectModifierId(
+	const FGuid& SourceCardInstanceId,
+	const FName EffectId,
+	const FGuid& TargetCardInstanceId)
+{
+	return FName(*FString::Printf(
+		TEXT("card.effect.%s.%s.%s"),
+		*SourceCardInstanceId.ToString(EGuidFormats::DigitsWithHyphensLower),
+		*EffectId.ToString(),
+		*TargetCardInstanceId.ToString(EGuidFormats::DigitsWithHyphensLower)));
+}
+
+void CollectCurrentOwnedHandCardModifierTargets(
+	const FFinalBattleState& State,
+	const FName SourceOwnerUnitId,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	TArray<FGuid>& OutTargetCardInstanceIds)
+{
+	for (const FGuid& HandCardInstanceId : State.DeckState.HandCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* HandCardInstance = GetCardService().FindCardInstance(State, HandCardInstanceId);
+		if (HandCardInstance == nullptr || HandCardInstance->RuntimeOwnerUnitId != SourceOwnerUnitId)
+		{
+			continue;
+		}
+
+		if (MatchesCardModifierFilter(*HandCardInstance, ModifierDefinition))
+		{
+			OutTargetCardInstanceIds.AddUnique(HandCardInstance->CardInstanceId);
+		}
+	}
+}
+
+void CollectCurrentAllyHandCardModifierTargets(
+	const FFinalBattleState& State,
+	const FName SourceOwnerUnitId,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	const FFinalBattleUnitService& UnitService,
+	TArray<FGuid>& OutTargetCardInstanceIds)
+{
+	if (SourceOwnerUnitId.IsNone()
+		|| UnitService.FindCharacterState(State, SourceOwnerUnitId) == nullptr)
+	{
+		return;
+	}
+
+	for (const FGuid& HandCardInstanceId : State.DeckState.HandCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* HandCardInstance = GetCardService().FindCardInstance(State, HandCardInstanceId);
+		if (HandCardInstance == nullptr
+			|| HandCardInstance->RuntimeOwnerUnitId.IsNone()
+			|| HandCardInstance->RuntimeOwnerUnitId == SourceOwnerUnitId
+			|| UnitService.FindCharacterState(State, HandCardInstance->RuntimeOwnerUnitId) == nullptr)
+		{
+			continue;
+		}
+
+		if (MatchesCardModifierFilter(*HandCardInstance, ModifierDefinition))
+		{
+			OutTargetCardInstanceIds.AddUnique(HandCardInstance->CardInstanceId);
+		}
+	}
+}
+
+void CollectApplyCardModifierTargets(
+	const FFinalBattleState& State,
+	const FFinalBattleEffectExecutionSummary& Summary,
+	const FName SourceOwnerUnitId,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	const FFinalBattleUnitService& UnitService,
+	TArray<FGuid>& OutTargetCardInstanceIds)
+{
+	OutTargetCardInstanceIds.Reset();
+
+	switch (ModifierDefinition.TargetSource)
+	{
+	case EFinalTriggeredCardModifierTargetSource::DrawnCardsFromExecutedEffects:
+		for (const FGuid& DrawnCardInstanceId : Summary.DrawnCardInstanceIds)
+		{
+			const FFinalBattleCardInstance* DrawnCardInstance = GetCardService().FindCardInstance(State, DrawnCardInstanceId);
+			if (DrawnCardInstance != nullptr && MatchesCardModifierFilter(*DrawnCardInstance, ModifierDefinition))
+			{
+				OutTargetCardInstanceIds.AddUnique(DrawnCardInstance->CardInstanceId);
+			}
+		}
+		break;
+
+	case EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards:
+		CollectCurrentOwnedHandCardModifierTargets(State, SourceOwnerUnitId, ModifierDefinition, OutTargetCardInstanceIds);
+		break;
+
+	case EFinalTriggeredCardModifierTargetSource::CurrentAllyHandCards:
+		CollectCurrentAllyHandCardModifierTargets(State, SourceOwnerUnitId, ModifierDefinition, UnitService, OutTargetCardInstanceIds);
+		break;
+
+	case EFinalTriggeredCardModifierTargetSource::None:
+	default:
+		break;
+	}
+}
+
+bool ExecuteApplyCardModifiersEffect(
+	FFinalBattleState& State,
+	const UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect,
+	const FName SourceOwnerUnitId,
+	const FFinalBattleUnitService& UnitService,
+	const FFinalBattleEffectExecutionContext& ExecutionContext,
+	FFinalBattleEffectExecutionSummary& Summary)
+{
+	if (!GetConditionService().SatisfiesAllEffectConditions(
+		ApplyCardModifiersEffect,
+		BuildConditionEvaluationContext(State, ExecutionContext, SourceOwnerUnitId)))
+	{
+		return false;
+	}
+
+	if (ApplyCardModifiersEffect->CardModifiers.IsEmpty()
+		|| ExecutionContext.Transient.SourceCardInstanceId.IsValid() == false)
+	{
+		return false;
+	}
+
+	int32 AppliedModifierCount = 0;
+	for (const FFinalTriggeredCardModifierDefinition& ModifierDefinition : ApplyCardModifiersEffect->CardModifiers)
+	{
+		if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+		{
+			continue;
+		}
+
+		TArray<FGuid> TargetCardInstanceIds;
+		CollectApplyCardModifierTargets(State, Summary, SourceOwnerUnitId, ModifierDefinition, UnitService, TargetCardInstanceIds);
+		for (const FGuid& TargetCardInstanceId : TargetCardInstanceIds)
+		{
+			FFinalBattleCardModifierRecord ModifierRecord;
+			ModifierRecord.ModifierId = BuildCardEffectModifierId(
+				ExecutionContext.Transient.SourceCardInstanceId,
+				ApplyCardModifiersEffect->EffectId,
+				TargetCardInstanceId);
+			ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Card;
+			ModifierRecord.DurationPolicy = ConvertTriggeredModifierDuration(ModifierDefinition.DurationPolicy);
+			ModifierRecord.bExpireAtPlayerTurnEnd = ModifierDefinition.bExpireAtPlayerTurnEnd;
+			ModifierRecord.ApplyOrder = 1500;
+			ModifierRecord.CostDeltaAP = ModifierDefinition.CostDeltaAP;
+			ModifierRecord.OutgoingDamagePercentDelta = ModifierDefinition.OutgoingDamagePercentDelta;
+
+			GetCardService().RemoveCardModifier(State, TargetCardInstanceId, State.RuntimeProjectionOwner, ModifierRecord.ModifierId);
+			if (GetCardService().AddCardModifier(State, TargetCardInstanceId, State.RuntimeProjectionOwner, ModifierRecord))
+			{
+				++AppliedModifierCount;
+			}
+		}
+	}
+
+	if (AppliedModifierCount <= 0)
+	{
+		return false;
 	}
 
 	++Summary.ResolvedEffectCount;
@@ -1498,6 +1702,12 @@ bool ExecuteEffectListInternal(
 		if (const UFinalBattleEffectMoveCards* MoveCardsEffect = Cast<UFinalBattleEffectMoveCards>(EffectDefinition))
 		{
 			ExecuteMoveCardsEffect(State, MoveCardsEffect, SourceOwnerUnitId, ExecutionContext, Summary);
+			continue;
+		}
+
+		if (const UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect = Cast<UFinalBattleEffectApplyCardModifiers>(EffectDefinition))
+		{
+			ExecuteApplyCardModifiersEffect(State, ApplyCardModifiersEffect, SourceOwnerUnitId, UnitService, ExecutionContext, Summary);
 			continue;
 		}
 

@@ -276,6 +276,44 @@ void ApplyTriggeredCardModifierToCurrentOwnedHandCards(
 	ApplyTriggeredCardModifierRecord(BattleState, SourceContext, ModifierDefinition, TargetCardInstanceIds);
 }
 
+void ApplyTriggeredCardModifierToCurrentAllyHandCards(
+	FFinalBattleState& BattleState,
+	const FTriggeredCardModifierSourceContext& SourceContext,
+	const FFinalTriggeredCardModifierDefinition& ModifierDefinition,
+	const FFinalBattleCharacterState& SourceCharacterState)
+{
+	TArray<FGuid> TargetCardInstanceIds;
+	for (const FGuid& HandCardInstanceId : BattleState.DeckState.HandCardInstanceIds)
+	{
+		const FFinalBattleCardInstance* HandCardInstance = GetCardService().FindCardInstance(BattleState, HandCardInstanceId);
+		if (HandCardInstance == nullptr
+			|| HandCardInstance->RuntimeOwnerUnitId.IsNone()
+			|| HandCardInstance->RuntimeOwnerUnitId == SourceCharacterState.RuntimeUnitId)
+		{
+			continue;
+		}
+
+		const bool bOwnedByPlayerCharacter = BattleState.Characters.ContainsByPredicate(
+			[HandCardInstance](const FFinalBattleCharacterState& CharacterState)
+			{
+				return CharacterState.RuntimeUnitId == HandCardInstance->RuntimeOwnerUnitId;
+			});
+		if (!bOwnedByPlayerCharacter)
+		{
+			continue;
+		}
+
+		if (!MatchesTriggeredModifierCardFilter(*HandCardInstance, ModifierDefinition))
+		{
+			continue;
+		}
+
+		TargetCardInstanceIds.AddUnique(HandCardInstance->CardInstanceId);
+	}
+
+	ApplyTriggeredCardModifierRecord(BattleState, SourceContext, ModifierDefinition, TargetCardInstanceIds);
+}
+
 void ApplyTriggeredCardModifiers(
 	FFinalBattleState& BattleState,
 	const FTriggeredCardModifierSourceContext& SourceContext,
@@ -308,6 +346,13 @@ void ApplyTriggeredCardModifiers(
 			if (SourceCharacterState != nullptr)
 			{
 				ApplyTriggeredCardModifierToCurrentOwnedHandCards(BattleState, SourceContext, ModifierDefinition, *SourceCharacterState);
+			}
+			break;
+
+		case EFinalTriggeredCardModifierTargetSource::CurrentAllyHandCards:
+			if (SourceCharacterState != nullptr)
+			{
+				ApplyTriggeredCardModifierToCurrentAllyHandCards(BattleState, SourceContext, ModifierDefinition, *SourceCharacterState);
 			}
 			break;
 

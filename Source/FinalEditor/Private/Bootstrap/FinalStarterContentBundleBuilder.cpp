@@ -64,6 +64,7 @@ namespace FinalPrototypeContentBootstrap
 	const FString StarterShenPoZhenJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenPoZhenJianZhen");
 	const FString StarterShenFengRuiJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenFengRuiJianZhen");
 	const FString StarterShenYinBaoJianZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYinBaoJianZhen");
+	const FString StarterShenYuanFengChengZhenCardPath = StarterRootPath / TEXT("Cards/DA_Card_Starter_ShenYuanFengChengZhen");
 	const FString StarterHuoStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_HuoDaoShi");
 	const FString StarterYeStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeYaoYin");
 	const FString StarterYeImmunityStatusPath = StarterRootPath / TEXT("Statuses/DA_Status_Starter_YeMianYi");
@@ -164,6 +165,7 @@ namespace FinalPrototypeContentBootstrap
 	const FName StarterShenPoZhenJianZhenCardId(TEXT("card.starter.shen.pozhenjianzhen"));
 	const FName StarterShenFengRuiJianZhenCardId(TEXT("card.starter.shen.fengruijianzhen"));
 	const FName StarterShenYinBaoJianZhenCardId(TEXT("card.starter.shen.yinbaojianzhen"));
+	const FName StarterShenYuanFengChengZhenCardId(TEXT("card.starter.shen.yuanfengchengzhen"));
 	const FName StarterBladeEnemyId(TEXT("enemy.starter.bandit.blade"));
 	const FName StarterCrossbowEnemyId(TEXT("enemy.starter.bandit.crossbow"));
 	const FName StarterInstructorEnemyId(TEXT("enemy.starter.blackwind.instructor"));
@@ -1286,6 +1288,34 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		EFinalBattleCardZoneRule::ConsumePile);
 	TrackPackage(StarterShenYinBaoJianZhenCard, PackagesToSave);
 
+	UFinalCardDefinition* StarterShenYuanFengChengZhenCard = LoadOrCreateAsset<UFinalCardDefinition>(StarterShenYuanFengChengZhenCardPath, bCreatedAsset);
+	StarterShenYuanFengChengZhenCard->CardId = FFinalCardId(StarterShenYuanFengChengZhenCardId);
+	StarterShenYuanFengChengZhenCard->OwnerUnitId = StarterShenCharacterId;
+	StarterShenYuanFengChengZhenCard->DisplayName = FText::FromString(TEXT("援锋成阵"));
+	StarterShenYuanFengChengZhenCard->CardType = EFinalCardType::Skill;
+	StarterShenYuanFengChengZhenCard->Rarity = EFinalRarity::Common;
+	StarterShenYuanFengChengZhenCard->BaseCostAP = 1;
+	StarterShenYuanFengChengZhenCard->Keywords.Reset();
+	StarterShenYuanFengChengZhenCard->RulesText = FText::FromString(TEXT("本回合中，其他友方当前手牌中的攻击牌费用 -1，伤害提高 20%，直到打出或玩家回合结束。"));
+	StarterShenYuanFengChengZhenCard->Effects.Reset();
+	{
+		FFinalTriggeredCardModifierDefinition AllyAttackModifier;
+		AllyAttackModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentAllyHandCards;
+		AllyAttackModifier.bRequireCardType = true;
+		AllyAttackModifier.RequiredCardType = EFinalCardType::Attack;
+		AllyAttackModifier.CostDeltaAP = -1;
+		AllyAttackModifier.OutgoingDamagePercentDelta = 20;
+		AllyAttackModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		AllyAttackModifier.bExpireAtPlayerTurnEnd = true;
+		AddApplyCardModifiersEffect(
+			StarterShenYuanFengChengZhenCard,
+			StarterShenYuanFengChengZhenCard->Effects,
+			TEXT("effect.starter.shen.yuanfengchengzhen.modify_ally_attacks"),
+			TArray<FFinalTriggeredCardModifierDefinition>{ AllyAttackModifier },
+			FText::FromString(TEXT("即时强化其他友方当前手牌攻击牌。")));
+	}
+	TrackPackage(StarterShenYuanFengChengZhenCard, PackagesToSave);
+
 	StarterShenUltimate->RulesText = FText::FromString(TEXT("抽 2 张牌。生成 1 张剑阵牌到手牌。每名角色获得 1 层士气。"));
 	StarterShenUltimate->Effects.Reset();
 	AddDrawEffect(
@@ -1352,7 +1382,8 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterShenShouZhenCard->CardId,
 		StarterShenYinZhenCard->CardId,
 		StarterShenYinBaoJianZhenCard->CardId,
-		StarterShenFengRuiJianZhenCard->CardId
+		StarterShenFengRuiJianZhenCard->CardId,
+		StarterShenYuanFengChengZhenCard->CardId
 	};
 	TrackPackage(StarterShenCharacter, PackagesToSave);
 

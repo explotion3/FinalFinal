@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-04-30 Step 25：跨角色改卡，沈清弦技能牌即时强化友方攻击牌
+
+- 新增直接 effect `ApplyCardModifiers`，普通卡牌现在可以不经过 passive / relic trigger，直接向 BattleCard instance 写入临时 modifier。
+- 共享 card modifier target source 新增 `CurrentAllyHandCards`：只扫描来源角色之外的其他玩家角色当前手牌，不包含来源自己、敌人或 `team_player`。
+- 新增沈清弦 starter 技能牌 `援锋成阵`（`card.starter.shen.yuanfengchengzhen`）：进入沈清弦卡池，不进入初始牌组；打出后让其他友方当前手牌攻击牌获得 `-1 AP / +20% 伤害`，直到打出或玩家回合结束。
+- 霍断岳 `压势追刀` 保持原有 passive-driven 自我改卡语义，不受本轮影响。
+
 ## 2026-04-30 Step 24：状态系统 legacy 字段清理与 authoring 收口
 
 - `UFinalStatusDefinition` 与 `FFinalBattleStatusInstance` 上的 legacy 状态字段已删除；状态规则当前只通过正式 schema authoring。

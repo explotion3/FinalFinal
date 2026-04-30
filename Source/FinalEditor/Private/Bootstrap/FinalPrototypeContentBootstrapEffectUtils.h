@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Battle/Conditions/Requirements/FinalBattleResolvedCardRequirement.h"
+#include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Conditions/Requirements/FinalBattleTargetStateRequirement.h"
 #include "Ids/FinalIds.h"
@@ -10,6 +11,7 @@
 
 class UFinalBattleEffectApplyStatus;
 class UFinalBattleEffectApplyPassive;
+class UFinalBattleEffectApplyCardModifiers;
 class UFinalBattleEffectBonusBreak;
 class UFinalBattleEffectDamage;
 class UFinalBattleEffectDefinition;
@@ -70,6 +72,7 @@ namespace FinalPrototypeContentBootstrap
 	UFinalBattleEffectApplyPassive* AddApplyPassiveEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalPassiveDefinition* PassiveDefinition, int32 Stacks, int32 DurationOverride = 0, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectRemoveStatus* AddRemoveStatusEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalStatusDefinition* StatusDefinition, int32 Stacks, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectConsumeStatusResource* AddConsumeStatusResourceEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, UFinalStatusDefinition* StatusDefinition, int32 StacksToConsume, const FText& Notes = FText::GetEmpty());
+	UFinalBattleEffectApplyCardModifiers* AddApplyCardModifiersEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, const TArray<FFinalTriggeredCardModifierDefinition>& CardModifiers, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectGainAP* AddGainApEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, int32 GainValue, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectBonusBreak* AddBonusBreakEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, EFinalBattleUnitTargetRule TargetRule, float BaseValue, EFinalBattleScalarMode ScaleMode, EFinalBattleSourceStat SourceStat = EFinalBattleSourceStat::None, const FText& Notes = FText::GetEmpty());
 	UFinalBattleEffectGenerateCard* AddGenerateCardEffect(UObject* Owner, TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects, FName EffectId, UFinalCardDefinition* GeneratedCardDefinition, const TArray<UFinalCardDefinition*>& CandidateCardDefinitions, int32 GenerateCount, bool bChooseRandomCandidate, const FText& Notes = FText::GetEmpty());

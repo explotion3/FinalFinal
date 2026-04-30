@@ -16,6 +16,7 @@
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectApplyPassive.h"
+#include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectBonusBreak.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
@@ -455,6 +456,21 @@ namespace FinalPrototypeContentBootstrap
 		ConsumeEffect->Notes = Notes;
 		Effects.Add(ConsumeEffect);
 		return ConsumeEffect;
+	}
+
+	UFinalBattleEffectApplyCardModifiers* AddApplyCardModifiersEffect(
+		UObject* Owner,
+		TArray<TObjectPtr<UFinalBattleEffectDefinition>>& Effects,
+		const FName EffectId,
+		const TArray<FFinalTriggeredCardModifierDefinition>& CardModifiers,
+		const FText& Notes)
+	{
+		UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect = NewObject<UFinalBattleEffectApplyCardModifiers>(Owner);
+		ApplyCardModifiersEffect->EffectId = EffectId;
+		ApplyCardModifiersEffect->CardModifiers = CardModifiers;
+		ApplyCardModifiersEffect->Notes = Notes;
+		Effects.Add(ApplyCardModifiersEffect);
+		return ApplyCardModifiersEffect;
 	}
 
 	UFinalBattleEffectGainAP* AddGainApEffect(

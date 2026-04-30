@@ -19,6 +19,7 @@
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
 #include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
@@ -458,6 +459,35 @@ namespace FinalDataAssetValidation
 			}
 
 			ValidatePositive(Context, bIsValid, GenerateCardEffect->GenerateCount, *FString::Printf(TEXT("%s.GenerateCount"), *FieldName));
+			return;
+		}
+
+		if (const UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect = Cast<const UFinalBattleEffectApplyCardModifiers>(Effect))
+		{
+			if (ApplyCardModifiersEffect->EffectType != EFinalBattleEffectType::ApplyCardModifiers)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s EffectType must be ApplyCardModifiers for UFinalBattleEffectApplyCardModifiers."), *FieldName));
+			}
+
+			if (ApplyCardModifiersEffect->CardModifiers.IsEmpty())
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.CardModifiers must not be empty."), *FieldName));
+			}
+
+			for (int32 ModifierIndex = 0; ModifierIndex < ApplyCardModifiersEffect->CardModifiers.Num(); ++ModifierIndex)
+			{
+				const FFinalTriggeredCardModifierDefinition& ModifierDefinition = ApplyCardModifiersEffect->CardModifiers[ModifierIndex];
+				const FString ModifierFieldName = FString::Printf(TEXT("%s.CardModifiers[%d]"), *FieldName, ModifierIndex);
+				if (ModifierDefinition.TargetSource == EFinalTriggeredCardModifierTargetSource::None)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
+				}
+
+				if (ModifierDefinition.CostDeltaAP == 0 && ModifierDefinition.OutgoingDamagePercentDelta == 0)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
+				}
+			}
 			return;
 		}
 

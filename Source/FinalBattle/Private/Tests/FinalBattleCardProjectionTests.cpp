@@ -10,6 +10,7 @@
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
+#include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
@@ -72,6 +73,14 @@ namespace FinalBattleCardProjectionTests
 		CharacterDefinition->BaseBreakRate = 1.0f;
 		CharacterDefinition->BaseCritChance = 0.0f;
 		CharacterDefinition->BaseCritDamage = 1.5f;
+		return CharacterDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCharacterDefinition> MakeCharacterDefinitionWithId(const FFinalCharacterId& CharacterId, const FString& DisplayName)
+	{
+		TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinition();
+		CharacterDefinition->CharacterId = CharacterId;
+		CharacterDefinition->DisplayName = FText::FromString(DisplayName);
 		return CharacterDefinition;
 	}
 
@@ -208,6 +217,52 @@ namespace FinalBattleCardProjectionTests
 		return CardDefinition;
 	}
 
+	TStrongObjectPtr<UFinalCardDefinition> MakeSkillCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const int32 BaseCostAP)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+		CardDefinition->CardId = CardId;
+		CardDefinition->OwnerUnitId = CharacterId.Value;
+		CardDefinition->DisplayName = FText::FromString(DisplayName);
+		CardDefinition->BaseCostAP = BaseCostAP;
+		CardDefinition->CardType = EFinalCardType::Skill;
+		return CardDefinition;
+	}
+
+	TStrongObjectPtr<UFinalCardDefinition> MakeApplyCardModifiersSkillCard(
+		const FFinalCardId& CardId,
+		const FFinalCharacterId& CharacterId,
+		const FString& DisplayName,
+		const bool bDrawAfterModifier = false)
+	{
+		TStrongObjectPtr<UFinalCardDefinition> CardDefinition = MakeSkillCard(CardId, CharacterId, DisplayName, 1);
+
+		UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect = NewObject<UFinalBattleEffectApplyCardModifiers>(CardDefinition.Get());
+		ApplyCardModifiersEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.apply_card_modifiers"), *CardId.Value.ToString()));
+		FFinalTriggeredCardModifierDefinition& AllyAttackModifier = ApplyCardModifiersEffect->CardModifiers.AddDefaulted_GetRef();
+		AllyAttackModifier.TargetSource = EFinalTriggeredCardModifierTargetSource::CurrentAllyHandCards;
+		AllyAttackModifier.bRequireCardType = true;
+		AllyAttackModifier.RequiredCardType = EFinalCardType::Attack;
+		AllyAttackModifier.CostDeltaAP = -1;
+		AllyAttackModifier.OutgoingDamagePercentDelta = 20;
+		AllyAttackModifier.DurationPolicy = EFinalTriggeredCardModifierDurationPolicy::UntilPlayed;
+		AllyAttackModifier.bExpireAtPlayerTurnEnd = true;
+		CardDefinition->Effects.Add(ApplyCardModifiersEffect);
+
+		if (bDrawAfterModifier)
+		{
+			UFinalBattleEffectDrawCards* DrawCardsEffect = NewObject<UFinalBattleEffectDrawCards>(CardDefinition.Get());
+			DrawCardsEffect->EffectId = FName(*FString::Printf(TEXT("effect.%s.draw_after_modifier"), *CardId.Value.ToString()));
+			DrawCardsEffect->DrawCount = 1;
+			CardDefinition->Effects.Add(DrawCardsEffect);
+		}
+
+		return CardDefinition;
+	}
+
 	TStrongObjectPtr<UFinalBattleSession> CreateSession(
 		UFinalBattleEncounterDefinition* EncounterDefinition,
 		UFinalBattleRuleConfig* RuleConfig,
@@ -278,6 +333,56 @@ namespace FinalBattleCardProjectionTests
 			CardInit.CardDefinition = CardDefinition;
 			CardInit.CardId = CardDefinition->CardId;
 			CardInit.OwnerCharacterId = CharacterDefinition->CharacterId;
+			InitContext.DeckDefinitions.Add(CardDefinition);
+		}
+
+		TStrongObjectPtr<UFinalBattleSession> Session(NewObject<UFinalBattleSession>(GetTransientPackage()));
+		Session->InitializeSession(EncounterDefinition, RuleConfig, InitContext);
+		return Session;
+	}
+
+	TStrongObjectPtr<UFinalBattleSession> CreateTeamSessionWithDeck(
+		UFinalBattleEncounterDefinition* EncounterDefinition,
+		UFinalBattleRuleConfig* RuleConfig,
+		const TArray<UFinalCharacterDefinition*>& CharacterDefinitions,
+		const TArray<UFinalCardDefinition*>& CardDefinitions)
+	{
+		FFinalBattleInitContext InitContext;
+		InitContext.TeamCurrentHP = 40;
+
+		for (UFinalCharacterDefinition* CharacterDefinition : CharacterDefinitions)
+		{
+			if (CharacterDefinition == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCharacterInitData& CharacterInit = InitContext.PartyMembers.AddDefaulted_GetRef();
+			CharacterInit.CharacterDefinition = CharacterDefinition;
+			CharacterInit.CurrentStress = 0;
+			CharacterInit.bCollapsed = false;
+			CharacterInit.CurrentAwakenCount = 0;
+			CharacterInit.CollapseCount = 0;
+			CharacterInit.VitalShare = CharacterDefinition->BaseVitalShare;
+			CharacterInit.StressCap = CharacterDefinition->BaseStressCap;
+			CharacterInit.RuntimeAttack = CharacterDefinition->BaseAttack;
+			CharacterInit.RuntimeDefense = CharacterDefinition->BaseDefense;
+			CharacterInit.RuntimeBreakRate = CharacterDefinition->BaseBreakRate;
+			CharacterInit.RuntimeCritChance = CharacterDefinition->BaseCritChance;
+			CharacterInit.RuntimeCritDamage = CharacterDefinition->BaseCritDamage;
+		}
+
+		for (UFinalCardDefinition* CardDefinition : CardDefinitions)
+		{
+			if (CardDefinition == nullptr)
+			{
+				continue;
+			}
+
+			FFinalBattleCardInitData& CardInit = InitContext.DeckCards.AddDefaulted_GetRef();
+			CardInit.CardDefinition = CardDefinition;
+			CardInit.CardId = CardDefinition->CardId;
+			CardInit.OwnerCharacterId = FFinalCharacterId(CardDefinition->OwnerUnitId);
 			InitContext.DeckDefinitions.Add(CardDefinition);
 		}
 
@@ -1164,6 +1269,128 @@ bool FFinalBattleCardProjectionZeroCostRelicModifierClearsAtTurnEndTest::RunTest
 	TestEqual(TEXT("Relic modifier should clear from retained cards at player turn end."), ProjectionAfterEndTurn.ModifierCount, 0);
 	TestEqual(TEXT("Retained card cost should return to base after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveCostAP, RetainedAttackCard->BaseCostAP);
 	TestEqual(TEXT("Retained card damage bonus should be removed after player turn end cleanup."), ProjectionAfterEndTurn.EffectiveOutgoingDamagePercent, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionApplyCardModifiersAffectsCurrentAllyHandAttacksTest,
+	"Final.Battle.CardProjection.ApplyCardModifiersAffectsCurrentAllyHandAttacks",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionApplyCardModifiersAffectsCurrentAllyHandAttacksTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId SourceCharacterId(FName(TEXT("character.test.cross_modifier.source")));
+	const FFinalCharacterId AllyCharacterId(FName(TEXT("character.test.cross_modifier.ally")));
+	const FFinalCardId ModifierCardId(FName(TEXT("card.test.cross_modifier.apply")));
+	const FFinalCardId SourceAttackCardId(FName(TEXT("card.test.cross_modifier.source_attack")));
+	const FFinalCardId AllyAttackCardId(FName(TEXT("card.test.cross_modifier.ally_attack")));
+	const FFinalCardId AllyRetainedAttackCardId(FName(TEXT("card.test.cross_modifier.ally_retained_attack")));
+	const FFinalCardId AllySkillCardId(FName(TEXT("card.test.cross_modifier.ally_skill")));
+	const FFinalCardId AllyDrawnAttackCardId(FName(TEXT("card.test.cross_modifier.ally_drawn_attack")));
+	const FGameplayTag OpeningKeyword = FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening"));
+
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(5);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition(40);
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> SourceCharacter = MakeCharacterDefinitionWithId(SourceCharacterId, TEXT("Source"));
+	TStrongObjectPtr<UFinalCharacterDefinition> AllyCharacter = MakeCharacterDefinitionWithId(AllyCharacterId, TEXT("Ally"));
+
+	TStrongObjectPtr<UFinalCardDefinition> ModifierCard = MakeApplyCardModifiersSkillCard(ModifierCardId, SourceCharacterId, TEXT("援锋成阵"), true);
+	TStrongObjectPtr<UFinalCardDefinition> SourceAttackCard = MakeDamageCard(SourceAttackCardId, SourceCharacterId, TEXT("Source Attack"), 2, 4.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AllyAttackCard = MakeDamageCard(AllyAttackCardId, AllyCharacterId, TEXT("Ally Attack"), 2, 4.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AllyRetainedAttackCard = MakeRetainedDamageCard(AllyRetainedAttackCardId, AllyCharacterId, TEXT("Ally Retained Attack"), 2, 4.0f);
+	TStrongObjectPtr<UFinalCardDefinition> AllySkillCard = MakeSkillCard(AllySkillCardId, AllyCharacterId, TEXT("Ally Skill"), 1);
+	TStrongObjectPtr<UFinalCardDefinition> AllyDrawnAttackCard = MakeDamageCard(AllyDrawnAttackCardId, AllyCharacterId, TEXT("Ally Drawn Attack"), 2, 4.0f);
+
+	ModifierCard->Keywords.AddTag(OpeningKeyword);
+	SourceAttackCard->Keywords.AddTag(OpeningKeyword);
+	AllyAttackCard->Keywords.AddTag(OpeningKeyword);
+	AllyRetainedAttackCard->Keywords.AddTag(OpeningKeyword);
+	AllySkillCard->Keywords.AddTag(OpeningKeyword);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateTeamSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		TArray<UFinalCharacterDefinition*>{ SourceCharacter.Get(), AllyCharacter.Get() },
+		TArray<UFinalCardDefinition*>{
+			ModifierCard.Get(),
+			SourceAttackCard.Get(),
+			AllyAttackCard.Get(),
+			AllyRetainedAttackCard.Get(),
+			AllySkillCard.Get(),
+			AllyDrawnAttackCard.Get()
+		});
+
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* ModifierHandCard = FindHandCardById(Snapshot, ModifierCardId);
+	if (!TestNotNull(TEXT("Opening modifier card should begin in hand."), ModifierHandCard))
+	{
+		return false;
+	}
+
+	FFinalBattleCommand ModifierCommand;
+	ModifierCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	ModifierCommand.CardInstanceId = ModifierHandCard->CardInstanceId;
+	TestTrue(TEXT("Playing the cross-character modifier card should succeed."), Session->SubmitCommand(ModifierCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* SourceAttackHandCard = FindHandCardById(Snapshot, SourceAttackCardId);
+	const FFinalBattleCardViewData* AllyAttackHandCard = FindHandCardById(Snapshot, AllyAttackCardId);
+	const FFinalBattleCardViewData* AllyRetainedAttackHandCard = FindHandCardById(Snapshot, AllyRetainedAttackCardId);
+	const FFinalBattleCardViewData* AllySkillHandCard = FindHandCardById(Snapshot, AllySkillCardId);
+	const FFinalBattleCardViewData* AllyDrawnAttackHandCard = FindHandCardById(Snapshot, AllyDrawnAttackCardId);
+	if (!TestNotNull(TEXT("Source attack should remain in hand."), SourceAttackHandCard)
+		|| !TestNotNull(TEXT("Ally attack should remain in hand."), AllyAttackHandCard)
+		|| !TestNotNull(TEXT("Ally retained attack should remain in hand."), AllyRetainedAttackHandCard)
+		|| !TestNotNull(TEXT("Ally skill should remain in hand."), AllySkillHandCard)
+		|| !TestNotNull(TEXT("Ally drawn attack should enter hand after the modifier effect."), AllyDrawnAttackHandCard))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView SourceAttackProjection = Session->GetCardProjectionView(SourceAttackHandCard->CardInstanceId);
+	const FFinalBattleCardProjectionView AllyAttackProjection = Session->GetCardProjectionView(AllyAttackHandCard->CardInstanceId);
+	const FFinalBattleCardProjectionView AllyRetainedAttackProjection = Session->GetCardProjectionView(AllyRetainedAttackHandCard->CardInstanceId);
+	const FFinalBattleCardProjectionView AllySkillProjection = Session->GetCardProjectionView(AllySkillHandCard->CardInstanceId);
+	const FFinalBattleCardProjectionView AllyDrawnAttackProjection = Session->GetCardProjectionView(AllyDrawnAttackHandCard->CardInstanceId);
+
+	TestEqual(TEXT("Source character's own attack should not be modified."), SourceAttackProjection.EffectiveCostAP, SourceAttackCard->BaseCostAP);
+	TestEqual(TEXT("Source character's own attack damage should not be modified."), SourceAttackProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Current ally attack should have AP reduced by 1."), AllyAttackProjection.EffectiveCostAP, AllyAttackCard->BaseCostAP - 1);
+	TestEqual(TEXT("Current ally attack should gain +20% outgoing damage."), AllyAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Current retained ally attack should have AP reduced by 1."), AllyRetainedAttackProjection.EffectiveCostAP, AllyRetainedAttackCard->BaseCostAP - 1);
+	TestEqual(TEXT("Current retained ally attack should gain +20% outgoing damage."), AllyRetainedAttackProjection.EffectiveOutgoingDamagePercent, 20);
+	TestEqual(TEXT("Ally non-attack card should not be modified."), AllySkillProjection.EffectiveCostAP, AllySkillCard->BaseCostAP);
+	TestEqual(TEXT("Ally non-attack card damage modifier should remain 0."), AllySkillProjection.EffectiveOutgoingDamagePercent, 0);
+	TestEqual(TEXT("Attack drawn after the modifier pass should not receive the modifier."), AllyDrawnAttackProjection.EffectiveCostAP, AllyDrawnAttackCard->BaseCostAP);
+	TestEqual(TEXT("Attack drawn after the modifier pass should not gain damage."), AllyDrawnAttackProjection.EffectiveOutgoingDamagePercent, 0);
+
+	FFinalBattleCommand AllyAttackCommand;
+	AllyAttackCommand.CommandType = EFinalBattleCommandType::PlayCard;
+	AllyAttackCommand.CardInstanceId = AllyAttackHandCard->CardInstanceId;
+	AllyAttackCommand.TargetUnitId = Snapshot.Enemies[0].RuntimeUnitId;
+	TestTrue(TEXT("Playing the modified ally attack should succeed."), Session->SubmitCommand(AllyAttackCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleCardProjectionView AllyAttackAfterPlayProjection = Session->GetCardProjectionView(AllyAttackHandCard->CardInstanceId);
+	TestEqual(TEXT("UntilPlayed modifier should clear after modified ally attack is played."), AllyAttackAfterPlayProjection.ModifierCount, 0);
+	TestEqual(TEXT("Modified ally attack cost should return to base after play cleanup."), AllyAttackAfterPlayProjection.EffectiveCostAP, AllyAttackCard->BaseCostAP);
+
+	FFinalBattleCommand EndTurnCommand;
+	EndTurnCommand.CommandType = EFinalBattleCommandType::EndTurn;
+	TestTrue(TEXT("Ending the turn should succeed."), Session->SubmitCommand(EndTurnCommand).EventType != EFinalBattleEventType::CommandRejected);
+
+	const FFinalBattleSnapshot AfterEndTurnSnapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* AllyRetainedAttackAfterEndTurn = FindHandCardById(AfterEndTurnSnapshot, AllyRetainedAttackCardId);
+	if (!TestNotNull(TEXT("Retained ally attack should remain in hand after end turn."), AllyRetainedAttackAfterEndTurn))
+	{
+		return false;
+	}
+
+	const FFinalBattleCardProjectionView AllyRetainedAttackAfterEndTurnProjection = Session->GetCardProjectionView(AllyRetainedAttackAfterEndTurn->CardInstanceId);
+	TestEqual(TEXT("Turn end should clear cross-character AP modifier from retained ally attack."), AllyRetainedAttackAfterEndTurnProjection.EffectiveCostAP, AllyRetainedAttackCard->BaseCostAP);
+	TestEqual(TEXT("Turn end should clear cross-character damage modifier from retained ally attack."), AllyRetainedAttackAfterEndTurnProjection.EffectiveOutgoingDamagePercent, 0);
 	return true;
 }
 

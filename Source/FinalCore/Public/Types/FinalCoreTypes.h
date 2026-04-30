@@ -46,6 +46,7 @@ enum class EFinalBattleEffectType : uint8
 	ApplyPassive,
 	GenerateCard,
 	MoveCards,
+	ApplyCardModifiers,
 	CopyCard
 };
 
