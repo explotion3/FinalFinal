@@ -1,5 +1,23 @@
 # Implementation Progress
 
+## 2026-04-30 Step 19A：状态系统第一步，只补 schema，不改玩法
+
+- `UFinalStatusDefinition` 当前已补终版状态框架需要的结构化 schema：
+  - `RuntimeModifiers`
+  - `ProjectedCardModifiers`
+  - `RuntimeTriggers`
+  - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
+- 旧状态字段当前继续保留，并明确标记为 `LegacyRuntimeFields`；battle 运行时仍只消费旧字段，不切换到新 schema。
+- `FinalDataAssetValidator` 当前已开始校验新 schema 的基础合法性，但允许 starter/status 资产保持“旧字段有效、新字段为空”的过渡状态。
+- 本步骤不改变 `FinalBattleStatusService` 的 apply/remove/expire/query/projection 行为，因此 starter 实际玩法口径保持不变。
+- 后续完整状态系统迁移顺序当前已固定为：
+  - `士气`
+  - `生命免疫`
+  - `锋锐`
+  - `刀势 / 药引`
+  - `易伤 / 虚弱 / 腐蚀 / 中毒 / 流血`
+  - 最后删除旧字段与旧读取路径
+
 ## 2026-04-29 - FinalRun RunDeck instance migration step 1
 
 - `FFinalRunState.RunDeck` is now the single run deck truth source and stores `FFinalRunCardInstance` entries instead of raw `FFinalCardId` values.

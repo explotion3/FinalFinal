@@ -532,21 +532,44 @@ EvolutionStage: Evolved
 
 这些定义不应承载角色升级三选一或 Run 内卡牌进化的主逻辑。
 
-其中 `StatusDefinition` 当前已补最小 card projection 字段，用于把部分状态同步成 `BattleCard` 上的 derived modifiers：
+其中 `StatusDefinition` 当前已进入“双轨 schema”阶段：
 
-| 字段 | 说明 |
+- **新 schema** 已补齐终版结构入口：
+  - `RuntimeModifiers`
+  - `ProjectedCardModifiers`
+  - `RuntimeTriggers`
+  - `StackKeyPolicy / StackRule / DurationType / ExpireWindow`
+- **旧字段** 仍然保留，并且当前 battle 运行时仍只读取旧字段；完整迁移完成后再删除。
+
+当前新 schema 的意图如下：
+
+| 字段组 | 说明 |
+|---|---|
+| `RuntimeModifiers` | 承载直接 battle 规则修正，例如伤害百分比、防护百分比、按攻击牌过滤、触发后消耗等 |
+| `ProjectedCardModifiers` | 承载状态驱动的 `BattleCard` 投影修正，例如 owned-hand 攻击牌增伤、减费等；其生命周期 schema 现在使用状态专属 `LifetimePolicy`，而不是复用 trigger 的 `DurationPolicy` |
+| `RuntimeTriggers` | 预留为状态终版的正式触发入口；首版先只进入 schema，不切换 runtime 消费 |
+| `StackKeyPolicy / StackRule / DurationType / ExpireWindow` | 预留为终版状态归并、叠层和持续时间模型 |
+
+当前仍在生效的 legacy 字段包括：
+
+| 旧字段 | 当前用途 |
 |---|---|
 | `OutgoingDamagePercentPerStack` | 通用状态伤害修正，每层百分比 |
 | `bOnlyAffectAttackCards` | 通用状态伤害修正是否只影响攻击牌 |
+| `IncomingTeamHealthDamageReductionPercentPerStack` | 队伍共享生命伤害减免 |
+| `bConsumeOnSuccessfulOwnerDamage` | 造成有效伤害后消耗 1 层 |
+| `bConsumeOnPreventedTeamHealthDamage` | 成功抵消共享生命伤害后消耗 1 层 |
 | `bProjectToOwnedHandCards` | 是否把这条状态投影到拥有者当前手牌 |
 | `ProjectedCardTypeFilter` | 投影到手牌时的卡牌类型过滤 |
 | `ProjectedOutgoingDamagePercentPerStack` | 投影到手牌卡 modifier 的每层伤害百分比 |
+| `OnTickEffects` | legacy tick/持续效果入口；当前仍保留，不在本轮删除 |
 
-当前首版规则约束：
+当前首版运行时约束：
 
-- `士气` 继续走通用状态伤害修正路径。
-- `锋锐` 已迁移为“状态驱动的手牌攻击牌 modifier”，因此 `OutgoingDamagePercentPerStack = 0`，实际伤害修正来自投影后的 `BattleCard` modifier。
-- 这组投影字段当前只服务 Battle 内 derived card modifier，不会回写 Run。
+- `士气` 继续走 legacy 通用状态伤害修正路径。
+- `锋锐` 当前仍通过 legacy owned-hand projection 字段驱动 `BattleCard` modifier。
+- 新 schema 本轮只进入定义层、校验层和文档层，不会回写 Run，也不会改变任何 starter 现有玩法。
+- 后续完整迁移顺序固定为：`士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血 -> 删除旧字段与旧读取路径`。
 
 ## 6. Run 内持久结构
 

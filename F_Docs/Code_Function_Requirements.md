@@ -170,6 +170,13 @@
 - 按固定窗口结算通用状态与专属状态
 - 处理共享血条下 `team_player` 与角色个人状态边界
 - 支持状态驱动的伤害修正、生命保护、触发条件判断
+- 当前 `StatusDefinition` 已进入“双轨 schema”阶段：
+  - 新 schema：`RuntimeModifiers / ProjectedCardModifiers / RuntimeTriggers / StackKeyPolicy / StackRule / DurationType / ExpireWindow`
+  - 旧字段：继续作为当前 battle runtime 的唯一生效口径
+- 本阶段只允许在定义层和校验层补新 schema；未完成完整迁移前，不允许 `FinalBattleStatusService` 同时双读新旧字段
+- 状态系统完整迁移顺序当前已固定为：
+  - `士气 -> 生命免疫 -> 锋锐 -> 刀势/药引 -> 易伤/虚弱/腐蚀/中毒/流血`
+  - 最后再删除旧字段与旧读取路径
 
 优先级：`P0`
 

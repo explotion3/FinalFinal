@@ -1008,6 +1008,24 @@ namespace FinalDataAssetValidation
 		RequireText(Context, bIsValid, Status->DisplayName, TEXT("DisplayName"));
 		ValidatePositive(Context, bIsValid, Status->MaxStacks, TEXT("MaxStacks"));
 		ValidateNonNegative(Context, bIsValid, Status->DefaultDuration, TEXT("DefaultDuration"));
+		ValidateRuntimeTriggerDefinitions(Context, bIsValid, Status->RuntimeTriggers, TEXT("RuntimeTriggers"));
+
+		for (int32 ModifierIndex = 0; ModifierIndex < Status->ProjectedCardModifiers.Num(); ++ModifierIndex)
+		{
+			const FFinalStatusProjectedCardModifierDefinition& ModifierDefinition = Status->ProjectedCardModifiers[ModifierIndex];
+			const FString ModifierFieldName = FString::Printf(TEXT("ProjectedCardModifiers[%d]"), ModifierIndex);
+
+			if (ModifierDefinition.TargetSource == EFinalTriggeredCardModifierTargetSource::None)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s.TargetSource must not be None."), *ModifierFieldName));
+			}
+
+			if (ModifierDefinition.CostDeltaAPPerStack == 0 && ModifierDefinition.OutgoingDamagePercentPerStack == 0)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s must define at least one non-zero modifier payload."), *ModifierFieldName));
+			}
+		}
+
 		ValidateEffectArray(Context, bIsValid, Status->OnTickEffects, TEXT("OnTickEffects"), false);
 	}
 
