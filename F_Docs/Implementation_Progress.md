@@ -1,5 +1,16 @@
 # Implementation Progress
 
+## 2026-05-01：建立轻量开发 Backlog
+
+- 新增 `F_Docs/Development_Backlog.md` 作为未完成任务池；任务按 `P0 / P1 / P2` 记录，并尽量保持一条任务一段，方便完成后移动。
+- `Implementation_Progress.md` 继续作为已完成事实记录；后续临时新想法优先进入 Backlog，不直接打断当前主线。
+
+## 2026-05-01：Battle HUD 新骨架与 UI 类分级收口
+
+- `UI_Wireframe` 当前已补 `UI Class Tiers`，把 UI 类分为 `Core UI / Battle Formal HUD / Battle Debug UI / Run Overlay UI / Legacy-Fallback UI`。
+- 默认 PIE HUD 当前切回 `UFinalBattleHUDScreen` 的 C++ 正式骨架，并继续复用已配置的手牌、卡牌、资源 WBP。
+- 默认 C++ HUD 骨架当前不再装配 `TopBarPanel / ContextPanel / RecentEventPanel`；这些面板保留为 Debug / Legacy 入口，不作为默认正式 HUD 信息来源。
+
 ## 2026-05-01：能力牌默认进入持续区修正
 
 - `FinalBattle` 当前打出手牌后的默认去向已与牌区规则对齐：带 `消耗` 的牌进入消耗区，能力牌进入持续区，其余攻击牌 / 技能牌进入弃牌堆。

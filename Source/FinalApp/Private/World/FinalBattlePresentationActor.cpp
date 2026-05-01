@@ -1,6 +1,5 @@
 #include "World/FinalBattlePresentationActor.h"
 
-#include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
 #include "PaperFlipbookComponent.h"
 #include "TimerManager.h"
@@ -8,15 +7,6 @@
 AFinalBattlePresentationActor::AFinalBattlePresentationActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
-	DebugLabelComponent = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DebugLabel"));
-	DebugLabelComponent->SetupAttachment(GetRootComponent());
-	DebugLabelComponent->SetHorizontalAlignment(EHTA_Center);
-	DebugLabelComponent->SetVerticalAlignment(EVRTA_TextCenter);
-	DebugLabelComponent->SetTextRenderColor(FColor(232, 239, 255));
-	DebugLabelComponent->SetWorldSize(34.0f);
-	DebugLabelComponent->SetRelativeLocation(DebugLabelOffset);
-	DebugLabelComponent->SetText(FText::FromString(TEXT("BattlePresentation")));
 }
 
 void AFinalBattlePresentationActor::BeginPlay()
@@ -32,21 +22,19 @@ void AFinalBattlePresentationActor::InitializePresentationActor(
 {
 	RuntimeUnitId = InRuntimeUnitId;
 	PresentationTeam = InPresentationTeam;
-	UpdateDebugLabel();
+	PresentationViewData.RuntimeUnitId = RuntimeUnitId;
+	PresentationViewData.Team = PresentationTeam;
 }
 
-void AFinalBattlePresentationActor::ApplySnapshotView(
-	const FText& InDisplayName,
-	const FText& InDetailText,
-	const bool bInIsAlive,
-	const bool bInIsSelected)
+void AFinalBattlePresentationActor::ApplyPresentationView(const FFinalBattlePresentationUnitViewData& ViewData)
 {
 	const bool bWasAlive = bIsAlive;
 
-	DisplayName = InDisplayName;
-	DetailText = InDetailText;
-	bIsAlive = bInIsAlive;
-	bIsSelected = bInIsSelected;
+	PresentationViewData = ViewData;
+	RuntimeUnitId = ViewData.RuntimeUnitId;
+	PresentationTeam = ViewData.Team;
+	bIsAlive = ViewData.bIsAlive;
+	bIsSelected = ViewData.bIsTargeted;
 
 	if (bWasAlive && !bIsAlive)
 	{
@@ -57,8 +45,7 @@ void AFinalBattlePresentationActor::ApplySnapshotView(
 		RefreshPresentationState();
 	}
 
-	OnSnapshotViewApplied(DisplayName, DetailText, bIsAlive, bIsSelected);
-	UpdateDebugLabel();
+	OnPresentationViewApplied(PresentationViewData);
 }
 
 void AFinalBattlePresentationActor::PlayAttackPresentation()
@@ -245,35 +232,4 @@ EFinalBattlePresentationAnimState AFinalBattlePresentationActor::ResolveBasePres
 	return bIsSelected
 		? EFinalBattlePresentationAnimState::Selected
 		: EFinalBattlePresentationAnimState::Idle;
-}
-
-void AFinalBattlePresentationActor::UpdateDebugLabel()
-{
-	if (DebugLabelComponent == nullptr)
-	{
-		return;
-	}
-
-	DebugLabelComponent->SetVisibility(bShowDebugLabel);
-	DebugLabelComponent->SetRelativeLocation(DebugLabelOffset);
-	if (!bShowDebugLabel)
-	{
-		return;
-	}
-
-	const FString StateString = StaticEnum<EFinalBattlePresentationAnimState>()->GetNameStringByValue(static_cast<int64>(CurrentPresentationState));
-	const FString TeamString = PresentationTeam == EFinalBattlePresentationTeam::Enemy ? TEXT("Enemy") : TEXT("Player");
-	const FString NameString = DisplayName.IsEmpty()
-		? RuntimeUnitId.ToString()
-		: DisplayName.ToString();
-	const FString DetailString = DetailText.IsEmpty()
-		? FString()
-		: DetailText.ToString();
-
-	DebugLabelComponent->SetText(FText::FromString(FString::Printf(
-		TEXT("[%s] %s\nState: %s\n%s"),
-		*TeamString,
-		*NameString,
-		*StateString,
-		*DetailString)));
 }

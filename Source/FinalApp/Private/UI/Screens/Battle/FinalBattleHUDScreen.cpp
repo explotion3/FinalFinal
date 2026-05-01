@@ -137,13 +137,6 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	VignetteBorder->SetPadding(FMargin(0.0f));
 	BattlefieldGlass->AddChildToOverlay(VignetteBorder);
 
-	TopBarPanel = CreateConfiguredPanel<UFinalBattleTopBarPanel>(TEXT("TopBarPanel"));
-	if (UCanvasPanelSlot* TopBarSlot = RootCanvas->AddChildToCanvas(TopBarPanel))
-	{
-		TopBarSlot->SetAnchors(FAnchors(0.02f, 0.88f, 0.16f, 0.98f));
-		TopBarSlot->SetOffsets(FMargin(0.0f));
-	}
-
 	ResourcePanel = CreateConfiguredPanel<UFinalBattleResourcePanel>(TEXT("ResourcePanel"));
 	if (UCanvasPanelSlot* ResourceSlot = RootCanvas->AddChildToCanvas(ResourcePanel))
 	{
@@ -180,20 +173,6 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	{
 		EnemySlot->SetAnchors(FAnchors(0.30f, 0.02f, 0.82f, 0.20f));
 		EnemySlot->SetOffsets(FMargin(0.0f));
-	}
-
-	ContextPanel = CreateConfiguredPanel<UFinalBattleContextPanel>(TEXT("ContextPanel"));
-	if (UCanvasPanelSlot* ContextSlot = RootCanvas->AddChildToCanvas(ContextPanel))
-	{
-		ContextSlot->SetAnchors(FAnchors(0.83f, 0.02f, 0.985f, 0.28f));
-		ContextSlot->SetOffsets(FMargin(0.0f));
-	}
-
-	RecentEventPanel = CreateConfiguredPanel<UFinalBattleRecentEventPanel>(TEXT("RecentEventPanel"));
-	if (UCanvasPanelSlot* RecentEventSlot = RootCanvas->AddChildToCanvas(RecentEventPanel))
-	{
-		RecentEventSlot->SetAnchors(FAnchors(0.38f, 0.205f, 0.70f, 0.29f));
-		RecentEventSlot->SetOffsets(FMargin(0.0f));
 	}
 
 	UltimatePanel = CreateConfiguredPanel<UFinalBattleUltimatePanel>(TEXT("UltimatePanel"));

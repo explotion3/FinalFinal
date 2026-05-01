@@ -2,16 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "PaperZDCharacter.h"
+#include "World/FinalBattlePresentationTypes.h"
 #include "FinalBattlePresentationActor.generated.h"
-
-class UTextRenderComponent;
-
-UENUM(BlueprintType)
-enum class EFinalBattlePresentationTeam : uint8
-{
-	Player,
-	Enemy
-};
 
 UENUM(BlueprintType)
 enum class EFinalBattlePresentationAnimState : uint8
@@ -36,7 +28,7 @@ public:
 	void InitializePresentationActor(FName InRuntimeUnitId, EFinalBattlePresentationTeam InPresentationTeam);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Presentation")
-	void ApplySnapshotView(const FText& InDisplayName, const FText& InDetailText, bool bInIsAlive, bool bInIsSelected);
+	void ApplyPresentationView(const FFinalBattlePresentationUnitViewData& ViewData);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Presentation")
 	void PlayAttackPresentation();
@@ -69,17 +61,17 @@ public:
 	bool IsPresentationSelected() const { return bIsSelected; }
 
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation")
-	FText GetDisplayNameText() const { return DisplayName; }
+	FText GetDisplayNameText() const { return PresentationViewData.DisplayName; }
 
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation")
-	FText GetDetailText() const { return DetailText; }
+	FFinalBattlePresentationUnitViewData GetPresentationViewData() const { return PresentationViewData; }
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|Presentation")
 	void OnPresentationStateChanged(EFinalBattlePresentationAnimState NewPresentationState);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|Presentation")
-	void OnSnapshotViewApplied(const FText& InDisplayName, const FText& InDetailText, bool bInIsAlive, bool bInIsSelected);
+	void OnPresentationViewApplied(const FFinalBattlePresentationUnitViewData& ViewData);
 
 private:
 	void EnsureVisualDefaultsInitialized();
@@ -88,16 +80,6 @@ private:
 	void SetTransientPresentationState(EFinalBattlePresentationAnimState NewPresentationState, float DurationSeconds, bool bUseTimerFallback);
 	void ClearTransientPresentationState();
 	EFinalBattlePresentationAnimState ResolveBasePresentationState() const;
-	void UpdateDebugLabel();
-
-	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Presentation")
-	TObjectPtr<UTextRenderComponent> DebugLabelComponent;
-
-	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
-	bool bShowDebugLabel = true;
-
-	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
-	FVector DebugLabelOffset = FVector(0.0f, 0.0f, 120.0f);
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	float AttackPresentationDuration = 0.35f;
@@ -154,10 +136,7 @@ private:
 	bool bIsSelected = false;
 
 	UPROPERTY(Transient)
-	FText DisplayName;
-
-	UPROPERTY(Transient)
-	FText DetailText;
+	FFinalBattlePresentationUnitViewData PresentationViewData;
 
 	UPROPERTY(Transient)
 	bool bVisualDefaultsInitialized = false;

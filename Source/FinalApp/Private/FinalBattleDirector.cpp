@@ -1,81 +1,10 @@
 #include "World/FinalBattleDirector.h"
 
-#include "BattleBridge/FinalBattleEventPresentationUtils.h"
 #include "Components/SceneComponent.h"
-#include "Components/TextRenderComponent.h"
 #include "EngineUtils.h"
-#include "Queries/FinalDataRegistry.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "World/FinalBattlePresentationActor.h"
 #include "World/FinalBattleStageAnchorActor.h"
-
-namespace
-{
-FText BuildCharacterDetailText(const FFinalBattleCharacterViewData& CharacterView)
-{
-	const FText CollapseState = CharacterView.bCollapsed
-		? NSLOCTEXT("FinalBattleDirector", "CharacterCollapsed", "状态: 崩溃中")
-		: NSLOCTEXT("FinalBattleDirector", "CharacterReady", "状态: 可行动");
-
-	return FText::Format(
-		NSLOCTEXT("FinalBattleDirector", "CharacterDetailFormat", "压力 {0}/{1} | 生命份额 {2}\n苏醒 {3}/{4} | 崩溃 {5}\n{6}"),
-		FText::AsNumber(CharacterView.CurrentStress),
-		FText::AsNumber(CharacterView.StressCap),
-		FText::AsNumber(CharacterView.VitalShare),
-		FText::AsNumber(CharacterView.CurrentAwakenCount),
-		FText::AsNumber(CharacterView.CurrentAwakenThreshold),
-		FText::AsNumber(CharacterView.CollapseCount),
-		CollapseState);
-}
-
-FText BuildEnemyDetailText(const FFinalBattleEnemyViewData& EnemyView)
-{
-	if (EnemyView.CurrentHP <= 0)
-	{
-		return FText::Format(
-			NSLOCTEXT("FinalBattleDirector", "EnemyDefeatedFormat", "站位 {0}\n已击败"),
-			FText::AsNumber(EnemyView.PositionIndex + 1));
-	}
-
-	const FText IntentText = !EnemyView.IntentText.IsEmpty()
-		? EnemyView.IntentText
-		: NSLOCTEXT("FinalBattleDirector", "EnemyNoIntent", "当前无公开意图");
-
-	return FText::Format(
-		NSLOCTEXT("FinalBattleDirector", "EnemyDetailFormat", "站位 {0} | HP {1}/{2} | 护盾 {3}\nBreak {4}/{5} | Init {6}\n{7}"),
-		FText::AsNumber(EnemyView.PositionIndex + 1),
-		FText::AsNumber(EnemyView.CurrentHP),
-		FText::AsNumber(EnemyView.MaxHP),
-		FText::AsNumber(EnemyView.CurrentShield),
-		FText::AsNumber(EnemyView.CurrentBreakValue),
-		FText::AsNumber(EnemyView.MaxBreakValue),
-		FText::AsNumber(EnemyView.CurrentInitiative),
-		IntentText);
-}
-
-FText ResolveUnitDisplayName(const FFinalBattleSnapshot& Snapshot, const FName RuntimeUnitId)
-{
-	if (const FFinalBattleCharacterViewData* CharacterView = Snapshot.Characters.FindByPredicate(
-			[RuntimeUnitId](const FFinalBattleCharacterViewData& Candidate)
-			{
-				return Candidate.RuntimeUnitId == RuntimeUnitId;
-			}))
-	{
-		return CharacterView->DisplayName;
-	}
-
-	if (const FFinalBattleEnemyViewData* EnemyView = Snapshot.Enemies.FindByPredicate(
-			[RuntimeUnitId](const FFinalBattleEnemyViewData& Candidate)
-			{
-				return Candidate.RuntimeUnitId == RuntimeUnitId;
-			}))
-	{
-		return EnemyView->DisplayName;
-	}
-
-	return RuntimeUnitId.IsNone() ? FText::GetEmpty() : FText::FromName(RuntimeUnitId);
-}
-}
 
 AFinalBattleDirector::AFinalBattleDirector()
 {
@@ -83,16 +12,6 @@ AFinalBattleDirector::AFinalBattleDirector()
 
 	RootSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootScene"));
 	SetRootComponent(RootSceneComponent);
-
-	SummaryTextComponent = CreateDefaultSubobject<UTextRenderComponent>(TEXT("SummaryText"));
-	SummaryTextComponent->SetupAttachment(RootSceneComponent);
-	SummaryTextComponent->SetHorizontalAlignment(EHTA_Center);
-	SummaryTextComponent->SetVerticalAlignment(EVRTA_TextCenter);
-	SummaryTextComponent->SetTextRenderColor(FColor(225, 236, 255));
-	SummaryTextComponent->SetWorldSize(34.0f);
-	SummaryTextComponent->SetRelativeLocation(SummaryTextOffset);
-	SummaryTextComponent->SetRelativeRotation(PresentationRotation);
-	SummaryTextComponent->SetText(NSLOCTEXT("FinalBattleDirector", "WaitingForBattle", "BattleDirector\n等待战斗数据"));
 
 	PresentationActorClass = AFinalBattlePresentationActor::StaticClass();
 	DefaultPlayerPresentationClass = PresentationActorClass;
@@ -103,8 +22,6 @@ void AFinalBattleDirector::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SummaryTextComponent->SetRelativeLocation(SummaryTextOffset);
-	SummaryTextComponent->SetRelativeRotation(PresentationRotation);
 	RefreshStageAnchors();
 
 	CachedBattleFlowSubsystem = ResolveBattleFlowSubsystem();
@@ -113,10 +30,6 @@ void AFinalBattleDirector::BeginPlay()
 		CachedBattleFlowSubsystem->OnBattleSnapshotChanged.AddDynamic(this, &AFinalBattleDirector::HandleBattleSnapshotChanged);
 		CachedBattleFlowSubsystem->OnBattleEventBroadcast.AddDynamic(this, &AFinalBattleDirector::HandleBattleEventBroadcast);
 		HandleBattleSnapshotChanged(CachedBattleFlowSubsystem->GetCurrentSnapshot());
-	}
-	else
-	{
-		UpdateSummaryText();
 	}
 }
 
@@ -136,14 +49,11 @@ void AFinalBattleDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AFinalBattleDirector::HandleBattleSnapshotChanged(const FFinalBattleSnapshot& Snapshot)
 {
-	CachedSnapshot = Snapshot;
 	RefreshPresentationFromSnapshot(Snapshot);
 }
 
 void AFinalBattleDirector::HandleBattleEventBroadcast(const FFinalBattleEvent& BattleEvent)
 {
-	LastBattleEvent = BattleEvent;
-	UpdateSummaryText();
 	ApplyEventPresentation(BattleEvent);
 }
 
@@ -164,16 +74,23 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 			continue;
 		}
 
-		FPresentationUnitState& UnitState = PresentationUnitsByRuntimeId.FindOrAdd(CharacterView.RuntimeUnitId);
-		UnitState.bIsEnemy = false;
-		UnitState.SlotIndex = CharacterIndex;
-		UnitState.UnitDefinitionId = CharacterView.CharacterId.Value;
-		UnitState.DisplayName = !CharacterView.DisplayName.IsEmpty()
+		FFinalBattlePresentationUnitViewData& UnitView = PresentationUnitsByRuntimeId.FindOrAdd(CharacterView.RuntimeUnitId);
+		UnitView.RuntimeUnitId = CharacterView.RuntimeUnitId;
+		UnitView.UnitDefinitionId = CharacterView.CharacterId.Value;
+		UnitView.Team = EFinalBattlePresentationTeam::Player;
+		UnitView.SlotIndex = CharacterIndex;
+		UnitView.DisplayName = !CharacterView.DisplayName.IsEmpty()
 			? CharacterView.DisplayName
 			: FText::FromName(CharacterView.RuntimeUnitId);
-		UnitState.DetailText = BuildCharacterDetailText(CharacterView);
-		UnitState.bIsAlive = true;
-		UnitState.bIsTargeted = Snapshot.CurrentTargetUnitId == CharacterView.RuntimeUnitId;
+		UnitView.bIsAlive = true;
+		UnitView.bIsTargeted = Snapshot.CurrentTargetUnitId == CharacterView.RuntimeUnitId;
+		UnitView.CurrentStress = CharacterView.CurrentStress;
+		UnitView.StressCap = CharacterView.StressCap;
+		UnitView.VitalShare = CharacterView.VitalShare;
+		UnitView.CurrentAwakenCount = CharacterView.CurrentAwakenCount;
+		UnitView.CurrentAwakenThreshold = CharacterView.CurrentAwakenThreshold;
+		UnitView.CollapseCount = CharacterView.CollapseCount;
+		UnitView.bCollapsed = CharacterView.bCollapsed;
 	}
 
 	for (const FFinalBattleEnemyViewData& EnemyView : Snapshot.Enemies)
@@ -183,19 +100,25 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 			continue;
 		}
 
-		FPresentationUnitState& UnitState = PresentationUnitsByRuntimeId.FindOrAdd(EnemyView.RuntimeUnitId);
-		UnitState.bIsEnemy = true;
-		UnitState.SlotIndex = EnemyView.PositionIndex;
-		UnitState.UnitDefinitionId = EnemyView.EnemyId.Value;
-		UnitState.DisplayName = !EnemyView.DisplayName.IsEmpty()
+		FFinalBattlePresentationUnitViewData& UnitView = PresentationUnitsByRuntimeId.FindOrAdd(EnemyView.RuntimeUnitId);
+		UnitView.RuntimeUnitId = EnemyView.RuntimeUnitId;
+		UnitView.UnitDefinitionId = EnemyView.EnemyId.Value;
+		UnitView.Team = EFinalBattlePresentationTeam::Enemy;
+		UnitView.SlotIndex = EnemyView.PositionIndex;
+		UnitView.DisplayName = !EnemyView.DisplayName.IsEmpty()
 			? EnemyView.DisplayName
 			: FText::FromName(EnemyView.RuntimeUnitId);
-		UnitState.DetailText = BuildEnemyDetailText(EnemyView);
-		UnitState.bIsAlive = EnemyView.CurrentHP > 0;
-		UnitState.bIsTargeted = Snapshot.CurrentTargetUnitId == EnemyView.RuntimeUnitId;
+		UnitView.bIsAlive = EnemyView.CurrentHP > 0;
+		UnitView.bIsTargeted = Snapshot.CurrentTargetUnitId == EnemyView.RuntimeUnitId;
+		UnitView.CurrentHP = EnemyView.CurrentHP;
+		UnitView.MaxHP = EnemyView.MaxHP;
+		UnitView.CurrentShield = EnemyView.CurrentShield;
+		UnitView.CurrentBreakValue = EnemyView.CurrentBreakValue;
+		UnitView.MaxBreakValue = EnemyView.MaxBreakValue;
+		UnitView.CurrentInitiative = EnemyView.CurrentInitiative;
+		UnitView.IntentText = EnemyView.IntentText;
 	}
 
-	UpdateSummaryText();
 	SyncPresentationActors();
 }
 
@@ -203,7 +126,7 @@ void AFinalBattleDirector::SyncPresentationActors()
 {
 	TSet<FName> ActiveRuntimeUnitIds;
 
-	for (const TPair<FName, FPresentationUnitState>& Pair : PresentationUnitsByRuntimeId)
+	for (const TPair<FName, FFinalBattlePresentationUnitViewData>& Pair : PresentationUnitsByRuntimeId)
 	{
 		ActiveRuntimeUnitIds.Add(Pair.Key);
 		UpdatePresentationActor(Pair.Key, Pair.Value);
@@ -255,21 +178,17 @@ void AFinalBattleDirector::RefreshStageAnchors()
 	}
 }
 
-void AFinalBattleDirector::UpdatePresentationActor(const FName RuntimeUnitId, const FPresentationUnitState& UnitState)
+void AFinalBattleDirector::UpdatePresentationActor(const FName RuntimeUnitId, const FFinalBattlePresentationUnitViewData& UnitView)
 {
-	AFinalBattlePresentationActor* PresentationActor = GetOrSpawnPresentationActor(RuntimeUnitId, UnitState);
+	AFinalBattlePresentationActor* PresentationActor = GetOrSpawnPresentationActor(RuntimeUnitId, UnitView);
 	if (PresentationActor == nullptr)
 	{
 		return;
 	}
 
-	PresentationActor->ApplySnapshotView(
-		UnitState.DisplayName,
-		UnitState.DetailText,
-		UnitState.bIsAlive,
-		UnitState.bIsTargeted);
+	PresentationActor->ApplyPresentationView(UnitView);
 
-	PresentationActor->SetActorTransform(ResolvePresentationTransform(UnitState));
+	PresentationActor->SetActorTransform(ResolvePresentationTransform(UnitView));
 }
 
 void AFinalBattleDirector::ApplyEventPresentation(const FFinalBattleEvent& BattleEvent)
@@ -314,46 +233,11 @@ void AFinalBattleDirector::ClearPresentationActors()
 	PresentationUnitsByRuntimeId.Reset();
 }
 
-void AFinalBattleDirector::UpdateSummaryText()
-{
-	if (SummaryTextComponent == nullptr)
-	{
-		return;
-	}
-
-	if (CachedSnapshot.BattleId.IsValid() == false)
-	{
-		SummaryTextComponent->SetText(NSLOCTEXT("FinalBattleDirector", "SummaryNoBattle", "BattleDirector\n当前没有活动战斗"));
-		return;
-	}
-
-	const FText CurrentTargetName = ResolveUnitDisplayName(CachedSnapshot, CachedSnapshot.CurrentTargetUnitId);
-	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
-	const FinalBattleEventPresentation::FEventPresentation EventPresentation =
-		FinalBattleEventPresentation::BuildPresentation(LastBattleEvent, CachedSnapshot, DataRegistry);
-	const FText EventMessage = !EventPresentation.ShortWorldText.IsEmpty()
-		? EventPresentation.ShortWorldText
-		: NSLOCTEXT("FinalBattleDirector", "NoBattleEventYet", "尚无事件反馈");
-
-	SummaryTextComponent->SetText(FText::Format(
-		NSLOCTEXT("FinalBattleDirector", "SummaryFormat", "{0}\nRound {1} | AP {2} | EP {3}\nTarget: {4}\nLast: {5}"),
-		!CachedSnapshot.EncounterDisplayName.IsEmpty()
-			? CachedSnapshot.EncounterDisplayName
-			: NSLOCTEXT("FinalBattleDirector", "UnnamedEncounter", "未命名遭遇"),
-		FText::AsNumber(CachedSnapshot.CurrentRound),
-		FText::AsNumber(CachedSnapshot.CurrentAP),
-		FText::AsNumber(CachedSnapshot.CurrentEP),
-		!CurrentTargetName.IsEmpty()
-			? CurrentTargetName
-			: NSLOCTEXT("FinalBattleDirector", "NoCurrentTarget", "无当前目标"),
-		EventMessage));
-}
-
 AFinalBattlePresentationActor* AFinalBattleDirector::GetOrSpawnPresentationActor(
 	const FName RuntimeUnitId,
-	const FPresentationUnitState& UnitState)
+	const FFinalBattlePresentationUnitViewData& UnitView)
 {
-	const TSubclassOf<AFinalBattlePresentationActor> DesiredPresentationClass = ResolvePresentationActorClass(UnitState);
+	const TSubclassOf<AFinalBattlePresentationActor> DesiredPresentationClass = ResolvePresentationActorClass(UnitView);
 
 	if (AFinalBattlePresentationActor* ExistingActor = PresentationActorsByRuntimeId.FindRef(RuntimeUnitId))
 	{
@@ -378,40 +262,41 @@ AFinalBattlePresentationActor* AFinalBattleDirector::GetOrSpawnPresentationActor
 
 	AFinalBattlePresentationActor* SpawnedActor = World->SpawnActor<AFinalBattlePresentationActor>(
 		DesiredPresentationClass,
-		ResolvePresentationTransform(UnitState),
+		ResolvePresentationTransform(UnitView),
 		SpawnParameters);
 	if (SpawnedActor)
 	{
 		SpawnedActor->InitializePresentationActor(
 			RuntimeUnitId,
-			UnitState.bIsEnemy ? EFinalBattlePresentationTeam::Enemy : EFinalBattlePresentationTeam::Player);
+			UnitView.Team);
 		PresentationActorsByRuntimeId.Add(RuntimeUnitId, SpawnedActor);
 	}
 
 	return SpawnedActor;
 }
 
-FTransform AFinalBattleDirector::ResolvePresentationTransform(const FPresentationUnitState& UnitState) const
+FTransform AFinalBattleDirector::ResolvePresentationTransform(const FFinalBattlePresentationUnitViewData& UnitView) const
 {
-	if (const AFinalBattleStageAnchorActor* StageAnchor = ResolveStageAnchor(UnitState))
+	if (const AFinalBattleStageAnchorActor* StageAnchor = ResolveStageAnchor(UnitView))
 	{
 		return StageAnchor->GetActorTransform();
 	}
 
-	const FVector BaseOffset = UnitState.bIsEnemy
+	const bool bIsEnemy = UnitView.Team == EFinalBattlePresentationTeam::Enemy;
+	const FVector BaseOffset = bIsEnemy
 		? EnemyPresentationOrigin
 		: PlayerPresentationOrigin;
-	const float SlotSpacing = UnitState.bIsEnemy ? EnemySlotSpacing : PlayerSlotSpacing;
-	const FVector LocalOffset = BaseOffset + FVector(0.0f, SlotSpacing * UnitState.SlotIndex, 0.0f);
+	const float SlotSpacing = bIsEnemy ? EnemySlotSpacing : PlayerSlotSpacing;
+	const FVector LocalOffset = BaseOffset + FVector(0.0f, SlotSpacing * UnitView.SlotIndex, 0.0f);
 	return FTransform(GetActorRotation() + PresentationRotation, GetActorTransform().TransformPosition(LocalOffset));
 }
 
-AFinalBattleStageAnchorActor* AFinalBattleDirector::ResolveStageAnchor(const FPresentationUnitState& UnitState) const
+AFinalBattleStageAnchorActor* AFinalBattleDirector::ResolveStageAnchor(const FFinalBattlePresentationUnitViewData& UnitView) const
 {
 	const TMap<int32, TObjectPtr<AFinalBattleStageAnchorActor>>& SourceMap =
-		UnitState.bIsEnemy ? EnemyStageAnchorsByIndex : PlayerStageAnchorsByIndex;
+		UnitView.Team == EFinalBattlePresentationTeam::Enemy ? EnemyStageAnchorsByIndex : PlayerStageAnchorsByIndex;
 
-	if (const TObjectPtr<AFinalBattleStageAnchorActor>* AnchorPtr = SourceMap.Find(UnitState.SlotIndex))
+	if (const TObjectPtr<AFinalBattleStageAnchorActor>* AnchorPtr = SourceMap.Find(UnitView.SlotIndex))
 	{
 		return AnchorPtr->Get();
 	}
@@ -420,29 +305,29 @@ AFinalBattleStageAnchorActor* AFinalBattleDirector::ResolveStageAnchor(const FPr
 }
 
 TSubclassOf<AFinalBattlePresentationActor> AFinalBattleDirector::ResolvePresentationActorClass(
-	const FPresentationUnitState& UnitState) const
+	const FFinalBattlePresentationUnitViewData& UnitView) const
 {
 	const TArray<FFinalBattlePresentationClassMapping>& SourceMappings =
-		UnitState.bIsEnemy ? EnemyPresentationClassMappings : PlayerPresentationClassMappings;
+		UnitView.Team == EFinalBattlePresentationTeam::Enemy ? EnemyPresentationClassMappings : PlayerPresentationClassMappings;
 
-	if (!UnitState.UnitDefinitionId.IsNone())
+	if (!UnitView.UnitDefinitionId.IsNone())
 	{
 		if (const FFinalBattlePresentationClassMapping* Mapping = SourceMappings.FindByPredicate(
-				[&UnitState](const FFinalBattlePresentationClassMapping& Candidate)
+				[&UnitView](const FFinalBattlePresentationClassMapping& Candidate)
 				{
-					return Candidate.UnitDefinitionId == UnitState.UnitDefinitionId && Candidate.PresentationClass != nullptr;
+					return Candidate.UnitDefinitionId == UnitView.UnitDefinitionId && Candidate.PresentationClass != nullptr;
 				}))
 		{
 			return Mapping->PresentationClass;
 		}
 	}
 
-	if (UnitState.bIsEnemy && DefaultEnemyPresentationClass != nullptr)
+	if (UnitView.Team == EFinalBattlePresentationTeam::Enemy && DefaultEnemyPresentationClass != nullptr)
 	{
 		return DefaultEnemyPresentationClass;
 	}
 
-	if (!UnitState.bIsEnemy && DefaultPlayerPresentationClass != nullptr)
+	if (UnitView.Team == EFinalBattlePresentationTeam::Player && DefaultPlayerPresentationClass != nullptr)
 	{
 		return DefaultPlayerPresentationClass;
 	}

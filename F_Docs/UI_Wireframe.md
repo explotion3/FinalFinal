@@ -72,21 +72,82 @@
   * 当前 battle relic 调试摘要已按 `RuntimeTriggers` 的 `BattleStart / PlayerTurnStart / 其他 battle windows` 汇总展示，并继续直接显示 `RelicTriggered` 的原始事件反馈
   * 可复用现有 `FinalApp` 测试入口快速重启 prototype run，或在战斗已结束时调用 `CompleteResolvedBattle`
 
+## 0.1 UI Class Tiers
+
+当前 UI 类按长期职责分为以下层级，后续新增界面优先沿用这个分级，不再把正式 HUD、Debug 信息和 fallback dump 混在同一默认屏幕。
+
+### Core UI
+长期 UI 基础设施，所有主菜单、战斗、Run 外层、设置、地图等大类界面都继续复用。
+
+* `UFinalUISubsystem`
+* `UFinalUIRootLayout`
+* `UFinalWidgetBase`
+* `UFinalScreenBase`
+* `UFinalPanelWidgetBase`
+* `UFinalOverlayScreenBase`
+* `UFinalModalScreenBase`
+* `UFinalWidgetControllerBase`
+* `UFinalViewModelBase`
+* `UFinalUIWidgetClassSettings`
+
+### Battle Formal HUD
+玩家默认战斗界面，只承载战斗决策所需信息和命令入口。
+
+* `UFinalBattleHUDScreen`
+* `UFinalBattleWidgetController`
+* `UFinalBattleCharacterPanel / UFinalBattleCharacterEntryWidget`
+* `UFinalBattleEnemyPanel / UFinalBattleEnemyEntryWidget`
+* `UFinalBattleHandPanel / UFinalBattleCardEntryWidget`
+* `UFinalBattleResourcePanel`
+* `UFinalBattleFeedbackPanel`
+* `UFinalBattleUltimatePanel / UFinalBattleUltimateEntryWidget`
+* `UFinalBattleActionPanel` 中的 `EndTurnButton`
+
+### Battle Debug UI
+开发验证和账本观察入口，不应默认常驻在正式 HUD 中。
+
+* `UFinalPrototypeRunDebugScreen`
+* `UFinalBattleEventScreen`
+* `UFinalBattleRecentEventPanel / UFinalBattleLogEntryWidget`
+* `UFinalBattleTopBarPanel`
+* `UFinalBattleContextPanel`
+* `UFinalBattleActionPanel` 中的 `OpenDebugButton / OpenEventLedgerButton`
+
+### Run Overlay UI
+Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD。
+
+* `UFinalRunFlowOverlayScreen`
+* `UFinalRunFlowOptionButton`
+* `UFinalRunGrowthChoiceOverlayScreen`
+* `UFinalRunRewardOverlayScreen`
+* `UFinalRunNodeOverlayScreen`
+* `UFinalRunRewardNodeOverlayScreen`
+* `UFinalRunEventNodeOverlayScreen`
+* `UFinalRunShopNodeOverlayScreen`
+* `UFinalRunStageOverlayScreenBase`
+* `UFinalRunFlowPromptPanel`
+
+### Legacy / Fallback UI
+旧原型和 C++ fallback 仍保留作为兜底与参考，但不再作为默认正式 HUD 的信息来源。
+
+* `/Game/UI/BattleHUD/WBP_BattleHUD_Ink` 当前作为旧原型 HUD 资产保留，不再作为默认 PIE HUD screen。
+* C++ fallback 文本只用于未绑定 WBP 控件时的最低限度可运行展示；Debug dump 应进入 Debug overlay。
+* `TopBarPanel / ContextPanel / RecentEventPanel` 暂不删除，但从默认 C++ HUD 骨架中移出。
+
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` + Blueprint 外观层阶段，由根界面统一承载主 HUD 与覆盖面板；C++ fallback HUD 继续作为未配置 Blueprint 时的兜底
+* 当前默认 PIE HUD 已切回 `UFinalBattleHUDScreen` 的正式 C++ 骨架，并继续复用已配置的 `WBP_BattleHandPanel_Ink / WBP_BattleCardEntry_Ink1 / WBP_BattleResourcePanel`
+* 默认 C++ HUD 骨架不再装配 `TopBarPanel / ContextPanel / RecentEventPanel`；这些面板保留为 Debug / Legacy 入口或旧原型参考
 * 当前主验收布局固定为 16:9 桌面：
   * 左侧：我方队伍三名角色状态、等级、突破槽、压力、生命份额、状态摘要与奥义入口
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
-  * 右上：目标、当前目标、团队状态、遗物摘要与战斗进度信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
   * 底部：独立 `BattleResourcePanel` 占满底部 HUD 区域，当前主要承载左下 EP 气圈
   * 右侧中下：`RunFlowPromptPanel`，当 Run 外层存在待处理流程时显示短提示，点击后重新打开统一 `RunFlowOverlay`
-  * 左下：抽牌堆、手牌 / 弃牌 / 消耗计数、AP 资源摘要
-  * 右下：弃牌堆 / 消耗计数、结束回合、Debug 与账本入口
+  * 右下：结束回合、Debug 与账本入口
 * Fallback 16:9 Canvas 参考锚点：
   * 左队伍 `0.015,0.02 -> 0.23,0.48`
   * 上敌人 `0.30,0.02 -> 0.82,0.20`
-  * 右目标 `0.83,0.02 -> 0.985,0.28`
   * 底手牌 `0.16,0.56 -> 0.82,0.985`
   * 底部资源容器 `0.0,0.56 -> 1.0,1.0`
   * Run 流程恢复入口 `0.72,0.48 -> 0.92,0.56`
@@ -154,6 +215,12 @@
 * 输入优先级：
   * `Modal > Overlay > Battle HUD`
   * Overlay / Modal 关闭后恢复到常驻 HUD 输入模式
+
+## 2.1.1 Battle World 表现层口径
+* `AFinalBattleDirector` 只负责把 `FinalBattleFlowSubsystem` 的 Snapshot / Event 同步到场中表现 Actor，不承载规则真相。
+* `AFinalBattlePresentationActor` 只消费 `FFinalBattlePresentationUnitViewData` 并播放选中、攻击、受击、击败等表现；不再拼接或渲染单位 debug 文本。
+* Battle 场景内不再使用 `TextRenderComponent` 显示 BattleDirector summary 或单位详情；调试信息统一放到 Debug Screen、Battle Log、HUD feedback。
+* 后续正式场中头顶 UI 应基于 `FFinalBattlePresentationUnitViewData` 构建 `WidgetComponent / UnitOverheadWidget`，不要解析中文详情字符串。
 
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口
@@ -281,6 +348,7 @@
 * 奥义显示名
 * 手牌所属单位显示名
 * 角色 / 敌人 / 卡牌展示用 `IconId / ArtId`，仅作为 UI 资源映射键，不参与规则判定
+* 场中单位表现用 `FFinalBattlePresentationUnitViewData`，由 `FinalApp/World` 从 Battle Snapshot 投影生成，服务 2D 精灵和后续头顶 UI，不作为战斗规则真相
 
 ## 4. 当前缺口字段 / 需要 Battle 或 Run 提供的接口
 ### 4.1 Battle HUD

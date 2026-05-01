@@ -59,6 +59,7 @@
 - `FinalRun` 不直接执行单张卡牌的战斗结算
 - `FinalData` 不承担运行时规则逻辑
 - `FinalApp` 不保存玩法真相，只负责查询、展示和流程桥接
+- `FinalApp/World` 只负责场中 Actor 表现同步；单位头顶信息应消费结构化表现 ViewData，不在世界 Actor 中渲染 debug 文本或拼接规则详情字符串
 
 ---
 
