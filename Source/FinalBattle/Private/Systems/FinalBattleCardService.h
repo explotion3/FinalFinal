@@ -141,7 +141,7 @@ public:
 	// 回合结束时整理手牌：非保留牌进入弃牌堆，保留牌继续留在手牌。
 	void ResolveEndTurnHandCleanup(FFinalBattleState& BattleState) const;
 
-	// 打出手牌后的默认去向处理：消耗牌进消耗区，其余进弃牌堆。
+	// 打出手牌后的默认去向处理：消耗牌进消耗区，能力牌进持续区，其余进弃牌堆。
 	void MoveHandCardAfterPlay(FFinalBattleState& BattleState, const FGuid& CardInstanceId) const;
 
 	// 抽指定数量的牌；若抽牌堆为空，会先尝试把弃牌堆洗回抽牌堆。

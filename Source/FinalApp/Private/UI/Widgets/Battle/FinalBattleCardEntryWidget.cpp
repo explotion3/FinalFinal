@@ -104,9 +104,14 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InC
 	CachedDescriptionText = !InEntry.ResolvedRulesText.IsEmpty()
 		? InEntry.ResolvedRulesText
 		: (!InEntry.RulesText.IsEmpty() ? InEntry.RulesText : InEntry.KeywordText);
+	bCachedCanPlayHint = InEntry.bCanPlayHint;
 
 	const int32 CostDelta = InEntry.RuntimeCostAP - InEntry.BaseCostAP;
-	if (CostDelta < 0)
+	if (!bCachedCanPlayHint)
+	{
+		CachedCostColor = FSlateColor(FLinearColor(0.92f, 0.32f, 0.30f, 1.0f));
+	}
+	else if (CostDelta < 0)
 	{
 		CachedCostColor = FSlateColor(FLinearColor(0.30f, 0.86f, 0.56f, 1.0f));
 	}

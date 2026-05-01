@@ -47,6 +47,7 @@ struct FFinalBattleHandCardVisualState
 	float TargetScale = 1.0f;
 	float HoverAlpha = 0.0f;
 	int32 BaseZOrder = 0;
+	bool bCanPlayHint = true;
 	bool bEntering = false;
 	bool bLeaving = false;
 	bool bSnapToTargetOnNextArrange = false;
@@ -348,6 +349,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
 	float HoverInterpSpeed = 14.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0"))
+	float UnplayableDropMin = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0"))
+	float UnplayableDropMax = 24.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float UnplayableOpacity = 0.62f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
 	FVector2D EnterStartOffset = FVector2D(-120.0f, 0.0f);

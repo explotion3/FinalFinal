@@ -35,6 +35,10 @@ FINALAPP_API FText ResolveBattleHUDEventFeedbackTitleText(
 	const FText& FallbackMessage,
 	const TArray<FFinalBattleStartRelicInput>& ActiveRelics);
 
+FINALAPP_API void ApplyBattleHUDCardAPPlayHint(
+	FFinalBattleHUDCardEntry& Entry,
+	int32 CurrentAP);
+
 UCLASS(Abstract, BlueprintType)
 class FINALAPP_API UFinalBattleHUDPanelControllerBase : public UFinalWidgetControllerBase
 {

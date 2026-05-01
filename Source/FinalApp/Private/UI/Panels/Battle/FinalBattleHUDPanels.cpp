@@ -928,6 +928,7 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		if (ExistingVisual != nullptr && ExistingVisual->Widget.IsValid())
 		{
 			ExistingVisual->HandIndex = Index;
+			ExistingVisual->bCanPlayHint = Entry.bCanPlayHint;
 			ExistingVisual->bLeaving = false;
 			ExistingVisual->Widget->Configure(PanelController, Index, Entry);
 			continue;
@@ -946,6 +947,7 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		NewVisual.CardInstanceId = CardInstanceId;
 		NewVisual.Widget = CardWidget;
 		NewVisual.HandIndex = Index;
+		NewVisual.bCanPlayHint = Entry.bCanPlayHint;
 		const bool bShouldAnimateEntry = bHasReceivedHandSnapshot || bAnimateInitialHand;
 		NewVisual.CurrentPosition = bShouldAnimateEntry ? EnterStartPosition : FVector2D::ZeroVector;
 		NewVisual.TargetPosition = NewVisual.CurrentPosition;
@@ -1067,9 +1069,15 @@ void UFinalBattleHandPanel::ArrangeHandCards()
 		const float OffsetFromCenter = static_cast<float>(Index) - MidIndex;
 		const float Norm = OffsetFromCenter / Normalizer;
 		const float LiftAlpha = 1.0f - FMath::Abs(Norm);
+		const float CenterWeight = 1.0f - FMath::Clamp(FMath::Abs(Norm), 0.0f, 1.0f);
+		const float LowerUnplayableDrop = FMath::Min(UnplayableDropMin, UnplayableDropMax);
+		const float UpperUnplayableDrop = FMath::Max(UnplayableDropMin, UnplayableDropMax);
+		const float UnplayableDropOffset = Visual->bCanPlayHint
+			? 0.0f
+			: FMath::Lerp(LowerUnplayableDrop, UpperUnplayableDrop, CenterWeight);
 		Visual->TargetPosition = FVector2D(
 			CenterX + OffsetFromCenter * Spacing,
-			BaseY - LiftAlpha * CenterLift);
+			BaseY - LiftAlpha * CenterLift + UnplayableDropOffset);
 		Visual->TargetAngle = Norm * MaxFanAngle;
 		Visual->TargetScale = SafeCardScale;
 		Visual->BaseZOrder = Index;
@@ -1113,7 +1121,7 @@ bool UFinalBattleHandPanel::UpdateHoverAlphas(const float InDeltaTime)
 	for (TPair<FGuid, FFinalBattleHandCardVisualState>& VisualPair : CardVisuals)
 	{
 		FFinalBattleHandCardVisualState& Visual = VisualPair.Value;
-		const float TargetAlpha = VisualPair.Key == HoveredCardInstanceId && !Visual.bLeaving ? 1.0f : 0.0f;
+		const float TargetAlpha = VisualPair.Key == HoveredCardInstanceId && Visual.bCanPlayHint && !Visual.bLeaving ? 1.0f : 0.0f;
 		const float CurrentAlpha = Visual.HoverAlpha;
 		float NewAlpha = SafeInterpSpeed > 0.0f
 			? FMath::FInterpTo(CurrentAlpha, TargetAlpha, InDeltaTime, SafeInterpSpeed)
@@ -1235,13 +1243,16 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 	const float BaseY = PanelHeight - BottomPadding;
 	const float SafeHoverScale = FMath::Max(0.01f, HoverScale);
 	const float HoverAlpha = VisualState.bLeaving ? 0.0f : VisualState.HoverAlpha;
+	const float BaseOpacity = VisualState.bCanPlayHint
+		? 1.0f
+		: FMath::Clamp(UnplayableOpacity, 0.0f, 1.0f);
 	const FVector2D HoverPosition(
 		VisualState.CurrentPosition.X,
 		FMath::RoundToFloat(BaseY - HoverLift));
 	const FVector2D BlendedPosition = FMath::Lerp(VisualState.CurrentPosition, HoverPosition, HoverAlpha);
 	const float BlendedAngle = FMath::Lerp(VisualState.CurrentAngle, HoverAngle, HoverAlpha);
 	const float BlendedScale = FMath::Lerp(VisualState.CurrentScale, VisualState.CurrentScale * SafeHoverScale, HoverAlpha);
-	const bool bShouldRaiseCard = VisualState.CardInstanceId == HoveredCardInstanceId && !VisualState.bLeaving;
+	const bool bShouldRaiseCard = VisualState.CardInstanceId == HoveredCardInstanceId && VisualState.bCanPlayHint && !VisualState.bLeaving;
 
 	CardSlot->SetAutoSize(false);
 	CardSlot->SetSize(SafeCardSize);
@@ -1257,6 +1268,7 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 	Transform.Translation = FVector2D::ZeroVector;
 	CardWidget->SetRenderTransform(Transform);
 	CardWidget->SetRenderTransformPivot(FVector2D(0.5f, 1.0f));
+	CardWidget->SetRenderOpacity(BaseOpacity);
 }
 
 void UFinalBattleUltimatePanel::NativeOnInitialized()

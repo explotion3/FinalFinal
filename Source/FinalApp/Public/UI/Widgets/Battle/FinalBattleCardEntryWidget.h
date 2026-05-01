@@ -45,6 +45,7 @@ private:
 	FText CachedTypeText;
 	FText CachedDescriptionText;
 	FSlateColor CachedCostColor;
+	bool bCachedCanPlayHint = true;
 	bool bUsesFallbackLayout = false;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))

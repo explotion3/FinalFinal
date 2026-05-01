@@ -177,6 +177,12 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 	FText ResolvedRulesText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bCanPlayHint = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText UnplayableHintText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	bool bRetained = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")

@@ -19,6 +19,7 @@ const FName RejectUltimateAlreadyUsedTag(TEXT("battle.ultimate_already_used"));
 const FName RejectUltimateBlockedByCollapseTag(TEXT("battle.ultimate_blocked_by_collapse"));
 const FName PanelRejectUnsupportedCommandTag(TEXT("battle.unsupported_command"));
 const FName RejectNotEnoughAPTag(TEXT("battle.not_enough_ap"));
+const FText APNotEnoughCardHintText = NSLOCTEXT("FinalBattleHUD", "CardAPNotEnoughHint", "AP不足");
 
 FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
 {
@@ -327,6 +328,19 @@ FText ResolveBattleHUDEventFeedbackTitleText(
 	const TArray<FFinalBattleStartRelicInput>& ActiveRelics)
 {
 	return ResolveFeedbackTitleTextInternal(Event, FallbackMessage, ActiveRelics);
+}
+
+void ApplyBattleHUDCardAPPlayHint(FFinalBattleHUDCardEntry& Entry, const int32 CurrentAP)
+{
+	if (Entry.RuntimeCostAP > CurrentAP)
+	{
+		Entry.bCanPlayHint = false;
+		Entry.UnplayableHintText = APNotEnoughCardHintText;
+		return;
+	}
+
+	Entry.bCanPlayHint = true;
+	Entry.UnplayableHintText = FText::GetEmpty();
 }
 
 void UFinalBattleHUDPanelControllerBase::InitializePanelController(UFinalBattleWidgetController* InCoordinator)
@@ -675,6 +689,7 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 		Entry.TypeText = FormatCardTypeText(CardView.CardType);
 		Entry.KeywordText = FormatKeywordText(CardView.RuntimeKeywords);
 		Entry.ResolvedRulesText = CardView.ResolvedRulesText;
+		ApplyBattleHUDCardAPPlayHint(Entry, CoordinatorData.Snapshot->CurrentAP);
 		Entry.bRetained = CardView.bRetained;
 		Entry.bCollapsedCard = CardView.bCollapsedCard;
 		Entries.Add(MoveTemp(Entry));

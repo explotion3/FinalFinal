@@ -766,6 +766,10 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 	TestNotEqual(TEXT("ApplyPassive ability should resolve successfully."), Session->SubmitCommand(PlayAbilityCommand).EventType, EFinalBattleEventType::CommandRejected);
 
 	Snapshot = Session->GetSnapshot();
+	TestEqual(TEXT("Played ability cards should leave the hand."), Snapshot.DeckState.HandCount, 3);
+	TestEqual(TEXT("Played ability cards should enter the ongoing zone."), Snapshot.DeckState.OngoingZoneCount, 1);
+	TestEqual(TEXT("Played ability cards should not enter the discard pile."), Snapshot.DeckState.DiscardPileCount, 0);
+
 	const FFinalBattlePassiveViewData* AppliedPassiveView = Snapshot.Passives.FindByPredicate([&PassiveDefinition](const FFinalBattlePassiveViewData& PassiveView)
 	{
 		return PassiveView.PassiveId == PassiveDefinition->PassiveId;

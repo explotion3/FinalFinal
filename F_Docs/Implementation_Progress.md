@@ -1,5 +1,18 @@
 # Implementation Progress
 
+## 2026-05-01：能力牌默认进入持续区修正
+
+- `FinalBattle` 当前打出手牌后的默认去向已与牌区规则对齐：带 `消耗` 的牌进入消耗区，能力牌进入持续区，其余攻击牌 / 技能牌进入弃牌堆。
+- 霍断岳能力牌“受压蓄势”打出后会留在持续区，不再进入弃牌堆参与后续重洗。
+
+## 2026-05-01：手牌 AP 不足不可用表现 v0.1
+
+- `FinalApp` 当前会在 hand entry view data 中根据 `CurrentAP / RuntimeCostAP` 标记 `bCanPlayHint` 与 `UnplayableHintText`；该字段只用于 UI 提示，不作为战斗规则真相。
+- AP 不足的 Card Entry 当前保持可点击，费用显示 bad 色，并由 Hand Panel 统一应用较低透明度。
+- 扇形手牌布局当前支持 AP 不足牌下沉表现；下沉距离按手牌位置动态插值，中间牌接近 `UnplayableDropMax`，两侧牌接近 `UnplayableDropMin`。
+- AP 不足的牌当前仍可 hover 命中与点击，但不会触发 hover 抬升、放大或置顶表现。
+- `UFinalBattleHandPanel` 当前暴露 `UnplayableDropMin / UnplayableDropMax / UnplayableOpacity`，用于在编辑器中调不可用表现。
+
 ## 2026-05-01：出牌目标需求投影 v0.1
 
 - `FinalBattle` 当前会在构建 `FFinalBattleCardViewData` 时投影 `TargetRequirement`，首版只区分 `None / Enemy`。

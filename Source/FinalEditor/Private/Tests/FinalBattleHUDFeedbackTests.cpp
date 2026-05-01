@@ -50,4 +50,26 @@ bool FFinalBattleHUDFeedbackPassiveTitleMappingTest::RunTest(const FString& Para
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleHUDCardAPPlayHintTest,
+	"Final.Editor.BattleHUD.CardEntry.APPlayHint",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleHUDCardAPPlayHintTest::RunTest(const FString& Parameters)
+{
+	FFinalBattleHUDCardEntry AffordableEntry;
+	AffordableEntry.RuntimeCostAP = 2;
+	ApplyBattleHUDCardAPPlayHint(AffordableEntry, 2);
+	TestTrue(TEXT("Card should be playable when AP equals runtime cost."), AffordableEntry.bCanPlayHint);
+	TestTrue(TEXT("Playable card should not carry an unplayable hint."), AffordableEntry.UnplayableHintText.IsEmpty());
+
+	FFinalBattleHUDCardEntry ExpensiveEntry;
+	ExpensiveEntry.RuntimeCostAP = 3;
+	ApplyBattleHUDCardAPPlayHint(ExpensiveEntry, 2);
+	TestFalse(TEXT("Card should be visually marked unplayable when AP is insufficient."), ExpensiveEntry.bCanPlayHint);
+	TestEqual(TEXT("AP hint text should be AP不足."), ExpensiveEntry.UnplayableHintText.ToString(), FString(TEXT("AP不足")));
+
+	return true;
+}
+
 #endif

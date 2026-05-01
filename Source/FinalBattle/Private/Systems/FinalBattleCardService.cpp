@@ -1187,6 +1187,15 @@ void FFinalBattleCardService::MoveHandCardAfterPlay(FFinalBattleState& BattleSta
 		return;
 	}
 
+	const UFinalCardDefinition* EffectiveDefinition = CardInstance != nullptr
+		? (CardInstance->ProjectedDefinition != nullptr ? CardInstance->ProjectedDefinition : CardInstance->BaseDefinition)
+		: nullptr;
+	if (EffectiveDefinition != nullptr && EffectiveDefinition->CardType == EFinalCardType::Ability)
+	{
+		MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::OngoingZone);
+		return;
+	}
+
 	MoveCardInstanceToZone(BattleState, CardInstanceId, EFinalBattleCardZone::DiscardPile);
 }
 

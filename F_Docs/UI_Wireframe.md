@@ -127,6 +127,8 @@
   * 当前消耗
   * 所属单位
   * 关键词 / 规则文本
+  * AP 不足时保持可点击，但费用使用 bad 色、卡牌整体半透明并在扇形布局中下沉
+  * AP 不足的卡牌仍可被鼠标命中与点击，但不触发 hover 抬升、放大或置顶表现；点击后继续走统一出牌请求路径，由 Battle 返回失败反馈
 * 底部右侧：结束回合按钮
 * 右下：三名角色奥义快捷按钮
 * 中央覆盖层：
@@ -253,6 +255,7 @@
 * 手牌所属单位 `RuntimeOwnerUnitId`
 * 手牌当前消耗 `AP`
 * 手牌类型 / 运行时关键词 / 保留 / 崩溃牌标记
+* 手牌 UI 可用性提示 `bCanPlayHint / UnplayableHintText`，当前只由 FinalApp 根据 `CurrentAP / RuntimeCostAP` 计算 AP 不足表现，不作为 Battle 规则真相
 * 角色奥义列表 `CharacterUltimates`
 * 奥义 `EP` 消耗
 * 奥义是否可释放
@@ -292,6 +295,7 @@
 * 结构化交互反馈来自 `FFinalBattleEvent.RejectReason / ReasonTag`
 * AP、HP、Stress、Break、Initiative、Deck counts 仍来自现有 Snapshot；水墨 HUD 不新增 Battle 规则字段
 * 角色突破槽来自 `RunSnapshot.Characters[*].BreakthroughValue / BreakthroughRequiredValue / Level` 的只读投影，不扩展 `BattleSnapshot` 保存成长真相
+* Hand Panel 当前负责 AP 不足牌的扇形布局表现：中间不可用牌下沉接近 `UnplayableDropMax`，两侧不可用牌下沉接近 `UnplayableDropMin`；Card Entry 只消费提示结果并更新费用颜色 / 透明度，不禁用按钮
 
 ### 4.2 Run 外层流程页
 当前 `FinalApp` 已经具备承接战后奖励 / 节点推进 / 奖励节点 / 事件节点 / 商店节点 / RunEnded 的统一 `RunFlowOverlay` 生命周期，并且已开始真实消费 `PendingBattleReward`、`Progression`、`PendingRewardNode`、`PendingEventNode` 与 `PendingShopNode`。
