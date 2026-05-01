@@ -132,6 +132,9 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 	EFinalCardType CardType = EFinalCardType::Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 BaseCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 RuntimeCostAP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
@@ -142,6 +145,9 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FGameplayTagContainer RuntimeKeywords;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText ResolvedRulesText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	bool bRetained = false;

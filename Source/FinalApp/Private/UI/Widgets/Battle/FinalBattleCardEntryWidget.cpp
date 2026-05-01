@@ -101,7 +101,23 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InC
 	CachedCostText = FText::AsNumber(InEntry.RuntimeCostAP);
 	CachedNameText = InEntry.DisplayName;
 	CachedTypeText = InEntry.TypeText;
-	CachedDescriptionText = !InEntry.RulesText.IsEmpty() ? InEntry.RulesText : InEntry.KeywordText;
+	CachedDescriptionText = !InEntry.ResolvedRulesText.IsEmpty()
+		? InEntry.ResolvedRulesText
+		: (!InEntry.RulesText.IsEmpty() ? InEntry.RulesText : InEntry.KeywordText);
+
+	const int32 CostDelta = InEntry.RuntimeCostAP - InEntry.BaseCostAP;
+	if (CostDelta < 0)
+	{
+		CachedCostColor = FSlateColor(FLinearColor(0.30f, 0.86f, 0.56f, 1.0f));
+	}
+	else if (CostDelta > 0)
+	{
+		CachedCostColor = FSlateColor(FLinearColor(0.92f, 0.32f, 0.30f, 1.0f));
+	}
+	else
+	{
+		CachedCostColor = FSlateColor(FLinearColor(0.96f, 0.92f, 0.82f, 1.0f));
+	}
 	RebuildVisual();
 }
 
@@ -128,6 +144,7 @@ void UFinalBattleCardEntryWidget::RebuildVisual()
 	if (CostText)
 	{
 		CostText->SetText(CachedCostText);
+		CostText->SetColorAndOpacity(CachedCostColor);
 	}
 
 	if (NameText)

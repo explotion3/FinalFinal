@@ -11,10 +11,17 @@
 #include "Battle/Definitions/FinalRuntimeTriggerDefinition.h"
 #include "Battle/Conditions/FinalBattleConditionResolvedCard.h"
 #include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
+#include "Battle/Effects/FinalBattleEffectApplyPassive.h"
 #include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectDamage.h"
 #include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
 #include "Commands/FinalBattleCommand.h"
 #include "Facade/FinalBattleSession.h"
@@ -524,6 +531,266 @@ namespace FinalBattleCardProjectionTests
 				return Candidate.CardId == CardId;
 			});
 	}
+
+	void SetEffectTextLayout(UFinalCardDefinition* CardDefinition, const TArray<FString>& LayoutLines)
+	{
+		if (CardDefinition == nullptr)
+		{
+			return;
+		}
+
+		CardDefinition->TextMode = EFinalCardTextMode::EffectLayout;
+		CardDefinition->TextLayoutLines.Reset();
+		for (const FString& LayoutLine : LayoutLines)
+		{
+			FFinalCardTextLayoutLine& Line = CardDefinition->TextLayoutLines.AddDefaulted_GetRef();
+			Line.Template = LayoutLine;
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextDamageBaseTest,
+	"Final.Battle.CardProjection.TextProjection.DamageBase",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextDamageBaseTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.base")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalCardDefinition> DamageCard = MakeAttackMultiplierDamageCard(FFinalCardId(FName(TEXT("card.test.card_text.damage_base"))), CharacterId, TEXT("Damage Base"), 1, 1.3f);
+	SetEffectTextLayout(DamageCard.Get(), { TEXT("{effect:effect.base.damage}") });
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), DamageCard.Get(), TEXT("run.card.text.base"));
+	const FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Damage effect text should project attack percent."), HandCard->ResolvedRulesText.ToString().Contains(TEXT("造成 <stat>攻击力</> <num>130%</> 伤害。")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextDamagePowerPointDeltaTest,
+	"Final.Battle.CardProjection.TextProjection.DamagePowerPointDelta",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextDamagePowerPointDeltaTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.point_delta")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalCardDefinition> DamageCard = MakeAttackMultiplierDamageCard(FFinalCardId(FName(TEXT("card.test.card_text.point_delta"))), CharacterId, TEXT("Damage Point"), 1, 1.3f);
+	SetEffectTextLayout(DamageCard.Get(), { TEXT("{effect:effect.base.damage}") });
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), DamageCard.Get(), TEXT("run.card.text.point_delta"));
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = TEXT("modifier.test.card_text.point_delta");
+	ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Status;
+	ModifierRecord.DamagePowerPercentPointDelta = 20;
+	TestTrue(TEXT("Point damage modifier should be accepted."), Session->AddCardModifier(HandCard->CardInstanceId, ModifierRecord));
+
+	Snapshot = Session->GetSnapshot();
+	HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should remain in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Damage power point delta should display as 150%."), HandCard->ResolvedRulesText.ToString().Contains(TEXT("<good>150%</>")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextFinalDamageDeltaTest,
+	"Final.Battle.CardProjection.TextProjection.FinalDamageDelta",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextFinalDamageDeltaTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.final_delta")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalCardDefinition> DamageCard = MakeAttackMultiplierDamageCard(FFinalCardId(FName(TEXT("card.test.card_text.final_delta"))), CharacterId, TEXT("Damage Final"), 1, 1.3f);
+	SetEffectTextLayout(DamageCard.Get(), { TEXT("{effect:effect.base.damage}") });
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), DamageCard.Get(), TEXT("run.card.text.final_delta"));
+	FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	FFinalBattleCardModifierRecord ModifierRecord;
+	ModifierRecord.ModifierId = TEXT("modifier.test.card_text.final_delta");
+	ModifierRecord.SourceType = EFinalBattleCardModifierSourceType::Card;
+	ModifierRecord.FinalDamagePercentDelta = 20;
+	TestTrue(TEXT("Final damage modifier should be accepted."), Session->AddCardModifier(HandCard->CardInstanceId, ModifierRecord));
+
+	Snapshot = Session->GetSnapshot();
+	HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should remain in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Final damage delta should display as 156%."), HandCard->ResolvedRulesText.ToString().Contains(TEXT("<good>156%</>")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextInlineResourceBreakTest,
+	"Final.Battle.CardProjection.TextProjection.InlineResourceBreak",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextInlineResourceBreakTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.inline")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalStatusDefinition> DaoShiStatus(NewObject<UFinalStatusDefinition>(GetTransientPackage()));
+	DaoShiStatus->StatusId = FFinalStatusId(FName(TEXT("status.test.daoshi")));
+	DaoShiStatus->DisplayName = FText::FromString(TEXT("刀势"));
+
+	TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+	CardDefinition->CardId = FFinalCardId(FName(TEXT("card.test.card_text.inline")));
+	CardDefinition->OwnerUnitId = CharacterId.Value;
+	CardDefinition->DisplayName = FText::FromString(TEXT("Inline Card"));
+	CardDefinition->BaseCostAP = 1;
+	CardDefinition->CardType = EFinalCardType::Attack;
+	UFinalBattleEffectConsumeStatusResource* ConsumeEffect = NewObject<UFinalBattleEffectConsumeStatusResource>(CardDefinition.Get());
+	ConsumeEffect->EffectId = TEXT("effect.test.inline.consume_daoshi");
+	ConsumeEffect->StatusDefinition = DaoShiStatus.Get();
+	ConsumeEffect->StatusId = DaoShiStatus->StatusId;
+	ConsumeEffect->StacksToConsume = 1;
+	CardDefinition->Effects.Add(ConsumeEffect);
+	UFinalBattleEffectBonusBreak* BreakEffect = NewObject<UFinalBattleEffectBonusBreak>(CardDefinition.Get());
+	BreakEffect->EffectId = TEXT("effect.test.inline.break");
+	BreakEffect->Scalar.ScaleMode = EFinalBattleScalarMode::Flat;
+	BreakEffect->Scalar.BaseValue = 2.0f;
+	CardDefinition->Effects.Add(BreakEffect);
+	SetEffectTextLayout(CardDefinition.Get(), { TEXT("{inline:effect.test.inline.consume_daoshi}：{inline:effect.test.inline.break}。") });
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), CardDefinition.Get(), TEXT("run.card.text.inline"));
+	const FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Inline fragments should compose into one rule line."), HandCard->ResolvedRulesText.ToString(), FString(TEXT("消耗 <num>1</> <status>刀势</>：额外 <num>2</> 削韧。")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextApplyCardModifiersTest,
+	"Final.Battle.CardProjection.TextProjection.ApplyCardModifiers",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextApplyCardModifiersTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.apply_modifiers")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalCardDefinition> ModifierCard = MakeApplyCardModifiersSkillCard(FFinalCardId(FName(TEXT("card.test.card_text.apply_modifiers"))), CharacterId, TEXT("Modifier Text"), false);
+	SetEffectTextLayout(ModifierCard.Get(), { TEXT("{effect:effect.card.test.card_text.apply_modifiers.apply_card_modifiers}") });
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), ModifierCard.Get(), TEXT("run.card.text.apply_modifiers"));
+	const FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("ApplyCardModifiers should generate ally hand text."), HandCard->ResolvedRulesText.ToString().Contains(TEXT("其他友方当前手牌攻击牌：-<cost>1 AP</>，<good>20%</> 最终伤害。")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTextManualApplyPassiveFallbackTest,
+	"Final.Battle.CardProjection.TextProjection.ManualApplyPassiveFallback",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTextManualApplyPassiveFallbackTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_text.manual_passive")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(1);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Text Hero"));
+	TStrongObjectPtr<UFinalPassiveDefinition> PassiveDefinition(NewObject<UFinalPassiveDefinition>(GetTransientPackage()));
+	PassiveDefinition->PassiveId = FFinalPassiveId(FName(TEXT("passive.test.manual")));
+	PassiveDefinition->DisplayName = FText::FromString(TEXT("手写被动"));
+
+	TStrongObjectPtr<UFinalCardDefinition> CardDefinition(NewObject<UFinalCardDefinition>(GetTransientPackage()));
+	CardDefinition->CardId = FFinalCardId(FName(TEXT("card.test.card_text.manual_passive")));
+	CardDefinition->OwnerUnitId = CharacterId.Value;
+	CardDefinition->DisplayName = FText::FromString(TEXT("Manual Passive"));
+	CardDefinition->BaseCostAP = 1;
+	CardDefinition->CardType = EFinalCardType::Ability;
+	CardDefinition->RulesText = FText::FromString(TEXT("获得 <status>手写被动</>。"));
+	CardDefinition->TextMode = EFinalCardTextMode::ManualRulesText;
+	UFinalBattleEffectApplyPassive* ApplyPassiveEffect = NewObject<UFinalBattleEffectApplyPassive>(CardDefinition.Get());
+	ApplyPassiveEffect->EffectId = TEXT("effect.test.manual.apply_passive");
+	ApplyPassiveEffect->PassiveDefinition = PassiveDefinition.Get();
+	ApplyPassiveEffect->PassiveId = PassiveDefinition->PassiveId;
+	ApplyPassiveEffect->Stacks = 1;
+	CardDefinition->Effects.Add(ApplyPassiveEffect);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSession(EncounterDefinition.Get(), RuleConfig.Get(), CharacterDefinition.Get(), CardDefinition.Get(), TEXT("run.card.text.manual_passive"));
+	const FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+	const FFinalBattleCardViewData* HandCard = FindSingleHandCard(Snapshot);
+	TestNotNull(TEXT("Card should be in hand."), HandCard);
+	if (HandCard == nullptr)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Manual ApplyPassive cards should keep RulesText."), HandCard->ResolvedRulesText.ToString(), FString(TEXT("获得 <status>手写被动</>。")));
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(

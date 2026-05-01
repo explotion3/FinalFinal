@@ -153,6 +153,9 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 	FText OwnerDisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 BaseCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	int32 RuntimeCostAP = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
@@ -166,6 +169,9 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FText RulesText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText ResolvedRulesText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	bool bRetained = false;

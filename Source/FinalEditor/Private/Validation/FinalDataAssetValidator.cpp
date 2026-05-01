@@ -834,6 +834,137 @@ namespace FinalDataAssetValidation
 		}
 	}
 
+	const UFinalBattleEffectDefinition* FindCardEffectById(const UFinalCardDefinition* Card, const FName EffectId)
+	{
+		if (Card == nullptr || EffectId.IsNone())
+		{
+			return nullptr;
+		}
+
+		for (const UFinalBattleEffectDefinition* EffectDefinition : Card->Effects)
+		{
+			if (EffectDefinition != nullptr && EffectDefinition->EffectId == EffectId)
+			{
+				return EffectDefinition;
+			}
+		}
+
+		return nullptr;
+	}
+
+	bool HasCardTextFragmentOverride(const UFinalCardDefinition* Card, const FName EffectId, const EFinalCardTextFragmentKind FragmentKind)
+	{
+		if (Card == nullptr || EffectId.IsNone())
+		{
+			return false;
+		}
+
+		for (const FFinalCardTextFragmentOverride& Override : Card->TextFragmentOverrides)
+		{
+			if (Override.EffectId == EffectId && Override.FragmentKind == FragmentKind && !Override.OverrideText.IsEmpty())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool IsSupportedCardTextProjectionEffect(const UFinalBattleEffectDefinition* EffectDefinition)
+	{
+		return EffectDefinition != nullptr
+			&& (EffectDefinition->IsA<UFinalBattleEffectDamage>()
+				|| EffectDefinition->IsA<UFinalBattleEffectGainShield>()
+				|| EffectDefinition->IsA<UFinalBattleEffectHeal>()
+				|| EffectDefinition->IsA<UFinalBattleEffectBonusBreak>()
+				|| EffectDefinition->IsA<UFinalBattleEffectApplyStatus>()
+				|| EffectDefinition->IsA<UFinalBattleEffectConsumeStatusResource>()
+				|| EffectDefinition->IsA<UFinalBattleEffectDrawCards>()
+				|| EffectDefinition->IsA<UFinalBattleEffectGenerateCard>()
+				|| EffectDefinition->IsA<UFinalBattleEffectApplyCardModifiers>()
+				|| EffectDefinition->IsA<UFinalBattleEffectGainAP>());
+	}
+
+	void ValidateCardTextLayoutToken(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFinalCardDefinition* Card,
+		const FString& Line,
+		const FString& TokenPrefix,
+		const EFinalCardTextFragmentKind FragmentKind,
+		const FString& FieldName)
+	{
+		int32 SearchStart = 0;
+		while (true)
+		{
+			const int32 TokenStart = Line.Find(TokenPrefix, ESearchCase::CaseSensitive, ESearchDir::FromStart, SearchStart);
+			if (TokenStart == INDEX_NONE)
+			{
+				break;
+			}
+
+			const int32 EffectIdStart = TokenStart + TokenPrefix.Len();
+			const int32 TokenEnd = Line.Find(TEXT("}"), ESearchCase::CaseSensitive, ESearchDir::FromStart, EffectIdStart);
+			if (TokenEnd == INDEX_NONE)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s has an unterminated text token '%s'."), *FieldName, *TokenPrefix));
+				break;
+			}
+
+			FString EffectIdString = Line.Mid(EffectIdStart, TokenEnd - EffectIdStart);
+			EffectIdString.TrimStartAndEndInline();
+			const FName EffectId(*EffectIdString);
+			const UFinalBattleEffectDefinition* EffectDefinition = FindCardEffectById(Card, EffectId);
+			if (EffectDefinition == nullptr)
+			{
+				AddError(Context, bIsValid, FString::Printf(TEXT("%s references missing effect '%s'."), *FieldName, *EffectIdString));
+			}
+			else if (!IsSupportedCardTextProjectionEffect(EffectDefinition) && !HasCardTextFragmentOverride(Card, EffectId, FragmentKind))
+			{
+				AddWarning(
+					Context,
+					FString::Printf(
+						TEXT("%s references unsupported effect '%s' without a TextFragmentOverride; the card will fall back to RulesText at runtime."),
+						*FieldName,
+						*EffectIdString));
+			}
+
+			SearchStart = TokenEnd + 1;
+		}
+	}
+
+	void ValidateCardTextLayout(FDataValidationContext& Context, bool& bIsValid, const UFinalCardDefinition* Card)
+	{
+		if (Card == nullptr || Card->TextMode != EFinalCardTextMode::EffectLayout)
+		{
+			return;
+		}
+
+		if (Card->TextLayoutLines.IsEmpty())
+		{
+			AddError(Context, bIsValid, TEXT("TextMode is EffectLayout, but TextLayoutLines is empty."));
+			return;
+		}
+
+		for (int32 LineIndex = 0; LineIndex < Card->TextLayoutLines.Num(); ++LineIndex)
+		{
+			const FString FieldName = FString::Printf(TEXT("TextLayoutLines[%d]"), LineIndex);
+			const FString& Line = Card->TextLayoutLines[LineIndex].Template;
+			if (Line.IsEmpty())
+			{
+				AddWarning(Context, FString::Printf(TEXT("%s is empty."), *FieldName));
+			}
+
+			ValidateCardTextLayoutToken(Context, bIsValid, Card, Line, TEXT("{effect:"), EFinalCardTextFragmentKind::FullLine, FieldName);
+			ValidateCardTextLayoutToken(Context, bIsValid, Card, Line, TEXT("{inline:"), EFinalCardTextFragmentKind::Inline, FieldName);
+
+			if (Line.Contains(TEXT("{hint:")))
+			{
+				AddWarning(Context, FString::Printf(TEXT("%s uses reserved hint token syntax; dynamic hint projection is not implemented in v0.1."), *FieldName));
+			}
+		}
+	}
+
 	void ValidateCardDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalCardDefinition* Card)
 	{
 		if (!Card->CardId.IsValid())
@@ -844,6 +975,7 @@ namespace FinalDataAssetValidation
 		RequireText(Context, bIsValid, Card->DisplayName, TEXT("DisplayName"));
 		ValidateNonNegative(Context, bIsValid, Card->BaseCostAP, TEXT("BaseCostAP"));
 		ValidateEffectArray(Context, bIsValid, Card->Effects, TEXT("Effects"), true);
+		ValidateCardTextLayout(Context, bIsValid, Card);
 
 		const FString CardIdString = Card->CardId.Value.ToString();
 		if (CardIdString.StartsWith(TEXT("card.starter.")))

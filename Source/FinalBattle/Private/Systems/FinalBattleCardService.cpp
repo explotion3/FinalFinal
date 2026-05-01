@@ -3,7 +3,18 @@
 #include "Battle/Conditions/FinalBattleConditionDefinition.h"
 #include "Algo/RandomShuffle.h"
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Effects/FinalBattleEffectApplyCardModifiers.h"
+#include "Battle/Effects/FinalBattleEffectApplyStatus.h"
+#include "Battle/Effects/FinalBattleEffectBonusBreak.h"
+#include "Battle/Effects/FinalBattleEffectConsumeStatusResource.h"
 #include "Battle/Effects/FinalBattleEffectDefinition.h"
+#include "Battle/Effects/FinalBattleEffectDamage.h"
+#include "Battle/Effects/FinalBattleEffectDrawCards.h"
+#include "Battle/Effects/FinalBattleEffectGainAP.h"
+#include "Battle/Effects/FinalBattleEffectGainShield.h"
+#include "Battle/Effects/FinalBattleEffectGenerateCard.h"
+#include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
@@ -29,6 +40,11 @@ FGameplayTag GetOpeningKeyword()
 	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.Opening"));
 }
 
+FGameplayTag GetSwordArrayKeyword()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Final.Keyword.SwordArray"));
+}
+
 bool HasRetainKeyword(const FGameplayTagContainer& Keywords)
 {
 	return Keywords.HasTagExact(GetRetainKeyword());
@@ -47,6 +63,409 @@ bool HasOpeningKeyword(const FGameplayTagContainer& Keywords)
 int32 ResolveInitialRecycleCount(const FGameplayTagContainer& Keywords)
 {
 	return 0;
+}
+
+FString WrapRichText(const FString& Tag, const FString& Value)
+{
+	return FString::Printf(TEXT("<%s>%s</>"), *Tag, *Value);
+}
+
+FString FormatInteger(const int32 Value, const FString Tag = TEXT("num"))
+{
+	return WrapRichText(Tag, FString::FromInt(Value));
+}
+
+FString FormatPercent(const int32 Percent, const FString Tag = TEXT("num"))
+{
+	return WrapRichText(Tag, FString::Printf(TEXT("%d%%"), Percent));
+}
+
+FString FormatSignedPercent(const int32 Percent)
+{
+	const FString Tag = Percent >= 0 ? TEXT("good") : TEXT("bad");
+	return WrapRichText(Tag, FString::Printf(TEXT("%s%d%%"), Percent > 0 ? TEXT("+") : TEXT(""), Percent));
+}
+
+FString FormatStatName(const EFinalBattleSourceStat SourceStat)
+{
+	switch (SourceStat)
+	{
+	case EFinalBattleSourceStat::Attack:
+		return TEXT("攻击力");
+	case EFinalBattleSourceStat::Defense:
+		return TEXT("防御力");
+	case EFinalBattleSourceStat::BaseDamagePower:
+		return TEXT("攻击力");
+	default:
+		return TEXT("数值");
+	}
+}
+
+int32 ResolveScalarBaseDisplayValue(const FFinalBattleScalarValue& Scalar)
+{
+	float ResultValue = Scalar.FlatBonus;
+	if (Scalar.ScaleMode == EFinalBattleScalarMode::Flat)
+	{
+		ResultValue += Scalar.BaseValue;
+	}
+	return FMath::Max(FMath::RoundToInt(ResultValue), 0);
+}
+
+FString FormatScalarValue(const FFinalBattleScalarValue& Scalar)
+{
+	if (Scalar.ScaleMode == EFinalBattleScalarMode::SourceStatMultiplier)
+	{
+		const int32 Percent = FMath::RoundToInt(Scalar.BaseValue * 100.0f);
+		return FString::Printf(
+			TEXT("%s %s"),
+			*WrapRichText(TEXT("stat"), FormatStatName(Scalar.SourceStat)),
+			*FormatPercent(Percent));
+	}
+
+	return FormatInteger(ResolveScalarBaseDisplayValue(Scalar));
+}
+
+FString FormatDamageScalarValue(
+	const FFinalBattleScalarValue& Scalar,
+	const int32 DamagePowerPercentPointDelta,
+	const int32 FinalDamagePercentDelta)
+{
+	if (Scalar.ScaleMode == EFinalBattleScalarMode::SourceStatMultiplier)
+	{
+		const int32 BasePercent = FMath::RoundToInt(Scalar.BaseValue * 100.0f);
+		const int32 PointAdjustedPercent = BasePercent + (Scalar.SourceStat == EFinalBattleSourceStat::Attack ? DamagePowerPercentPointDelta : 0);
+		const float FinalScale = 1.0f + static_cast<float>(FinalDamagePercentDelta) / 100.0f;
+		const int32 DisplayPercent = FMath::Max(FMath::RoundToInt(static_cast<float>(PointAdjustedPercent) * FinalScale), 0);
+		const FString ValueTag = DisplayPercent > BasePercent ? TEXT("good") : (DisplayPercent < BasePercent ? TEXT("bad") : TEXT("num"));
+		return FString::Printf(
+			TEXT("%s %s"),
+			*WrapRichText(TEXT("stat"), FormatStatName(Scalar.SourceStat)),
+			*FormatPercent(DisplayPercent, ValueTag));
+	}
+
+	const int32 BaseValue = ResolveScalarBaseDisplayValue(Scalar);
+	const float FinalScale = 1.0f + static_cast<float>(FinalDamagePercentDelta) / 100.0f;
+	const int32 DisplayValue = FMath::Max(FMath::RoundToInt(static_cast<float>(BaseValue) * FinalScale), 0);
+	const FString ValueTag = DisplayValue > BaseValue ? TEXT("good") : (DisplayValue < BaseValue ? TEXT("bad") : TEXT("num"));
+	return FormatInteger(DisplayValue, ValueTag);
+}
+
+FString FormatStatusDisplayName(const FFinalStatusId& StatusId, const UFinalStatusDefinition* StatusDefinition)
+{
+	if (StatusDefinition != nullptr && !StatusDefinition->DisplayName.IsEmpty())
+	{
+		return StatusDefinition->DisplayName.ToString();
+	}
+	return StatusId.Value.ToString();
+}
+
+FString FormatCardDisplayName(const FFinalCardId& CardId, const UFinalCardDefinition* CardDefinition)
+{
+	if (CardDefinition != nullptr && !CardDefinition->DisplayName.IsEmpty())
+	{
+		return CardDefinition->DisplayName.ToString();
+	}
+	return CardId.Value.ToString();
+}
+
+bool AreAllCandidateCardsSwordArray(const TArray<TObjectPtr<UFinalCardDefinition>>& CandidateCardDefinitions)
+{
+	if (CandidateCardDefinitions.Num() == 0)
+	{
+		return false;
+	}
+
+	for (const UFinalCardDefinition* CandidateCardDefinition : CandidateCardDefinitions)
+	{
+		if (CandidateCardDefinition == nullptr || !CandidateCardDefinition->Keywords.HasTagExact(GetSwordArrayKeyword()))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+FString ToInlineFragment(FString Fragment)
+{
+	Fragment.TrimStartAndEndInline();
+	if (Fragment.EndsWith(TEXT("。")))
+	{
+		Fragment = Fragment.LeftChop(1);
+	}
+	return Fragment;
+}
+
+FString FormatCardTypeFilter(const FFinalTriggeredCardModifierDefinition& ModifierDefinition)
+{
+	if (!ModifierDefinition.bRequireCardType)
+	{
+		return TEXT("牌");
+	}
+
+	switch (ModifierDefinition.RequiredCardType)
+	{
+	case EFinalCardType::Attack:
+		return TEXT("攻击牌");
+	case EFinalCardType::Skill:
+		return TEXT("技能牌");
+	case EFinalCardType::Ability:
+		return TEXT("能力牌");
+	default:
+		return TEXT("牌");
+	}
+}
+
+FString FormatModifierTargetSource(const EFinalTriggeredCardModifierTargetSource TargetSource)
+{
+	switch (TargetSource)
+	{
+	case EFinalTriggeredCardModifierTargetSource::CurrentAllyHandCards:
+		return TEXT("其他友方当前手牌");
+	case EFinalTriggeredCardModifierTargetSource::CurrentOwnedHandCards:
+		return TEXT("当前手牌");
+	case EFinalTriggeredCardModifierTargetSource::DrawnCardsFromExecutedEffects:
+		return TEXT("本次抽到的");
+	default:
+		return TEXT("目标");
+	}
+}
+
+bool FindTextFragmentOverride(
+	const UFinalCardDefinition& CardDefinition,
+	const FName EffectId,
+	const EFinalCardTextFragmentKind FragmentKind,
+	FString& OutOverrideText)
+{
+	for (const FFinalCardTextFragmentOverride& Override : CardDefinition.TextFragmentOverrides)
+	{
+		if (Override.EffectId == EffectId && Override.FragmentKind == FragmentKind && !Override.OverrideText.IsEmpty())
+		{
+			OutOverrideText = Override.OverrideText.ToString();
+			return true;
+		}
+	}
+	return false;
+}
+
+const UFinalBattleEffectDefinition* FindEffectById(const UFinalCardDefinition& CardDefinition, const FName EffectId)
+{
+	for (const UFinalBattleEffectDefinition* EffectDefinition : CardDefinition.Effects)
+	{
+		if (EffectDefinition != nullptr && EffectDefinition->EffectId == EffectId)
+		{
+			return EffectDefinition;
+		}
+	}
+	return nullptr;
+}
+
+bool BuildAutomaticEffectTextFragment(
+	const UFinalBattleEffectDefinition& EffectDefinition,
+	const FFinalBattleCardInstance& CardInstance,
+	const EFinalCardTextFragmentKind FragmentKind,
+	FString& OutFragment)
+{
+	if (const UFinalBattleEffectDamage* DamageEffect = Cast<const UFinalBattleEffectDamage>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(
+			TEXT("造成 %s 伤害"),
+			*FormatDamageScalarValue(DamageEffect->Scalar, CardInstance.RuntimeDamagePowerPercentPointDelta, CardInstance.RuntimeFinalDamagePercentDelta));
+		if (DamageEffect->HitCount > 1)
+		{
+			OutFragment += FString::Printf(TEXT(" ×%s"), *FormatInteger(DamageEffect->HitCount));
+		}
+	}
+	else if (const UFinalBattleEffectGainShield* ShieldEffect = Cast<const UFinalBattleEffectGainShield>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(TEXT("获得 %s 护盾"), *FormatScalarValue(ShieldEffect->Scalar));
+	}
+	else if (const UFinalBattleEffectHeal* HealEffect = Cast<const UFinalBattleEffectHeal>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(TEXT("回复 %s 共享生命"), *FormatScalarValue(HealEffect->Scalar));
+	}
+	else if (const UFinalBattleEffectBonusBreak* BonusBreakEffect = Cast<const UFinalBattleEffectBonusBreak>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(TEXT("额外 %s 削韧"), *FormatScalarValue(BonusBreakEffect->Scalar));
+	}
+	else if (const UFinalBattleEffectApplyStatus* ApplyStatusEffect = Cast<const UFinalBattleEffectApplyStatus>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(
+			TEXT("+%s %s"),
+			*FormatInteger(FMath::Max(ApplyStatusEffect->Stacks, 1)),
+			*WrapRichText(TEXT("status"), FormatStatusDisplayName(ApplyStatusEffect->StatusId, ApplyStatusEffect->StatusDefinition)));
+	}
+	else if (const UFinalBattleEffectConsumeStatusResource* ConsumeEffect = Cast<const UFinalBattleEffectConsumeStatusResource>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(
+			TEXT("消耗 %s %s"),
+			*FormatInteger(FMath::Max(ConsumeEffect->StacksToConsume, 1)),
+			*WrapRichText(TEXT("status"), FormatStatusDisplayName(ConsumeEffect->StatusId, ConsumeEffect->StatusDefinition)));
+	}
+	else if (const UFinalBattleEffectDrawCards* DrawCardsEffect = Cast<const UFinalBattleEffectDrawCards>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(TEXT("抽 %s 张牌"), *FormatInteger(FMath::Max(DrawCardsEffect->DrawCount, 1)));
+	}
+	else if (const UFinalBattleEffectGenerateCard* GenerateCardEffect = Cast<const UFinalBattleEffectGenerateCard>(&EffectDefinition))
+	{
+		FString GeneratedCardLabel;
+		if (GenerateCardEffect->GeneratedCardDefinition != nullptr || GenerateCardEffect->GeneratedCardId.IsValid())
+		{
+			GeneratedCardLabel = WrapRichText(TEXT("keyword"), FormatCardDisplayName(GenerateCardEffect->GeneratedCardId, GenerateCardEffect->GeneratedCardDefinition));
+		}
+		else if (AreAllCandidateCardsSwordArray(GenerateCardEffect->CandidateCardDefinitions))
+		{
+			GeneratedCardLabel = WrapRichText(TEXT("keyword"), TEXT("剑阵"));
+		}
+		else
+		{
+			GeneratedCardLabel = WrapRichText(TEXT("keyword"), TEXT("随机牌"));
+		}
+
+		OutFragment = FString::Printf(TEXT("生成 %s 张 %s 到手牌"), *FormatInteger(FMath::Max(GenerateCardEffect->GenerateCount, 1)), *GeneratedCardLabel);
+	}
+	else if (const UFinalBattleEffectGainAP* GainAPEffect = Cast<const UFinalBattleEffectGainAP>(&EffectDefinition))
+	{
+		OutFragment = FString::Printf(TEXT("回复 %s"), *WrapRichText(TEXT("cost"), FString::Printf(TEXT("%d AP"), FMath::Max(GainAPEffect->GainValue, 0))));
+	}
+	else if (const UFinalBattleEffectApplyCardModifiers* ApplyCardModifiersEffect = Cast<const UFinalBattleEffectApplyCardModifiers>(&EffectDefinition))
+	{
+		TArray<FString> ModifierFragments;
+		for (const FFinalTriggeredCardModifierDefinition& ModifierDefinition : ApplyCardModifiersEffect->CardModifiers)
+		{
+			TArray<FString> PayloadFragments;
+			if (ModifierDefinition.CostDeltaAP != 0)
+			{
+				const FString Sign = ModifierDefinition.CostDeltaAP > 0 ? TEXT("+") : TEXT("-");
+				const FString Tag = ModifierDefinition.CostDeltaAP > 0 ? TEXT("bad") : TEXT("cost");
+				PayloadFragments.Add(FString::Printf(TEXT("%s%s"), *Sign, *WrapRichText(Tag, FString::Printf(TEXT("%d AP"), FMath::Abs(ModifierDefinition.CostDeltaAP)))));
+			}
+			if (ModifierDefinition.DamagePowerPercentPointDelta != 0)
+			{
+				PayloadFragments.Add(FormatSignedPercent(ModifierDefinition.DamagePowerPercentPointDelta));
+			}
+			if (ModifierDefinition.FinalDamagePercentDelta != 0)
+			{
+				PayloadFragments.Add(FString::Printf(TEXT("%s 最终伤害"), *FormatPercent(FMath::Abs(ModifierDefinition.FinalDamagePercentDelta), ModifierDefinition.FinalDamagePercentDelta >= 0 ? TEXT("good") : TEXT("bad"))));
+			}
+
+			if (PayloadFragments.Num() > 0)
+			{
+				ModifierFragments.Add(FString::Printf(
+					TEXT("%s%s：%s"),
+					*FormatModifierTargetSource(ModifierDefinition.TargetSource),
+					*FormatCardTypeFilter(ModifierDefinition),
+					*FString::Join(PayloadFragments, TEXT("，"))));
+			}
+		}
+
+		if (ModifierFragments.Num() == 0)
+		{
+			return false;
+		}
+
+		OutFragment = FString::Join(ModifierFragments, TEXT("；"));
+	}
+	else
+	{
+		return false;
+	}
+
+	if (FragmentKind == EFinalCardTextFragmentKind::FullLine)
+	{
+		OutFragment += TEXT("。");
+	}
+	else
+	{
+		OutFragment = ToInlineFragment(OutFragment);
+	}
+	return true;
+}
+
+bool BuildEffectTextFragment(
+	const UFinalCardDefinition& CardDefinition,
+	const FFinalBattleCardInstance& CardInstance,
+	const FName EffectId,
+	const EFinalCardTextFragmentKind FragmentKind,
+	FString& OutFragment)
+{
+	if (FindTextFragmentOverride(CardDefinition, EffectId, FragmentKind, OutFragment))
+	{
+		return true;
+	}
+
+	const UFinalBattleEffectDefinition* EffectDefinition = FindEffectById(CardDefinition, EffectId);
+	if (EffectDefinition == nullptr)
+	{
+		return false;
+	}
+
+	return BuildAutomaticEffectTextFragment(*EffectDefinition, CardInstance, FragmentKind, OutFragment);
+}
+
+bool ReplaceNextTextToken(
+	const UFinalCardDefinition& CardDefinition,
+	const FFinalBattleCardInstance& CardInstance,
+	FString& InOutLine)
+{
+	const int32 EffectTokenIndex = InOutLine.Find(TEXT("{effect:"));
+	const int32 InlineTokenIndex = InOutLine.Find(TEXT("{inline:"));
+	if (EffectTokenIndex == INDEX_NONE && InlineTokenIndex == INDEX_NONE)
+	{
+		return true;
+	}
+
+	const bool bUseEffectToken = InlineTokenIndex == INDEX_NONE || (EffectTokenIndex != INDEX_NONE && EffectTokenIndex < InlineTokenIndex);
+	const FString TokenPrefix = bUseEffectToken ? TEXT("{effect:") : TEXT("{inline:");
+	const int32 TokenStart = bUseEffectToken ? EffectTokenIndex : InlineTokenIndex;
+	const int32 EffectIdStart = TokenStart + TokenPrefix.Len();
+	const int32 TokenEnd = InOutLine.Find(TEXT("}"), ESearchCase::CaseSensitive, ESearchDir::FromStart, EffectIdStart);
+	if (TokenEnd == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const FString EffectIdString = InOutLine.Mid(EffectIdStart, TokenEnd - EffectIdStart);
+	const FName EffectId(*EffectIdString);
+	FString Fragment;
+	if (!BuildEffectTextFragment(CardDefinition, CardInstance, EffectId, bUseEffectToken ? EFinalCardTextFragmentKind::FullLine : EFinalCardTextFragmentKind::Inline, Fragment))
+	{
+		return false;
+	}
+
+	InOutLine = InOutLine.Left(TokenStart) + Fragment + InOutLine.Mid(TokenEnd + 1);
+	return true;
+}
+
+FText BuildResolvedRulesTextForCard(const FFinalBattleCardInstance& CardInstance)
+{
+	const UFinalCardDefinition* CardDefinition = CardInstance.ProjectedDefinition;
+	if (CardDefinition == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (CardDefinition->TextMode != EFinalCardTextMode::EffectLayout)
+	{
+		return CardDefinition->RulesText;
+	}
+
+	TArray<FString> ResolvedLines;
+	for (const FFinalCardTextLayoutLine& LayoutLine : CardDefinition->TextLayoutLines)
+	{
+		FString ResolvedLine = LayoutLine.Template;
+		while (ResolvedLine.Contains(TEXT("{effect:")) || ResolvedLine.Contains(TEXT("{inline:")))
+		{
+			if (!ReplaceNextTextToken(*CardDefinition, CardInstance, ResolvedLine))
+			{
+				return CardDefinition->RulesText;
+			}
+		}
+		ResolvedLines.Add(ResolvedLine);
+	}
+
+	return ResolvedLines.Num() > 0
+		? FText::FromString(FString::Join(ResolvedLines, TEXT("\n")))
+		: CardDefinition->RulesText;
 }
 
 FFinalBattleCardRuntimeBehavior BuildRuntimeBehaviorFromKeywords(const FGameplayTagContainer& Keywords)
@@ -808,10 +1227,14 @@ void FFinalBattleCardService::BuildHandCardViews(
 		CardView.CardType = CardInstance->ProjectedDefinition != nullptr
 			? CardInstance->ProjectedDefinition->CardType
 			: EFinalCardType::Attack;
+		CardView.BaseCostAP = CardInstance->ProjectedDefinition != nullptr
+			? CardInstance->ProjectedDefinition->BaseCostAP
+			: CardInstance->RuntimeCostAP;
 		CardView.RuntimeCostAP = CardInstance->RuntimeCostAP;
 		CardView.RuntimeDamagePowerPercentPointDelta = CardInstance->RuntimeDamagePowerPercentPointDelta;
 		CardView.RuntimeFinalDamagePercentDelta = CardInstance->RuntimeFinalDamagePercentDelta;
 		CardView.RuntimeKeywords = CardInstance->RuntimeKeywords;
+		CardView.ResolvedRulesText = BuildResolvedRulesTextForCard(*CardInstance);
 		CardView.bRetained = CardInstance->RuntimeBehavior.bRetained;
 		if (const FFinalBattleCharacterState* OwnerCharacterState = UnitService.FindCharacterState(BattleState, CardInstance->RuntimeOwnerUnitId))
 		{

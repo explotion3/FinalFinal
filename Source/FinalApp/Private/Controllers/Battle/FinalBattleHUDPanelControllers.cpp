@@ -668,10 +668,12 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 			Entry.OwnerDisplayName = FText::FromName(CardView.RuntimeOwnerUnitId);
 		}
 
+		Entry.BaseCostAP = CardView.BaseCostAP;
 		Entry.RuntimeCostAP = CardView.RuntimeCostAP;
 		Entry.CardType = CardView.CardType;
 		Entry.TypeText = FormatCardTypeText(CardView.CardType);
 		Entry.KeywordText = FormatKeywordText(CardView.RuntimeKeywords);
+		Entry.ResolvedRulesText = CardView.ResolvedRulesText;
 		Entry.bRetained = CardView.bRetained;
 		Entry.bCollapsedCard = CardView.bCollapsedCard;
 		Entries.Add(MoveTemp(Entry));

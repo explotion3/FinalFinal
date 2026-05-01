@@ -219,6 +219,37 @@ namespace FinalPrototypeContentBootstrap
 		IntentDefinition->PhaseTags.Reset();
 	}
 
+	void SetManualCardText(UFinalCardDefinition* CardDefinition, const FText& RulesText)
+	{
+		if (CardDefinition == nullptr)
+		{
+			return;
+		}
+
+		CardDefinition->RulesText = RulesText;
+		CardDefinition->TextMode = EFinalCardTextMode::ManualRulesText;
+		CardDefinition->TextLayoutLines.Reset();
+		CardDefinition->TextFragmentOverrides.Reset();
+	}
+
+	void SetEffectLayoutCardText(UFinalCardDefinition* CardDefinition, const FText& RulesText, const TArray<FString>& LayoutLines)
+	{
+		if (CardDefinition == nullptr)
+		{
+			return;
+		}
+
+		CardDefinition->RulesText = RulesText;
+		CardDefinition->TextMode = EFinalCardTextMode::EffectLayout;
+		CardDefinition->TextLayoutLines.Reset();
+		for (const FString& LayoutLine : LayoutLines)
+		{
+			FFinalCardTextLayoutLine& Line = CardDefinition->TextLayoutLines.AddDefaulted_GetRef();
+			Line.Template = LayoutLine;
+		}
+		CardDefinition->TextFragmentOverrides.Reset();
+	}
+
 	void ConfigureStarterEncounter(
 		UFinalBattleEncounterDefinition* Encounter,
 		const FName EncounterId,
@@ -1340,6 +1371,131 @@ void FFinalStarterContentBundleBuilder::Build(TSet<UPackage*>& PackagesToSave)
 		StarterShenShiQiStatus,
 		1);
 	TrackPackage(StarterShenUltimate, PackagesToSave);
+
+	SetEffectLayoutCardText(
+		StarterHuoLieFengCard,
+		FText::FromString(TEXT("造成 <stat>攻击力</> <num>110%</> 伤害。\n额外 <num>2</> 削韧。\n+<num>1</> <status>刀势</>。")),
+		{
+			TEXT("{effect:effect.starter.huo.liefeng.damage}"),
+			TEXT("{effect:effect.starter.huo.liefeng.break}"),
+			TEXT("{effect:effect.starter.huo.liefeng.daoshi}")
+		});
+	SetEffectLayoutCardText(
+		StarterHuoWenJiaCard,
+		FText::FromString(TEXT("获得 <stat>防御力</> <num>100%</> 护盾。")),
+		{
+			TEXT("{effect:effect.starter.huo.wenjia.shield}")
+		});
+	SetEffectLayoutCardText(
+		StarterHuoDuanYueZhanCard,
+		FText::FromString(TEXT("造成 <stat>攻击力</> <num>130%</> 伤害。\n额外 <num>3</> 削韧。\n消耗 <num>1</> <status>刀势</>：额外 <num>2</> 削韧。")),
+		{
+			TEXT("{effect:effect.starter.huo.duanyuezhan.damage}"),
+			TEXT("{effect:effect.starter.huo.duanyuezhan.break}"),
+			TEXT("{inline:effect.starter.huo.duanyuezhan.consume_daoshi}：{inline:effect.starter.huo.duanyuezhan.consume_break}。")
+		});
+	SetEffectLayoutCardText(
+		StarterHuoDuanYueZhanPoZhenCard,
+		FText::FromString(TEXT("造成 <stat>攻击力</> <num>150%</> 伤害。\n额外 <num>4</> 削韧。\n消耗 <num>1</> <status>刀势</>：额外 <num>3</> 削韧。")),
+		{
+			TEXT("{effect:effect.starter.huo.duanyuezhan_pozhen.damage}"),
+			TEXT("{effect:effect.starter.huo.duanyuezhan_pozhen.break}"),
+			TEXT("{inline:effect.starter.huo.duanyuezhan_pozhen.consume_daoshi}：{inline:effect.starter.huo.duanyuezhan_pozhen.consume_break}。")
+		});
+	SetEffectLayoutCardText(
+		StarterHuoTieBiHuiFengCard,
+		FText::FromString(TEXT("获得 <stat>防御力</> <num>120%</> 护盾。\n+<num>1</> <status>刀势</>。")),
+		{
+			TEXT("{effect:effect.starter.huo.tiebihuifeng.shield}"),
+			TEXT("{effect:effect.starter.huo.tiebihuifeng.daoshi}")
+		});
+	SetManualCardText(
+		StarterHuoShouYaXuShiCard,
+		FText::FromString(TEXT("获得 <status>压势追刀</>。\n每回合第一次打出攻击牌后：当前手牌攻击牌 -<cost>1 AP</>，<good>20%</> 最终伤害。")));
+	SetEffectLayoutCardText(
+		StarterYeXingZhenCard,
+		FText::FromString(TEXT("造成 <stat>攻击力</> <num>90%</> 伤害。\n+<num>2</> <status>药引</>。")),
+		{
+			TEXT("{effect:effect.starter.ye.xingzhen.damage}"),
+			TEXT("{effect:effect.starter.ye.xingzhen.yaoyin}")
+		});
+	SetEffectLayoutCardText(
+		StarterYeTiaoXiCard,
+		FText::FromString(TEXT("回复 <num>5</> 共享生命。\n+<num>1</> <status>药引</>。")),
+		{
+			TEXT("{effect:effect.starter.ye.tiaoxi.heal}"),
+			TEXT("{effect:effect.starter.ye.tiaoxi.yaoyin}")
+		});
+	SetEffectLayoutCardText(
+		StarterYeHuaYinCard,
+		FText::FromString(TEXT("回复 <num>5</> 共享生命。\n消耗 <num>1</> <status>药引</>：抽 <num>1</> 张牌，回复 <cost>1 AP</>。")),
+		{
+			TEXT("{effect:effect.starter.ye.huayin.heal}"),
+			TEXT("{inline:effect.starter.ye.huayin.consume_yaoyin}：{inline:effect.starter.ye.huayin.draw}，{inline:effect.starter.ye.huayin.gain_ap}。")
+		});
+	SetEffectLayoutCardText(
+		StarterYeHuiChunSanCard,
+		FText::FromString(TEXT("回复 <num>12</> 共享生命。\n消耗 <num>1</> <status>药引</>：回复 <cost>1 AP</>。")),
+		{
+			TEXT("{effect:effect.starter.ye.huichunsan.heal}"),
+			TEXT("{inline:effect.starter.ye.huichunsan.consume_yaoyin}：{inline:effect.starter.ye.huichunsan.gain_ap}。")
+		});
+	SetEffectLayoutCardText(
+		StarterShenBuFengCard,
+		FText::FromString(TEXT("造成 <stat>攻击力</> <num>100%</> 伤害。\n生成 <num>1</> 张 <keyword>剑阵</> 牌到手牌。")),
+		{
+			TEXT("{effect:effect.starter.shen.bufeng.damage}"),
+			TEXT("{effect:effect.starter.shen.bufeng.generate_jianzhen}")
+		});
+	SetEffectLayoutCardText(
+		StarterShenPoZhenJianZhenCard,
+		FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n额外 <num>2</> 削韧。")),
+		{
+			TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。"),
+			TEXT("{effect:effect.starter.shen.pozhenjianzhen.break}")
+		});
+	SetEffectLayoutCardText(
+		StarterShenGuoPaiJianZhenCard,
+		FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n抽 <num>1</> 张牌。")),
+		{
+			TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。"),
+			TEXT("{effect:effect.starter.shen.guopaijianzhen.draw}")
+		});
+	SetEffectLayoutCardText(
+		StarterShenFengRuiJianZhenCard,
+		FText::FromString(TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。\n+<num>1</> <status>锋锐</>。")),
+		{
+			TEXT("<keyword>衍生</>、<keyword>保留</>、<keyword>消耗</>。"),
+			TEXT("{effect:effect.starter.shen.fengruijianzhen.apply_fengrui}")
+		});
+	SetEffectLayoutCardText(
+		StarterShenShouZhenCard,
+		FText::FromString(TEXT("获得 <stat>防御力</> <num>80%</> 护盾。\n若手中有 <keyword>剑阵</> 牌：抽 <num>1</> 张牌。")),
+		{
+			TEXT("{effect:effect.starter.shen.shouzhen.shield}"),
+			TEXT("若手中有 <keyword>剑阵</> 牌：{inline:effect.starter.shen.shouzhen.draw}。")
+		});
+	SetEffectLayoutCardText(
+		StarterShenYinZhenCard,
+		FText::FromString(TEXT("生成 <num>1</> 张 <keyword>过牌剑阵</> 到手牌。\n抽 <num>1</> 张牌。")),
+		{
+			TEXT("{effect:effect.starter.shen.yinzhen.generate_guopai}"),
+			TEXT("{effect:effect.starter.shen.yinzhen.draw}")
+		});
+	SetEffectLayoutCardText(
+		StarterShenYinBaoJianZhenCard,
+		FText::FromString(TEXT("消耗 <num>1</> 张手牌 <keyword>剑阵</>。\n若成功：造成 <stat>攻击力</> <num>130%</> 伤害，抽 <num>1</> 张牌。")),
+		{
+			TEXT("消耗 <num>1</> 张手牌 <keyword>剑阵</>。"),
+			TEXT("若成功：{inline:effect.starter.shen.yinbaojianzhen.damage}，{inline:effect.starter.shen.yinbaojianzhen.draw}。")
+		});
+	SetEffectLayoutCardText(
+		StarterShenYuanFengChengZhenCard,
+		FText::FromString(TEXT("其他友方当前手牌攻击牌：-<cost>1 AP</>，<good>20%</> 最终伤害。\n直到打出或玩家回合结束。")),
+		{
+			TEXT("{effect:effect.starter.shen.yuanfengchengzhen.modify_ally_attacks}"),
+			TEXT("直到打出或玩家回合结束。")
+		});
 
 	StarterHuoCharacter->InitialLoadoutCards = {
 		MakeLoadoutEntry(StarterHuoLieFengCard->CardId, 2, EFinalLoadoutRole::BaseAttack),

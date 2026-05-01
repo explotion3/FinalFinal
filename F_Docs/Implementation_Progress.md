@@ -1,5 +1,15 @@
 # Implementation Progress
 
+## 2026-05-01：Card Effect Text Projection v0.1 正式落地
+
+- `UFinalCardDefinition` 新增 `TextMode / TextLayoutLines / TextFragmentOverrides`；`RulesText` 保留为 manual/fallback/资产可读兜底。
+- `FinalBattleCardService` 当前会在构建 `FFinalBattleCardViewData` 时生成 `ResolvedRulesText`，支持 `Damage / GainShield / Heal / BonusBreak / ApplyStatus / ConsumeStatusResource / DrawCards / GenerateCard / ApplyCardModifiers / GainAP` 的首版自动片段。
+- `Damage` 文本只投影卡牌自身运行时 modifier：`RuntimeDamagePowerPercentPointDelta` 与 `RuntimeFinalDamagePercentDelta`；不合入士气、易伤、虚弱、暴击或目标防护等上下文。
+- Starter 玩家普通即时牌与剑阵衍生牌已迁到 `EffectLayout`；霍断岳 `受压蓄势` 等 `ApplyPassive` 能力牌继续使用手写 `RulesText`。
+- `FinalApp` Card Entry 优先显示 `ResolvedRulesText`，费用颜色按 `RuntimeCostAP - BaseCostAP` 判定：降低为 good，升高为 bad，不显示划掉原费用。
+- `FinalDataAssetValidator` 会校验 EffectLayout token 是否引用真实 effect，并对 unsupported effect 缺 override 给 warning。
+- 动态括号 hint（例如“手牌攻击牌每张 +20%（80%）”）已记录为后续 `{hint:...}` 扩展方向，本轮不实现。
+
 ## 2026-04-30：卡牌文本规范 v0.1 与 starter 文案收口
 
 - `Card_Design_Guide.md` 当前已新增 `Card Text Style v0.1`，卡牌 `RulesText` 采用短语化、RichText 标签和每行一个效果的写法。

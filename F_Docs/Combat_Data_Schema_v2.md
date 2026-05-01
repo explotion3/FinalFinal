@@ -97,7 +97,7 @@ BattleState
 - 卡牌类型字段统一使用 `CardType`。
 - 卡牌稀有度字段统一使用 `Rarity`。
 - 关键词字段统一使用 `Keywords`。
-- 文本字段统一使用 `RulesText`。
+- 手写文本与兜底文本字段统一使用 `RulesText`；普通即时牌可通过 `TextMode / TextLayoutLines / TextFragmentOverrides` 生成战斗内 `ResolvedRulesText`。
 
 不再使用：
 
@@ -366,6 +366,9 @@ BattleVictoryBaseReward
 | `CardAccessTags` | 获取限制标签 |
 | `Effects` | 战斗效果列表 |
 | `RulesText` | 规则文本 |
+| `TextMode` | 卡牌文本模式：`ManualRulesText` 或 `EffectLayout` |
+| `TextLayoutLines` | EffectLayout 下的逐行文本模板，支持 `{effect:EffectId}` 与 `{inline:EffectId}` |
+| `TextFragmentOverrides` | 按 `EffectId + FullLine/Inline` 覆盖自动生成片段 |
 | `EvolutionGroupId` | 进化组 ID，可为空 |
 | `DefaultGemSlots` | 默认强化槽结构，可为空 |
 
@@ -374,6 +377,11 @@ BattleVictoryBaseReward
 - `CardDefinition` 是模板，不保存强化、进化、珠子镶嵌等 Run 内结果。
 - 进化卡和绝学卡仍然可以是独立 `CardDefinition`。
 - `RunCardInstance.CurrentCardId` 决定这一张实例当前使用哪个模板。
+- `RulesText` 长期保留，作为手写文本、unsupported fallback 和资产可读兜底。
+- `EffectLayout` 由 `FinalBattle` 在构建 `BattleCardViewData.ResolvedRulesText` 时解析，UI 不读取 effect，不计算规则。
+- v0.1 自动片段支持 `Damage / GainShield / Heal / BonusBreak / ApplyStatus / ConsumeStatusResource / DrawCards / GenerateCard / ApplyCardModifiers / GainAP`。
+- `Damage` 只投影卡牌自身运行时 modifier：`RuntimeDamagePowerPercentPointDelta` 与 `RuntimeFinalDamagePercentDelta`，不做目标上下文最终伤害预估。
+- `{hint:...}` / 动态括号计算为后续扩展，本版 schema 只保留口径，不实现运行时解析。
 
 ### 5.4 BattleEffectDefinition
 

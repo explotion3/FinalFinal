@@ -136,6 +136,62 @@ Starter 卡牌文本不再使用以下格式：
 
 Editor validator 对 starter 卡牌中的明显旧格式给 warning；首版不把这类问题升为 error，避免阻断临时测试资产。
 
+## 3.2 Card Effect Text Projection v0.1
+
+Starter 玩家普通即时牌当前开始使用半自动文本投影：
+
+```text
+CardDefinition.Effects
+BattleCardInstance 运行时改卡修正
+CardDefinition.TextLayoutLines
+-> BattleCardViewData.ResolvedRulesText
+-> Card Entry RichText
+```
+
+字段口径：
+
+- `TextMode = ManualRulesText`：直接显示 `RulesText`。能力牌、复杂说明牌、暂未支持的内容先用这一档。
+- `TextMode = EffectLayout`：按 `TextLayoutLines` 拼装文本；每行一个模板。
+- `{effect:EffectId}`：生成完整一行效果片段，自动补句号。
+- `{inline:EffectId}`：生成行内片段，不自动补句号，用于“消耗资源：额外收益”这类组合句。
+- `TextFragmentOverrides`：按 `EffectId + FullLine/Inline` 覆盖自动片段，用于处理少数自动片段表达不够准确的牌。
+- `RulesText` 长期保留，作为 manual 模式、unsupported fallback 和资产可读兜底。
+
+v0.1 支持的自动片段：
+
+```text
+Damage
+GainShield
+Heal
+BonusBreak
+ApplyStatus
+ConsumeStatusResource
+DrawCards
+GenerateCard
+ApplyCardModifiers
+GainAP
+```
+
+`Damage` 只投影卡牌自身的运行时修正，不做最终伤害预估；不会合入 `士气 / 易伤 / 虚弱 / 暴击 / 护盾` 等目标上下文。
+
+伤害修正显示区分两种语义：
+
+```text
+DamagePowerPercentPointDelta = +20
+130% -> 150%
+
+FinalDamagePercentDelta = +20
+130% x 1.2 -> 156%
+```
+
+动态括号 hint 例如：
+
+```text
+手牌中每有一张攻击牌，+<good>20%</>（<good>80%</>）。
+```
+
+已作为后续 `{hint:...}` 类扩展方向保留；v0.1 不实现。
+
 ## 4. 卡牌所属与判定
 
 卡牌所属用于确定这张牌当前按哪个单位结算，并服务哪一类内容结构。
