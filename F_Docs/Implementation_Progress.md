@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-01：出牌目标需求投影 v0.1
+
+- `FinalBattle` 当前会在构建 `FFinalBattleCardViewData` 时投影 `TargetRequirement`，首版只区分 `None / Enemy`。
+- 只有包含 `SelectedEnemy` targeted effect 的手牌会投影为 `Enemy`；`Self / TeamPlayer / FirstAliveEnemy / AllEnemies / AllPlayerCharacters / None` 不要求 UI 传入具体目标。
+- `FinalApp` 的出牌请求路径当前只在 `TargetRequirement = Enemy` 时解析当前/默认敌人目标；无目标牌可以直接提交 `PlayCard` 命令，由 `FinalBattle` 做最终合法性校验。
+- 本轮不新增友方单体目标或完整目标选择 UI，后续若需要 `SelectedAlly` 再单独扩 `FinalData / FinalBattle` 目标规则。
+
 ## 2026-05-01：Card Effect Text Projection v0.1 正式落地
 
 - `UFinalCardDefinition` 新增 `TextMode / TextLayoutLines / TextFragmentOverrides`；`RulesText` 保留为 manual/fallback/资产可读兜底。

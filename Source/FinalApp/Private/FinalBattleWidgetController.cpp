@@ -183,21 +183,26 @@ bool UFinalBattleWidgetController::RequestPlayCardByHandIndex(const int32 HandIn
 		return false;
 	}
 
-	const FName TargetUnitId = ResolveDefaultTargetUnitId();
-	if (TargetUnitId.IsNone())
+	const FFinalBattleCardViewData& CardView = CachedSnapshot.HandCards[HandIndex];
+	FName TargetUnitId = NAME_None;
+	if (CardView.TargetRequirement == EFinalBattleCardTargetRequirement::Enemy)
 	{
-		LastInteractionEvent = BuildLocalRejectEvent(
-			FText::FromString(TEXT("当前没有可选中的敌人目标。")),
-			EFinalBattleCommandRejectReason::InvalidTarget,
-			RejectInvalidTargetTag);
-		LastInteractionFeedback = LastInteractionEvent.Message;
-		RebuildPresentation();
-		return false;
+		TargetUnitId = ResolveDefaultTargetUnitId();
+		if (TargetUnitId.IsNone())
+		{
+			LastInteractionEvent = BuildLocalRejectEvent(
+				FText::FromString(TEXT("当前没有可选中的敌人目标。")),
+				EFinalBattleCommandRejectReason::InvalidTarget,
+				RejectInvalidTargetTag);
+			LastInteractionFeedback = LastInteractionEvent.Message;
+			RebuildPresentation();
+			return false;
+		}
 	}
 
 	FFinalBattleCommand Command;
 	Command.CommandType = EFinalBattleCommandType::PlayCard;
-	Command.CardInstanceId = CachedSnapshot.HandCards[HandIndex].CardInstanceId;
+	Command.CardInstanceId = CardView.CardInstanceId;
 	Command.TargetUnitId = TargetUnitId;
 	return SubmitBattleCommandWithFeedback(Command);
 }

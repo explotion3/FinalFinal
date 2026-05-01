@@ -108,6 +108,13 @@ struct FINALBATTLE_API FFinalBattleEnemyViewData
 	bool bActedThisRound = false;
 };
 
+UENUM(BlueprintType)
+enum class EFinalBattleCardTargetRequirement : uint8
+{
+	None,
+	Enemy
+};
+
 USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleCardViewData
 {
@@ -130,6 +137,9 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	EFinalCardType CardType = EFinalCardType::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalBattleCardTargetRequirement TargetRequirement = EFinalBattleCardTargetRequirement::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 BaseCostAP = 0;

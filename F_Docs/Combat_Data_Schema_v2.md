@@ -819,6 +819,7 @@ EvolutionStage: Evolved
 | `ModifierRecords` | battle 内临时修正记录集合 |
 | `ProjectedDefinition` | 当前投影后的运行时定义副本 |
 | `RuntimeCostAP` | 当前投影 AP 消耗 |
+| `TargetRequirement` | 出牌前 UI 需要的目标类型；首版为 `None / Enemy` |
 | `RuntimeKeywords` | 当前投影关键词 |
 | `RuntimeBehavior` | 当前投影牌区行为位 |
 
@@ -829,6 +830,7 @@ EvolutionStage: Evolved
 - 若 Run 内卡牌进化发生在战斗中，当前 battle 中直接来源于目标 `RunCardInstanceId` 的对应实例都会同步刷新 base `CurrentCardId / BaseDefinition`，并重新投影当前运行时定义。
 - 临时费用、临时关键词、临时行为位和运行时图 patch 只写入 `BattleCardInstance.ModifierRecords`，不回写 Run。
 - 生成牌、复制牌、衍生牌、临时牌默认不联动这次刷新，因为它们不保留来源 `RunCardInstanceId`。
+- `TargetRequirement` 由 `FinalBattle` 根据投影后 effect 目标规则生成，`SelectedEnemy` 映射为 `Enemy`；`Self / TeamPlayer / FirstAliveEnemy / AllEnemies / AllPlayerCharacters / None` 首版都不要求 UI 传入具体目标。
 
 `ModifierRecords` 首版统一包含以下协议字段：
 

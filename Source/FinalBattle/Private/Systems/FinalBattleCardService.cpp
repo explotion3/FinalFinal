@@ -14,6 +14,7 @@
 #include "Battle/Effects/FinalBattleEffectGainShield.h"
 #include "Battle/Effects/FinalBattleEffectGenerateCard.h"
 #include "Battle/Effects/FinalBattleEffectHeal.h"
+#include "Battle/Effects/FinalBattleTargetedEffectDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Facade/FinalBattleSessionTypes.h"
 #include "Queries/FinalBattleQueryTypes.h"
@@ -58,6 +59,25 @@ bool HasExpendKeyword(const FGameplayTagContainer& Keywords)
 bool HasOpeningKeyword(const FGameplayTagContainer& Keywords)
 {
 	return Keywords.HasTagExact(GetOpeningKeyword());
+}
+
+EFinalBattleCardTargetRequirement ResolveCardTargetRequirement(const UFinalCardDefinition* CardDefinition)
+{
+	if (CardDefinition == nullptr)
+	{
+		return EFinalBattleCardTargetRequirement::None;
+	}
+
+	for (const TObjectPtr<UFinalBattleEffectDefinition>& EffectDefinition : CardDefinition->Effects)
+	{
+		const UFinalBattleTargetedEffectDefinition* TargetedEffect = Cast<UFinalBattleTargetedEffectDefinition>(EffectDefinition);
+		if (TargetedEffect != nullptr && TargetedEffect->UnitTargetRule == EFinalBattleUnitTargetRule::SelectedEnemy)
+		{
+			return EFinalBattleCardTargetRequirement::Enemy;
+		}
+	}
+
+	return EFinalBattleCardTargetRequirement::None;
 }
 
 int32 ResolveInitialRecycleCount(const FGameplayTagContainer& Keywords)
@@ -1227,6 +1247,7 @@ void FFinalBattleCardService::BuildHandCardViews(
 		CardView.CardType = CardInstance->ProjectedDefinition != nullptr
 			? CardInstance->ProjectedDefinition->CardType
 			: EFinalCardType::Attack;
+		CardView.TargetRequirement = ResolveCardTargetRequirement(CardInstance->ProjectedDefinition);
 		CardView.BaseCostAP = CardInstance->ProjectedDefinition != nullptr
 			? CardInstance->ProjectedDefinition->BaseCostAP
 			: CardInstance->RuntimeCostAP;

@@ -162,6 +162,9 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 	EFinalCardType CardType = EFinalCardType::Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalBattleCardTargetRequirement TargetRequirement = EFinalBattleCardTargetRequirement::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FText TypeText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")

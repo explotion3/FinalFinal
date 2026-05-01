@@ -550,6 +550,64 @@ namespace FinalBattleCardProjectionTests
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleCardProjectionTargetRequirementTest,
+	"Final.Battle.CardProjection.TargetRequirement.ProjectsEnemyAndNone",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleCardProjectionTargetRequirementTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalBattleCardProjectionTests;
+
+	const FFinalCharacterId CharacterId(FName(TEXT("character.test.card_target_requirement")));
+	TStrongObjectPtr<UFinalBattleRuleConfig> RuleConfig = MakeRuleConfig(2);
+	TStrongObjectPtr<UFinalEnemyDefinition> EnemyDefinition = MakeEnemyDefinition();
+	TStrongObjectPtr<UFinalBattleEncounterDefinition> EncounterDefinition = MakeEncounter(RuleConfig.Get(), EnemyDefinition.Get());
+	TStrongObjectPtr<UFinalCharacterDefinition> CharacterDefinition = MakeCharacterDefinitionWithId(CharacterId, TEXT("Target Hero"));
+	TStrongObjectPtr<UFinalCardDefinition> DamageCard = MakeDamageCard(
+		FFinalCardId(FName(TEXT("card.test.target_requirement.enemy"))),
+		CharacterId,
+		TEXT("Enemy Target"),
+		1,
+		5.0f);
+	TStrongObjectPtr<UFinalStatusDefinition> SelfStatus = MakeProjectedStatusDefinition(
+		FName(TEXT("status.test.target_requirement.self")),
+		0,
+		0,
+		false,
+		false,
+		false,
+		false);
+	TStrongObjectPtr<UFinalCardDefinition> SelfCard = MakeApplyStatusCard(
+		FFinalCardId(FName(TEXT("card.test.target_requirement.none"))),
+		CharacterId,
+		TEXT("No Target"),
+		SelfStatus.Get(),
+		1);
+
+	TStrongObjectPtr<UFinalBattleSession> Session = CreateSessionWithDeck(
+		EncounterDefinition.Get(),
+		RuleConfig.Get(),
+		CharacterDefinition.Get(),
+		{ DamageCard.Get(), SelfCard.Get() });
+	const FFinalBattleSnapshot Snapshot = Session->GetSnapshot();
+
+	const FFinalBattleCardViewData* DamageCardView = FindHandCardById(Snapshot, DamageCard->CardId);
+	const FFinalBattleCardViewData* SelfCardView = FindHandCardById(Snapshot, SelfCard->CardId);
+	TestNotNull(TEXT("Damage card should be in hand."), DamageCardView);
+	TestNotNull(TEXT("Self card should be in hand."), SelfCardView);
+	if (DamageCardView != nullptr)
+	{
+		TestEqual(TEXT("Selected enemy effects should require an enemy target."), DamageCardView->TargetRequirement, EFinalBattleCardTargetRequirement::Enemy);
+	}
+	if (SelfCardView != nullptr)
+	{
+		TestEqual(TEXT("Self-targeted effects should not require UI target selection."), SelfCardView->TargetRequirement, EFinalBattleCardTargetRequirement::None);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalBattleCardProjectionTextDamageBaseTest,
 	"Final.Battle.CardProjection.TextProjection.DamageBase",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

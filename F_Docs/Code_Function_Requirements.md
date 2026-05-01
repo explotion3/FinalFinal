@@ -105,6 +105,7 @@
 
 - `BattleCommand` 只承载战斗内命令
 - 奖励选择、事件选项、商店购买、成长三选一属于 `RunCommand`
+- 打牌请求由 `FinalApp` 统一通过 battle widget controller 提交；UI 侧只根据 `BattleCardViewData.TargetRequirement` 决定是否需要当前敌人目标，最终合法性仍由 `FinalBattle` 校验
 
 优先级：`P0`
 

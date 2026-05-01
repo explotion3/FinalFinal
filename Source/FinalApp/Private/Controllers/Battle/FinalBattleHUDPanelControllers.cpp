@@ -671,6 +671,7 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 		Entry.BaseCostAP = CardView.BaseCostAP;
 		Entry.RuntimeCostAP = CardView.RuntimeCostAP;
 		Entry.CardType = CardView.CardType;
+		Entry.TargetRequirement = CardView.TargetRequirement;
 		Entry.TypeText = FormatCardTypeText(CardView.CardType);
 		Entry.KeywordText = FormatKeywordText(CardView.RuntimeKeywords);
 		Entry.ResolvedRulesText = CardView.ResolvedRulesText;
