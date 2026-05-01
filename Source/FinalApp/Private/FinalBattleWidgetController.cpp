@@ -159,7 +159,7 @@ bool UFinalBattleWidgetController::SelectEnemyByUnitId(const FName RuntimeUnitId
 	return SubmitBattleCommandWithFeedback(Command);
 }
 
-bool UFinalBattleWidgetController::PlayCardByHandIndex(const int32 HandIndex)
+bool UFinalBattleWidgetController::RequestPlayCardByHandIndex(const int32 HandIndex)
 {
 	if (BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
 	{
@@ -200,6 +200,11 @@ bool UFinalBattleWidgetController::PlayCardByHandIndex(const int32 HandIndex)
 	Command.CardInstanceId = CachedSnapshot.HandCards[HandIndex].CardInstanceId;
 	Command.TargetUnitId = TargetUnitId;
 	return SubmitBattleCommandWithFeedback(Command);
+}
+
+bool UFinalBattleWidgetController::PlayCardByHandIndex(const int32 HandIndex)
+{
+	return RequestPlayCardByHandIndex(HandIndex);
 }
 
 bool UFinalBattleWidgetController::PlayUltimateByCharacterIndex(const int32 CharacterIndex)

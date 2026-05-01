@@ -199,7 +199,7 @@ bool AFinalBattlePlayerController::PlayHandCardByIndex(int32 HandIndex)
 	{
 		if (UFinalBattleWidgetController* Controller = UISubsystem->GetBattleWidgetController())
 		{
-			const bool bAccepted = Controller->PlayCardByHandIndex(HandIndex);
+			const bool bAccepted = Controller->RequestPlayCardByHandIndex(HandIndex);
 			const FText Feedback = Controller->GetLastInteractionFeedback();
 			if (bAccepted)
 			{
@@ -214,63 +214,12 @@ bool AFinalBattlePlayerController::PlayHandCardByIndex(int32 HandIndex)
 		}
 	}
 
-	UGameInstance* GameInstance = GetGameInstance();
-	UFinalGameFlowSubsystem* GameFlowSubsystem = GameInstance ? GameInstance->GetSubsystem<UFinalGameFlowSubsystem>() : nullptr;
-	UFinalBattleFlowSubsystem* BattleFlowSubsystem = GameInstance ? GameInstance->GetSubsystem<UFinalBattleFlowSubsystem>() : nullptr;
-	if (GameFlowSubsystem == nullptr || BattleFlowSubsystem == nullptr)
-	{
-		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("Required battle subsystems are unavailable."));
-		return false;
-	}
-
-	const FFinalBattleSnapshot Snapshot = GameFlowSubsystem->GetCurrentBattleSnapshot();
-	if (!Snapshot.HandCards.IsValidIndex(HandIndex))
-	{
-		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("No card is available at hand index %d."), HandIndex);
-		return false;
-	}
-
-	const FFinalBattleEnemyViewData* TargetEnemy = Snapshot.Enemies.FindByPredicate(
-		[](const FFinalBattleEnemyViewData& Candidate)
-		{
-			return Candidate.CurrentHP > 0;
-		});
-
-	if (TargetEnemy == nullptr)
-	{
-		UE_LOG(LogFinalBattlePlayerController, Warning, TEXT("No alive enemy is available as a target."));
-		return false;
-	}
-
-	FFinalBattleCommand Command;
-	Command.CommandType = EFinalBattleCommandType::PlayCard;
-	Command.CardInstanceId = Snapshot.HandCards[HandIndex].CardInstanceId;
-	Command.TargetUnitId = TargetEnemy->RuntimeUnitId;
-
-	const bool bAccepted = BattleFlowSubsystem->SubmitBattleCommand(Command);
-	const FFinalBattleEvent Event = BattleFlowSubsystem->GetLastCommandEvent();
-	if (bAccepted)
-	{
-		UE_LOG(
-			LogFinalBattlePlayerController,
-			Log,
-			TEXT("PlayFirstHandCard | Accepted=%s Round=%d Message=%s"),
-			TEXT("true"),
-			Event.Round,
-			*Event.Message.ToString());
-	}
-	else
-	{
-		UE_LOG(
-			LogFinalBattlePlayerController,
-			Warning,
-			TEXT("PlayFirstHandCard | Accepted=%s Round=%d Message=%s"),
-			TEXT("false"),
-			Event.Round,
-			*Event.Message.ToString());
-	}
-
-	return bAccepted;
+	UE_LOG(
+		LogFinalBattlePlayerController,
+		Warning,
+		TEXT("PlayHandCardByIndex(%d) rejected because BattleWidgetController is unavailable."),
+		HandIndex);
+	return false;
 }
 
 bool AFinalBattlePlayerController::CompleteResolvedBattle()

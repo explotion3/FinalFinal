@@ -684,7 +684,7 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 
 bool UFinalBattleHandPanelController::PlayCardByHandIndex(const int32 HandIndex)
 {
-	return Coordinator ? Coordinator->PlayCardByHandIndex(HandIndex) : false;
+	return Coordinator ? Coordinator->RequestPlayCardByHandIndex(HandIndex) : false;
 }
 
 void UFinalBattleUltimatePanelController::InitializeUltimatePanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleUltimatePanelViewModel* InViewModel)

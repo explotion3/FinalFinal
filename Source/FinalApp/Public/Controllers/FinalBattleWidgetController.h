@@ -36,6 +36,9 @@ public:
 	bool SelectEnemyByUnitId(FName RuntimeUnitId);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool RequestPlayCardByHandIndex(int32 HandIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	bool PlayCardByHandIndex(int32 HandIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
