@@ -204,6 +204,9 @@ struct FINALAPP_API FFinalBattleHUDEnemyDetailData
 	FText IntentText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText IntentNameText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	FName IntentIconId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")

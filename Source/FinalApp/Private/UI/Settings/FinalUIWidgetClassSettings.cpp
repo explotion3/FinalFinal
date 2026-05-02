@@ -6,6 +6,8 @@
 #include "UI/Screens/Flow/FinalRunGrowthChoiceOverlayScreen.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleEnemyDetailStatusLineWidget.h"
+#include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleLogEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
@@ -80,6 +82,11 @@ TSubclassOf<UFinalBattleEnemyPanel> UFinalUIWidgetClassSettings::GetBattleEnemyP
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyPanelClass);
 }
 
+TSubclassOf<UFinalBattleEnemyDetailPanel> UFinalUIWidgetClassSettings::GetBattleEnemyDetailPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyDetailPanelClass);
+}
+
 TSubclassOf<UFinalBattleHandPanel> UFinalUIWidgetClassSettings::GetBattleHandPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleHandPanelClass);
@@ -113,6 +120,16 @@ TSubclassOf<UFinalBattleCharacterEntryWidget> UFinalUIWidgetClassSettings::GetBa
 TSubclassOf<UFinalBattleEnemyEntryWidget> UFinalUIWidgetClassSettings::GetBattleEnemyEntryWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyEntryWidgetClass);
+}
+
+TSubclassOf<UFinalBattleEnemyDetailWidget> UFinalUIWidgetClassSettings::GetBattleEnemyDetailWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyDetailWidgetClass);
+}
+
+TSubclassOf<UFinalBattleEnemyDetailStatusLineWidget> UFinalUIWidgetClassSettings::GetBattleEnemyDetailStatusLineWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyDetailStatusLineWidgetClass);
 }
 
 TSubclassOf<UFinalBattleUltimateEntryWidget> UFinalUIWidgetClassSettings::GetBattleUltimateEntryWidgetClass()

@@ -6,6 +6,7 @@
 #include "FinalBattleEnemyDetailWidget.generated.h"
 
 class UButton;
+class UFinalBattleEnemyDetailStatusLineWidget;
 class UPanelWidget;
 class UProgressBar;
 class UTextBlock;
@@ -39,10 +40,13 @@ private:
 	FText BuildHPText() const;
 	FText BuildShieldText() const;
 	FText BuildBreakText() const;
-	FText BuildStatusText(const FFinalBattleHUDEnemyDetailStatusEntry& StatusView) const;
+	void RefreshStatusLines();
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail", meta = (ClampMin = "1"))
 	int32 MaxVisibleStatusEntries = 12;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail")
+	TSubclassOf<UFinalBattleEnemyDetailStatusLineWidget> StatusLineWidgetClass;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ContentRoot;
@@ -75,6 +79,12 @@ private:
 	TObjectPtr<UTextBlock> InitiativeText;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> IntentNameText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> IntentDetailText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> IntentText;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
@@ -88,6 +98,9 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> StatusBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> EmptyStatusText;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> CloseButton;

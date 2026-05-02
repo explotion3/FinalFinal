@@ -24,7 +24,7 @@
   * `bBreakthroughReady`
   * 满槽时允许 Blueprint 或 C++ fallback 做高亮、描边和轻量动效
 * 当前 Battle HUD 已进入第一版水墨 16:9 桌面重构：
-  * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 HUD screen、panel、entry widget 的 `TSoftClassPtr`
+  * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 HUD screen、panel、entry widget 的 `TSoftClassPtr`；当前它只作为默认 Widget Class 注册表，不承担 UI Slot / Layer 生命周期管理
   * `UFinalUISubsystem` 创建 Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
   * `BattleHUDScreen` 保留 C++ panel 装配和 fallback Canvas 布局，Blueprint 子类只负责外观、槽位和容器排布
   * Battle HUD panel / entry widget 通过 `BindWidgetOptional` 绑定 Blueprint 内控件；缺少绑定控件时继续走 C++ fallback 文本展示
@@ -225,7 +225,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `AFinalBattleDirector` 只负责把 `FinalBattleFlowSubsystem` 的 Snapshot / Event 同步到场中表现 Actor，不承载规则真相。
 * 推荐通过 `BP_BattleDirector : AFinalBattleDirector` 保存战斗表现默认配置，例如 `DefaultPlayerPresentationClass / DefaultEnemyPresentationClass / EnemyPresentationClassMappings`；关卡中放置 BP 子类，避免每次直接改 C++ Actor 实例。
 * `AFinalBattlePresentationActor` 只消费 `FFinalBattlePresentationUnitViewData` 并播放选中、攻击、受击、击败等表现；不再拼接或渲染单位 debug 文本。
-* 敌人头顶 UI 当前由 `AFinalBattlePresentationActor.EnemyOverheadWidgetComponent` 挂载，Widget 父类为 `UFinalBattleEnemyOverheadWidget`。C++ 负责投影 `FFinalBattleEnemyOverheadViewData`，包括 HP / Shield / Break 百分比、先机、意图、敌人 rank tag 与状态数组；WBP 只负责视觉绑定、图标映射和动画。
+* 敌人头顶 UI 当前由 `AFinalBattlePresentationActor.EnemyOverheadWidgetComponent` 挂载，Widget 父类为 `UFinalBattleEnemyOverheadWidget`。C++ 负责投影 `FFinalBattleEnemyOverheadViewData`，包括 HP / Shield / Break 百分比、先机、意图、敌人 rank tag 与状态数组；WBP 只负责视觉绑定、图标映射和动画。OverHead 属于轻量战场信息：HP 文本只显示当前血量，意图文本优先显示 intent `DisplayName`，完整意图说明放在敌人详情面板。
 * `UFinalBattleEnemyOverheadWidget` 会自动刷新一组可选绑定控件：`NameText / HPText / HealthBar / ShieldFrameBar / BreakBar / InitiativeText / IntentText / StatusBox / TargetedVisual / DefeatedVisual`。WBP 中存在同名控件即可自动接线；缺失控件不会报错。
 * `UFinalBattleEnemyOverheadWidget` 支持可选 `InspectButton` 绑定。WBP 推荐放置一个覆盖头顶 UI 根区域的透明 Button，命名为 `InspectButton` 并勾选 Is Variable；点击只打开详情，不选择目标。若没有该按钮，C++ 保留左键点击 fallback，但正式表现应优先使用 Button 控制命中范围。
 * `EnemyOverheadWidgetComponent` 使用 `UFinalBattleOverheadWidgetComponent` 由 C++ 开启硬件输入，OverHead 根 Widget 在允许点击时保持 hit-testable。WBP 中 `InspectButton` 本身必须是 `Visible`，装饰性图片、进度条和文本可设为 `Hit Test Invisible`，避免遮挡透明按钮。`WidgetComponent` 的 `Begin Cursor Over` 不是 Screen-space UMG 点击链路的可靠验证方式，验证时应以 `InspectButton.OnClicked` 或敌人详情面板打开为准。
@@ -237,8 +237,10 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 ## 2.1.2 Battle Enemy Detail Panel 口径
 * `SelectedTargetUnitId / CurrentTargetUnitId` 是战斗目标状态，负责出牌目标与目标高亮；`InspectedEnemyUnitId` 是 HUD 只读查看状态，负责敌人详情面板。两者长期分离，可以查看 A 敌人同时保持 B 敌人为当前战斗目标。
 * `UFinalBattleWidgetController.InspectEnemyByUnitId()` 只修改 `InspectedEnemyUnitId` 并刷新 HUD，不提交 `SelectTarget`，不改变 `CurrentTargetUnitId`，不触发任何 battle command。
-* `UFinalBattleEnemyDetailPanelController` 从 `CachedSnapshot + DataRegistry + InspectedEnemyUnitId` 构建 `FFinalBattleHUDEnemyDetailData`，包括名称、rank tag、HP / Shield / Break、先机、意图、阶段文本、是否当前目标、是否存活与状态详情。
-* `UFinalBattleEnemyDetailWidget` 是 WBP 父类。C++ 提供可选绑定控件与 `OnEnemyDetailViewApplied(ViewData)`，WBP 只负责布局、图标、状态行样式和关闭按钮表现。WBP 中可放置名为 `CloseButton` 的按钮并勾选 Is Variable，点击后自动调用 `ClearInspectedEnemy()`；未配置正式 WBP 时，C++ fallback 面板也必须提供关闭按钮。
+* `UFinalBattleEnemyDetailPanelController` 从 `CachedSnapshot + DataRegistry + InspectedEnemyUnitId` 构建 `FFinalBattleHUDEnemyDetailData`，包括名称、rank tag、HP / Shield / Break、先机、意图名、意图详情、阶段文本、是否当前目标、是否存活与状态详情。
+* `UFinalBattleEnemyDetailPanel / UFinalBattleEnemyDetailWidget / UFinalBattleEnemyDetailStatusLineWidget` 都可以在 `Final > UI` 的 `FinalUIWidgetClassSettings` 中配置。没有完整 Battle HUD WBP 时，C++ fallback `EnemyDetailPanel` 会优先使用配置的 `BattleEnemyDetailWidgetClass` 承接详情表现；若未配置，则回退到面板内置文本兜底。
+* `UFinalBattleEnemyDetailWidget` 是 WBP 父类。C++ 提供可选绑定控件与 `OnEnemyDetailViewApplied(ViewData)`，WBP 只负责布局、图标、状态行样式和关闭按钮表现。推荐绑定名：`ContentRoot / EmptyText / CloseButton / TitleText / RankText / TargetStateText / HPText / HealthBar / ShieldText / ShieldFrameBar / BreakText / BreakBar / InitiativeText / IntentNameText / IntentDetailText / StatusBox / EmptyStatusText`。旧 `IntentText` 仍作为完整意图说明兼容绑定；`CloseButton` 点击后自动调用 `ClearInspectedEnemy()`；未配置正式 WBP 时，C++ fallback 面板也必须提供关闭按钮。
+* 敌人详情状态行使用 `UFinalBattleEnemyDetailStatusLineWidget` 作为 WBP 父类。推荐绑定名：`StatusNameText / StackText / DurationText / SummaryText`。`UFinalBattleEnemyDetailWidget.StatusLineWidgetClass` 可指定状态行 WBP；未指定时优先使用 `FinalUIWidgetClassSettings.BattleEnemyDetailStatusLineWidgetClass`，再回退到 C++ 状态行。
 * 若 inspected 敌人不存在，详情面板自动清空并隐藏。敌人死亡但仍存在于 snapshot 时，ViewData 通过 `bIsAlive=false` 交给 WBP 表现死亡态。
 * 敌人 OverHeadWidget 点击当前已接入 `InspectEnemyByUnitId()`，不要通过旧 `EnemyPanel` 绕一层，也不要把详情打开逻辑和目标选择逻辑绑定在一起。
 * 旧 `EnemyPanel` 点击目标选择行为暂时保留；正式目标选择后续迁到场中单位 / 拖卡链路时再单独收口。

@@ -1,6 +1,7 @@
 #include "World/FinalBattleDirector.h"
 
 #include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
@@ -71,6 +72,24 @@ FName ResolveDirectorEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
 	}
 
 	return NAME_None;
+}
+
+FText ResolveDirectorOverheadIntentText(
+	const FFinalBattleEnemyViewData& EnemyView,
+	const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && !EnemyView.CurrentIntentId.IsNone())
+	{
+		if (const UFinalEnemyIntentDefinition* IntentDefinition = DataRegistry->FindEnemyIntentDefinition(EnemyView.CurrentIntentId))
+		{
+			if (!IntentDefinition->DisplayName.IsEmpty())
+			{
+				return IntentDefinition->DisplayName;
+			}
+		}
+	}
+
+	return EnemyView.IntentText;
 }
 }
 
@@ -224,7 +243,7 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		OverheadView.BreakPercent = CalculateDirectorClampedPercent(EnemyView.CurrentBreakValue, EnemyView.MaxBreakValue);
 		OverheadView.CurrentInitiative = EnemyView.CurrentInitiative;
 		OverheadView.InitiativeText = FText::AsNumber(EnemyView.CurrentInitiative);
-		OverheadView.IntentText = EnemyView.IntentText;
+		OverheadView.IntentText = ResolveDirectorOverheadIntentText(EnemyView, DataRegistry);
 		OverheadView.IntentIconId = EnemyView.CurrentIntentId;
 		OverheadView.bIsTargeted = UnitView.bIsTargeted;
 		OverheadView.bIsAlive = UnitView.bIsAlive;

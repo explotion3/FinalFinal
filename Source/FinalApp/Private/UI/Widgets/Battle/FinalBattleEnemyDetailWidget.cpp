@@ -7,6 +7,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
+#include "UI/Widgets/Battle/FinalBattleEnemyDetailStatusLineWidget.h"
 
 void UFinalBattleEnemyDetailWidget::NativeOnInitialized()
 {
@@ -98,6 +100,18 @@ void UFinalBattleEnemyDetailWidget::RefreshBoundWidgets()
 		IntentText->SetText(EnemyDetailViewData.IntentText);
 	}
 
+	if (IntentNameText)
+	{
+		IntentNameText->SetText(!EnemyDetailViewData.IntentNameText.IsEmpty()
+			? EnemyDetailViewData.IntentNameText
+			: EnemyDetailViewData.IntentText);
+	}
+
+	if (IntentDetailText)
+	{
+		IntentDetailText->SetText(EnemyDetailViewData.IntentText);
+	}
+
 	if (PhaseText)
 	{
 		PhaseText->SetText(EnemyDetailViewData.PhaseProgressText);
@@ -126,25 +140,7 @@ void UFinalBattleEnemyDetailWidget::RefreshBoundWidgets()
 		}
 	}
 
-	if (StatusBox)
-	{
-		StatusBox->ClearChildren();
-		const int32 VisibleCount = FMath::Min(MaxVisibleStatusEntries, EnemyDetailViewData.Statuses.Num());
-		for (int32 StatusIndex = 0; StatusIndex < VisibleCount; ++StatusIndex)
-		{
-			UTextBlock* StatusText = WidgetTree
-				? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
-				: NewObject<UTextBlock>(this);
-			if (StatusText == nullptr)
-			{
-				continue;
-			}
-
-			StatusText->SetAutoWrapText(true);
-			StatusText->SetText(BuildStatusText(EnemyDetailViewData.Statuses[StatusIndex]));
-			StatusBox->AddChild(StatusText);
-		}
-	}
+	RefreshStatusLines();
 }
 
 void UFinalBattleEnemyDetailWidget::HandleCloseClicked()
@@ -178,32 +174,55 @@ FText UFinalBattleEnemyDetailWidget::BuildBreakText() const
 		FText::AsNumber(EnemyDetailViewData.MaxBreakValue));
 }
 
-FText UFinalBattleEnemyDetailWidget::BuildStatusText(const FFinalBattleHUDEnemyDetailStatusEntry& StatusView) const
+void UFinalBattleEnemyDetailWidget::RefreshStatusLines()
 {
-	FText HeaderText;
-	if (StatusView.RemainingDuration > 0)
+	if (EmptyStatusText)
 	{
-		HeaderText = FText::Format(
-			NSLOCTEXT("FinalBattleEnemyDetail", "StatusHeaderWithDuration", "{0} x{1} ({2})"),
-			StatusView.DisplayName,
-			FText::AsNumber(StatusView.CurrentStacks),
-			FText::AsNumber(StatusView.RemainingDuration));
-	}
-	else
-	{
-		HeaderText = FText::Format(
-			NSLOCTEXT("FinalBattleEnemyDetail", "StatusHeader", "{0} x{1}"),
-			StatusView.DisplayName,
-			FText::AsNumber(StatusView.CurrentStacks));
+		const bool bHasStatuses = EnemyDetailViewData.Statuses.Num() > 0;
+		EmptyStatusText->SetVisibility(bHasStatuses ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		EmptyStatusText->SetText(NSLOCTEXT("FinalBattleEnemyDetail", "NoStatuses", "无状态"));
 	}
 
-	if (StatusView.SummaryText.IsEmpty())
+	if (StatusBox == nullptr)
 	{
-		return HeaderText;
+		return;
 	}
 
-	return FText::Format(
-		NSLOCTEXT("FinalBattleEnemyDetail", "StatusWithSummary", "{0}\n{1}"),
-		HeaderText,
-		StatusView.SummaryText);
+	StatusBox->ClearChildren();
+
+	UClass* LineWidgetClass = StatusLineWidgetClass
+		? StatusLineWidgetClass.Get()
+		: UFinalUIWidgetClassSettings::GetBattleEnemyDetailStatusLineWidgetClass().Get();
+	if (LineWidgetClass == nullptr)
+	{
+		LineWidgetClass = UFinalBattleEnemyDetailStatusLineWidget::StaticClass();
+	}
+
+	const int32 VisibleCount = FMath::Min(MaxVisibleStatusEntries, EnemyDetailViewData.Statuses.Num());
+	for (int32 StatusIndex = 0; StatusIndex < VisibleCount; ++StatusIndex)
+	{
+		UFinalBattleEnemyDetailStatusLineWidget* StatusLineWidget = WidgetTree
+			? WidgetTree->ConstructWidget<UFinalBattleEnemyDetailStatusLineWidget>(LineWidgetClass)
+			: NewObject<UFinalBattleEnemyDetailStatusLineWidget>(this, LineWidgetClass);
+		if (StatusLineWidget == nullptr)
+		{
+			continue;
+		}
+
+		StatusLineWidget->SetPresentationContext(GetWidgetController(), GetViewModel());
+		StatusLineWidget->ApplyStatusLineView(EnemyDetailViewData.Statuses[StatusIndex]);
+		StatusBox->AddChild(StatusLineWidget);
+	}
+
+	if (EnemyDetailViewData.Statuses.Num() > VisibleCount)
+	{
+		UTextBlock* OverflowText = WidgetTree
+			? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
+			: NewObject<UTextBlock>(this);
+		if (OverflowText)
+		{
+			OverflowText->SetText(FText::FromString(FString::Printf(TEXT("+%d"), EnemyDetailViewData.Statuses.Num() - VisibleCount)));
+			StatusBox->AddChild(OverflowText);
+		}
+	}
 }

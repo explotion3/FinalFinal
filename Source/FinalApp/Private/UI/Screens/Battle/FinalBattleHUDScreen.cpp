@@ -55,7 +55,7 @@ UFinalBattleEnemyPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattl
 template <>
 UFinalBattleEnemyDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(const TCHAR* WidgetName)
 {
-	return WidgetTree->ConstructWidget<UFinalBattleEnemyDetailPanel>(UFinalBattleEnemyDetailPanel::StaticClass(), WidgetName);
+	return WidgetTree->ConstructWidget<UFinalBattleEnemyDetailPanel>(UFinalUIWidgetClassSettings::GetBattleEnemyDetailPanelClass(), WidgetName);
 }
 
 template <>

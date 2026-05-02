@@ -10,6 +10,8 @@
 
 ## P1
 
+**Root Layout / Slot 化 UI 框架**：系统为 `FinalApp / UI`。当前 `UFinalBattleHUDScreen` 仍有较多硬编码 Canvas 位置，后续应新增或收口一个可复用的 `Screen + Layout + Slot + Panel` 模式，把 `HandSlot / ResourceSlot / LeftInfoSlot / RightInfoSlot / BattlefieldOverlaySlot / FeedbackSlot / PopupSlot / TooltipSlot` 等固定出来；C++ 只负责把面板放入指定 Slot，WBP 负责 Slot 的位置、尺寸和动画。先不全量迁 CommonUI，等 Battle HUD、敌人详情、牌堆详情和 Tooltip 都稳定出现后，再统一做主菜单、Run 页面和复杂弹层也能复用的 Root Layout。
+
 **牌堆详情页**：系统为 `FinalApp / UI`。玩家后续需要点击抽牌堆、弃牌堆、持续区、消耗区等入口查看对应牌区详情；首版应只读展示牌名、所属角色、类型和运行时文本，不在 UI 中修改牌区真相。
 
 **状态 / 被动 / 遗物正式 HUD 可见性**：系统为 `FinalApp / UI`。当前状态、被动、遗物已经有 snapshot/debug/event 可见性，但正式 HUD 还没有稳定的展示规范；后续需要确定哪些显示为状态栏、哪些走事件反馈、哪些只留 Debug。

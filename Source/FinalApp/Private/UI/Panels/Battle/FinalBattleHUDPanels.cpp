@@ -844,6 +844,14 @@ void UFinalBattleEnemyDetailPanel::EnsureWidgetTree()
 		return;
 	}
 
+	const TSubclassOf<UFinalBattleEnemyDetailWidget> DetailWidgetClass = UFinalUIWidgetClassSettings::GetBattleEnemyDetailWidgetClass();
+	if (DetailWidgetClass && DetailWidgetClass != UFinalBattleEnemyDetailWidget::StaticClass())
+	{
+		EnemyDetailWidget = WidgetTree->ConstructWidget<UFinalBattleEnemyDetailWidget>(DetailWidgetClass, TEXT("EnemyDetailWidget"));
+		WidgetTree->RootWidget = EnemyDetailWidget;
+		return;
+	}
+
 	UBorder* Border = CreateSection(WidgetTree, TEXT("EnemyDetailBorder"), FLinearColor(0.09f, 0.08f, 0.08f, 0.94f));
 	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EnemyDetailFallbackContent"));
 	Border->SetContent(ContentBox);

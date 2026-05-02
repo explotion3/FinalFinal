@@ -2,6 +2,7 @@
 
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
@@ -135,6 +136,22 @@ FName ResolveEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
 	}
 
 	return NAME_None;
+}
+
+FText ResolveEnemyIntentDisplayName(const FFinalBattleEnemyViewData& EnemyView, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && !EnemyView.CurrentIntentId.IsNone())
+	{
+		if (const UFinalEnemyIntentDefinition* IntentDefinition = DataRegistry->FindEnemyIntentDefinition(EnemyView.CurrentIntentId))
+		{
+			if (!IntentDefinition->DisplayName.IsEmpty())
+			{
+				return IntentDefinition->DisplayName;
+			}
+		}
+	}
+
+	return EnemyView.IntentText;
 }
 
 FText ResolveRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
@@ -716,6 +733,7 @@ void UFinalBattleEnemyDetailPanelController::RefreshFromCoordinatorData(const FF
 	Data.CurrentInitiative = EnemyView->CurrentInitiative;
 	Data.InitiativeText = FText::AsNumber(EnemyView->CurrentInitiative);
 	Data.IntentText = EnemyView->IntentText;
+	Data.IntentNameText = ResolveEnemyIntentDisplayName(*EnemyView, CoordinatorData.DataRegistry);
 	Data.IntentIconId = EnemyView->CurrentIntentId;
 	Data.PhaseProgressText = FormatEnemyPhaseProgressText(EnemyView->PhaseProgress);
 	Data.bIsCurrentBattleTarget = EnemyView->RuntimeUnitId == CoordinatorData.SelectedEnemyUnitId;

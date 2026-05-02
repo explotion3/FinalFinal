@@ -172,10 +172,7 @@ bool UFinalBattleEnemyOverheadWidget::TryInspectEnemy() const
 
 FText UFinalBattleEnemyOverheadWidget::BuildHPText() const
 {
-	return FText::Format(
-		NSLOCTEXT("FinalBattleEnemyOverhead", "HPTextFormat", "{0}/{1}"),
-		FText::AsNumber(EnemyOverheadViewData.CurrentHP),
-		FText::AsNumber(EnemyOverheadViewData.MaxHP));
+	return FText::AsNumber(EnemyOverheadViewData.CurrentHP);
 }
 
 FText UFinalBattleEnemyOverheadWidget::BuildStatusText(const FFinalBattleOverheadStatusViewData& StatusView) const
