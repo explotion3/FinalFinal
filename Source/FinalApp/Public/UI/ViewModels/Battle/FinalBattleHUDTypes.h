@@ -45,7 +45,13 @@ struct FINALAPP_API FFinalBattleHUDCharacterEntry
 	int32 StressCap = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float StressPercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	bool bCollapsed = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bCanActHint = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	int32 CurrentAwakenCount = 0;

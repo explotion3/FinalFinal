@@ -141,7 +141,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 当前默认 PIE HUD 已切回 `UFinalBattleHUDScreen` 的正式 C++ 骨架，并继续复用已配置的 `WBP_BattleHandPanel_Ink / WBP_BattleCardEntry_Ink1 / WBP_BattleResourcePanel`
 * 默认 C++ HUD 骨架不再装配 `TopBarPanel / ContextPanel / RecentEventPanel`；这些面板保留为 Debug / Legacy 入口或旧原型参考
 * 当前主验收布局固定为 16:9 桌面：
-  * 左侧：我方队伍三名角色状态、等级、突破槽、压力、生命份额、状态摘要与奥义入口
+  * 左侧：我方队伍三名角色的轻量战斗信息，包括头像 / 等级、压力条、突破条、状态短标签与崩溃或可行动提示；Vital、苏醒、崩溃次数、属性和状态说明进入后续角色详情面板
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
   * 右侧：敌人详情面板，按 `InspectedEnemyUnitId` 只读展示敌人详细信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
@@ -168,15 +168,14 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
   * 调试动作：重启 prototype run、在战斗已结束时调用 `CompleteResolvedBattle`
 * 顶部上下文区：当前目标、牌堆计数、团队状态
   * 当前已接入一行精简 `ActiveRelics` 摘要，直接区分本场遗物的 `battle-start` 与 `player-turn-start` 能力
-* 左中：三名角色状态
-  * 角色名
-  * 压力 `Current / Cap`
-  * 生命份额
-  * 崩溃次数
-  * 苏醒计数 / 阈值
-  * 角色私有状态
-  * 角色奥义名、`EP` 消耗、可释放状态
-  * 交互反馈中的结构化拒绝原因
+* 左中：三名角色轻量 Entry
+  * 头像或立绘映射键 `IconId / ArtId`
+  * 等级
+  * 压力 `Current / Cap` 与 `StressPercent`
+  * 突破 `Current / Required` 与 `BreakthroughFillNormalized`
+  * 角色私有状态短标签，首版最多显示少量文本并用 `+N` 压缩
+  * 崩溃或可行动提示
+  * `InspectButton` 可作为后续角色详情入口预留；本轮不改变战斗目标或提交 BattleCommand
 * 右侧：敌人面板
   * 名称
   * 站位

@@ -373,3 +373,42 @@
   - `受压得刀势`：`PlayerOnly`
   - `压势追刀`：`PlayerOnly`
 - 本步骤不改变被动玩法，不改变 trigger 语义；`AppliesTo` 只约束被动拥有者归属。
+
+## 2026-05-02 Step 24：状态系统 legacy 字段清理与 authoring 收口
+
+- 状态系统当前已从“新 schema + legacy fallback”收口为正式 schema 单轨，旧 direct-rule / owned-hand projection / 状态级消耗字段不再作为长期 authoring 入口。
+- `士气 / 生命免疫 / 易伤 / 虚弱` 当前通过 `RuntimeModifiers` 承接直接规则修正；`锋锐` 当前通过 `ProjectedCardModifiers` 承接拥有者手牌攻击牌投影。
+- `刀势 / 药引` 当前已归位为资源型状态，获得仍走 `ApplyStatus`，消费统一走 `ConsumeStatusResource`，不再把通用 `RemoveStatus` 当作正式资源消费协议。
+- `中毒` 当前是唯一 DOT，`AppliesTo=Shared`，按 `ByOwnerAndSource` 分来源实例叠层，并在玩家回合结束、敌人行动前 tick；`腐蚀 / 流血` 不再作为当前 starter 有效 DOT 口径。
+- `ConsumptionRules` 当前承接状态级扣层语义：`锋锐` 在成功造成攻击伤害后扣层，`生命免疫` 在实际抵消共享生命伤害后扣层。
+
+## 2026-05-02 Step 25：跨角色改卡，沈清弦技能牌即时强化友方攻击牌
+
+- `FinalData` 当前已新增 `CurrentAllyHandCards` 目标来源，用于表示“其他友方当前手牌”，不包含来源角色自己、敌人、`team_player` 或后续新抽牌。
+- `ApplyCardModifiers` 当前已作为普通卡牌 effect 接入 battle effect execution，可直接给当前手牌实例挂临时 card modifier，不要求通过被动或遗物触发链。
+- 沈清弦 starter 技能牌 `援锋成阵` 当前已加入 starter 卡池，效果为强化其他友方当前手牌中的攻击牌：`-1 AP / FinalDamagePercentDelta=20`，持续到该牌打出或玩家回合结束。
+- 霍断岳 `压势追刀` 当前仍保留为能力牌授予 passive 后的自我改卡链，和 `援锋成阵` 的即时跨角色改卡链互不耦合。
+
+## 2026-05-02 Card Effect Text Projection v0.1：半自动卡牌文本投影
+
+- `UFinalCardDefinition` 当前已支持 `TextMode / TextLayoutLines / TextFragmentOverrides`，`RulesText` 继续保留为 manual、fallback 与能力牌文本兜底。
+- `FinalBattle` 当前会基于 `BattleCardInstance.ProjectedDefinition.Effects` 与卡实例运行时修正生成 `ResolvedRulesText`，Card Entry 只消费最终文本，不在 UI 内解析 effect 或结算数值。
+- v0.1 当前支持 `Damage / GainShield / Heal / BonusBreak / ApplyStatus / ConsumeStatusResource / DrawCards / GenerateCard / ApplyCardModifiers` 等普通即时效果片段。
+- 卡牌运行时伤害修正当前已拆清两类语义：`RuntimeDamagePowerPercentPointDelta` 表示攻击力倍率点数变化，`RuntimeFinalDamagePercentDelta` 表示最终伤害乘算变化。
+- 当前 starter 普通即时牌和剑阵衍生牌已迁入 `EffectLayout`；`受压蓄势` 等 `ApplyPassive` 能力牌仍使用手写 `RulesText`，不展开被动规则。
+
+## 2026-05-02 Battle HUD / World 表现层：敌人头顶与详情链路
+
+- `FinalApp/World` 当前已删除 `FinalBattleDirector -> DetailText -> TextRender` 的世界 debug 文本链路，改为构建结构化 `FFinalBattlePresentationUnitViewData` 并推给 presentation actor。
+- 敌人头顶 UI 当前由 `WidgetComponent + UFinalBattleEnemyOverheadWidget` 承接，C++ 负责推送 HP、护盾、Break、先机、意图、状态、选中和存活等 ViewData，WBP 负责视觉表现。
+- 敌人详情面板当前已建立独立查看状态 `InspectedEnemyUnitId`，与战斗目标 `SelectedTargetUnitId` 分离；点击敌人 OverHead 只打开详情，不提交选目标命令。
+- `UFinalBattleEnemyDetailWidget` 与 `UFinalBattleEnemyDetailStatusLineWidget` 当前已收口为 WBP 父类，支持关闭按钮、意图名 / 意图详情、状态行生成与 fallback。
+- `FinalUIWidgetClassSettings` 当前继续负责配置 HUD / 敌人详情等 widget class；Root Layout / Slot 化 UI 框架已记录到 backlog，等 HUD、详情、牌区与 Tooltip 稳定后再统一迁移。
+
+## 2026-05-02 Battle HUD：手牌 AP 不足提示与角色 Entry 轻量化
+
+- 手牌 AP 不足提示当前已作为 UI hint 落地：费用显示 bad 色、卡牌半透明、在扇形手牌中下沉；AP 不足牌仍可点击并走统一出牌请求路径。
+- AP 不足牌当前可以被鼠标命中和点击，但不会触发 hover 抬升、放大或置顶，避免不可用牌在视觉上表现成可正常打出。
+- 角色 Entry 当前已从大段 fallback 文本改为结构化轻量 ViewData / WBP 父类协议，常驻入口只展示名称、等级、压力、突破、可行动 / 崩溃提示和少量状态短标签。
+- `UFinalBattleCharacterEntryWidget` 当前支持 `ApplyCharacterEntryView()`、可选绑定控件与 `OnCharacterEntryViewApplied()`，头像资源映射和角色详情入口留给 WBP 或后续角色详情面板。
+- 角色 Entry 轻量化后，Vital、苏醒计数、崩溃次数、属性、成长、状态说明、被动和奥义详情不再放在常驻 Entry 中，后续统一进入 `角色详情面板 v0.1`。

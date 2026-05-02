@@ -2,8 +2,12 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
+#include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
@@ -35,7 +39,24 @@ FText BuildCharacterStatusSummary(const TArray<FText>& Texts, const FText& Empty
 void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+}
 
+void UFinalBattleCharacterEntryWidget::Configure(const FFinalBattleHUDCharacterEntry& InEntry)
+{
+	ApplyCharacterEntryView(InEntry);
+}
+
+void UFinalBattleCharacterEntryWidget::ApplyCharacterEntryView(const FFinalBattleHUDCharacterEntry& ViewData)
+{
+	CharacterEntryViewData = ViewData;
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+	OnCharacterEntryViewApplied(CharacterEntryViewData);
+}
+
+void UFinalBattleCharacterEntryWidget::EnsureWidgetTree()
+{
 	if (WidgetTree && WidgetTree->RootWidget == nullptr)
 	{
 		RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CharacterEntryBorder"));
@@ -48,6 +69,13 @@ void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 		BreakthroughProgressBar->SetPercent(0.0f);
 		BreakthroughProgressBar->SetFillColorAndOpacity(FLinearColor(0.31f, 0.72f, 0.98f, 1.0f));
 		ContentBox->AddChildToVerticalBox(LabelText);
+		StressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("CharacterEntryStressBar"));
+		StressBar->SetPercent(0.0f);
+		StressBar->SetFillColorAndOpacity(FLinearColor(0.85f, 0.32f, 0.28f, 1.0f));
+		if (UVerticalBoxSlot* StressSlot = ContentBox->AddChildToVerticalBox(StressBar))
+		{
+			StressSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		}
 		if (UVerticalBoxSlot* ProgressSlot = ContentBox->AddChildToVerticalBox(BreakthroughProgressBar))
 		{
 			ProgressSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
@@ -57,48 +85,171 @@ void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 	}
 }
 
-void UFinalBattleCharacterEntryWidget::Configure(const FFinalBattleHUDCharacterEntry& InEntry)
+void UFinalBattleCharacterEntryWidget::RefreshBoundWidgets()
 {
-	CachedLabel = FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "CharacterEntryWidgetFormat", "{0}  Lv.{1}\nStress {2}/{3} | Vital {4}\nBreakthrough {5}/{6}\nAwk {7}/{8} | Col {9}\n{10} | {11}"),
-		InEntry.DisplayName,
-		FText::AsNumber(InEntry.Level),
-		FText::AsNumber(InEntry.CurrentStress),
-		FText::AsNumber(InEntry.StressCap),
-		FText::AsNumber(InEntry.VitalShare),
-		FText::AsNumber(InEntry.BreakthroughValue),
-		FText::AsNumber(InEntry.BreakthroughRequiredValue),
-		FText::AsNumber(InEntry.CurrentAwakenCount),
-		FText::AsNumber(InEntry.CurrentAwakenThreshold),
-		FText::AsNumber(InEntry.CollapseCount),
-		InEntry.StateText,
-		BuildCharacterStatusSummary(InEntry.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无状态")));
-	CachedBreakthroughFill = InEntry.BreakthroughFillNormalized;
-	bCachedBreakthroughReady = InEntry.bBreakthroughReady;
-	RebuildVisual();
-}
+	EnsureWidgetTree();
 
-void UFinalBattleCharacterEntryWidget::RebuildVisual()
-{
+	if (ContentRoot)
+	{
+		ContentRoot->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+
 	if (LabelText)
 	{
-		LabelText->SetText(CachedLabel);
+		LabelText->SetText(BuildFallbackLabel());
+	}
+
+	if (NameText)
+	{
+		NameText->SetText(CharacterEntryViewData.DisplayName);
+	}
+
+	if (LevelText)
+	{
+		LevelText->SetText(BuildLevelText());
+	}
+
+	if (StressText)
+	{
+		StressText->SetText(BuildStressText());
+	}
+
+	if (StressBar)
+	{
+		StressBar->SetPercent(CharacterEntryViewData.StressPercent);
+	}
+
+	if (BreakthroughText)
+	{
+		BreakthroughText->SetText(BuildBreakthroughText());
+	}
+
+	if (BreakthroughBar)
+	{
+		BreakthroughBar->SetPercent(CharacterEntryViewData.BreakthroughFillNormalized);
+		BreakthroughBar->SetFillColorAndOpacity(
+			CharacterEntryViewData.bBreakthroughReady
+				? FLinearColor(0.97f, 0.79f, 0.26f, 1.0f)
+				: FLinearColor(0.31f, 0.72f, 0.98f, 1.0f));
 	}
 
 	if (BreakthroughProgressBar)
 	{
-		BreakthroughProgressBar->SetPercent(CachedBreakthroughFill);
+		BreakthroughProgressBar->SetPercent(CharacterEntryViewData.BreakthroughFillNormalized);
 		BreakthroughProgressBar->SetFillColorAndOpacity(
-			bCachedBreakthroughReady
+			CharacterEntryViewData.bBreakthroughReady
 				? FLinearColor(0.97f, 0.79f, 0.26f, 1.0f)
 				: FLinearColor(0.31f, 0.72f, 0.98f, 1.0f));
+	}
+
+	if (StateText)
+	{
+		StateText->SetText(CharacterEntryViewData.StateText);
+	}
+
+	if (StatusText)
+	{
+		StatusText->SetText(BuildStatusText());
+	}
+
+	RefreshStatusBox();
+
+	if (CollapsedVisual)
+	{
+		CollapsedVisual->SetVisibility(CharacterEntryViewData.bCollapsed ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (BreakthroughReadyVisual)
+	{
+		BreakthroughReadyVisual->SetVisibility(CharacterEntryViewData.bBreakthroughReady ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
 	if (RootBorder)
 	{
 		RootBorder->SetBrushColor(
-			bCachedBreakthroughReady
+			CharacterEntryViewData.bCollapsed
+				? FLinearColor(0.20f, 0.08f, 0.08f, 0.98f)
+				: (CharacterEntryViewData.bBreakthroughReady
 				? FLinearColor(0.28f, 0.22f, 0.09f, 0.98f)
-				: FLinearColor(0.12f, 0.16f, 0.24f, 0.95f));
+				: FLinearColor(0.12f, 0.16f, 0.24f, 0.95f)));
+	}
+}
+
+FText UFinalBattleCharacterEntryWidget::BuildFallbackLabel() const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CharacterEntryWidgetLightFormat", "{0}  {1}\n{2}\n{3}\n{4} | {5}"),
+		CharacterEntryViewData.DisplayName,
+		BuildLevelText(),
+		BuildStressText(),
+		BuildBreakthroughText(),
+		CharacterEntryViewData.StateText,
+		BuildStatusText());
+}
+
+FText UFinalBattleCharacterEntryWidget::BuildLevelText() const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CharacterEntryLevelFormat", "Lv.{0}"),
+		FText::AsNumber(CharacterEntryViewData.Level));
+}
+
+FText UFinalBattleCharacterEntryWidget::BuildStressText() const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CharacterEntryStressFormat", "压力 {0}/{1}"),
+		FText::AsNumber(CharacterEntryViewData.CurrentStress),
+		FText::AsNumber(CharacterEntryViewData.StressCap));
+}
+
+FText UFinalBattleCharacterEntryWidget::BuildBreakthroughText() const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CharacterEntryBreakthroughFormat", "突破 {0}/{1}"),
+		FText::AsNumber(CharacterEntryViewData.BreakthroughValue),
+		FText::AsNumber(CharacterEntryViewData.BreakthroughRequiredValue));
+}
+
+FText UFinalBattleCharacterEntryWidget::BuildStatusText() const
+{
+	return BuildCharacterStatusSummary(CharacterEntryViewData.StatusTexts, NSLOCTEXT("FinalBattleHUD", "NoCharacterStatus", "无状态"));
+}
+
+void UFinalBattleCharacterEntryWidget::RefreshStatusBox()
+{
+	if (StatusBox == nullptr)
+	{
+		return;
+	}
+
+	StatusBox->ClearChildren();
+
+	const int32 VisibleCount = FMath::Min(static_cast<int32>(CharacterEntryViewData.StatusTexts.Num()), 2);
+	for (int32 StatusIndex = 0; StatusIndex < VisibleCount; ++StatusIndex)
+	{
+		UTextBlock* StatusLabel = WidgetTree
+			? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
+			: NewObject<UTextBlock>(this);
+		if (StatusLabel == nullptr)
+		{
+			continue;
+		}
+
+		StatusLabel->SetText(CharacterEntryViewData.StatusTexts[StatusIndex]);
+		StatusBox->AddChild(StatusLabel);
+	}
+
+	if (CharacterEntryViewData.StatusTexts.Num() > VisibleCount)
+	{
+		UTextBlock* OverflowLabel = WidgetTree
+			? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
+			: NewObject<UTextBlock>(this);
+		if (OverflowLabel)
+		{
+			OverflowLabel->SetText(FText::Format(
+				NSLOCTEXT("FinalBattleHUD", "CharacterEntryStatusOverflow", "+{0}"),
+				FText::AsNumber(CharacterEntryViewData.StatusTexts.Num() - VisibleCount)));
+			StatusBox->AddChild(OverflowLabel);
+		}
 	}
 }

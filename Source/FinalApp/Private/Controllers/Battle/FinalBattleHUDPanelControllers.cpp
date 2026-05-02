@@ -611,7 +611,11 @@ void UFinalBattleCharacterPanelController::RefreshFromCoordinatorData(const FFin
 		Entry.ArtId = CharacterView.CharacterId.Value;
 		Entry.CurrentStress = CharacterView.CurrentStress;
 		Entry.StressCap = CharacterView.StressCap;
+		Entry.StressPercent = CharacterView.StressCap > 0
+			? FMath::Clamp(static_cast<float>(CharacterView.CurrentStress) / static_cast<float>(CharacterView.StressCap), 0.0f, 1.0f)
+			: 0.0f;
 		Entry.bCollapsed = CharacterView.bCollapsed;
+		Entry.bCanActHint = !CharacterView.bCollapsed;
 		Entry.CurrentAwakenCount = CharacterView.CurrentAwakenCount;
 		Entry.CurrentAwakenThreshold = CharacterView.CurrentAwakenThreshold;
 		Entry.CollapseCount = CharacterView.CollapseCount;
