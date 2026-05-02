@@ -845,9 +845,52 @@ void UFinalBattleEnemyDetailPanel::EnsureWidgetTree()
 	}
 
 	UBorder* Border = CreateSection(WidgetTree, TEXT("EnemyDetailBorder"), FLinearColor(0.09f, 0.08f, 0.08f, 0.94f));
+	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EnemyDetailFallbackContent"));
+	Border->SetContent(ContentBox);
+
+	UHorizontalBox* HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("EnemyDetailFallbackHeader"));
+	if (UVerticalBoxSlot* HeaderSlot = ContentBox->AddChildToVerticalBox(HeaderBox))
+	{
+		HeaderSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
+
+	UTextBlock* HeaderText = CreateLabel(WidgetTree, TEXT("EnemyDetailFallbackHeaderText"), 16);
+	HeaderText->SetText(NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackTitle", "敌人详情"));
+	if (UHorizontalBoxSlot* HeaderTextSlot = HeaderBox->AddChildToHorizontalBox(HeaderText))
+	{
+		HeaderTextSlot->SetHorizontalAlignment(HAlign_Left);
+		HeaderTextSlot->SetVerticalAlignment(VAlign_Center);
+		HeaderTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	DetailFallbackCloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("EnemyDetailFallbackCloseButton"));
+	UTextBlock* CloseLabel = CreateLabel(WidgetTree, TEXT("EnemyDetailFallbackCloseLabel"), 14);
+	CloseLabel->SetText(NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackClose", "关闭"));
+	DetailFallbackCloseButton->AddChild(CloseLabel);
+	DetailFallbackCloseButton->OnClicked.AddDynamic(this, &UFinalBattleEnemyDetailPanel::HandleFallbackCloseClicked);
+	if (UHorizontalBoxSlot* CloseSlot = HeaderBox->AddChildToHorizontalBox(DetailFallbackCloseButton))
+	{
+		CloseSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		CloseSlot->SetHorizontalAlignment(HAlign_Right);
+		CloseSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
 	DetailFallbackText = CreateLabel(WidgetTree, TEXT("EnemyDetailFallbackText"), 14);
-	Border->SetContent(DetailFallbackText);
+	DetailFallbackText->SetAutoWrapText(true);
+	if (UVerticalBoxSlot* TextSlot = ContentBox->AddChildToVerticalBox(DetailFallbackText))
+	{
+		TextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
 	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleEnemyDetailPanel::HandleFallbackCloseClicked()
+{
+	if (PanelController)
+	{
+		PanelController->ClearInspectedEnemy();
+	}
 }
 
 void UFinalBattleEnemyDetailPanel::RefreshFromViewModel()

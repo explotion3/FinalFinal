@@ -86,6 +86,11 @@ void UFinalBattleHUDScreen::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	EnsureWidgetTree();
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (WidgetTree && WidgetTree->RootWidget)
+	{
+		WidgetTree->RootWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 }
 
 void UFinalBattleHUDScreen::InitializeScreen(UFinalBattleHUDViewModel* InViewModel, UFinalBattleWidgetController* InController)
@@ -130,9 +135,11 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	}
 
 	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("BattleHUDRoot"));
+	RootCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	WidgetTree->RootWidget = RootCanvas;
 
 	UOverlay* BattlefieldGlass = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("BattlefieldGlass"));
+	BattlefieldGlass->SetVisibility(ESlateVisibility::HitTestInvisible);
 	if (UCanvasPanelSlot* BattlefieldSlot = RootCanvas->AddChildToCanvas(BattlefieldGlass))
 	{
 		BattlefieldSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
@@ -142,6 +149,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	UBorder* VignetteBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InkVignette"));
 	VignetteBorder->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.08f));
 	VignetteBorder->SetPadding(FMargin(0.0f));
+	VignetteBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
 	BattlefieldGlass->AddChildToOverlay(VignetteBorder);
 
 	ResourcePanel = CreateConfiguredPanel<UFinalBattleResourcePanel>(TEXT("ResourcePanel"));

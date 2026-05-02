@@ -29,6 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle|EnemyOverhead")
 	void RefreshBoundWidgets();
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|EnemyOverhead")
+	bool InspectEnemy();
+
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|EnemyOverhead")
 	void OnEnemyOverheadViewApplied(const FFinalBattleEnemyOverheadViewData& ViewData);

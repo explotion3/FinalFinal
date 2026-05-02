@@ -12,14 +12,14 @@
 
 namespace
 {
-float CalculateClampedPercent(const int32 CurrentValue, const int32 MaxValue)
+float CalculateDirectorClampedPercent(const int32 CurrentValue, const int32 MaxValue)
 {
 	return MaxValue > 0
 		? FMath::Clamp(static_cast<float>(CurrentValue) / static_cast<float>(MaxValue), 0.0f, 1.0f)
 		: 0.0f;
 }
 
-FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
+FText ResolveDirectorStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
 {
 	if (DataRegistry != nullptr && StatusView.StatusId.IsValid())
 	{
@@ -46,13 +46,13 @@ FFinalBattleOverheadStatusViewData BuildOverheadStatusView(
 {
 	FFinalBattleOverheadStatusViewData OverheadStatus;
 	OverheadStatus.StatusId = StatusView.StatusId;
-	OverheadStatus.DisplayName = ResolveStatusDisplayName(StatusView, DataRegistry);
+	OverheadStatus.DisplayName = ResolveDirectorStatusDisplayName(StatusView, DataRegistry);
 	OverheadStatus.CurrentStacks = StatusView.CurrentStacks;
 	OverheadStatus.RemainingDuration = StatusView.RemainingDuration;
 	return OverheadStatus;
 }
 
-FName ResolveEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
+FName ResolveDirectorEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
 {
 	if (EnemyDefinition == nullptr || EnemyDefinition->RoleTags.IsEmpty())
 	{
@@ -216,12 +216,12 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		OverheadView.DisplayName = UnitView.DisplayName;
 		OverheadView.CurrentHP = EnemyView.CurrentHP;
 		OverheadView.MaxHP = EnemyView.MaxHP;
-		OverheadView.HealthPercent = CalculateClampedPercent(EnemyView.CurrentHP, EnemyView.MaxHP);
+		OverheadView.HealthPercent = CalculateDirectorClampedPercent(EnemyView.CurrentHP, EnemyView.MaxHP);
 		OverheadView.CurrentShield = EnemyView.CurrentShield;
-		OverheadView.ShieldFramePercent = CalculateClampedPercent(EnemyView.CurrentShield, EnemyView.MaxHP);
+		OverheadView.ShieldFramePercent = CalculateDirectorClampedPercent(EnemyView.CurrentShield, EnemyView.MaxHP);
 		OverheadView.CurrentBreakValue = EnemyView.CurrentBreakValue;
 		OverheadView.MaxBreakValue = EnemyView.MaxBreakValue;
-		OverheadView.BreakPercent = CalculateClampedPercent(EnemyView.CurrentBreakValue, EnemyView.MaxBreakValue);
+		OverheadView.BreakPercent = CalculateDirectorClampedPercent(EnemyView.CurrentBreakValue, EnemyView.MaxBreakValue);
 		OverheadView.CurrentInitiative = EnemyView.CurrentInitiative;
 		OverheadView.InitiativeText = FText::AsNumber(EnemyView.CurrentInitiative);
 		OverheadView.IntentText = EnemyView.IntentText;
@@ -234,7 +234,7 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 			DataRegistry != nullptr && EnemyView.EnemyId.IsValid()
 				? DataRegistry->FindEnemyDefinition(EnemyView.EnemyId)
 				: nullptr;
-		OverheadView.EnemyRankTag = ResolveEnemyRankTag(EnemyDefinition);
+		OverheadView.EnemyRankTag = ResolveDirectorEnemyRankTag(EnemyDefinition);
 	}
 
 	SyncPresentationActors();

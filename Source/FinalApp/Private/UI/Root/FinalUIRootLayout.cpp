@@ -57,11 +57,13 @@ void UFinalUIRootLayout::EnsureLayoutTree()
 	}
 
 	RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
+	RootCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	WidgetTree->RootWidget = RootCanvas;
 
 	auto AddFullScreenLayer = [this](const TCHAR* LayerName) -> UOverlay*
 	{
 		UOverlay* LayerWidget = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), LayerName);
+		LayerWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(LayerWidget);
 		Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
 		Slot->SetOffsets(FMargin(0.0f));

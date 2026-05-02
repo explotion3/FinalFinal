@@ -316,6 +316,9 @@ public:
 
 private:
 	UFUNCTION()
+	void HandleFallbackCloseClicked();
+
+	UFUNCTION()
 	void HandleViewModelChanged();
 
 	void EnsureWidgetTree();
@@ -333,6 +336,9 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> DetailFallbackText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> DetailFallbackCloseButton;
 };
 
 UCLASS(BlueprintType, Blueprintable)

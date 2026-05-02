@@ -5,17 +5,19 @@
 #include "PaperFlipbookComponent.h"
 #include "TimerManager.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyOverheadWidget.h"
+#include "World/FinalBattleOverheadWidgetComponent.h"
 
 AFinalBattlePresentationActor::AFinalBattlePresentationActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	EnemyOverheadWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyOverheadWidget"));
+	EnemyOverheadWidgetComponent = CreateDefaultSubobject<UFinalBattleOverheadWidgetComponent>(TEXT("EnemyOverheadWidget"));
 	EnemyOverheadWidgetComponent->SetupAttachment(GetRootComponent());
 	EnemyOverheadWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	EnemyOverheadWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 140.0f));
 	EnemyOverheadWidgetComponent->SetDrawSize(FVector2D(360.0f, 120.0f));
 	EnemyOverheadWidgetComponent->SetDrawAtDesiredSize(true);
+	EnemyOverheadWidgetComponent->SetWindowFocusable(false);
 	EnemyOverheadWidgetComponent->SetVisibility(false);
 	EnemyOverheadWidgetComponent->SetHiddenInGame(true);
 }

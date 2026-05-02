@@ -39,13 +39,16 @@ void UFinalBattleEnemyOverheadWidget::ApplyEnemyOverheadView(const FFinalBattleE
 void UFinalBattleEnemyOverheadWidget::RefreshBoundWidgets()
 {
 	SetRenderOpacity(EnemyOverheadViewData.bIsAlive ? 1.0f : DefeatedOpacity);
+	const ESlateVisibility ActiveVisibility = bAllowInspectOnClick
+		? ESlateVisibility::Visible
+		: ESlateVisibility::SelfHitTestInvisible;
 	if (bHideDefeatedWidget)
 	{
-		SetVisibility(EnemyOverheadViewData.bIsAlive ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		SetVisibility(EnemyOverheadViewData.bIsAlive ? ActiveVisibility : ESlateVisibility::Collapsed);
 	}
 	else
 	{
-		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		SetVisibility(ActiveVisibility);
 	}
 
 	if (NameText)
@@ -141,7 +144,12 @@ void UFinalBattleEnemyOverheadWidget::RefreshBoundWidgets()
 
 void UFinalBattleEnemyOverheadWidget::HandleInspectButtonClicked()
 {
-	TryInspectEnemy();
+	InspectEnemy();
+}
+
+bool UFinalBattleEnemyOverheadWidget::InspectEnemy()
+{
+	return TryInspectEnemy();
 }
 
 bool UFinalBattleEnemyOverheadWidget::TryInspectEnemy() const

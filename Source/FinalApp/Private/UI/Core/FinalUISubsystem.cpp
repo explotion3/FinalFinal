@@ -110,7 +110,7 @@ void UFinalUISubsystem::EnsureBattleHUD()
 
 	if (BattleHUDScreen)
 	{
-		BattleHUDScreen->SetVisibility(ESlateVisibility::Visible);
+		BattleHUDScreen->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		RebuildPersistentHUDLayer();
 		RefreshBattleHUD();
 	}
@@ -133,7 +133,7 @@ void UFinalUISubsystem::SetBattleHUDVisibility(bool bVisible)
 {
 	if (BattleHUDScreen)
 	{
-		BattleHUDScreen->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		BattleHUDScreen->SetVisibility(bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
 
@@ -508,7 +508,7 @@ void UFinalUISubsystem::RebuildPersistentHUDLayer()
 	if (BattleHUDScreen)
 	{
 		RootLayout->AddScreenToLayer(BattleHUDScreen, EFinalUIScreenLayer::HUD);
-		BattleHUDScreen->SetVisibility(ESlateVisibility::Visible);
+		BattleHUDScreen->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 }
 
