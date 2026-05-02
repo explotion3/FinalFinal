@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/Panels/FinalPanelWidgetBase.h"
+#include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 #include "FinalBattleHUDPanels.generated.h"
 
 class UBorder;
@@ -17,6 +18,7 @@ class UFinalBattleFeedbackPanelController;
 class UFinalBattleContextPanelController;
 class UFinalBattleCharacterPanelController;
 class UFinalBattleEnemyPanelController;
+class UFinalBattleEnemyDetailPanelController;
 class UFinalBattleHandPanelController;
 class UFinalBattleUltimatePanelController;
 class UFinalBattleRecentEventPanelController;
@@ -27,11 +29,13 @@ class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
+class UFinalBattleEnemyDetailPanelViewModel;
 class UFinalBattleHandPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
 class UFinalBattleCardEntryWidget;
+class UFinalBattleEnemyDetailWidget;
 class UFinalRunFlowSubsystem;
 
 struct FFinalBattleHandCardVisualState
@@ -296,6 +300,39 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> EnemyListBox;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleEnemyDetailPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleEnemyDetailPanelViewModel* InViewModel, UFinalBattleEnemyDetailPanelController* InController);
+
+private:
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+	FText BuildFallbackText(const FFinalBattleHUDEnemyDetailData& Data) const;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEnemyDetailPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEnemyDetailPanelController> PanelController;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleEnemyDetailWidget> EnemyDetailWidget;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DetailFallbackText;
 };
 
 UCLASS(BlueprintType, Blueprintable)

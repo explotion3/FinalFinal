@@ -1,10 +1,78 @@
 #include "World/FinalBattleDirector.h"
 
+#include "Battle/Definitions/FinalEnemyDefinition.h"
+#include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
+#include "GameplayTagContainer.h"
+#include "Queries/FinalDataRegistry.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "World/FinalBattlePresentationActor.h"
 #include "World/FinalBattleStageAnchorActor.h"
+
+namespace
+{
+float CalculateClampedPercent(const int32 CurrentValue, const int32 MaxValue)
+{
+	return MaxValue > 0
+		? FMath::Clamp(static_cast<float>(CurrentValue) / static_cast<float>(MaxValue), 0.0f, 1.0f)
+		: 0.0f;
+}
+
+FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry != nullptr && StatusView.StatusId.IsValid())
+	{
+		if (const UFinalStatusDefinition* StatusDefinition = DataRegistry->FindStatusDefinition(StatusView.StatusId))
+		{
+			if (!StatusDefinition->DisplayName.IsEmpty())
+			{
+				return StatusDefinition->DisplayName;
+			}
+		}
+	}
+
+	if (!StatusView.DisplayName.IsEmpty())
+	{
+		return StatusView.DisplayName;
+	}
+
+	return FText::FromString(StatusView.StatusId.ToString());
+}
+
+FFinalBattleOverheadStatusViewData BuildOverheadStatusView(
+	const FFinalBattleStatusViewData& StatusView,
+	const UFinalDataRegistry* DataRegistry)
+{
+	FFinalBattleOverheadStatusViewData OverheadStatus;
+	OverheadStatus.StatusId = StatusView.StatusId;
+	OverheadStatus.DisplayName = ResolveStatusDisplayName(StatusView, DataRegistry);
+	OverheadStatus.CurrentStacks = StatusView.CurrentStacks;
+	OverheadStatus.RemainingDuration = StatusView.RemainingDuration;
+	return OverheadStatus;
+}
+
+FName ResolveEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
+{
+	if (EnemyDefinition == nullptr || EnemyDefinition->RoleTags.IsEmpty())
+	{
+		return NAME_None;
+	}
+
+	TArray<FGameplayTag> RoleTags;
+	EnemyDefinition->RoleTags.GetGameplayTagArray(RoleTags);
+	for (const FGameplayTag& RoleTag : RoleTags)
+	{
+		const FString TagName = RoleTag.ToString().ToLower();
+		if (TagName.Contains(TEXT("rank")) || TagName.Contains(TEXT("elite")) || TagName.Contains(TEXT("boss")))
+		{
+			return RoleTag.GetTagName();
+		}
+	}
+
+	return NAME_None;
+}
+}
 
 AFinalBattleDirector::AFinalBattleDirector()
 {
@@ -66,6 +134,30 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 {
 	PresentationUnitsByRuntimeId.Reset();
 
+	const UFinalDataRegistry* DataRegistry = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UFinalDataRegistry>()
+		: nullptr;
+
+	TSet<FName> EnemyRuntimeUnitIds;
+	for (const FFinalBattleEnemyViewData& EnemyView : Snapshot.Enemies)
+	{
+		if (!EnemyView.RuntimeUnitId.IsNone())
+		{
+			EnemyRuntimeUnitIds.Add(EnemyView.RuntimeUnitId);
+		}
+	}
+
+	TMap<FName, TArray<FFinalBattleOverheadStatusViewData>> EnemyStatusesByOwner;
+	for (const FFinalBattleStatusViewData& StatusView : Snapshot.Statuses)
+	{
+		if (!EnemyRuntimeUnitIds.Contains(StatusView.OwnerUnitId))
+		{
+			continue;
+		}
+
+		EnemyStatusesByOwner.FindOrAdd(StatusView.OwnerUnitId).Add(BuildOverheadStatusView(StatusView, DataRegistry));
+	}
+
 	for (int32 CharacterIndex = 0; CharacterIndex < Snapshot.Characters.Num(); ++CharacterIndex)
 	{
 		const FFinalBattleCharacterViewData& CharacterView = Snapshot.Characters[CharacterIndex];
@@ -91,6 +183,7 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		UnitView.CurrentAwakenThreshold = CharacterView.CurrentAwakenThreshold;
 		UnitView.CollapseCount = CharacterView.CollapseCount;
 		UnitView.bCollapsed = CharacterView.bCollapsed;
+		UnitView.EnemyOverheadView = FFinalBattleEnemyOverheadViewData();
 	}
 
 	for (const FFinalBattleEnemyViewData& EnemyView : Snapshot.Enemies)
@@ -117,6 +210,31 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		UnitView.MaxBreakValue = EnemyView.MaxBreakValue;
 		UnitView.CurrentInitiative = EnemyView.CurrentInitiative;
 		UnitView.IntentText = EnemyView.IntentText;
+
+		FFinalBattleEnemyOverheadViewData& OverheadView = UnitView.EnemyOverheadView;
+		OverheadView.RuntimeUnitId = UnitView.RuntimeUnitId;
+		OverheadView.DisplayName = UnitView.DisplayName;
+		OverheadView.CurrentHP = EnemyView.CurrentHP;
+		OverheadView.MaxHP = EnemyView.MaxHP;
+		OverheadView.HealthPercent = CalculateClampedPercent(EnemyView.CurrentHP, EnemyView.MaxHP);
+		OverheadView.CurrentShield = EnemyView.CurrentShield;
+		OverheadView.ShieldFramePercent = CalculateClampedPercent(EnemyView.CurrentShield, EnemyView.MaxHP);
+		OverheadView.CurrentBreakValue = EnemyView.CurrentBreakValue;
+		OverheadView.MaxBreakValue = EnemyView.MaxBreakValue;
+		OverheadView.BreakPercent = CalculateClampedPercent(EnemyView.CurrentBreakValue, EnemyView.MaxBreakValue);
+		OverheadView.CurrentInitiative = EnemyView.CurrentInitiative;
+		OverheadView.InitiativeText = FText::AsNumber(EnemyView.CurrentInitiative);
+		OverheadView.IntentText = EnemyView.IntentText;
+		OverheadView.IntentIconId = EnemyView.CurrentIntentId;
+		OverheadView.bIsTargeted = UnitView.bIsTargeted;
+		OverheadView.bIsAlive = UnitView.bIsAlive;
+		OverheadView.Statuses = EnemyStatusesByOwner.FindRef(EnemyView.RuntimeUnitId);
+
+		const UFinalEnemyDefinition* EnemyDefinition =
+			DataRegistry != nullptr && EnemyView.EnemyId.IsValid()
+				? DataRegistry->FindEnemyDefinition(EnemyView.EnemyId)
+				: nullptr;
+		OverheadView.EnemyRankTag = ResolveEnemyRankTag(EnemyDefinition);
 	}
 
 	SyncPresentationActors();

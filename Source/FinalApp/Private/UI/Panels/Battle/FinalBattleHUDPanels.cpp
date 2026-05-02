@@ -24,6 +24,7 @@
 #include "UI/ViewModels/Battle/FinalBattleHUDPanelViewModels.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleLogEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
@@ -792,6 +793,116 @@ void UFinalBattleEnemyPanel::RefreshFromViewModel()
 			EnemySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 		}
 	}
+}
+
+void UFinalBattleEnemyDetailPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+}
+
+void UFinalBattleEnemyDetailPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.AddDynamic(this, &UFinalBattleEnemyDetailPanel::HandleViewModelChanged);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleEnemyDetailPanel::NativeDestruct()
+{
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleEnemyDetailPanel::HandleViewModelChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UFinalBattleEnemyDetailPanel::InitializePanel(UFinalBattleEnemyDetailPanelViewModel* InViewModel, UFinalBattleEnemyDetailPanelController* InController)
+{
+	PanelViewModel = InViewModel;
+	PanelController = InController;
+	SetPresentationContext(InController, InViewModel);
+	if (EnemyDetailWidget)
+	{
+		EnemyDetailWidget->SetPresentationContext(InController, InViewModel);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleEnemyDetailPanel::HandleViewModelChanged()
+{
+	RefreshFromViewModel();
+}
+
+void UFinalBattleEnemyDetailPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("EnemyDetailBorder"), FLinearColor(0.09f, 0.08f, 0.08f, 0.94f));
+	DetailFallbackText = CreateLabel(WidgetTree, TEXT("EnemyDetailFallbackText"), 14);
+	Border->SetContent(DetailFallbackText);
+	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleEnemyDetailPanel::RefreshFromViewModel()
+{
+	if (PanelViewModel == nullptr)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FFinalBattleHUDEnemyDetailData& Data = PanelViewModel->GetData();
+	SetVisibility(Data.bHasEnemy ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (EnemyDetailWidget)
+	{
+		EnemyDetailWidget->SetPresentationContext(PanelController, PanelViewModel);
+		EnemyDetailWidget->ApplyEnemyDetailView(Data);
+	}
+
+	if (DetailFallbackText)
+	{
+		DetailFallbackText->SetText(BuildFallbackText(Data));
+	}
+}
+
+FText UFinalBattleEnemyDetailPanel::BuildFallbackText(const FFinalBattleHUDEnemyDetailData& Data) const
+{
+	if (!Data.bHasEnemy)
+	{
+		return FText::GetEmpty();
+	}
+
+	TArray<FString> StatusSegments;
+	for (const FFinalBattleHUDEnemyDetailStatusEntry& Status : Data.Statuses)
+	{
+		StatusSegments.Add(FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackStatus", "{0} x{1}"),
+			Status.DisplayName,
+			FText::AsNumber(Status.CurrentStacks)).ToString());
+	}
+
+	const FString StatusText = StatusSegments.Num() > 0 ? FString::Join(StatusSegments, TEXT(" | ")) : TEXT("无");
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackFormat", "{0}{1}\nHP {2}/{3} | Shield {4}\nBreak {5}/{6} | Init {7}\n意图: {8}\n阶段: {9}\n状态: {10}"),
+		Data.bIsCurrentBattleTarget ? NSLOCTEXT("FinalBattleHUD", "EnemyDetailTargetPrefix", "[当前目标] ") : FText::GetEmpty(),
+		Data.DisplayName,
+		FText::AsNumber(Data.CurrentHP),
+		FText::AsNumber(Data.MaxHP),
+		FText::AsNumber(Data.CurrentShield),
+		FText::AsNumber(Data.CurrentBreakValue),
+		FText::AsNumber(Data.MaxBreakValue),
+		FText::AsNumber(Data.CurrentInitiative),
+		Data.IntentText,
+		Data.PhaseProgressText,
+		FText::FromString(StatusText));
 }
 
 void UFinalBattleHandPanel::NativeOnInitialized()

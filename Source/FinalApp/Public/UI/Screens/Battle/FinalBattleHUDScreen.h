@@ -14,6 +14,7 @@ class UFinalBattleFeedbackPanel;
 class UFinalBattleContextPanel;
 class UFinalBattleCharacterPanel;
 class UFinalBattleEnemyPanel;
+class UFinalBattleEnemyDetailPanel;
 class UFinalBattleHandPanel;
 class UFinalBattleUltimatePanel;
 class UFinalBattleRecentEventPanel;
@@ -62,6 +63,9 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleEnemyPanel> EnemyPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleEnemyDetailPanel> EnemyDetailPanel;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleHandPanel> HandPanel;

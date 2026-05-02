@@ -130,6 +130,99 @@ struct FINALAPP_API FFinalBattleHUDEnemyEntry
 };
 
 USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDEnemyDetailStatusEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalStatusId StatusId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText SummaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentStacks = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RemainingDuration = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDEnemyDetailData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bHasEnemy = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName RuntimeUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalEnemyId EnemyId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName EnemyRankTag = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentHP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 MaxHP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float HealthPercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentShield = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float ShieldFramePercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentBreakValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 MaxBreakValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float BreakPercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentInitiative = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText InitiativeText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText IntentText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName IntentIconId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText PhaseProgressText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bIsCurrentBattleTarget = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bIsInspected = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bIsAlive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDEnemyDetailStatusEntry> Statuses;
+};
+
+USTRUCT(BlueprintType)
 struct FINALAPP_API FFinalBattleHUDCardEntry
 {
 	GENERATED_BODY()

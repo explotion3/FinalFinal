@@ -53,6 +53,12 @@ UFinalBattleEnemyPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattl
 }
 
 template <>
+UFinalBattleEnemyDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleEnemyDetailPanel>(UFinalBattleEnemyDetailPanel::StaticClass(), WidgetName);
+}
+
+template <>
 UFinalBattleHandPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleHandPanel>(const TCHAR* WidgetName)
 {
 	return WidgetTree->ConstructWidget<UFinalBattleHandPanel>(UFinalUIWidgetClassSettings::GetBattleHandPanelClass(), WidgetName);
@@ -107,6 +113,7 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		ContextPanel != nullptr ||
 		CharacterPanel != nullptr ||
 		EnemyPanel != nullptr ||
+		EnemyDetailPanel != nullptr ||
 		HandPanel != nullptr ||
 		UltimatePanel != nullptr ||
 		RecentEventPanel != nullptr ||
@@ -175,6 +182,14 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		EnemySlot->SetOffsets(FMargin(0.0f));
 	}
 
+	EnemyDetailPanel = CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(TEXT("EnemyDetailPanel"));
+	if (UCanvasPanelSlot* EnemyDetailSlot = RootCanvas->AddChildToCanvas(EnemyDetailPanel))
+	{
+		EnemyDetailSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
+		EnemyDetailSlot->SetOffsets(FMargin(0.0f));
+		EnemyDetailSlot->SetZOrder(85);
+	}
+
 	UltimatePanel = CreateConfiguredPanel<UFinalBattleUltimatePanel>(TEXT("UltimatePanel"));
 	if (UCanvasPanelSlot* UltimateSlot = RootCanvas->AddChildToCanvas(UltimatePanel))
 	{
@@ -237,6 +252,11 @@ void UFinalBattleHUDScreen::InitializePanels()
 	if (EnemyPanel)
 	{
 		EnemyPanel->InitializePanel(BattleViewModel->GetEnemyViewModel(), BattleController->GetEnemyPanelController());
+	}
+
+	if (EnemyDetailPanel)
+	{
+		EnemyDetailPanel->InitializePanel(BattleViewModel->GetEnemyDetailViewModel(), BattleController->GetEnemyDetailPanelController());
 	}
 
 	if (HandPanel)

@@ -24,7 +24,7 @@ struct FINALAPP_API FFinalBattlePresentationClassMapping
 	TSubclassOf<AFinalBattlePresentationActor> PresentationClass;
 };
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API AFinalBattleDirector : public AActor
 {
 	GENERATED_BODY()
@@ -57,19 +57,19 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Presentation")
 	TObjectPtr<USceneComponent> RootSceneComponent;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	TSubclassOf<AFinalBattlePresentationActor> PresentationActorClass;
 
-	UPROPERTY(EditInstanceOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	TSubclassOf<AFinalBattlePresentationActor> DefaultPlayerPresentationClass;
 
-	UPROPERTY(EditInstanceOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	TSubclassOf<AFinalBattlePresentationActor> DefaultEnemyPresentationClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	TArray<FFinalBattlePresentationClassMapping> PlayerPresentationClassMappings;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Final|Battle|Presentation")
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")
 	TArray<FFinalBattlePresentationClassMapping> EnemyPresentationClassMappings;
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation")

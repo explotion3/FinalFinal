@@ -35,6 +35,7 @@ void UFinalBattleWidgetController::Initialize(UFinalBattleHUDViewModel* InViewMo
 	LastInteractionFeedback = FText::GetEmpty();
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
+	InspectedEnemyUnitId = NAME_None;
 
 	if (ViewModel)
 	{
@@ -59,6 +60,7 @@ void UFinalBattleWidgetController::BindToBattleFlow(UFinalBattleFlowSubsystem* I
 	LastInteractionFeedback = FText::GetEmpty();
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
+	InspectedEnemyUnitId = NAME_None;
 
 	if (BattleFlowSubsystem == nullptr)
 	{
@@ -90,6 +92,7 @@ void UFinalBattleWidgetController::UnbindFromBattleFlow()
 	LastInteractionFeedback = FText::GetEmpty();
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
+	InspectedEnemyUnitId = NAME_None;
 }
 
 void UFinalBattleWidgetController::RefreshFromSession(UFinalBattleSession* Session)
@@ -104,6 +107,7 @@ void UFinalBattleWidgetController::RefreshFromSession(UFinalBattleSession* Sessi
 	LastInteractionFeedback = CachedBattleEvents.Num() > 0 ? CachedBattleEvents.Last().Message : FText::GetEmpty();
 	LastInteractionEvent = CachedBattleEvents.Num() > 0 ? CachedBattleEvents.Last() : FFinalBattleEvent{};
 	RefreshSelectedEnemyFromSnapshot();
+	RefreshInspectedEnemyFromSnapshot();
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	for (const FFinalBattleEvent& BattleEvent : CachedBattleEvents)
 	{
@@ -254,6 +258,42 @@ FName UFinalBattleWidgetController::GetSelectedEnemyUnitId() const
 	return SelectedEnemyUnitId;
 }
 
+bool UFinalBattleWidgetController::InspectEnemyByUnitId(const FName RuntimeUnitId)
+{
+	const bool bExists = CachedSnapshot.Enemies.ContainsByPredicate(
+		[&RuntimeUnitId](const FFinalBattleEnemyViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == RuntimeUnitId;
+		});
+
+	if (!bExists)
+	{
+		InspectedEnemyUnitId = NAME_None;
+		RebuildPresentation();
+		return false;
+	}
+
+	InspectedEnemyUnitId = RuntimeUnitId;
+	RebuildPresentation();
+	return true;
+}
+
+void UFinalBattleWidgetController::ClearInspectedEnemy()
+{
+	if (InspectedEnemyUnitId.IsNone())
+	{
+		return;
+	}
+
+	InspectedEnemyUnitId = NAME_None;
+	RebuildPresentation();
+}
+
+FName UFinalBattleWidgetController::GetInspectedEnemyUnitId() const
+{
+	return InspectedEnemyUnitId;
+}
+
 FText UFinalBattleWidgetController::GetLastInteractionFeedback() const
 {
 	return LastInteractionFeedback;
@@ -311,6 +351,11 @@ UFinalBattleEnemyPanelController* UFinalBattleWidgetController::GetEnemyPanelCon
 	return EnemyPanelController;
 }
 
+UFinalBattleEnemyDetailPanelController* UFinalBattleWidgetController::GetEnemyDetailPanelController() const
+{
+	return EnemyDetailPanelController;
+}
+
 UFinalBattleHandPanelController* UFinalBattleWidgetController::GetHandPanelController() const
 {
 	return HandPanelController;
@@ -352,6 +397,7 @@ void UFinalBattleWidgetController::HandleBattleSnapshotChanged(const FFinalBattl
 	}
 
 	RefreshSelectedEnemyFromSnapshot();
+	RefreshInspectedEnemyFromSnapshot();
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	RebuildPresentation();
 }
@@ -398,6 +444,7 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		&CachedBattleEvents,
 		DataRegistry,
 		SelectedEnemyUnitId,
+		InspectedEnemyUnitId,
 		LastInteractionFeedback,
 		LastInteractionEvent
 	};
@@ -408,6 +455,7 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	if (ContextPanelController) { ContextPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (CharacterPanelController) { CharacterPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (EnemyPanelController) { EnemyPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (EnemyDetailPanelController) { EnemyDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (HandPanelController) { HandPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (UltimatePanelController) { UltimatePanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (RecentEventPanelController) { RecentEventPanelController->RefreshFromCoordinatorData(CoordinatorData); }
@@ -459,6 +507,12 @@ void UFinalBattleWidgetController::EnsurePanelControllers()
 		EnemyPanelController->InitializeEnemyPanel(this, ViewModel->GetEnemyViewModel());
 	}
 
+	if (EnemyDetailPanelController == nullptr)
+	{
+		EnemyDetailPanelController = NewObject<UFinalBattleEnemyDetailPanelController>(this);
+		EnemyDetailPanelController->InitializeEnemyDetailPanel(this, ViewModel->GetEnemyDetailViewModel());
+	}
+
 	if (HandPanelController == nullptr)
 	{
 		HandPanelController = NewObject<UFinalBattleHandPanelController>(this);
@@ -493,6 +547,25 @@ void UFinalBattleWidgetController::RefreshSelectedEnemyFromSnapshot()
 		});
 
 	SelectedEnemyUnitId = bSnapshotTargetIsAlive ? CachedSnapshot.CurrentTargetUnitId : NAME_None;
+}
+
+void UFinalBattleWidgetController::RefreshInspectedEnemyFromSnapshot()
+{
+	if (InspectedEnemyUnitId.IsNone())
+	{
+		return;
+	}
+
+	const bool bInspectedEnemyStillExists = CachedSnapshot.Enemies.ContainsByPredicate(
+		[this](const FFinalBattleEnemyViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == InspectedEnemyUnitId;
+		});
+
+	if (!bInspectedEnemyStillExists)
+	{
+		InspectedEnemyUnitId = NAME_None;
+	}
 }
 
 FName UFinalBattleWidgetController::ResolveDefaultTargetUnitId() const

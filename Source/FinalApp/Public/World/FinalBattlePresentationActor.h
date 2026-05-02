@@ -1,9 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/WidgetComponent.h"
 #include "PaperZDCharacter.h"
 #include "World/FinalBattlePresentationTypes.h"
 #include "FinalBattlePresentationActor.generated.h"
+
+class UFinalBattleEnemyOverheadWidget;
 
 UENUM(BlueprintType)
 enum class EFinalBattlePresentationAnimState : uint8
@@ -77,6 +80,8 @@ private:
 	void EnsureVisualDefaultsInitialized();
 	void ApplyPresentationVisualState(EFinalBattlePresentationAnimState NewPresentationState);
 	void RefreshPresentationState();
+	void RefreshEnemyOverheadWidget();
+	UFinalBattleEnemyOverheadWidget* ResolveEnemyOverheadWidget() const;
 	void SetTransientPresentationState(EFinalBattlePresentationAnimState NewPresentationState, float DurationSeconds, bool bUseTimerFallback);
 	void ClearTransientPresentationState();
 	EFinalBattlePresentationAnimState ResolveBasePresentationState() const;
@@ -110,6 +115,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual")
 	bool bHideActorOnDefeat = false;
+
+	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Presentation|Overhead")
+	TObjectPtr<UWidgetComponent> EnemyOverheadWidgetComponent;
 
 	UPROPERTY(Transient)
 	FName RuntimeUnitId = NAME_None;

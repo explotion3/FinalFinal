@@ -60,6 +60,7 @@
 - `FinalData` 不承担运行时规则逻辑
 - `FinalApp` 不保存玩法真相，只负责查询、展示和流程桥接
 - `FinalApp/World` 只负责场中 Actor 表现同步；单位头顶信息应消费结构化表现 ViewData，不在世界 Actor 中渲染 debug 文本或拼接规则详情字符串
+- 敌人头顶 UI 的 C++ 边界固定为 `FFinalBattleEnemyOverheadViewData -> UFinalBattleEnemyOverheadWidget`；WBP 只做视觉绑定和素材映射，不计算 HP / Shield / Break 百分比，不回查 Battle 规则真相
 
 ---
 

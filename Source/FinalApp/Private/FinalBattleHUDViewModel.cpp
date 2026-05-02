@@ -32,6 +32,11 @@ void UFinalBattleHUDViewModel::EnsurePanelViewModels()
 		EnemyViewModel = NewObject<UFinalBattleEnemyPanelViewModel>(this);
 	}
 
+	if (EnemyDetailViewModel == nullptr)
+	{
+		EnemyDetailViewModel = NewObject<UFinalBattleEnemyDetailPanelViewModel>(this);
+	}
+
 	if (HandViewModel == nullptr)
 	{
 		HandViewModel = NewObject<UFinalBattleHandPanelViewModel>(this);
@@ -107,6 +112,11 @@ UFinalBattleCharacterPanelViewModel* UFinalBattleHUDViewModel::GetCharacterViewM
 UFinalBattleEnemyPanelViewModel* UFinalBattleHUDViewModel::GetEnemyViewModel() const
 {
 	return EnemyViewModel;
+}
+
+UFinalBattleEnemyDetailPanelViewModel* UFinalBattleHUDViewModel::GetEnemyDetailViewModel() const
+{
+	return EnemyDetailViewModel;
 }
 
 UFinalBattleHandPanelViewModel* UFinalBattleHUDViewModel::GetHandViewModel() const

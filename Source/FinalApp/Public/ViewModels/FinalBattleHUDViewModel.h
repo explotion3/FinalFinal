@@ -48,6 +48,9 @@ public:
 	UFinalBattleEnemyPanelViewModel* GetEnemyViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleEnemyDetailPanelViewModel* GetEnemyDetailViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHandPanelViewModel* GetHandViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -86,6 +89,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleEnemyPanelViewModel> EnemyViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEnemyDetailPanelViewModel> EnemyDetailViewModel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> HandViewModel;

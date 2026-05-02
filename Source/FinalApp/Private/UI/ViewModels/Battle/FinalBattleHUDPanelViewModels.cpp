@@ -66,6 +66,17 @@ const TArray<FFinalBattleHUDEnemyEntry>& UFinalBattleEnemyPanelViewModel::GetEnt
 	return Entries;
 }
 
+void UFinalBattleEnemyDetailPanelViewModel::ApplyData(const FFinalBattleHUDEnemyDetailData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleHUDEnemyDetailData& UFinalBattleEnemyDetailPanelViewModel::GetData() const
+{
+	return Data;
+}
+
 void UFinalBattleHandPanelViewModel::ApplyEntries(const TArray<FFinalBattleHUDCardEntry>& InEntries)
 {
 	Entries = InEntries;

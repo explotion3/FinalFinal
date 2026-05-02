@@ -1,17 +1,33 @@
 #include "World/FinalBattlePresentationActor.h"
 
+#include "Components/WidgetComponent.h"
 #include "Engine/World.h"
 #include "PaperFlipbookComponent.h"
 #include "TimerManager.h"
+#include "UI/Widgets/Battle/FinalBattleEnemyOverheadWidget.h"
 
 AFinalBattlePresentationActor::AFinalBattlePresentationActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	EnemyOverheadWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyOverheadWidget"));
+	EnemyOverheadWidgetComponent->SetupAttachment(GetRootComponent());
+	EnemyOverheadWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	EnemyOverheadWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 140.0f));
+	EnemyOverheadWidgetComponent->SetDrawSize(FVector2D(360.0f, 120.0f));
+	EnemyOverheadWidgetComponent->SetDrawAtDesiredSize(true);
+	EnemyOverheadWidgetComponent->SetVisibility(false);
+	EnemyOverheadWidgetComponent->SetHiddenInGame(true);
 }
 
 void AFinalBattlePresentationActor::BeginPlay()
 {
 	Super::BeginPlay();
+	if (EnemyOverheadWidgetComponent)
+	{
+		EnemyOverheadWidgetComponent->SetVisibility(false);
+		EnemyOverheadWidgetComponent->SetHiddenInGame(true);
+	}
 	EnsureVisualDefaultsInitialized();
 	ApplyPresentationVisualState(CurrentPresentationState);
 }
@@ -24,6 +40,7 @@ void AFinalBattlePresentationActor::InitializePresentationActor(
 	PresentationTeam = InPresentationTeam;
 	PresentationViewData.RuntimeUnitId = RuntimeUnitId;
 	PresentationViewData.Team = PresentationTeam;
+	RefreshEnemyOverheadWidget();
 }
 
 void AFinalBattlePresentationActor::ApplyPresentationView(const FFinalBattlePresentationUnitViewData& ViewData)
@@ -46,6 +63,7 @@ void AFinalBattlePresentationActor::ApplyPresentationView(const FFinalBattlePres
 	}
 
 	OnPresentationViewApplied(PresentationViewData);
+	RefreshEnemyOverheadWidget();
 }
 
 void AFinalBattlePresentationActor::PlayAttackPresentation()
@@ -181,6 +199,41 @@ void AFinalBattlePresentationActor::RefreshPresentationState()
 		CurrentPresentationState = NewState;
 		OnPresentationStateChanged(CurrentPresentationState);
 	}
+}
+
+void AFinalBattlePresentationActor::RefreshEnemyOverheadWidget()
+{
+	if (EnemyOverheadWidgetComponent == nullptr)
+	{
+		return;
+	}
+
+	const bool bShouldShow =
+		PresentationTeam == EFinalBattlePresentationTeam::Enemy
+		&& !PresentationViewData.RuntimeUnitId.IsNone()
+		&& EnemyOverheadWidgetComponent->GetWidgetClass() != nullptr;
+
+	EnemyOverheadWidgetComponent->SetVisibility(bShouldShow);
+	EnemyOverheadWidgetComponent->SetHiddenInGame(!bShouldShow);
+
+	if (!bShouldShow)
+	{
+		return;
+	}
+
+	EnemyOverheadWidgetComponent->InitWidget();
+
+	if (UFinalBattleEnemyOverheadWidget* EnemyOverheadWidget = ResolveEnemyOverheadWidget())
+	{
+		EnemyOverheadWidget->ApplyEnemyOverheadView(PresentationViewData.EnemyOverheadView);
+	}
+}
+
+UFinalBattleEnemyOverheadWidget* AFinalBattlePresentationActor::ResolveEnemyOverheadWidget() const
+{
+	return EnemyOverheadWidgetComponent
+		? Cast<UFinalBattleEnemyOverheadWidget>(EnemyOverheadWidgetComponent->GetUserWidgetObject())
+		: nullptr;
 }
 
 void AFinalBattlePresentationActor::SetTransientPresentationState(

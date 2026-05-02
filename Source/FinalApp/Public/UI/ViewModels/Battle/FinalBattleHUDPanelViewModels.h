@@ -90,6 +90,20 @@ private:
 };
 
 UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleEnemyDetailPanelViewModel : public UFinalViewModelBase
+{
+	GENERATED_BODY()
+
+public:
+	void ApplyData(const FFinalBattleHUDEnemyDetailData& InData);
+	const FFinalBattleHUDEnemyDetailData& GetData() const;
+
+private:
+	UPROPERTY(Transient)
+	FFinalBattleHUDEnemyDetailData Data;
+};
+
+UCLASS(BlueprintType)
 class FINALAPP_API UFinalBattleHandPanelViewModel : public UFinalViewModelBase
 {
 	GENERATED_BODY()

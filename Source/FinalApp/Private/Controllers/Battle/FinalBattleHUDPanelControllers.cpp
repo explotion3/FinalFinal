@@ -1,6 +1,7 @@
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
@@ -21,6 +22,13 @@ const FName PanelRejectUnsupportedCommandTag(TEXT("battle.unsupported_command"))
 const FName RejectNotEnoughAPTag(TEXT("battle.not_enough_ap"));
 const FText APNotEnoughCardHintText = NSLOCTEXT("FinalBattleHUD", "CardAPNotEnoughHint", "AP不足");
 
+float CalculateClampedPercent(const int32 CurrentValue, const int32 MaxValue)
+{
+	return MaxValue > 0
+		? FMath::Clamp(static_cast<float>(CurrentValue) / static_cast<float>(MaxValue), 0.0f, 1.0f)
+		: 0.0f;
+}
+
 FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
 {
 	if (DataRegistry && StatusView.StatusId.IsValid())
@@ -35,6 +43,19 @@ FText ResolveStatusDisplayName(const FFinalBattleStatusViewData& StatusView, con
 	}
 
 	return !StatusView.DisplayName.IsEmpty() ? StatusView.DisplayName : FText::FromName(StatusView.StatusId.Value);
+}
+
+FText ResolveStatusSummaryText(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry && StatusView.StatusId.IsValid())
+	{
+		if (const UFinalStatusDefinition* StatusDefinition = DataRegistry->FindStatusDefinition(StatusView.StatusId))
+		{
+			return StatusDefinition->SummaryText;
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 FText FormatStatusText(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
@@ -93,6 +114,27 @@ FText FormatEnemyPhaseProgressText(const FFinalBattlePhaseProgressViewData& Phas
 		FText::AsNumber(PhaseProgress.CurrentPhaseNumber),
 		FText::AsNumber(PhaseProgress.TotalPhases),
 		FText::AsNumber(FMath::RoundToInt(PhaseProgress.ProgressWithinPhase * 100.0f)));
+}
+
+FName ResolveEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
+{
+	if (EnemyDefinition == nullptr || EnemyDefinition->RoleTags.IsEmpty())
+	{
+		return NAME_None;
+	}
+
+	TArray<FGameplayTag> RoleTags;
+	EnemyDefinition->RoleTags.GetGameplayTagArray(RoleTags);
+	for (const FGameplayTag& RoleTag : RoleTags)
+	{
+		const FString TagName = RoleTag.ToString().ToLower();
+		if (TagName.Contains(TEXT("rank")) || TagName.Contains(TEXT("elite")) || TagName.Contains(TEXT("boss")))
+		{
+			return RoleTag.GetTagName();
+		}
+	}
+
+	return NAME_None;
 }
 
 FText ResolveRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
@@ -627,6 +669,90 @@ void UFinalBattleEnemyPanelController::RefreshFromCoordinatorData(const FFinalBa
 bool UFinalBattleEnemyPanelController::SelectEnemyByUnitId(const FName RuntimeUnitId)
 {
 	return Coordinator ? Coordinator->SelectEnemyByUnitId(RuntimeUnitId) : false;
+}
+
+void UFinalBattleEnemyDetailPanelController::InitializeEnemyDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleEnemyDetailPanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleEnemyDetailPanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr || CoordinatorData.InspectedEnemyUnitId.IsNone())
+	{
+		if (ViewModel)
+		{
+			ViewModel->ApplyData(FFinalBattleHUDEnemyDetailData{});
+		}
+		return;
+	}
+
+	const FFinalBattleEnemyViewData* EnemyView = CoordinatorData.Snapshot->Enemies.FindByPredicate(
+		[&CoordinatorData](const FFinalBattleEnemyViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == CoordinatorData.InspectedEnemyUnitId;
+		});
+
+	if (EnemyView == nullptr)
+	{
+		ViewModel->ApplyData(FFinalBattleHUDEnemyDetailData{});
+		return;
+	}
+
+	FFinalBattleHUDEnemyDetailData Data;
+	Data.bHasEnemy = true;
+	Data.RuntimeUnitId = EnemyView->RuntimeUnitId;
+	Data.EnemyId = EnemyView->EnemyId;
+	Data.DisplayName = !EnemyView->DisplayName.IsEmpty() ? EnemyView->DisplayName : FText::FromName(EnemyView->RuntimeUnitId);
+	Data.CurrentHP = EnemyView->CurrentHP;
+	Data.MaxHP = EnemyView->MaxHP;
+	Data.HealthPercent = CalculateClampedPercent(EnemyView->CurrentHP, EnemyView->MaxHP);
+	Data.CurrentShield = EnemyView->CurrentShield;
+	Data.ShieldFramePercent = CalculateClampedPercent(EnemyView->CurrentShield, EnemyView->MaxHP);
+	Data.CurrentBreakValue = EnemyView->CurrentBreakValue;
+	Data.MaxBreakValue = EnemyView->MaxBreakValue;
+	Data.BreakPercent = CalculateClampedPercent(EnemyView->CurrentBreakValue, EnemyView->MaxBreakValue);
+	Data.CurrentInitiative = EnemyView->CurrentInitiative;
+	Data.InitiativeText = FText::AsNumber(EnemyView->CurrentInitiative);
+	Data.IntentText = EnemyView->IntentText;
+	Data.IntentIconId = EnemyView->CurrentIntentId;
+	Data.PhaseProgressText = FormatEnemyPhaseProgressText(EnemyView->PhaseProgress);
+	Data.bIsCurrentBattleTarget = EnemyView->RuntimeUnitId == CoordinatorData.SelectedEnemyUnitId;
+	Data.bIsInspected = true;
+	Data.bIsAlive = EnemyView->CurrentHP > 0;
+
+	const UFinalEnemyDefinition* EnemyDefinition =
+		CoordinatorData.DataRegistry != nullptr && EnemyView->EnemyId.IsValid()
+			? CoordinatorData.DataRegistry->FindEnemyDefinition(EnemyView->EnemyId)
+			: nullptr;
+	Data.EnemyRankTag = ResolveEnemyRankTag(EnemyDefinition);
+
+	for (const FFinalBattleStatusViewData& StatusView : CoordinatorData.Snapshot->Statuses)
+	{
+		if (StatusView.OwnerUnitId != EnemyView->RuntimeUnitId)
+		{
+			continue;
+		}
+
+		FFinalBattleHUDEnemyDetailStatusEntry StatusEntry;
+		StatusEntry.StatusId = StatusView.StatusId;
+		StatusEntry.DisplayName = ResolveStatusDisplayName(StatusView, CoordinatorData.DataRegistry);
+		StatusEntry.SummaryText = ResolveStatusSummaryText(StatusView, CoordinatorData.DataRegistry);
+		StatusEntry.CurrentStacks = StatusView.CurrentStacks;
+		StatusEntry.RemainingDuration = StatusView.RemainingDuration;
+		Data.Statuses.Add(MoveTemp(StatusEntry));
+	}
+
+	ViewModel->ApplyData(Data);
+}
+
+void UFinalBattleEnemyDetailPanelController::ClearInspectedEnemy()
+{
+	if (Coordinator)
+	{
+		Coordinator->ClearInspectedEnemy();
+	}
 }
 
 void UFinalBattleHandPanelController::InitializeHandPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleHandPanelViewModel* InViewModel)

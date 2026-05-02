@@ -50,6 +50,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FName GetSelectedEnemyUnitId() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool InspectEnemyByUnitId(FName RuntimeUnitId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearInspectedEnemy();
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	FName GetInspectedEnemyUnitId() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FText GetLastInteractionFeedback() const;
 
@@ -78,6 +87,9 @@ public:
 	UFinalBattleEnemyPanelController* GetEnemyPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleEnemyDetailPanelController* GetEnemyDetailPanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHandPanelController* GetHandPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -101,6 +113,7 @@ private:
 	void RebuildPresentation();
 	void EnsurePanelControllers();
 	void RefreshSelectedEnemyFromSnapshot();
+	void RefreshInspectedEnemyFromSnapshot();
 	FName ResolveDefaultTargetUnitId() const;
 	bool SubmitBattleCommandWithFeedback(const FFinalBattleCommand& Command);
 
@@ -118,6 +131,9 @@ private:
 
 	UPROPERTY(Transient)
 	FName SelectedEnemyUnitId = NAME_None;
+
+	UPROPERTY(Transient)
+	FName InspectedEnemyUnitId = NAME_None;
 
 	UPROPERTY(Transient)
 	FText LastInteractionFeedback;
@@ -142,6 +158,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleEnemyPanelController> EnemyPanelController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEnemyDetailPanelController> EnemyDetailPanelController;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelController> HandPanelController;

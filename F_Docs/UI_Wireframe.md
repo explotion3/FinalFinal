@@ -11,6 +11,7 @@
 * 当前 Battle HUD 已打通：
   * `Snapshot / Event -> WidgetController -> ViewModel -> HUD`
   * 敌人目标选择
+  * 独立敌人详情查看状态 `InspectedEnemyUnitId`
   * 点击手牌出牌
   * 点击奥义按钮转发 `PlayUltimate`
   * `1~6` 快捷出牌
@@ -97,6 +98,7 @@
 * `UFinalBattleWidgetController`
 * `UFinalBattleCharacterPanel / UFinalBattleCharacterEntryWidget`
 * `UFinalBattleEnemyPanel / UFinalBattleEnemyEntryWidget`
+* `UFinalBattleEnemyDetailPanel / UFinalBattleEnemyDetailWidget`
 * `UFinalBattleHandPanel / UFinalBattleCardEntryWidget`
 * `UFinalBattleResourcePanel`
 * `UFinalBattleFeedbackPanel`
@@ -141,6 +143,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 当前主验收布局固定为 16:9 桌面：
   * 左侧：我方队伍三名角色状态、等级、突破槽、压力、生命份额、状态摘要与奥义入口
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
+  * 右侧：敌人详情面板，按 `InspectedEnemyUnitId` 只读展示敌人详细信息
   * 底部：手牌区，保留点击出牌与快捷键出牌
   * 底部：独立 `BattleResourcePanel` 占满底部 HUD 区域，当前主要承载左下 EP 气圈
   * 右侧中下：`RunFlowPromptPanel`，当 Run 外层存在待处理流程时显示短提示，点击后重新打开统一 `RunFlowOverlay`
@@ -151,6 +154,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
   * 底手牌 `0.16,0.56 -> 0.82,0.985`
   * 底部资源容器 `0.0,0.56 -> 1.0,1.0`
   * Run 流程恢复入口 `0.72,0.48 -> 0.92,0.56`
+  * 敌人详情 `0.70,0.18 -> 0.985,0.60`
   * 左下资源 / 奥义 `0.015,0.49 -> 0.18,0.98`
   * 右下行动 `0.825,0.63 -> 0.985,0.975`
 * 原顶部资源区现在作为 fallback 文本摘要保留：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
@@ -204,6 +208,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 点击敌人：切换当前目标
 * 点击手牌：打出该牌
 * 点击奥义按钮：转发 `PlayUltimate`
+* 点击敌人头顶 UI：调用 `InspectEnemyByUnitId(RuntimeUnitId)` 打开 / 刷新敌人详情面板，不切换当前战斗目标
 
 ## 2.1 RootLayout 分层口径
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
@@ -218,9 +223,23 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 
 ## 2.1.1 Battle World 表现层口径
 * `AFinalBattleDirector` 只负责把 `FinalBattleFlowSubsystem` 的 Snapshot / Event 同步到场中表现 Actor，不承载规则真相。
+* 推荐通过 `BP_BattleDirector : AFinalBattleDirector` 保存战斗表现默认配置，例如 `DefaultPlayerPresentationClass / DefaultEnemyPresentationClass / EnemyPresentationClassMappings`；关卡中放置 BP 子类，避免每次直接改 C++ Actor 实例。
 * `AFinalBattlePresentationActor` 只消费 `FFinalBattlePresentationUnitViewData` 并播放选中、攻击、受击、击败等表现；不再拼接或渲染单位 debug 文本。
+* 敌人头顶 UI 当前由 `AFinalBattlePresentationActor.EnemyOverheadWidgetComponent` 挂载，Widget 父类为 `UFinalBattleEnemyOverheadWidget`。C++ 负责投影 `FFinalBattleEnemyOverheadViewData`，包括 HP / Shield / Break 百分比、先机、意图、敌人 rank tag 与状态数组；WBP 只负责视觉绑定、图标映射和动画。
+* `UFinalBattleEnemyOverheadWidget` 会自动刷新一组可选绑定控件：`NameText / HPText / HealthBar / ShieldFrameBar / BreakBar / InitiativeText / IntentText / StatusBox / TargetedVisual / DefeatedVisual`。WBP 中存在同名控件即可自动接线；缺失控件不会报错。
+* `UFinalBattleEnemyOverheadWidget` 支持可选 `InspectButton` 绑定。WBP 推荐放置一个覆盖头顶 UI 根区域的透明 Button，命名为 `InspectButton` 并勾选 Is Variable；点击只打开详情，不选择目标。若没有该按钮，C++ 保留左键点击 fallback，但正式表现应优先使用 Button 控制命中范围。
+* 玩家单位本轮不显示敌人头顶组件；后续玩家头顶 UI 需要单独定义 ViewData 或复用更通用的 UnitOverhead 结构。
 * Battle 场景内不再使用 `TextRenderComponent` 显示 BattleDirector summary 或单位详情；调试信息统一放到 Debug Screen、Battle Log、HUD feedback。
-* 后续正式场中头顶 UI 应基于 `FFinalBattlePresentationUnitViewData` 构建 `WidgetComponent / UnitOverheadWidget`，不要解析中文详情字符串。
+* 后续正式场中头顶 UI 应基于结构化 ViewData 构建 `WidgetComponent / UnitOverheadWidget`，不要解析中文详情字符串，也不要在 WBP 中回查战斗规则真相。
+
+## 2.1.2 Battle Enemy Detail Panel 口径
+* `SelectedTargetUnitId / CurrentTargetUnitId` 是战斗目标状态，负责出牌目标与目标高亮；`InspectedEnemyUnitId` 是 HUD 只读查看状态，负责敌人详情面板。两者长期分离，可以查看 A 敌人同时保持 B 敌人为当前战斗目标。
+* `UFinalBattleWidgetController.InspectEnemyByUnitId()` 只修改 `InspectedEnemyUnitId` 并刷新 HUD，不提交 `SelectTarget`，不改变 `CurrentTargetUnitId`，不触发任何 battle command。
+* `UFinalBattleEnemyDetailPanelController` 从 `CachedSnapshot + DataRegistry + InspectedEnemyUnitId` 构建 `FFinalBattleHUDEnemyDetailData`，包括名称、rank tag、HP / Shield / Break、先机、意图、阶段文本、是否当前目标、是否存活与状态详情。
+* `UFinalBattleEnemyDetailWidget` 是 WBP 父类。C++ 提供可选绑定控件与 `OnEnemyDetailViewApplied(ViewData)`，WBP 只负责布局、图标、状态行样式和关闭按钮表现。
+* 若 inspected 敌人不存在，详情面板自动清空并隐藏。敌人死亡但仍存在于 snapshot 时，ViewData 通过 `bIsAlive=false` 交给 WBP 表现死亡态。
+* 敌人 OverHeadWidget 点击当前已接入 `InspectEnemyByUnitId()`，不要通过旧 `EnemyPanel` 绕一层，也不要把详情打开逻辑和目标选择逻辑绑定在一起。
+* 旧 `EnemyPanel` 点击目标选择行为暂时保留；正式目标选择后续迁到场中单位 / 拖卡链路时再单独收口。
 
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口

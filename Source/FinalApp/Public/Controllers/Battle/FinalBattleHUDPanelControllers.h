@@ -14,6 +14,7 @@ class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
+class UFinalBattleEnemyDetailPanelViewModel;
 class UFinalBattleHandPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
@@ -26,6 +27,7 @@ struct FFinalBattleHUDCoordinatorData
 	const TArray<FFinalBattleEvent>* BattleEvents = nullptr;
 	const UFinalDataRegistry* DataRegistry = nullptr;
 	FName SelectedEnemyUnitId = NAME_None;
+	FName InspectedEnemyUnitId = NAME_None;
 	FText LastInteractionFeedback;
 	FFinalBattleEvent LastInteractionEvent;
 };
@@ -139,6 +141,23 @@ public:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleEnemyPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleEnemyDetailPanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeEnemyDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleEnemyDetailPanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearInspectedEnemy();
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleEnemyDetailPanelViewModel> ViewModel;
 };
 
 UCLASS(BlueprintType)
