@@ -75,6 +75,7 @@ struct FFinalBattleHandCardVisualState
 	bool bDragLockedToTarget = false;
 	float DragTargetLockAlpha = 0.0f;
 	float DragVisualScale = 1.0f;
+	float DragSuppressedAlpha = 0.0f;
 	bool bEntering = false;
 	bool bLeaving = false;
 	bool bSnapToTargetOnNextArrange = false;
@@ -577,94 +578,109 @@ public:
 
 	void InitializePanel(UFinalBattleHandPanelViewModel* InViewModel, UFinalBattleHandPanelController* InController);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "单张手牌在 Canvas 中占用的尺寸。会影响扇形排布、拖拽中心跟随鼠标的偏移，以及卡牌之间的重叠关系。"))
 	FVector2D CardSize = FVector2D(260.0f, 380.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "C++ fallback 创建手牌面板时使用的高度。WBP 已固定尺寸时主要作为布局计算的兜底高度。"))
 	float PanelHeightOverride = 430.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "手牌底部距离 HandPanel 底边的距离。数值越大，整排手牌越往上。"))
 	float BottomPadding = 24.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "允许手牌重叠时，卡牌之间的最小水平间距。手牌很多时会接近这个值。"))
 	float MinSpacing = 96.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "允许手牌重叠时，卡牌之间的最大水平间距。手牌较少时会接近这个值。"))
 	float MaxSpacing = 242.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "扇形中心卡相对两侧卡向上抬起的距离。数值越大，手牌弧度越明显。"))
 	float CenterLift = 28.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "扇形最两侧卡牌的最大旋转角度。正值会让左右两侧按扇形展开。"))
 	float MaxFanAngle = 10.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.01", ToolTip = "普通手牌默认缩放。拖拽时也会回到这个缩放，除非进入目标投放预览。"))
 	float CardScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.01", ToolTip = "按住手牌且尚未进入拖拽时的预选缩放。鼠标单纯悬浮不会使用该缩放。"))
 	float HoverScale = 1.32f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "按住手牌预选或拖拽回到手牌区取消位时，卡牌从底部基线向上抬起的距离。"))
 	float HoverLift = 110.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "按住手牌预选或拖拽回到手牌区取消位时的角度。通常为 0，让卡牌竖直显示。"))
 	float HoverAngle = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "预选 / 拖拽卡牌的 ZOrder 基础加成，让当前交互卡牌显示在其他手牌上方。"))
 	int32 HoverZOrder = 100;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "按住预选态和取消位视觉的插值速度。0 表示立即切换。"))
 	float HoverInterpSpeed = 14.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "AP 不足牌在扇形最两侧时的下沉距离。"))
 	float UnplayableDropMin = 8.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "AP 不足牌在扇形中心时的下沉距离。中心牌通常比两侧下沉更多。"))
 	float UnplayableDropMax = 24.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "AP 不足牌的整体透明度。只影响 UI 提示，不影响 Battle 规则真相。"))
 	float UnplayableOpacity = 0.62f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "新进入手牌的卡牌起始偏移，基于最终手牌底部位置计算。X 负数表示从左侧滑入。"))
 	FVector2D EnterStartOffset = FVector2D(-120.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "离开手牌的卡牌目标偏移，基于面板右侧计算。X 正数表示向右滑出。"))
 	FVector2D ExitTargetOffset = FVector2D(120.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "新卡进入手牌时的插值速度。0 表示立即到位。"))
 	float EnterInterpSpeed = 12.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "普通手牌重新排布时的位置、角度和缩放插值速度。0 表示立即到位。"))
 	float MoveInterpSpeed = 14.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "卡牌离开手牌时的插值速度。0 表示立即移除到离场目标。"))
 	float ExitInterpSpeed = 16.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ClampMin = "0.0", ToolTip = "离场卡牌距离离场目标小于该值时，从 HandPanel 中移除 Widget。"))
 	float RemoveDistanceTolerance = 8.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "是否让初始手牌也播放入场动画。关闭后初始手牌直接出现在最终位置。"))
 	bool bAnimateInitialHand = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout", meta = (ToolTip = "是否允许手牌水平重叠。开启后间距会被限制在 MinSpacing / MaxSpacing 之间；关闭后尽量避免卡牌重叠。"))
 	bool bAllowOverlap = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "1.0", ToolTip = "鼠标按下后移动超过这个屏幕距离才进入拖拽状态。"))
 	float DragStartDistance = 18.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ToolTip = "无目标牌拖出手牌区松开才会打出。正数扩大手牌取消区域，负数缩小取消区域。"))
 	float DragPlayLeaveHandPadding = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ToolTip = "拖拽中卡牌的 ZOrder 加成，保证拖拽牌显示在普通手牌上方。"))
 	int32 DraggingZOrder = 180;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "拖拽牌命中目标并进入投放预览位时的透明度。"))
 	float DragTargetLockedOpacity = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ToolTip = "拖拽牌命中敌人目标时，从普通 hover 高度继续向上抬升的距离。数值越大，投放预览位越靠上。"))
+	float DragTargetFocusLift = 150.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ToolTip = "拖拽牌命中敌人目标时，投放预览位的额外 X/Y 微调。X 正数向右，Y 正数向下。"))
+	FVector2D DragTargetFocusOffset = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.01", ToolTip = "拖拽牌命中敌人目标时的预览缩放。该值独立于 HoverScale。"))
+	float DragTargetFocusScale = 1.18f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ToolTip = "拖拽牌命中敌人目标时，其他手牌向下沉的距离。"))
+	float DragTargetOtherCardsDrop = 36.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "拖拽牌命中敌人目标时，其他手牌的透明度上限。"))
+	float DragTargetOtherCardsOpacity = 0.55f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ToolTip = "拖拽牌在鼠标跟随、手牌区取消位、目标投放预览位之间切换时的位置插值速度。"))
 	float DragTargetLockInterpSpeed = 12.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ToolTip = "拖拽开始后，卡牌从按下时的视觉缩放过渡到拖拽缩放或目标预览缩放的速度。"))
 	float DragScaleInterpSpeed = 12.0f;
 
 private:

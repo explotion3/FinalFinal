@@ -139,12 +139,6 @@ void UFinalBattleCardEntryWidget::HandleButtonClicked()
 	if (bSuppressNextClick)
 	{
 		bSuppressNextClick = false;
-		return;
-	}
-
-	if (PanelController.IsValid())
-	{
-		PanelController->PlayCardByHandIndex(HandIndex);
 	}
 }
 
