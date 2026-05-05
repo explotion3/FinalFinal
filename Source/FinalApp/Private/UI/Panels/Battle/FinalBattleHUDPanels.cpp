@@ -1975,12 +1975,15 @@ void UFinalBattleHandPanel::UpdateDragState(const FGeometry& MyGeometry, const f
 		return;
 	}
 
-	const FVector2D LocalPointer = MyGeometry.AbsoluteToLocal(ScreenPosition);
-	const FVector2D SafeCardSize(
-		FMath::Max(1.0f, CardSize.X),
-		FMath::Max(1.0f, CardSize.Y));
-	ActiveVisual->DragFollowPosition = LocalPointer + FVector2D(0.0f, SafeCardSize.Y * 0.5f);
 	const bool bPointerOutsideHandArea = IsOutsideHandPlayArea(MyGeometry, ScreenPosition);
+	if (bPointerOutsideHandArea)
+	{
+		const FVector2D LocalPointer = MyGeometry.AbsoluteToLocal(ScreenPosition);
+		const FVector2D SafeCardSize(
+			FMath::Max(1.0f, CardSize.X),
+			FMath::Max(1.0f, CardSize.Y));
+		ActiveVisual->DragFollowPosition = LocalPointer + FVector2D(0.0f, SafeCardSize.Y * 0.5f);
+	}
 	bool bShouldReturnToHoverPosition = !bPointerOutsideHandArea;
 
 	if (ActiveDragTargetRequirement == EFinalBattleCardTargetRequirement::Enemy)
@@ -2047,16 +2050,11 @@ void UFinalBattleHandPanel::BeginActiveCardDrag(FFinalBattleHandCardVisualState&
 		return;
 	}
 
-	UCanvasPanelSlot* CardSlot = Cast<UCanvasPanelSlot>(CardWidget->Slot);
-	const FVector2D LocalPointer = GetCachedGeometry().AbsoluteToLocal(ScreenPosition);
-	const FVector2D SafeCardSize(
-		FMath::Max(1.0f, CardSize.X),
-		FMath::Max(1.0f, CardSize.Y));
 	VisualState.DragPointerOffset = FVector2D::ZeroVector;
-	VisualState.DragFollowPosition = LocalPointer + FVector2D(0.0f, SafeCardSize.Y * 0.5f);
+	VisualState.DragFollowPosition = VisualState.CurrentPosition;
 	VisualState.bDragging = true;
 	VisualState.bDragLockedToTarget = false;
-	VisualState.DragTargetLockAlpha = 0.0f;
+	VisualState.DragTargetLockAlpha = FMath::Clamp(VisualState.HoverAlpha, 0.0f, 1.0f);
 	VisualState.DragVisualScale = FMath::Lerp(
 		VisualState.CurrentScale,
 		VisualState.CurrentScale * FMath::Max(0.01f, HoverScale),
@@ -2072,7 +2070,6 @@ void UFinalBattleHandPanel::BeginActiveCardDrag(FFinalBattleHandCardVisualState&
 	DragCandidateCardInstanceId.Invalidate();
 	DragCandidateHandIndex = INDEX_NONE;
 	CardWidget->SuppressNextClick();
-	ApplyCardVisualState(VisualState);
 }
 
 void UFinalBattleHandPanel::FinishActiveCardDrag(const FGeometry& MyGeometry, const FVector2D& ScreenPosition)
