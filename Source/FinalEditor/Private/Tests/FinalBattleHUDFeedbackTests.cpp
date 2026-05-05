@@ -3,6 +3,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
+#include "Controllers/FinalBattleWidgetController.h"
+#include "ViewModels/FinalBattleHUDViewModel.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalBattleHUDFeedbackPassiveTitleMappingTest,
@@ -68,6 +70,35 @@ bool FFinalBattleHUDCardAPPlayHintTest::RunTest(const FString& Parameters)
 	ApplyBattleHUDCardAPPlayHint(ExpensiveEntry, 2);
 	TestFalse(TEXT("Card should be visually marked unplayable when AP is insufficient."), ExpensiveEntry.bCanPlayHint);
 	TestEqual(TEXT("AP hint text should be AP不足."), ExpensiveEntry.UnplayableHintText.ToString(), FString(TEXT("AP不足")));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalBattleHUDCardZoneInspectStateTest,
+	"Final.Editor.BattleHUD.CardZoneDetail.InspectState",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalBattleHUDCardZoneInspectStateTest::RunTest(const FString& Parameters)
+{
+	UFinalBattleHUDViewModel* ViewModel = NewObject<UFinalBattleHUDViewModel>();
+	UFinalBattleWidgetController* Controller = NewObject<UFinalBattleWidgetController>();
+	Controller->Initialize(ViewModel);
+
+	TestFalse(TEXT("Card zone detail should start closed."), Controller->IsCardZoneDetailOpen());
+	TestEqual(TEXT("Default selected card zone should be DrawPile."), Controller->GetSelectedCardZone(), EFinalBattleCardZone::DrawPile);
+
+	Controller->InspectCardZone(EFinalBattleCardZone::OngoingZone);
+	TestTrue(TEXT("InspectCardZone should open the detail panel."), Controller->IsCardZoneDetailOpen());
+	TestEqual(TEXT("InspectCardZone should select the requested zone."), Controller->GetSelectedCardZone(), EFinalBattleCardZone::OngoingZone);
+
+	Controller->SetSelectedCardZone(EFinalBattleCardZone::ConsumePile);
+	TestTrue(TEXT("Tab selection should keep the detail panel open."), Controller->IsCardZoneDetailOpen());
+	TestEqual(TEXT("SetSelectedCardZone should change only the inspected zone."), Controller->GetSelectedCardZone(), EFinalBattleCardZone::ConsumePile);
+
+	Controller->ClearCardZoneDetail();
+	TestFalse(TEXT("ClearCardZoneDetail should close the detail panel."), Controller->IsCardZoneDetailOpen());
+	TestEqual(TEXT("ClearCardZoneDetail should preserve the last selected tab for next open."), Controller->GetSelectedCardZone(), EFinalBattleCardZone::ConsumePile);
 
 	return true;
 }

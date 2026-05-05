@@ -23,6 +23,8 @@
 #include "UI/Settings/FinalUIWidgetClassSettings.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDPanelViewModels.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCardZoneEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCharacterDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
@@ -45,6 +47,19 @@ UTextBlock* CreateLabel(UWidgetTree* WidgetTree, const TCHAR* Name, const int32 
 	Text->SetAutoWrapText(true);
 	Text->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), FontSize));
 	return Text;
+}
+
+UButton* CreateTextButton(UWidgetTree* WidgetTree, const TCHAR* ButtonName, const TCHAR* TextName, const FText& Label, TObjectPtr<UTextBlock>& OutText)
+{
+	UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), ButtonName);
+	OutText = CreateLabel(WidgetTree, TextName, 11);
+	if (OutText)
+	{
+		OutText->SetJustification(ETextJustify::Center);
+		OutText->SetText(Label);
+		Button->AddChild(OutText);
+	}
+	return Button;
 }
 
 FText JoinTextArray(const TArray<FText>& Texts, const FText& EmptyText)
@@ -568,6 +583,7 @@ void UFinalBattleContextPanel::NativeDestruct()
 void UFinalBattleContextPanel::InitializePanel(UFinalBattleContextPanelViewModel* InViewModel, UFinalBattleContextPanelController* InController)
 {
 	PanelViewModel = InViewModel;
+	PanelController = InController;
 	SetPresentationContext(InController, InViewModel);
 	RefreshFromViewModel();
 }
@@ -591,6 +607,53 @@ void UFinalBattleContextPanel::EnsureWidgetTree()
 	ContextBorder->SetContent(ContextText);
 	RootBox->AddChildToVerticalBox(ContextBorder);
 
+	UHorizontalBox* ZoneButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CardZoneButtonRow"));
+	if (UVerticalBoxSlot* ZoneRowSlot = RootBox->AddChildToVerticalBox(ZoneButtonRow))
+	{
+		ZoneRowSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
+	DrawPileButton = CreateTextButton(WidgetTree, TEXT("DrawPileButton"), TEXT("DrawPileButtonText"), NSLOCTEXT("FinalBattleHUD", "DrawPileButtonLabel", "抽牌"), DrawPileButtonText);
+	HandButton = CreateTextButton(WidgetTree, TEXT("HandButton"), TEXT("HandButtonText"), NSLOCTEXT("FinalBattleHUD", "HandButtonLabel", "手牌"), HandButtonText);
+	DiscardPileButton = CreateTextButton(WidgetTree, TEXT("DiscardPileButton"), TEXT("DiscardPileButtonText"), NSLOCTEXT("FinalBattleHUD", "DiscardPileButtonLabel", "弃牌"), DiscardPileButtonText);
+	OngoingZoneButton = CreateTextButton(WidgetTree, TEXT("OngoingZoneButton"), TEXT("OngoingZoneButtonText"), NSLOCTEXT("FinalBattleHUD", "OngoingZoneButtonLabel", "持续"), OngoingZoneButtonText);
+	ConsumePileButton = CreateTextButton(WidgetTree, TEXT("ConsumePileButton"), TEXT("ConsumePileButtonText"), NSLOCTEXT("FinalBattleHUD", "ConsumePileButtonLabel", "消耗"), ConsumePileButtonText);
+
+	if (DrawPileButton)
+	{
+		DrawPileButton->OnClicked.AddDynamic(this, &UFinalBattleContextPanel::HandleDrawPileClicked);
+	}
+	if (HandButton)
+	{
+		HandButton->OnClicked.AddDynamic(this, &UFinalBattleContextPanel::HandleHandClicked);
+	}
+	if (DiscardPileButton)
+	{
+		DiscardPileButton->OnClicked.AddDynamic(this, &UFinalBattleContextPanel::HandleDiscardPileClicked);
+	}
+	if (OngoingZoneButton)
+	{
+		OngoingZoneButton->OnClicked.AddDynamic(this, &UFinalBattleContextPanel::HandleOngoingZoneClicked);
+	}
+	if (ConsumePileButton)
+	{
+		ConsumePileButton->OnClicked.AddDynamic(this, &UFinalBattleContextPanel::HandleConsumePileClicked);
+	}
+
+	UButton* ZoneButtons[] = { DrawPileButton, HandButton, DiscardPileButton, OngoingZoneButton, ConsumePileButton };
+	for (UButton* ZoneButton : ZoneButtons)
+	{
+		if (ZoneButton == nullptr)
+		{
+			continue;
+		}
+		if (UHorizontalBoxSlot* ButtonSlot = ZoneButtonRow->AddChildToHorizontalBox(ZoneButton))
+		{
+			ButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 4.0f, 0.0f));
+			ButtonSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		}
+	}
+
 	GapBorder = CreateSection(WidgetTree, TEXT("GapBorder"), FLinearColor(0.14f, 0.08f, 0.08f, 0.92f));
 	GapText = CreateLabel(WidgetTree, TEXT("GapText"), 11);
 	GapBorder->SetContent(GapText);
@@ -613,7 +676,42 @@ void UFinalBattleContextPanel::RefreshFromViewModel()
 		ContextText->SetText(FText::GetEmpty());
 		GapText->SetText(FText::GetEmpty());
 		GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+		UButton* ZoneButtons[] = { DrawPileButton, HandButton, DiscardPileButton, OngoingZoneButton, ConsumePileButton };
+		for (UButton* ZoneButton : ZoneButtons)
+		{
+			if (ZoneButton)
+			{
+				ZoneButton->SetIsEnabled(false);
+			}
+		}
 		return;
+	}
+
+	if (DrawPileButton) { DrawPileButton->SetIsEnabled(true); }
+	if (HandButton) { HandButton->SetIsEnabled(true); }
+	if (DiscardPileButton) { DiscardPileButton->SetIsEnabled(true); }
+	if (OngoingZoneButton) { OngoingZoneButton->SetIsEnabled(true); }
+	if (ConsumePileButton) { ConsumePileButton->SetIsEnabled(true); }
+
+	if (DrawPileButtonText)
+	{
+		DrawPileButtonText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "DrawPileButtonCount", "抽 {0}"), FText::AsNumber(Data.DrawPileCount)));
+	}
+	if (HandButtonText)
+	{
+		HandButtonText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "HandButtonCount", "手 {0}"), FText::AsNumber(Data.HandCount)));
+	}
+	if (DiscardPileButtonText)
+	{
+		DiscardPileButtonText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "DiscardPileButtonCount", "弃 {0}"), FText::AsNumber(Data.DiscardPileCount)));
+	}
+	if (OngoingZoneButtonText)
+	{
+		OngoingZoneButtonText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "OngoingZoneButtonCount", "持 {0}"), FText::AsNumber(Data.OngoingZoneCount)));
+	}
+	if (ConsumePileButtonText)
+	{
+		ConsumePileButtonText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "ConsumePileButtonCount", "耗 {0}"), FText::AsNumber(Data.ConsumePileCount)));
 	}
 
 	ContextText->SetText(FText::Format(
@@ -639,6 +737,39 @@ void UFinalBattleContextPanel::RefreshFromViewModel()
 	{
 		GapText->SetText(FText::GetEmpty());
 		GapBorder->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UFinalBattleContextPanel::HandleDrawPileClicked()
+{
+	InspectCardZone(EFinalBattleCardZone::DrawPile);
+}
+
+void UFinalBattleContextPanel::HandleHandClicked()
+{
+	InspectCardZone(EFinalBattleCardZone::Hand);
+}
+
+void UFinalBattleContextPanel::HandleDiscardPileClicked()
+{
+	InspectCardZone(EFinalBattleCardZone::DiscardPile);
+}
+
+void UFinalBattleContextPanel::HandleOngoingZoneClicked()
+{
+	InspectCardZone(EFinalBattleCardZone::OngoingZone);
+}
+
+void UFinalBattleContextPanel::HandleConsumePileClicked()
+{
+	InspectCardZone(EFinalBattleCardZone::ConsumePile);
+}
+
+void UFinalBattleContextPanel::InspectCardZone(const EFinalBattleCardZone Zone)
+{
+	if (PanelController)
+	{
+		PanelController->InspectCardZone(Zone);
 	}
 }
 
@@ -670,6 +801,7 @@ void UFinalBattleCharacterPanel::NativeDestruct()
 void UFinalBattleCharacterPanel::InitializePanel(UFinalBattleCharacterPanelViewModel* InViewModel, UFinalBattleCharacterPanelController* InController)
 {
 	PanelViewModel = InViewModel;
+	PanelController = InController;
 	SetPresentationContext(InController, InViewModel);
 	RefreshFromViewModel();
 }
@@ -710,6 +842,7 @@ void UFinalBattleCharacterPanel::RefreshFromViewModel()
 			continue;
 		}
 
+		CharacterWidget->SetPresentationContext(PanelController, PanelViewModel);
 		CharacterWidget->Configure(Entry);
 		if (UVerticalBoxSlot* CharacterSlot = CharacterListBox->AddChildToVerticalBox(CharacterWidget))
 		{
@@ -954,6 +1087,173 @@ FText UFinalBattleEnemyDetailPanel::BuildFallbackText(const FFinalBattleHUDEnemy
 		Data.IntentText,
 		Data.PhaseProgressText,
 		FText::FromString(StatusText));
+}
+
+void UFinalBattleCharacterDetailPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+}
+
+void UFinalBattleCharacterDetailPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.AddDynamic(this, &UFinalBattleCharacterDetailPanel::HandleViewModelChanged);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCharacterDetailPanel::NativeDestruct()
+{
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleCharacterDetailPanel::HandleViewModelChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UFinalBattleCharacterDetailPanel::InitializePanel(UFinalBattleCharacterDetailPanelViewModel* InViewModel, UFinalBattleCharacterDetailPanelController* InController)
+{
+	PanelViewModel = InViewModel;
+	PanelController = InController;
+	SetPresentationContext(InController, InViewModel);
+	if (CharacterDetailWidget)
+	{
+		CharacterDetailWidget->SetPresentationContext(InController, InViewModel);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCharacterDetailPanel::HandleViewModelChanged()
+{
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCharacterDetailPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	const TSubclassOf<UFinalBattleCharacterDetailWidget> DetailWidgetClass = UFinalUIWidgetClassSettings::GetBattleCharacterDetailWidgetClass();
+	if (DetailWidgetClass && DetailWidgetClass != UFinalBattleCharacterDetailWidget::StaticClass())
+	{
+		CharacterDetailWidget = WidgetTree->ConstructWidget<UFinalBattleCharacterDetailWidget>(DetailWidgetClass, TEXT("CharacterDetailWidget"));
+		WidgetTree->RootWidget = CharacterDetailWidget;
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("CharacterDetailBorder"), FLinearColor(0.08f, 0.09f, 0.12f, 0.94f));
+	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CharacterDetailFallbackContent"));
+	Border->SetContent(ContentBox);
+
+	UHorizontalBox* HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CharacterDetailFallbackHeader"));
+	ContentBox->AddChildToVerticalBox(HeaderBox);
+
+	UTextBlock* HeaderText = CreateLabel(WidgetTree, TEXT("CharacterDetailFallbackHeaderText"), 16);
+	HeaderText->SetText(NSLOCTEXT("FinalBattleHUD", "CharacterDetailFallbackTitle", "角色详情"));
+	if (UHorizontalBoxSlot* HeaderTextSlot = HeaderBox->AddChildToHorizontalBox(HeaderText))
+	{
+		HeaderTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	DetailFallbackCloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CharacterDetailFallbackCloseButton"));
+	UTextBlock* CloseLabel = CreateLabel(WidgetTree, TEXT("CharacterDetailFallbackCloseLabel"), 14);
+	CloseLabel->SetText(NSLOCTEXT("FinalBattleHUD", "CharacterDetailFallbackClose", "关闭"));
+	DetailFallbackCloseButton->AddChild(CloseLabel);
+	DetailFallbackCloseButton->OnClicked.AddDynamic(this, &UFinalBattleCharacterDetailPanel::HandleFallbackCloseClicked);
+	HeaderBox->AddChildToHorizontalBox(DetailFallbackCloseButton);
+
+	DetailFallbackText = CreateLabel(WidgetTree, TEXT("CharacterDetailFallbackText"), 14);
+	DetailFallbackText->SetAutoWrapText(true);
+	if (UVerticalBoxSlot* TextSlot = ContentBox->AddChildToVerticalBox(DetailFallbackText))
+	{
+		TextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
+	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleCharacterDetailPanel::HandleFallbackCloseClicked()
+{
+	if (PanelController)
+	{
+		PanelController->ClearInspectedCharacter();
+	}
+}
+
+void UFinalBattleCharacterDetailPanel::RefreshFromViewModel()
+{
+	if (PanelViewModel == nullptr)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FFinalBattleHUDCharacterDetailData& Data = PanelViewModel->GetData();
+	SetVisibility(Data.bHasCharacter ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (CharacterDetailWidget)
+	{
+		CharacterDetailWidget->SetPresentationContext(PanelController, PanelViewModel);
+		CharacterDetailWidget->ApplyCharacterDetailView(Data);
+	}
+
+	if (DetailFallbackText)
+	{
+		DetailFallbackText->SetText(BuildFallbackText(Data));
+	}
+}
+
+FText UFinalBattleCharacterDetailPanel::BuildFallbackText(const FFinalBattleHUDCharacterDetailData& Data) const
+{
+	if (!Data.bHasCharacter)
+	{
+		return FText::GetEmpty();
+	}
+
+	TArray<FString> StatusSegments;
+	for (const FFinalBattleHUDCharacterDetailStatusEntry& Status : Data.Statuses)
+	{
+		StatusSegments.Add(FText::Format(
+			NSLOCTEXT("FinalBattleHUD", "CharacterDetailFallbackStatus", "{0} x{1}"),
+			Status.DisplayName,
+			FText::AsNumber(Status.CurrentStacks)).ToString());
+	}
+
+	TArray<FString> PassiveSegments;
+	for (const FFinalBattleHUDCharacterDetailPassiveEntry& Passive : Data.Passives)
+	{
+		PassiveSegments.Add(Passive.DisplayName.ToString());
+	}
+
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CharacterDetailFallbackFormat", "{0} Lv.{1}\n压力 {2}/{3} | Vital {4}\n突破 {5}/{6} | 苏醒 {7}/{8} | 崩溃 {9}\n根骨 {10} | 悟性 {11} | 杀意 {12}\n攻击 {13} | 防御 {14} | 削韧率 {15}%\n暴击 {16}% | 暴伤 {17}%\n奥义: {18} EP {19}\n状态: {20}\n被动: {21}"),
+		Data.DisplayName,
+		FText::AsNumber(Data.Level),
+		FText::AsNumber(Data.CurrentStress),
+		FText::AsNumber(Data.StressCap),
+		FText::AsNumber(Data.VitalShare),
+		FText::AsNumber(Data.BreakthroughValue),
+		FText::AsNumber(Data.BreakthroughRequiredValue),
+		FText::AsNumber(Data.CurrentAwakenCount),
+		FText::AsNumber(Data.CurrentAwakenThreshold),
+		FText::AsNumber(Data.CollapseCount),
+		FText::AsNumber(Data.RootBone),
+		FText::AsNumber(Data.Insight),
+		FText::AsNumber(Data.KillingIntent),
+		FText::AsNumber(Data.RuntimeAttack),
+		FText::AsNumber(Data.RuntimeDefense),
+		FText::AsNumber(FMath::RoundToInt(Data.RuntimeBreakRate * 100.0f)),
+		FText::AsNumber(FMath::RoundToInt(Data.RuntimeCritChance * 100.0f)),
+		FText::AsNumber(FMath::RoundToInt(Data.RuntimeCritDamage * 100.0f)),
+		Data.UltimateNameText,
+		FText::AsNumber(Data.UltimateCostEP),
+		FText::FromString(StatusSegments.Num() > 0 ? FString::Join(StatusSegments, TEXT(" | ")) : TEXT("无")),
+		FText::FromString(PassiveSegments.Num() > 0 ? FString::Join(PassiveSegments, TEXT(" | ")) : TEXT("无")));
 }
 
 void UFinalBattleHandPanel::NativeOnInitialized()
@@ -1431,6 +1731,237 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 	CardWidget->SetRenderTransform(Transform);
 	CardWidget->SetRenderTransformPivot(FVector2D(0.5f, 1.0f));
 	CardWidget->SetRenderOpacity(BaseOpacity);
+}
+
+void UFinalBattleCardZoneDetailPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+}
+
+void UFinalBattleCardZoneDetailPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleViewModelChanged);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCardZoneDetailPanel::NativeDestruct()
+{
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleViewModelChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UFinalBattleCardZoneDetailPanel::InitializePanel(UFinalBattleCardZoneDetailPanelViewModel* InViewModel, UFinalBattleCardZoneDetailPanelController* InController)
+{
+	PanelViewModel = InViewModel;
+	PanelController = InController;
+	SetPresentationContext(InController, InViewModel);
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleViewModelChanged()
+{
+	RefreshFromViewModel();
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleCloseClicked()
+{
+	if (PanelController)
+	{
+		PanelController->ClearCardZoneDetail();
+	}
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleDrawPileClicked()
+{
+	SelectZone(EFinalBattleCardZone::DrawPile);
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleHandClicked()
+{
+	SelectZone(EFinalBattleCardZone::Hand);
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleDiscardPileClicked()
+{
+	SelectZone(EFinalBattleCardZone::DiscardPile);
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleOngoingZoneClicked()
+{
+	SelectZone(EFinalBattleCardZone::OngoingZone);
+}
+
+void UFinalBattleCardZoneDetailPanel::HandleConsumePileClicked()
+{
+	SelectZone(EFinalBattleCardZone::ConsumePile);
+}
+
+void UFinalBattleCardZoneDetailPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("CardZoneDetailBorder"), FLinearColor(0.06f, 0.06f, 0.07f, 0.96f));
+	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CardZoneDetailRoot"));
+	Border->SetContent(RootBox);
+
+	UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CardZoneDetailHeader"));
+	RootBox->AddChildToVerticalBox(HeaderRow);
+
+	TitleText = CreateLabel(WidgetTree, TEXT("TitleText"), 16);
+	TitleText->SetText(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailDefaultTitle", "牌区详情"));
+	if (UHorizontalBoxSlot* TitleSlot = HeaderRow->AddChildToHorizontalBox(TitleText))
+	{
+		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		TitleSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+	UTextBlock* CloseLabel = CreateLabel(WidgetTree, TEXT("CloseButtonText"), 13);
+	CloseLabel->SetText(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailClose", "关闭"));
+	CloseButton->AddChild(CloseLabel);
+	CloseButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleCloseClicked);
+	if (UHorizontalBoxSlot* CloseSlot = HeaderRow->AddChildToHorizontalBox(CloseButton))
+	{
+		CloseSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
+
+	UHorizontalBox* TabRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CardZoneDetailTabs"));
+	if (UVerticalBoxSlot* TabRowSlot = RootBox->AddChildToVerticalBox(TabRow))
+	{
+		TabRowSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 6.0f));
+	}
+
+	DrawPileTabButton = CreateTextButton(WidgetTree, TEXT("DrawPileTabButton"), TEXT("DrawPileTabText"), NSLOCTEXT("FinalBattleHUD", "CardZoneDetailDrawPileTab", "抽牌"), DrawPileTabText);
+	HandTabButton = CreateTextButton(WidgetTree, TEXT("HandTabButton"), TEXT("HandTabText"), NSLOCTEXT("FinalBattleHUD", "CardZoneDetailHandTab", "手牌"), HandTabText);
+	DiscardPileTabButton = CreateTextButton(WidgetTree, TEXT("DiscardPileTabButton"), TEXT("DiscardPileTabText"), NSLOCTEXT("FinalBattleHUD", "CardZoneDetailDiscardPileTab", "弃牌"), DiscardPileTabText);
+	OngoingZoneTabButton = CreateTextButton(WidgetTree, TEXT("OngoingZoneTabButton"), TEXT("OngoingZoneTabText"), NSLOCTEXT("FinalBattleHUD", "CardZoneDetailOngoingZoneTab", "持续"), OngoingZoneTabText);
+	ConsumePileTabButton = CreateTextButton(WidgetTree, TEXT("ConsumePileTabButton"), TEXT("ConsumePileTabText"), NSLOCTEXT("FinalBattleHUD", "CardZoneDetailConsumePileTab", "消耗"), ConsumePileTabText);
+
+	if (DrawPileTabButton) { DrawPileTabButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleDrawPileClicked); }
+	if (HandTabButton) { HandTabButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleHandClicked); }
+	if (DiscardPileTabButton) { DiscardPileTabButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleDiscardPileClicked); }
+	if (OngoingZoneTabButton) { OngoingZoneTabButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleOngoingZoneClicked); }
+	if (ConsumePileTabButton) { ConsumePileTabButton->OnClicked.AddDynamic(this, &UFinalBattleCardZoneDetailPanel::HandleConsumePileClicked); }
+
+	UButton* TabButtons[] = { DrawPileTabButton, HandTabButton, DiscardPileTabButton, OngoingZoneTabButton, ConsumePileTabButton };
+	for (UButton* TabButton : TabButtons)
+	{
+		if (TabButton == nullptr)
+		{
+			continue;
+		}
+		if (UHorizontalBoxSlot* TabSlot = TabRow->AddChildToHorizontalBox(TabButton))
+		{
+			TabSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			TabSlot->SetPadding(FMargin(0.0f, 0.0f, 4.0f, 0.0f));
+		}
+	}
+
+	USizeBox* ListSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CardZoneDetailListSizeBox"));
+	ListSizeBox->SetHeightOverride(430.0f);
+	UScrollBox* ScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("CardZoneDetailScrollBox"));
+	CardListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CardListBox"));
+	ScrollBox->AddChild(CardListBox);
+	ListSizeBox->SetContent(ScrollBox);
+	if (UVerticalBoxSlot* ListSlot = RootBox->AddChildToVerticalBox(ListSizeBox))
+	{
+		ListSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	EmptyText = CreateLabel(WidgetTree, TEXT("EmptyText"), 13);
+	EmptyText->SetText(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailEmpty", "这个牌区暂无卡牌。"));
+	EmptyText->SetVisibility(ESlateVisibility::Collapsed);
+	if (UVerticalBoxSlot* EmptySlot = RootBox->AddChildToVerticalBox(EmptyText))
+	{
+		EmptySlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
+	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleCardZoneDetailPanel::RefreshFromViewModel()
+{
+	if (PanelViewModel == nullptr)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FFinalBattleHUDCardZoneDetailData& Data = PanelViewModel->GetData();
+	const bool bShouldShow = Data.bIsOpen && Data.bHasActiveBattle;
+	SetVisibility(bShouldShow ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (!bShouldShow)
+	{
+		return;
+	}
+
+	if (TitleText)
+	{
+		TitleText->SetText(Data.TitleText);
+	}
+
+	if (DrawPileTabText)
+	{
+		DrawPileTabText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailDrawPileTabCount", "抽牌 {0}"), FText::AsNumber(Data.DrawPileCount)));
+	}
+	if (HandTabText)
+	{
+		HandTabText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailHandTabCount", "手牌 {0}"), FText::AsNumber(Data.HandCount)));
+	}
+	if (DiscardPileTabText)
+	{
+		DiscardPileTabText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailDiscardPileTabCount", "弃牌 {0}"), FText::AsNumber(Data.DiscardPileCount)));
+	}
+	if (OngoingZoneTabText)
+	{
+		OngoingZoneTabText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailOngoingZoneTabCount", "持续 {0}"), FText::AsNumber(Data.OngoingZoneCount)));
+	}
+	if (ConsumePileTabText)
+	{
+		ConsumePileTabText->SetText(FText::Format(NSLOCTEXT("FinalBattleHUD", "CardZoneDetailConsumePileTabCount", "消耗 {0}"), FText::AsNumber(Data.ConsumePileCount)));
+	}
+
+	if (CardListBox)
+	{
+		CardListBox->ClearChildren();
+		for (const FFinalBattleHUDCardZoneEntry& Entry : Data.Entries)
+		{
+			UFinalBattleCardZoneEntryWidget* EntryWidget = CreateConfiguredEntryWidget(this, UFinalUIWidgetClassSettings::GetBattleCardZoneEntryWidgetClass());
+			if (EntryWidget == nullptr)
+			{
+				continue;
+			}
+			EntryWidget->ApplyCardZoneEntryView(Entry);
+			if (UVerticalBoxSlot* EntrySlot = CardListBox->AddChildToVerticalBox(EntryWidget))
+			{
+				EntrySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+			}
+		}
+	}
+
+	if (EmptyText)
+	{
+		EmptyText->SetVisibility(Data.Entries.Num() == 0 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UFinalBattleCardZoneDetailPanel::SelectZone(const EFinalBattleCardZone Zone)
+{
+	if (PanelController)
+	{
+		PanelController->SetSelectedCardZone(Zone);
+	}
 }
 
 void UFinalBattleUltimatePanel::NativeOnInitialized()

@@ -75,4 +75,5 @@ private:
 	bool bAutoStartingPreparedBattle = false;
 	int32 LastProcessedGrowthFactBatchSequence = 0;
 	bool bPendingGrowthChoiceDeferredFromEnemyPhase = false;
+	FName PresentedPendingGrowthChoiceKey = NAME_None;
 };

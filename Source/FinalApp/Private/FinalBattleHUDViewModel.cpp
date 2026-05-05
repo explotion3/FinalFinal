@@ -37,9 +37,19 @@ void UFinalBattleHUDViewModel::EnsurePanelViewModels()
 		EnemyDetailViewModel = NewObject<UFinalBattleEnemyDetailPanelViewModel>(this);
 	}
 
+	if (CharacterDetailViewModel == nullptr)
+	{
+		CharacterDetailViewModel = NewObject<UFinalBattleCharacterDetailPanelViewModel>(this);
+	}
+
 	if (HandViewModel == nullptr)
 	{
 		HandViewModel = NewObject<UFinalBattleHandPanelViewModel>(this);
+	}
+
+	if (CardZoneDetailViewModel == nullptr)
+	{
+		CardZoneDetailViewModel = NewObject<UFinalBattleCardZoneDetailPanelViewModel>(this);
 	}
 
 	if (UltimateViewModel == nullptr)
@@ -119,9 +129,19 @@ UFinalBattleEnemyDetailPanelViewModel* UFinalBattleHUDViewModel::GetEnemyDetailV
 	return EnemyDetailViewModel;
 }
 
+UFinalBattleCharacterDetailPanelViewModel* UFinalBattleHUDViewModel::GetCharacterDetailViewModel() const
+{
+	return CharacterDetailViewModel;
+}
+
 UFinalBattleHandPanelViewModel* UFinalBattleHUDViewModel::GetHandViewModel() const
 {
 	return HandViewModel;
+}
+
+UFinalBattleCardZoneDetailPanelViewModel* UFinalBattleHUDViewModel::GetCardZoneDetailViewModel() const
+{
+	return CardZoneDetailViewModel;
 }
 
 UFinalBattleUltimatePanelViewModel* UFinalBattleHUDViewModel::GetUltimateViewModel() const

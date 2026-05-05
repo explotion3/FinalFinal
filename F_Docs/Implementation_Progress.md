@@ -5,6 +5,14 @@
 - 新增 `F_Docs/Development_Backlog.md` 作为未完成任务池；任务按 `P0 / P1 / P2` 记录，并尽量保持一条任务一段，方便完成后移动。
 - `Implementation_Progress.md` 继续作为已完成事实记录；后续临时新想法优先进入 Backlog，不直接打断当前主线。
 
+## 2026-05-05：Card Zone Detail v0.1
+
+- `FinalBattleSnapshot` 当前新增 `CardZones` 明细，按 `DrawPile / Hand / DiscardPile / OngoingZone / ConsumePile` 输出只读牌区 ViewData；`Hand` zone 明细与现有 `HandCards` 保持一致，但不替代出牌用手牌 ViewData。
+- `FinalBattleCardService` 当前负责从 `DeckState` 五个牌区 instance id 列表构建牌区卡牌条目，条目包含 owner、费用、类型、关键词、已解析规则文本和 `Retained / Consume / Ongoing / Generated / Temporary` 标记。
+- `FinalApp` 当前新增 `CardZoneDetail` UI 查看状态：`InspectCardZone / SetSelectedCardZone / ClearCardZoneDetail` 只影响 HUD 只读详情面板，不提交 battle command，也不改变目标选择或角色 / 敌人详情状态。
+- `UFinalBattleHUDScreen` 当前支持可选 `CardZoneDetailSlot`；未提供 slot 时使用 C++ fallback Canvas 位置。`UFinalBattleCardZoneDetailPanel` 使用统一 Tab 面板查看五个牌区，`UFinalBattleCardZoneEntryWidget` 是只读列表 entry，不复用手牌出牌 Entry。
+- `ContextPanel` fallback 当前提供五个牌区数量按钮作为临时入口；WBP 后续可以用同一 controller API 接入正式按钮。
+
 ## 2026-05-01：Battle HUD 新骨架与 UI 类分级收口
 
 - `UI_Wireframe` 当前已补 `UI Class Tiers`，把 UI 类分为 `Core UI / Battle Formal HUD / Battle Debug UI / Run Overlay UI / Legacy-Fallback UI`。
@@ -412,3 +420,20 @@
 - 角色 Entry 当前已从大段 fallback 文本改为结构化轻量 ViewData / WBP 父类协议，常驻入口只展示名称、等级、压力、突破、可行动 / 崩溃提示和少量状态短标签。
 - `UFinalBattleCharacterEntryWidget` 当前支持 `ApplyCharacterEntryView()`、可选绑定控件与 `OnCharacterEntryViewApplied()`，头像资源映射和角色详情入口留给 WBP 或后续角色详情面板。
 - 角色 Entry 轻量化后，Vital、苏醒计数、崩溃次数、属性、成长、状态说明、被动和奥义详情不再放在常驻 Entry 中，后续统一进入 `角色详情面板 v0.1`。
+
+## 2026-05-02 Battle HUD：角色详情面板 v0.1
+
+- `FinalBattle` snapshot 当前已把角色运行时属性投影到 `FFinalBattleCharacterViewData`，包括 `RuntimeAttack / RuntimeDefense / RuntimeBreakRate / RuntimeCritChance / RuntimeCritDamage`，供 HUD 详情读取，不要求 UI 回查 battle runtime。
+- `FinalApp` 当前已新增独立查看状态 `InspectedCharacterUnitId`，与敌人详情的 `InspectedEnemyUnitId` 互斥；点击角色 Entry 只打开只读角色详情，不提交 BattleCommand，不改变当前敌人目标。
+- `UFinalBattleCharacterDetailPanelController` 当前从 `CachedSnapshot + RunSnapshot + DataRegistry + InspectedCharacterUnitId` 构建角色详情 ViewData，内容包括名称、等级、定位标签、压力、VitalShare、突破、苏醒、崩溃次数、成长属性、运行时属性、状态、被动与奥义信息。
+- `UFinalBattleCharacterDetailPanel / UFinalBattleCharacterDetailWidget / UFinalBattleCharacterDetailStatusLineWidget / UFinalBattleCharacterDetailPassiveLineWidget` 当前已作为 WBP 父类链路落地，支持关闭按钮、状态行、被动行和 C++ fallback。
+- `FinalUIWidgetClassSettings` 当前已新增角色详情相关 class 配置，允许在项目设置中替换 `CharacterDetailPanel / CharacterDetailWidget / StatusLine / PassiveLine` 的 WBP 类。
+- 角色 Entry 当前支持整块点击打开详情；该交互只影响 HUD 查看状态，后续若加入场中角色头顶 UI 或拖卡目标选择，应继续保持“查看对象”和“战斗目标”分离。
+
+## 2026-05-04 RootLayout / BattleHUD Slot 化 UI 框架 v0.1
+
+- `FinalUIWidgetClassSettings` 当前已新增 `RootLayoutClass`，`FinalUISubsystem` 创建全局 RootLayout 时会优先使用配置的 WBP 类，未配置时继续回退到 C++ `UFinalUIRootLayout`。
+- `UFinalUIRootLayout` 当前支持 WBP 绑定 `HUDLayer / OverlayLayer / ModalLayer / TooltipLayer / ToastLayer`；未绑定时继续生成 C++ fallback 全屏 layer。
+- `UFinalBattleHUDScreen` 当前新增 Battle HUD 内部 Slot 协议，支持 `TopBarSlot / ResourceSlot / RunFlowPromptSlot / FeedbackSlot / ContextSlot / CharacterPanelSlot / LegacyEnemyPanelSlot / EnemyDetailSlot / CharacterDetailSlot / CardZoneDetailSlot / UltimateSlot / HandSlot / RecentEventSlot / ActionSlot`。
+- Battle HUD 仍由 C++ 创建和初始化具体 panel；如果 WBP 提供对应 Slot，C++ 会把配置的 panel class 放入 Slot；如果 Slot 缺失，则继续使用现有 C++ Canvas fallback 布局。
+- 本轮只建立 Slot 协议与可配置 RootLayout，不重做手牌、资源、角色面板或敌人 OverHead 的正式视觉。

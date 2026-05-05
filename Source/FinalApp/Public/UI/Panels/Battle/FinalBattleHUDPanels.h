@@ -19,7 +19,9 @@ class UFinalBattleContextPanelController;
 class UFinalBattleCharacterPanelController;
 class UFinalBattleEnemyPanelController;
 class UFinalBattleEnemyDetailPanelController;
+class UFinalBattleCharacterDetailPanelController;
 class UFinalBattleHandPanelController;
+class UFinalBattleCardZoneDetailPanelController;
 class UFinalBattleUltimatePanelController;
 class UFinalBattleRecentEventPanelController;
 class UFinalBattleActionPanelController;
@@ -30,12 +32,16 @@ class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
 class UFinalBattleEnemyDetailPanelViewModel;
+class UFinalBattleCharacterDetailPanelViewModel;
 class UFinalBattleHandPanelViewModel;
+class UFinalBattleCardZoneDetailPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
 class UFinalBattleCardEntryWidget;
+class UFinalBattleCardZoneEntryWidget;
 class UFinalBattleEnemyDetailWidget;
+class UFinalBattleCharacterDetailWidget;
 class UFinalRunFlowSubsystem;
 
 struct FFinalBattleHandCardVisualState
@@ -231,11 +237,30 @@ private:
 	UFUNCTION()
 	void HandleViewModelChanged();
 
+	UFUNCTION()
+	void HandleDrawPileClicked();
+
+	UFUNCTION()
+	void HandleHandClicked();
+
+	UFUNCTION()
+	void HandleDiscardPileClicked();
+
+	UFUNCTION()
+	void HandleOngoingZoneClicked();
+
+	UFUNCTION()
+	void HandleConsumePileClicked();
+
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
+	void InspectCardZone(EFinalBattleCardZone Zone);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleContextPanelController> PanelController;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> ContextText;
@@ -245,6 +270,36 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> GapText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> DrawPileButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> HandButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> DiscardPileButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> OngoingZoneButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> ConsumePileButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DrawPileButtonText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> HandButtonText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DiscardPileButtonText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> OngoingZoneButtonText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> ConsumePileButtonText;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -268,6 +323,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleCharacterPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterPanelController> PanelController;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UVerticalBox> CharacterListBox;
@@ -333,6 +391,45 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleEnemyDetailWidget> EnemyDetailWidget;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DetailFallbackText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> DetailFallbackCloseButton;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleCharacterDetailPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleCharacterDetailPanelViewModel* InViewModel, UFinalBattleCharacterDetailPanelController* InController);
+
+private:
+	UFUNCTION()
+	void HandleFallbackCloseClicked();
+
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+	FText BuildFallbackText(const FFinalBattleHUDCharacterDetailData& Data) const;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterDetailPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterDetailPanelController> PanelController;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleCharacterDetailWidget> CharacterDetailWidget;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> DetailFallbackText;
@@ -455,6 +552,93 @@ private:
 
 	bool bHandLayoutDirty = false;
 	bool bHasReceivedHandSnapshot = false;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleCardZoneDetailPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleCardZoneDetailPanelViewModel* InViewModel, UFinalBattleCardZoneDetailPanelController* InController);
+
+private:
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	UFUNCTION()
+	void HandleCloseClicked();
+
+	UFUNCTION()
+	void HandleDrawPileClicked();
+
+	UFUNCTION()
+	void HandleHandClicked();
+
+	UFUNCTION()
+	void HandleDiscardPileClicked();
+
+	UFUNCTION()
+	void HandleOngoingZoneClicked();
+
+	UFUNCTION()
+	void HandleConsumePileClicked();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+	void SelectZone(EFinalBattleCardZone Zone);
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCardZoneDetailPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCardZoneDetailPanelController> PanelController;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> TitleText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> CloseButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> DrawPileTabButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> HandTabButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> DiscardPileTabButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> OngoingZoneTabButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> ConsumePileTabButton;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DrawPileTabText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> HandTabText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> DiscardPileTabText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> OngoingZoneTabText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> ConsumePileTabText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UVerticalBox> CardListBox;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> EmptyText;
 };
 
 UCLASS(BlueprintType, Blueprintable)

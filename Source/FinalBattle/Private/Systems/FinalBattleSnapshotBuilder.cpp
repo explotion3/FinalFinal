@@ -90,6 +90,11 @@ FFinalBattleSnapshot FFinalBattleSnapshotBuilder::BuildSnapshot(
 		CharacterView.CurrentAwakenThreshold = CharacterState.CurrentAwakenThreshold;
 		CharacterView.CollapseCount = CharacterState.CollapseCount;
 		CharacterView.VitalShare = CharacterState.VitalShare;
+		CharacterView.RuntimeAttack = CharacterState.RuntimeAttack;
+		CharacterView.RuntimeDefense = CharacterState.RuntimeDefense;
+		CharacterView.RuntimeBreakRate = CharacterState.RuntimeBreakRate;
+		CharacterView.RuntimeCritChance = CharacterState.RuntimeCritChance;
+		CharacterView.RuntimeCritDamage = CharacterState.RuntimeCritDamage;
 		Snapshot.Characters.Add(MoveTemp(CharacterView));
 
 		FFinalBattleUltimateViewData UltimateView;
@@ -130,6 +135,7 @@ FFinalBattleSnapshot FFinalBattleSnapshotBuilder::BuildSnapshot(
 
 	StatusService.BuildStatusSnapshotData(State, Snapshot.CharacterStatuses, Snapshot.TeamStatuses, Snapshot.Statuses);
 	GetPassiveService().BuildPassiveSnapshotData(State, Snapshot.Passives);
+	CardService.BuildCardZoneViews(State, Snapshot.CardZones);
 	CardService.BuildHandCardViews(State, UnitService, Snapshot.HandCards);
 
 	return Snapshot;

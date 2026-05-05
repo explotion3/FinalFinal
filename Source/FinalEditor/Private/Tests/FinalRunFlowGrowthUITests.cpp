@@ -697,6 +697,48 @@ bool FFinalRunFlowGrowthCommandPresentationTest::RunTest(const FString& Paramete
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalRunFlowPostBattleGrowthSnapshotDoesNotRebroadcastTest,
+	"Final.Editor.RunFlow.PostBattleGrowthSnapshotDoesNotRebroadcast",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalRunFlowPostBattleGrowthSnapshotDoesNotRebroadcastTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalRunFlowPostBattleGrowthSnapshotDoesNotRebroadcastTest")))
+	{
+		return false;
+	}
+
+	FFinalCharacterId CharacterId;
+	UFinalRunSession* RunSession = Context.BootstrapStarterRun(*this, CharacterId);
+	if (RunSession == nullptr || !TestTrue(TEXT("Starter bootstrap should provide a valid first character id."), CharacterId.IsValid()))
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Starter run should start an active battle session."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Breakthrough gain should create a pending growth choice during the active battle."), RunSession->AddBreakthroughValue(CharacterId, 100));
+	TestTrue(TEXT("Run session should expose the pending growth choice."), RunSession->HasPendingGrowthChoice());
+
+	FFinalBattleSnapshot EndedSnapshot = Context.BattleFlowSubsystem->GetCurrentSnapshot();
+	EndedSnapshot.bBattleEnded = true;
+	EndedSnapshot.bPlayerVictory = true;
+
+	Context.BattleFlowSubsystem->OnBattleSnapshotChanged.Broadcast(EndedSnapshot);
+	TestEqual(TEXT("Post-battle pending growth should present the growth overlay."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
+
+	Context.BattleFlowSubsystem->OnBattleSnapshotChanged.Broadcast(EndedSnapshot);
+	TestEqual(TEXT("Rebroadcasting the same ended snapshot should remain stable and not recurse."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalRunGrowthOverlayWidgetSelectionTest,
 	"Final.Editor.RunFlow.GrowthOverlayWidgetDefaultsAndSubmitsSelection",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

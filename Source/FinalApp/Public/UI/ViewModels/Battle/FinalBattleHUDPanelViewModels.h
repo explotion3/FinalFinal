@@ -104,6 +104,20 @@ private:
 };
 
 UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleCharacterDetailPanelViewModel : public UFinalViewModelBase
+{
+	GENERATED_BODY()
+
+public:
+	void ApplyData(const FFinalBattleHUDCharacterDetailData& InData);
+	const FFinalBattleHUDCharacterDetailData& GetData() const;
+
+private:
+	UPROPERTY(Transient)
+	FFinalBattleHUDCharacterDetailData Data;
+};
+
+UCLASS(BlueprintType)
 class FINALAPP_API UFinalBattleHandPanelViewModel : public UFinalViewModelBase
 {
 	GENERATED_BODY()
@@ -115,6 +129,20 @@ public:
 private:
 	UPROPERTY(Transient)
 	TArray<FFinalBattleHUDCardEntry> Entries;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleCardZoneDetailPanelViewModel : public UFinalViewModelBase
+{
+	GENERATED_BODY()
+
+public:
+	void ApplyData(const FFinalBattleHUDCardZoneDetailData& InData);
+	const FFinalBattleHUDCardZoneDetailData& GetData() const;
+
+private:
+	UPROPERTY(Transient)
+	FFinalBattleHUDCardZoneDetailData Data;
 };
 
 UCLASS(BlueprintType)

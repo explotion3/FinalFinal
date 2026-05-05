@@ -51,7 +51,37 @@ UOverlay* UFinalUIRootLayout::GetLayerWidget(EFinalUIScreenLayer Layer) const
 
 void UFinalUIRootLayout::EnsureLayoutTree()
 {
-	if (WidgetTree == nullptr || RootCanvas != nullptr)
+	if (WidgetTree == nullptr)
+	{
+		return;
+	}
+
+	if (HasBoundLayerWidgets())
+	{
+		if (HUDLayer)
+		{
+			HUDLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		if (OverlayLayer)
+		{
+			OverlayLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		if (ModalLayer)
+		{
+			ModalLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		if (TooltipLayer)
+		{
+			TooltipLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		if (ToastLayer)
+		{
+			ToastLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		return;
+	}
+
+	if (RootCanvas != nullptr)
 	{
 		return;
 	}
@@ -77,24 +107,33 @@ void UFinalUIRootLayout::EnsureLayoutTree()
 	ToastLayerWidget = AddFullScreenLayer(TEXT("ToastLayer"));
 }
 
+bool UFinalUIRootLayout::HasBoundLayerWidgets() const
+{
+	return HUDLayer != nullptr
+		|| OverlayLayer != nullptr
+		|| ModalLayer != nullptr
+		|| TooltipLayer != nullptr
+		|| ToastLayer != nullptr;
+}
+
 UOverlay* UFinalUIRootLayout::ResolveLayer(EFinalUIScreenLayer Layer) const
 {
 	switch (Layer)
 	{
 	case EFinalUIScreenLayer::HUD:
-		return HUDLayerWidget;
+		return HUDLayer != nullptr ? HUDLayer.Get() : HUDLayerWidget.Get();
 
 	case EFinalUIScreenLayer::Overlay:
-		return OverlayLayerWidget;
+		return OverlayLayer != nullptr ? OverlayLayer.Get() : OverlayLayerWidget.Get();
 
 	case EFinalUIScreenLayer::Modal:
-		return ModalLayerWidget;
+		return ModalLayer != nullptr ? ModalLayer.Get() : ModalLayerWidget.Get();
 
 	case EFinalUIScreenLayer::Tooltip:
-		return TooltipLayerWidget;
+		return TooltipLayer != nullptr ? TooltipLayer.Get() : TooltipLayerWidget.Get();
 
 	case EFinalUIScreenLayer::Toast:
-		return ToastLayerWidget;
+		return ToastLayer != nullptr ? ToastLayer.Get() : ToastLayerWidget.Get();
 
 	default:
 		return nullptr;

@@ -10,6 +10,7 @@
 #include "Components/Widget.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
@@ -40,6 +41,20 @@ void UFinalBattleCharacterEntryWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	EnsureWidgetTree();
+	if (InspectButton)
+	{
+		InspectButton->OnClicked.AddUniqueDynamic(this, &UFinalBattleCharacterEntryWidget::HandleInspectClicked);
+	}
+}
+
+FReply UFinalBattleCharacterEntryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (bAllowInspectOnClick && TryInspectCharacter())
+	{
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void UFinalBattleCharacterEntryWidget::Configure(const FFinalBattleHUDCharacterEntry& InEntry)
@@ -83,6 +98,26 @@ void UFinalBattleCharacterEntryWidget::EnsureWidgetTree()
 		RootBorder->SetContent(ContentBox);
 		WidgetTree->RootWidget = RootBorder;
 	}
+}
+
+void UFinalBattleCharacterEntryWidget::HandleInspectClicked()
+{
+	TryInspectCharacter();
+}
+
+bool UFinalBattleCharacterEntryWidget::TryInspectCharacter() const
+{
+	if (!bAllowInspectOnClick || CharacterEntryViewData.RuntimeUnitId.IsNone())
+	{
+		return false;
+	}
+
+	if (UFinalBattleCharacterPanelController* CharacterPanelController = Cast<UFinalBattleCharacterPanelController>(GetWidgetController()))
+	{
+		return CharacterPanelController->InspectCharacterByUnitId(CharacterEntryViewData.RuntimeUnitId);
+	}
+
+	return false;
 }
 
 void UFinalBattleCharacterEntryWidget::RefreshBoundWidgets()

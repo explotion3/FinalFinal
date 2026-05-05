@@ -51,7 +51,13 @@ public:
 	UFinalBattleEnemyDetailPanelViewModel* GetEnemyDetailViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleCharacterDetailPanelViewModel* GetCharacterDetailViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHandPanelViewModel* GetHandViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleCardZoneDetailPanelViewModel* GetCardZoneDetailViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleUltimatePanelViewModel* GetUltimateViewModel() const;
@@ -94,7 +100,13 @@ private:
 	TObjectPtr<UFinalBattleEnemyDetailPanelViewModel> EnemyDetailViewModel;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterDetailPanelViewModel> CharacterDetailViewModel;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> HandViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCardZoneDetailPanelViewModel> CardZoneDetailViewModel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleUltimatePanelViewModel> UltimateViewModel;

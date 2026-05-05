@@ -769,6 +769,25 @@ bool FFinalBattlePassiveFirstAttackProjectsHandAttackModifiersTest::RunTest(cons
 	TestEqual(TEXT("Played ability cards should leave the hand."), Snapshot.DeckState.HandCount, 3);
 	TestEqual(TEXT("Played ability cards should enter the ongoing zone."), Snapshot.DeckState.OngoingZoneCount, 1);
 	TestEqual(TEXT("Played ability cards should not enter the discard pile."), Snapshot.DeckState.DiscardPileCount, 0);
+	const FFinalBattleCardZoneViewData* HandZoneAfterAbility = Snapshot.CardZones.FindByPredicate([](const FFinalBattleCardZoneViewData& ZoneView)
+	{
+		return ZoneView.Zone == EFinalBattleCardZone::Hand;
+	});
+	const FFinalBattleCardZoneViewData* OngoingZoneAfterAbility = Snapshot.CardZones.FindByPredicate([](const FFinalBattleCardZoneViewData& ZoneView)
+	{
+		return ZoneView.Zone == EFinalBattleCardZone::OngoingZone;
+	});
+	if (!TestNotNull(TEXT("Snapshot should include a hand card zone."), HandZoneAfterAbility)
+		|| !TestNotNull(TEXT("Snapshot should include an ongoing card zone."), OngoingZoneAfterAbility))
+	{
+		return false;
+	}
+	TestEqual(TEXT("Hand card zone details should mirror HandCards count."), HandZoneAfterAbility->Cards.Num(), Snapshot.HandCards.Num());
+	TestEqual(TEXT("Ongoing card zone details should mirror deck count."), OngoingZoneAfterAbility->Cards.Num(), Snapshot.DeckState.OngoingZoneCount);
+	TestTrue(TEXT("Ongoing card zone should expose the played ability card."), OngoingZoneAfterAbility->Cards.ContainsByPredicate([&AbilityCardId](const FFinalBattleCardZoneEntryViewData& Entry)
+	{
+		return Entry.CardId == AbilityCardId && Entry.bOngoingCard;
+	}));
 
 	const FFinalBattlePassiveViewData* AppliedPassiveView = Snapshot.Passives.FindByPredicate([&PassiveDefinition](const FFinalBattlePassiveViewData& PassiveView)
 	{

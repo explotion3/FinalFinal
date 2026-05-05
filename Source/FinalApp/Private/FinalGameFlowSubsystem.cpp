@@ -42,6 +42,7 @@ UFinalRunSession* UFinalGameFlowSubsystem::BootstrapNewRun()
 	RunSession->InitializeRun();
 	LastProcessedGrowthFactBatchSequence = 0;
 	bPendingGrowthChoiceDeferredFromEnemyPhase = false;
+	PresentedPendingGrowthChoiceKey = NAME_None;
 
 	if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
 	{
@@ -89,6 +90,7 @@ UFinalBattleSession* UFinalGameFlowSubsystem::StartBattleFromRunSession()
 	{
 		LastProcessedGrowthFactBatchSequence = 0;
 		bPendingGrowthChoiceDeferredFromEnemyPhase = false;
+		PresentedPendingGrowthChoiceKey = NAME_None;
 		if (UFinalRunFlowSubsystem* RunFlowSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalRunFlowSubsystem>() : nullptr)
 		{
 			RunFlowSubsystem->RefreshRunFlow(true);
@@ -387,17 +389,13 @@ void UFinalGameFlowSubsystem::ProcessPendingBattleGrowthFacts(const FFinalBattle
 	const TArray<FFinalBattleGrowthFactBatch> GrowthFactBatches = BattleSession->GetGrowthFactBatchesSince(LastProcessedGrowthFactBatchSequence);
 	if (GrowthFactBatches.IsEmpty())
 	{
-		if (TryPresentPendingGrowthChoiceAtSafeWindow(Snapshot, false))
-		{
-			BattleFlowSubsystem->OnBattleSnapshotChanged.Broadcast(Snapshot);
-		}
+		TryPresentPendingGrowthChoiceAtSafeWindow(Snapshot, false);
 		return;
 	}
 
 	const UFinalDataRegistry* DataRegistry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UFinalDataRegistry>() : nullptr;
 	const FFinalRunState RunState = RunSession->GetRunState();
 	const EFinalRunNodeType CurrentNodeType = RunSession->GetSnapshot().Progression.CurrentNodeType;
-	bool bAppliedAnyGrowth = false;
 	bool bPlayerCommandGrowthBatchProcessed = false;
 
 	for (const FFinalBattleGrowthFactBatch& Batch : GrowthFactBatches)
@@ -446,7 +444,6 @@ void UFinalGameFlowSubsystem::ProcessPendingBattleGrowthFacts(const FFinalBattle
 
 			if (GainAmount > 0 && RunSession->AddBreakthroughValue(Fact.CharacterId, GainAmount))
 			{
-				bAppliedAnyGrowth = true;
 				bPlayerCommandGrowthBatchProcessed |= Batch.bCausedByPlayerCommand;
 			}
 		}
@@ -458,11 +455,7 @@ void UFinalGameFlowSubsystem::ProcessPendingBattleGrowthFacts(const FFinalBattle
 		bPendingGrowthChoiceDeferredFromEnemyPhase = true;
 	}
 
-	const bool bPresentedGrowth = TryPresentPendingGrowthChoiceAtSafeWindow(Snapshot, bPendingCreatedThisTick);
-	if (bAppliedAnyGrowth || bPresentedGrowth)
-	{
-		BattleFlowSubsystem->OnBattleSnapshotChanged.Broadcast(Snapshot);
-	}
+	TryPresentPendingGrowthChoiceAtSafeWindow(Snapshot, bPendingCreatedThisTick);
 }
 
 bool UFinalGameFlowSubsystem::TryPresentPendingGrowthChoiceAtSafeWindow(const FFinalBattleSnapshot& Snapshot, const bool bPendingCreatedThisTick)
@@ -470,6 +463,16 @@ bool UFinalGameFlowSubsystem::TryPresentPendingGrowthChoiceAtSafeWindow(const FF
 	if (RunSession == nullptr || !RunSession->HasPendingGrowthChoice())
 	{
 		bPendingGrowthChoiceDeferredFromEnemyPhase = false;
+		PresentedPendingGrowthChoiceKey = NAME_None;
+		return false;
+	}
+
+	const FFinalRunPendingGrowthChoice& PendingGrowthChoice = RunSession->GetPendingGrowthChoice();
+	const FName PendingGrowthChoiceKey = PendingGrowthChoice.Choices.Num() > 0
+		? PendingGrowthChoice.Choices[0].ChoiceInstanceId
+		: PendingGrowthChoice.CharacterId.Value;
+	if (!PendingGrowthChoiceKey.IsNone() && PresentedPendingGrowthChoiceKey == PendingGrowthChoiceKey)
+	{
 		return false;
 	}
 
@@ -486,6 +489,8 @@ bool UFinalGameFlowSubsystem::TryPresentPendingGrowthChoiceAtSafeWindow(const FF
 	{
 		RunFlowSubsystem->RefreshRunFlow(true);
 	}
+
+	PresentedPendingGrowthChoiceKey = PendingGrowthChoiceKey;
 
 	if (bShouldPresentDeferred || bShouldPresentPostBattle)
 	{

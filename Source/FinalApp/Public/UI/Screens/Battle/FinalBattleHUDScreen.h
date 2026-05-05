@@ -5,6 +5,8 @@
 #include "FinalBattleHUDScreen.generated.h"
 
 class UVerticalBox;
+class UOverlay;
+class UWidget;
 class UFinalBattleHUDViewModel;
 class UFinalBattleWidgetController;
 class UFinalBattleTopBarPanel;
@@ -15,7 +17,9 @@ class UFinalBattleContextPanel;
 class UFinalBattleCharacterPanel;
 class UFinalBattleEnemyPanel;
 class UFinalBattleEnemyDetailPanel;
+class UFinalBattleCharacterDetailPanel;
 class UFinalBattleHandPanel;
+class UFinalBattleCardZoneDetailPanel;
 class UFinalBattleUltimatePanel;
 class UFinalBattleRecentEventPanel;
 class UFinalBattleActionPanel;
@@ -32,7 +36,9 @@ public:
 
 private:
 	void EnsureWidgetTree();
+	void EnsurePanelsInBlueprintSlots();
 	void InitializePanels();
+	void AddPanelToSlot(UOverlay* Slot, UWidget* Panel) const;
 
 	template <typename TPanel>
 	TPanel* CreateConfiguredPanel(const TCHAR* WidgetName);
@@ -68,6 +74,12 @@ private:
 	TObjectPtr<UFinalBattleEnemyDetailPanel> EnemyDetailPanel;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleCharacterDetailPanel> CharacterDetailPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleCardZoneDetailPanel> CardZoneDetailPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleHandPanel> HandPanel;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
@@ -78,4 +90,46 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleActionPanel> ActionPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> TopBarSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> ResourceSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> RunFlowPromptSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> FeedbackSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> ContextSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> CharacterPanelSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> LegacyEnemyPanelSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> EnemyDetailSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> CharacterDetailSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> CardZoneDetailSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> UltimateSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> HandSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> RecentEventSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> ActionSlot;
 };

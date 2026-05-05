@@ -1,8 +1,10 @@
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 
 #include "Battle/Definitions/FinalCardDefinition.h"
+#include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
+#include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
 #include "BattleBridge/FinalBattleEventPresentationUtils.h"
@@ -59,6 +61,32 @@ FText ResolveStatusSummaryText(const FFinalBattleStatusViewData& StatusView, con
 	return FText::GetEmpty();
 }
 
+FText ResolvePassiveSummaryText(const FFinalBattlePassiveViewData& PassiveView, const UFinalDataRegistry* DataRegistry)
+{
+	if (DataRegistry && PassiveView.PassiveId.IsValid())
+	{
+		if (const UFinalPassiveDefinition* PassiveDefinition = DataRegistry->FindPassiveDefinition(PassiveView.PassiveId))
+		{
+			return PassiveDefinition->SummaryText;
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+FText BuildGameplayTagSummaryText(const FGameplayTagContainer& Tags)
+{
+	TArray<FString> TagStrings;
+	TArray<FGameplayTag> TagArray;
+	Tags.GetGameplayTagArray(TagArray);
+	for (const FGameplayTag& Tag : TagArray)
+	{
+		TagStrings.Add(Tag.GetTagName().ToString());
+	}
+
+	return TagStrings.Num() > 0 ? FText::FromString(FString::Join(TagStrings, TEXT(" / "))) : FText::GetEmpty();
+}
+
 FText FormatStatusText(const FFinalBattleStatusViewData& StatusView, const UFinalDataRegistry* DataRegistry)
 {
 	const FText StatusName = ResolveStatusDisplayName(StatusView, DataRegistry);
@@ -89,6 +117,25 @@ FText FormatCardTypeText(const EFinalCardType CardType)
 		return NSLOCTEXT("FinalBattleHUD", "CardTypeAbility", "能力");
 	default:
 		return NSLOCTEXT("FinalBattleHUD", "CardTypeUnknown", "未知");
+	}
+}
+
+FText FormatCardZoneText(const EFinalBattleCardZone Zone)
+{
+	switch (Zone)
+	{
+	case EFinalBattleCardZone::DrawPile:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneDrawPile", "抽牌堆");
+	case EFinalBattleCardZone::Hand:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneHand", "手牌");
+	case EFinalBattleCardZone::DiscardPile:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneDiscardPile", "弃牌堆");
+	case EFinalBattleCardZone::OngoingZone:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneOngoingZone", "持续区");
+	case EFinalBattleCardZone::ConsumePile:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneConsumePile", "消耗区");
+	default:
+		return NSLOCTEXT("FinalBattleHUD", "CardZoneUnknown", "牌区");
 	}
 }
 
@@ -554,6 +601,14 @@ void UFinalBattleContextPanelController::RefreshFromCoordinatorData(const FFinal
 	ViewModel->ApplyData(Data);
 }
 
+void UFinalBattleContextPanelController::InspectCardZone(const EFinalBattleCardZone Zone)
+{
+	if (Coordinator)
+	{
+		Coordinator->InspectCardZone(Zone);
+	}
+}
+
 void UFinalBattleCharacterPanelController::InitializeCharacterPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCharacterPanelViewModel* InViewModel)
 {
 	InitializePanelController(InCoordinator);
@@ -626,6 +681,11 @@ void UFinalBattleCharacterPanelController::RefreshFromCoordinatorData(const FFin
 	}
 
 	ViewModel->ApplyEntries(Entries);
+}
+
+bool UFinalBattleCharacterPanelController::InspectCharacterByUnitId(const FName RuntimeUnitId)
+{
+	return Coordinator ? Coordinator->InspectCharacterByUnitId(RuntimeUnitId) : false;
 }
 
 void UFinalBattleEnemyPanelController::InitializeEnemyPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleEnemyPanelViewModel* InViewModel)
@@ -777,6 +837,166 @@ void UFinalBattleEnemyDetailPanelController::ClearInspectedEnemy()
 	}
 }
 
+void UFinalBattleCharacterDetailPanelController::InitializeCharacterDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCharacterDetailPanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleCharacterDetailPanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr || CoordinatorData.InspectedCharacterUnitId.IsNone())
+	{
+		if (ViewModel)
+		{
+			ViewModel->ApplyData(FFinalBattleHUDCharacterDetailData{});
+		}
+		return;
+	}
+
+	const FFinalBattleCharacterViewData* CharacterView = CoordinatorData.Snapshot->Characters.FindByPredicate(
+		[&CoordinatorData](const FFinalBattleCharacterViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == CoordinatorData.InspectedCharacterUnitId;
+		});
+
+	if (CharacterView == nullptr)
+	{
+		ViewModel->ApplyData(FFinalBattleHUDCharacterDetailData{});
+		return;
+	}
+
+	FFinalBattleHUDCharacterDetailData Data;
+	Data.bHasCharacter = true;
+	Data.RuntimeUnitId = CharacterView->RuntimeUnitId;
+	Data.CharacterId = CharacterView->CharacterId;
+	Data.DisplayName = !CharacterView->DisplayName.IsEmpty() ? CharacterView->DisplayName : FText::FromName(CharacterView->CharacterId.Value);
+	Data.ArtId = CharacterView->CharacterId.Value;
+	Data.CurrentStress = CharacterView->CurrentStress;
+	Data.StressCap = CharacterView->StressCap;
+	Data.StressPercent = CalculateClampedPercent(CharacterView->CurrentStress, CharacterView->StressCap);
+	Data.VitalShare = CharacterView->VitalShare;
+	Data.CurrentAwakenCount = CharacterView->CurrentAwakenCount;
+	Data.CurrentAwakenThreshold = CharacterView->CurrentAwakenThreshold;
+	Data.CollapseCount = CharacterView->CollapseCount;
+	Data.bCollapsed = CharacterView->bCollapsed;
+	Data.bIsInspected = true;
+	Data.RuntimeAttack = CharacterView->RuntimeAttack;
+	Data.RuntimeDefense = CharacterView->RuntimeDefense;
+	Data.RuntimeBreakRate = CharacterView->RuntimeBreakRate;
+	Data.RuntimeCritChance = CharacterView->RuntimeCritChance;
+	Data.RuntimeCritDamage = CharacterView->RuntimeCritDamage;
+
+	if (CoordinatorData.RunSnapshot)
+	{
+		const FFinalRunCharacterViewData* RunCharacterView = CoordinatorData.RunSnapshot->Characters.FindByPredicate(
+			[&CharacterView](const FFinalRunCharacterViewData& Candidate)
+			{
+				return Candidate.CharacterId == CharacterView->CharacterId;
+			});
+		if (RunCharacterView)
+		{
+			Data.IconId = RunCharacterView->IconId;
+			Data.Level = RunCharacterView->Level;
+			Data.BreakthroughValue = RunCharacterView->BreakthroughValue;
+			Data.BreakthroughRequiredValue = RunCharacterView->BreakthroughRequiredValue;
+			Data.BreakthroughFillNormalized = CalculateClampedPercent(
+				RunCharacterView->BreakthroughValue,
+				RunCharacterView->BreakthroughRequiredValue);
+			Data.bBreakthroughReady =
+				RunCharacterView->BreakthroughRequiredValue > 0
+				&& RunCharacterView->BreakthroughValue >= RunCharacterView->BreakthroughRequiredValue;
+			Data.RootBone = RunCharacterView->RootBone;
+			Data.Insight = RunCharacterView->Insight;
+			Data.KillingIntent = RunCharacterView->KillingIntent;
+		}
+	}
+
+	const UFinalCharacterDefinition* CharacterDefinition =
+		CoordinatorData.DataRegistry != nullptr && CharacterView->CharacterId.IsValid()
+			? CoordinatorData.DataRegistry->FindCharacterDefinition(CharacterView->CharacterId)
+			: nullptr;
+	if (CharacterDefinition)
+	{
+		Data.RoleText = BuildGameplayTagSummaryText(CharacterDefinition->RoleTags);
+	}
+
+	for (const FFinalBattleCharacterStatusesViewData& CharacterStatusesView : CoordinatorData.Snapshot->CharacterStatuses)
+	{
+		if (CharacterStatusesView.OwnerUnitId != CharacterView->RuntimeUnitId)
+		{
+			continue;
+		}
+
+		for (const FFinalBattleStatusViewData& StatusView : CharacterStatusesView.StatusEntries)
+		{
+			FFinalBattleHUDCharacterDetailStatusEntry StatusEntry;
+			StatusEntry.StatusId = StatusView.StatusId;
+			StatusEntry.DisplayName = ResolveStatusDisplayName(StatusView, CoordinatorData.DataRegistry);
+			StatusEntry.SummaryText = ResolveStatusSummaryText(StatusView, CoordinatorData.DataRegistry);
+			StatusEntry.CurrentStacks = StatusView.CurrentStacks;
+			StatusEntry.RemainingDuration = StatusView.RemainingDuration;
+			Data.Statuses.Add(MoveTemp(StatusEntry));
+		}
+	}
+
+	for (const FFinalBattlePassiveViewData& PassiveView : CoordinatorData.Snapshot->Passives)
+	{
+		if (PassiveView.OwnerUnitId != CharacterView->RuntimeUnitId)
+		{
+			continue;
+		}
+
+		FFinalBattleHUDCharacterDetailPassiveEntry PassiveEntry;
+		PassiveEntry.PassiveId = PassiveView.PassiveId;
+		PassiveEntry.DisplayName = !PassiveView.DisplayName.IsEmpty()
+			? PassiveView.DisplayName
+			: FText::FromName(PassiveView.PassiveId.Value);
+		PassiveEntry.SummaryText = ResolvePassiveSummaryText(PassiveView, CoordinatorData.DataRegistry);
+		PassiveEntry.CurrentStacks = PassiveView.CurrentStacks;
+		PassiveEntry.RemainingDuration = PassiveView.RemainingDuration;
+		Data.Passives.Add(MoveTemp(PassiveEntry));
+	}
+
+	const FFinalBattleUltimateViewData* UltimateView = CoordinatorData.Snapshot->CharacterUltimates.FindByPredicate(
+		[&CharacterView](const FFinalBattleUltimateViewData& Candidate)
+		{
+			return Candidate.OwnerUnitId == CharacterView->RuntimeUnitId;
+		});
+	if (UltimateView)
+	{
+		Data.UltimateNameText = !UltimateView->DisplayName.IsEmpty()
+			? UltimateView->DisplayName
+			: FText::FromName(UltimateView->UltimateId.Value);
+		Data.UltimateCostEP = UltimateView->CostEP;
+		Data.bUltimateDefinitionReady = UltimateView->bDefinitionReady;
+		Data.bUltimateCanActivate = UltimateView->bCanActivate;
+		Data.bUltimateBlockedByCollapse = UltimateView->bBlockedByCollapse;
+		Data.bUltimateUsedThisBattle = UltimateView->bUsedThisBattle;
+		if (CoordinatorData.DataRegistry && UltimateView->UltimateId.IsValid())
+		{
+			if (const UFinalUltimateDefinition* UltimateDefinition = CoordinatorData.DataRegistry->FindUltimateDefinition(UltimateView->UltimateId))
+			{
+				if (!UltimateDefinition->DisplayName.IsEmpty())
+				{
+					Data.UltimateNameText = UltimateDefinition->DisplayName;
+				}
+				Data.UltimateRulesText = UltimateDefinition->RulesText;
+			}
+		}
+	}
+
+	ViewModel->ApplyData(Data);
+}
+
+void UFinalBattleCharacterDetailPanelController::ClearInspectedCharacter()
+{
+	if (Coordinator)
+	{
+		Coordinator->ClearInspectedCharacter();
+	}
+}
+
 void UFinalBattleHandPanelController::InitializeHandPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleHandPanelViewModel* InViewModel)
 {
 	InitializePanelController(InCoordinator);
@@ -849,6 +1069,108 @@ void UFinalBattleHandPanelController::RefreshFromCoordinatorData(const FFinalBat
 bool UFinalBattleHandPanelController::PlayCardByHandIndex(const int32 HandIndex)
 {
 	return Coordinator ? Coordinator->RequestPlayCardByHandIndex(HandIndex) : false;
+}
+
+void UFinalBattleCardZoneDetailPanelController::InitializeCardZoneDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCardZoneDetailPanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleCardZoneDetailPanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr)
+	{
+		return;
+	}
+
+	FFinalBattleHUDCardZoneDetailData Data;
+	Data.bIsOpen = CoordinatorData.bCardZoneDetailOpen;
+	Data.bHasActiveBattle = CoordinatorData.Snapshot->BattleId.IsValid();
+	Data.SelectedZone = CoordinatorData.SelectedCardZone;
+	Data.DrawPileCount = CoordinatorData.Snapshot->DeckState.DrawPileCount;
+	Data.HandCount = CoordinatorData.Snapshot->DeckState.HandCount;
+	Data.DiscardPileCount = CoordinatorData.Snapshot->DeckState.DiscardPileCount;
+	Data.OngoingZoneCount = CoordinatorData.Snapshot->DeckState.OngoingZoneCount;
+	Data.ConsumePileCount = CoordinatorData.Snapshot->DeckState.ConsumePileCount;
+
+	if (!Data.bIsOpen || !Data.bHasActiveBattle)
+	{
+		ViewModel->ApplyData(Data);
+		return;
+	}
+
+	TMap<FName, FText> CharacterDisplayNameByRuntimeId;
+	for (const FFinalBattleCharacterViewData& CharacterView : CoordinatorData.Snapshot->Characters)
+	{
+		CharacterDisplayNameByRuntimeId.Add(
+			CharacterView.RuntimeUnitId,
+			!CharacterView.DisplayName.IsEmpty() ? CharacterView.DisplayName : FText::FromName(CharacterView.CharacterId.Value));
+	}
+
+	const FFinalBattleCardZoneViewData* ZoneView = CoordinatorData.Snapshot->CardZones.FindByPredicate(
+		[&Data](const FFinalBattleCardZoneViewData& Candidate)
+		{
+			return Candidate.Zone == Data.SelectedZone;
+		});
+
+	if (ZoneView == nullptr)
+	{
+		Data.TitleText = FormatCardZoneText(Data.SelectedZone);
+		ViewModel->ApplyData(Data);
+		return;
+	}
+
+	Data.TitleText = FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "CardZoneDetailTitleFormat", "{0} {1}"),
+		!ZoneView->DisplayName.IsEmpty() ? ZoneView->DisplayName : FormatCardZoneText(ZoneView->Zone),
+		FText::AsNumber(ZoneView->Count));
+	Data.Count = ZoneView->Count;
+	Data.Entries.Reserve(ZoneView->Cards.Num());
+
+	for (const FFinalBattleCardZoneEntryViewData& CardView : ZoneView->Cards)
+	{
+		FFinalBattleHUDCardZoneEntry Entry;
+		Entry.CardInstanceId = CardView.CardInstanceId;
+		Entry.CardId = CardView.CardId;
+		Entry.OwnerUnitId = CardView.RuntimeOwnerUnitId;
+		Entry.OwnerDisplayName = CharacterDisplayNameByRuntimeId.FindRef(CardView.RuntimeOwnerUnitId);
+		if (Entry.OwnerDisplayName.IsEmpty() && !CardView.RuntimeOwnerUnitId.IsNone())
+		{
+			Entry.OwnerDisplayName = FText::FromName(CardView.RuntimeOwnerUnitId);
+		}
+		Entry.DisplayName = !CardView.DisplayName.IsEmpty() ? CardView.DisplayName : FText::FromName(CardView.CardId.Value);
+		Entry.CardType = CardView.CardType;
+		Entry.TypeText = FormatCardTypeText(CardView.CardType);
+		Entry.BaseCostAP = CardView.BaseCostAP;
+		Entry.RuntimeCostAP = CardView.RuntimeCostAP;
+		Entry.KeywordText = FormatKeywordText(CardView.RuntimeKeywords);
+		Entry.RulesText = CardView.ResolvedRulesText;
+		Entry.bRetained = CardView.bRetained;
+		Entry.bConsumeOnPlay = CardView.bConsumeOnPlay;
+		Entry.bOngoingCard = CardView.bOngoingCard;
+		Entry.bGeneratedCard = CardView.bGeneratedCard;
+		Entry.bTemporaryCard = CardView.bTemporaryCard;
+		Data.Entries.Add(MoveTemp(Entry));
+	}
+
+	ViewModel->ApplyData(Data);
+}
+
+void UFinalBattleCardZoneDetailPanelController::SetSelectedCardZone(const EFinalBattleCardZone Zone)
+{
+	if (Coordinator)
+	{
+		Coordinator->SetSelectedCardZone(Zone);
+	}
+}
+
+void UFinalBattleCardZoneDetailPanelController::ClearCardZoneDetail()
+{
+	if (Coordinator)
+	{
+		Coordinator->ClearCardZoneDetail();
+	}
 }
 
 void UFinalBattleUltimatePanelController::InitializeUltimatePanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleUltimatePanelViewModel* InViewModel)

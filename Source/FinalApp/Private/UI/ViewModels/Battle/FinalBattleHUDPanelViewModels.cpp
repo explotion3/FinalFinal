@@ -77,6 +77,17 @@ const FFinalBattleHUDEnemyDetailData& UFinalBattleEnemyDetailPanelViewModel::Get
 	return Data;
 }
 
+void UFinalBattleCharacterDetailPanelViewModel::ApplyData(const FFinalBattleHUDCharacterDetailData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleHUDCharacterDetailData& UFinalBattleCharacterDetailPanelViewModel::GetData() const
+{
+	return Data;
+}
+
 void UFinalBattleHandPanelViewModel::ApplyEntries(const TArray<FFinalBattleHUDCardEntry>& InEntries)
 {
 	Entries = InEntries;
@@ -86,6 +97,17 @@ void UFinalBattleHandPanelViewModel::ApplyEntries(const TArray<FFinalBattleHUDCa
 const TArray<FFinalBattleHUDCardEntry>& UFinalBattleHandPanelViewModel::GetEntries() const
 {
 	return Entries;
+}
+
+void UFinalBattleCardZoneDetailPanelViewModel::ApplyData(const FFinalBattleHUDCardZoneDetailData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleHUDCardZoneDetailData& UFinalBattleCardZoneDetailPanelViewModel::GetData() const
+{
+	return Data;
 }
 
 void UFinalBattleUltimatePanelViewModel::ApplyEntries(const TArray<FFinalBattleHUDUltimateEntry>& InEntries)

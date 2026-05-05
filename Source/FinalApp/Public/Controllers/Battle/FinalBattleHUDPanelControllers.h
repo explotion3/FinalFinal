@@ -15,7 +15,9 @@ class UFinalBattleContextPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
 class UFinalBattleEnemyDetailPanelViewModel;
+class UFinalBattleCharacterDetailPanelViewModel;
 class UFinalBattleHandPanelViewModel;
+class UFinalBattleCardZoneDetailPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
@@ -28,6 +30,9 @@ struct FFinalBattleHUDCoordinatorData
 	const UFinalDataRegistry* DataRegistry = nullptr;
 	FName SelectedEnemyUnitId = NAME_None;
 	FName InspectedEnemyUnitId = NAME_None;
+	FName InspectedCharacterUnitId = NAME_None;
+	bool bCardZoneDetailOpen = false;
+	EFinalBattleCardZone SelectedCardZone = EFinalBattleCardZone::DrawPile;
 	FText LastInteractionFeedback;
 	FFinalBattleEvent LastInteractionEvent;
 };
@@ -107,6 +112,9 @@ public:
 	void InitializeContext(UFinalBattleWidgetController* InCoordinator, UFinalBattleContextPanelViewModel* InViewModel);
 	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void InspectCardZone(EFinalBattleCardZone Zone);
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelViewModel> ViewModel;
@@ -120,6 +128,9 @@ class FINALAPP_API UFinalBattleCharacterPanelController : public UFinalBattleHUD
 public:
 	void InitializeCharacterPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCharacterPanelViewModel* InViewModel);
 	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool InspectCharacterByUnitId(FName RuntimeUnitId);
 
 private:
 	UPROPERTY(Transient)
@@ -161,6 +172,23 @@ private:
 };
 
 UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleCharacterDetailPanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeCharacterDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCharacterDetailPanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearInspectedCharacter();
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterDetailPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
 class FINALAPP_API UFinalBattleHandPanelController : public UFinalBattleHUDPanelControllerBase
 {
 	GENERATED_BODY()
@@ -175,6 +203,26 @@ public:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleCardZoneDetailPanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeCardZoneDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCardZoneDetailPanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void SetSelectedCardZone(EFinalBattleCardZone Zone);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearCardZoneDetail();
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCardZoneDetailPanelViewModel> ViewModel;
 };
 
 UCLASS(BlueprintType)

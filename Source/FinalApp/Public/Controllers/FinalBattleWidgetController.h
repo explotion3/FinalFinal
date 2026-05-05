@@ -59,6 +59,30 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FName GetInspectedEnemyUnitId() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool InspectCharacterByUnitId(FName RuntimeUnitId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearInspectedCharacter();
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	FName GetInspectedCharacterUnitId() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void InspectCardZone(EFinalBattleCardZone Zone);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void SetSelectedCardZone(EFinalBattleCardZone Zone);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearCardZoneDetail();
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	bool IsCardZoneDetailOpen() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	EFinalBattleCardZone GetSelectedCardZone() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FText GetLastInteractionFeedback() const;
 
@@ -90,7 +114,13 @@ public:
 	UFinalBattleEnemyDetailPanelController* GetEnemyDetailPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleCharacterDetailPanelController* GetCharacterDetailPanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleHandPanelController* GetHandPanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleCardZoneDetailPanelController* GetCardZoneDetailPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleUltimatePanelController* GetUltimatePanelController() const;
@@ -114,6 +144,8 @@ private:
 	void EnsurePanelControllers();
 	void RefreshSelectedEnemyFromSnapshot();
 	void RefreshInspectedEnemyFromSnapshot();
+	void RefreshInspectedCharacterFromSnapshot();
+	void RefreshInspectedCardZoneFromSnapshot();
 	FName ResolveDefaultTargetUnitId() const;
 	bool SubmitBattleCommandWithFeedback(const FFinalBattleCommand& Command);
 
@@ -134,6 +166,15 @@ private:
 
 	UPROPERTY(Transient)
 	FName InspectedEnemyUnitId = NAME_None;
+
+	UPROPERTY(Transient)
+	FName InspectedCharacterUnitId = NAME_None;
+
+	UPROPERTY(Transient)
+	bool bCardZoneDetailOpen = false;
+
+	UPROPERTY(Transient)
+	EFinalBattleCardZone SelectedCardZone = EFinalBattleCardZone::DrawPile;
 
 	UPROPERTY(Transient)
 	FText LastInteractionFeedback;
@@ -163,7 +204,13 @@ private:
 	TObjectPtr<UFinalBattleEnemyDetailPanelController> EnemyDetailPanelController;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCharacterDetailPanelController> CharacterDetailPanelController;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelController> HandPanelController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleCardZoneDetailPanelController> CardZoneDetailPanelController;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleUltimatePanelController> UltimatePanelController;

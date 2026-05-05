@@ -12,6 +12,7 @@
   * `Snapshot / Event -> WidgetController -> ViewModel -> HUD`
   * 敌人目标选择
   * 独立敌人详情查看状态 `InspectedEnemyUnitId`
+  * 独立牌区详情查看状态 `InspectCardZone / SelectedCardZone`
   * 点击手牌出牌
   * 点击奥义按钮转发 `PlayUltimate`
   * `1~6` 快捷出牌
@@ -24,11 +25,12 @@
   * `bBreakthroughReady`
   * 满槽时允许 Blueprint 或 C++ fallback 做高亮、描边和轻量动效
 * 当前 Battle HUD 已进入第一版水墨 16:9 桌面重构：
-  * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 HUD screen、panel、entry widget 的 `TSoftClassPtr`；当前它只作为默认 Widget Class 注册表，不承担 UI Slot / Layer 生命周期管理
-  * `UFinalUISubsystem` 创建 Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
-  * `BattleHUDScreen` 保留 C++ panel 装配和 fallback Canvas 布局，Blueprint 子类只负责外观、槽位和容器排布
+  * `UFinalUIWidgetClassSettings` 在 `Project Settings > Final > UI` 暴露 RootLayout、HUD screen、panel、entry widget 的 `TSoftClassPtr`；当前它作为默认 Widget Class 注册表，不承担规则真相
+  * `UFinalUISubsystem` 创建 RootLayout / Battle HUD 时优先读取配置的 Widget Blueprint class，未配置或加载失败时回退 C++ `StaticClass()`
+  * `BattleHUDScreen` 保留 C++ panel 装配、Slot 注入和 fallback Canvas 布局，Blueprint 子类只负责外观、槽位和容器排布
   * Battle HUD panel / entry widget 通过 `BindWidgetOptional` 绑定 Blueprint 内控件；缺少绑定控件时继续走 C++ fallback 文本展示
   * `BattleResourcePanel` 已从手牌区独立出来，作为底部资源展示容器；它只消费 `BattleSnapshot.CurrentEP / MaxEP` 生成左下 EP 气圈与 7 个 QIPip 点亮状态，EP 满值时允许 Blueprint 换色提示
+  * `CardZoneDetailPanel` 是统一牌区详情面板，内部 Tab 切换 `抽牌堆 / 手牌 / 弃牌堆 / 持续区 / 消耗区`；它只读消费 `BattleSnapshot.CardZones`，不修改牌区真相，不复用手牌出牌 Entry
   * 第一版占位视觉资源放在 `/Game/UI/BattleHUD/InkPrototype/`，只作为表现资源，不新增规则字段
 * 当前 `UISubsystem` 已补齐外层流程承接能力：
   * `OpenOverlayScreen / CloseOverlayScreen`
@@ -134,16 +136,34 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 
 * `/Game/UI/BattleHUD/WBP_BattleHUD_Ink` 当前作为旧原型 HUD 资产保留，不再作为默认 PIE HUD screen。
 * C++ fallback 文本只用于未绑定 WBP 控件时的最低限度可运行展示；Debug dump 应进入 Debug overlay。
-* `TopBarPanel / ContextPanel / RecentEventPanel` 暂不删除，但从默认 C++ HUD 骨架中移出。
+* `TopBarPanel / RecentEventPanel` 暂不删除，但从默认 C++ HUD 骨架中移出；`ContextPanel` 当前作为 Legacy / Debug 区域保留，用于牌区详情 fallback 入口。
+
+## 0.2 UI Widget Class 配置口径
+
+`UFinalUIWidgetClassSettings` 当前定位为开发期默认 Widget Class 注册表，用来把 C++ 父类和可替换的 WBP 类接起来。它适合保存全局默认入口，例如 `RootLayoutClass / BattleHUDScreenClass / RunFlowOverlayScreenClass`，以及当前仍在快速迭代的 Battle panel / entry 默认类。它不承载规则真相，也不应保存布局参数、颜色参数、动画参数、图标映射或状态 / 关键词资源表。
+
+当前继续使用 `FinalUIWidgetClassSettings` 的原因：
+* 可以在 `Project Settings > Final > UI` 里快速替换 WBP，不需要改 C++。
+* C++ fallback 和自动化测试可以继续在未配置 WBP 时运行。
+* 避免每个 UI 系统各自硬编码 `/Game/UI/...` 资产路径。
+* 适合当前 UI 仍在快速成型、WBP 结构还会频繁调整的阶段。
+
+后续收口方向：
+* `FinalUIWidgetClassSettings` 长期只保留全局默认入口和少量开发期默认类。
+* 当 Battle HUD、敌人详情、角色详情、牌区详情、Tooltip 等 UI 稳定后，新增 `UI Class Set` 或等价 `DataAsset` 承接一套主题 / 模式内的具体 Widget Class，例如水墨 Battle HUD、Debug Battle HUD、手柄版 HUD。
+* `RootLayout / Screen` 负责实际 Slot 挂载、层级、打开关闭和输入模式；`WidgetClassSettings` 只回答“默认用哪个类”，不回答“放在哪、何时显示、谁挡输入”。
+* 不要把 UI 皮肤、图标表、状态图标、Tooltip 样式、数值颜色、动画曲线继续塞进 `FinalUIWidgetClassSettings`。这些应进入 WBP、样式资源、DataTable 或后续 UI Theme / UI Class Set。
+* 如果某个关卡、战斗模式或平台需要不同 HUD，不应通过临时改全局 settings 解决；应走 Screen / ClassSet / Theme 的显式切换。
 
 ## 1. 当前最小布局
 * 当前战斗界面已进入 `UMG` + Blueprint 外观层阶段，由根界面统一承载主 HUD 与覆盖面板；C++ fallback HUD 继续作为未配置 Blueprint 时的兜底
 * 当前默认 PIE HUD 已切回 `UFinalBattleHUDScreen` 的正式 C++ 骨架，并继续复用已配置的 `WBP_BattleHandPanel_Ink / WBP_BattleCardEntry_Ink1 / WBP_BattleResourcePanel`
-* 默认 C++ HUD 骨架不再装配 `TopBarPanel / ContextPanel / RecentEventPanel`；这些面板保留为 Debug / Legacy 入口或旧原型参考
+* 默认 C++ HUD 骨架不再装配 `TopBarPanel / RecentEventPanel`；`ContextPanel` 作为 Legacy / Debug 入口保留，当前同时提供牌区详情的 fallback 打开按钮
 * 当前主验收布局固定为 16:9 桌面：
   * 左侧：我方队伍三名角色的轻量战斗信息，包括头像 / 等级、压力条、突破条、状态短标签与崩溃或可行动提示；Vital、苏醒、崩溃次数、属性和状态说明进入后续角色详情面板
   * 顶部：敌方信息、生命 / 护盾 / Break / 先机、意图与阶段进度
   * 右侧：敌人详情面板，按 `InspectedEnemyUnitId` 只读展示敌人详细信息
+  * 中央覆盖层：牌区详情面板，按 `SelectedCardZone` 只读展示抽牌堆、手牌、弃牌堆、持续区、消耗区
   * 底部：手牌区，保留点击出牌与快捷键出牌
   * 底部：独立 `BattleResourcePanel` 占满底部 HUD 区域，当前主要承载左下 EP 气圈
   * 右侧中下：`RunFlowPromptPanel`，当 Run 外层存在待处理流程时显示短提示，点击后重新打开统一 `RunFlowOverlay`
@@ -155,6 +175,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
   * 底部资源容器 `0.0,0.56 -> 1.0,1.0`
   * Run 流程恢复入口 `0.72,0.48 -> 0.92,0.56`
   * 敌人详情 `0.70,0.18 -> 0.985,0.60`
+  * 牌区详情 `0.24,0.14 -> 0.76,0.78`
   * 左下资源 / 奥义 `0.015,0.49 -> 0.18,0.98`
   * 右下行动 `0.825,0.63 -> 0.985,0.975`
 * 原顶部资源区现在作为 fallback 文本摘要保留：回合、遭遇名、`AP`、`EP`、队伍生命、护盾、金币、遗物数、战斗反馈
@@ -175,7 +196,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
   * 突破 `Current / Required` 与 `BreakthroughFillNormalized`
   * 角色私有状态短标签，首版最多显示少量文本并用 `+N` 压缩
   * 崩溃或可行动提示
-  * `InspectButton` 可作为后续角色详情入口预留；本轮不改变战斗目标或提交 BattleCommand
+  * 点击角色 Entry 打开 / 刷新角色详情面板；本交互只修改 `InspectedCharacterUnitId`，不改变当前敌人目标，不提交 BattleCommand
 * 右侧：敌人面板
   * 名称
   * 站位
@@ -210,6 +231,8 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 点击敌人头顶 UI：调用 `InspectEnemyByUnitId(RuntimeUnitId)` 打开 / 刷新敌人详情面板，不切换当前战斗目标
 
 ## 2.1 RootLayout 分层口径
+* `UFinalUIRootLayout` 是全局 UI Layer 容器，可在 `Final > UI` 中通过 `RootLayoutClass` 替换成 WBP。推荐 WBP 父类仍为 `UFinalUIRootLayout`，并绑定 `HUDLayer / OverlayLayer / ModalLayer / TooltipLayer / ToastLayer` 五个 `Overlay` 控件。
+* 未配置 `RootLayoutClass` 或 WBP 未绑定任何 Layer 时，C++ 会继续生成当前 fallback 全屏 Layer，保证 PIE 和自动化不依赖 WBP 制作进度。
 * `HUD Layer`：常驻 Battle HUD，只在 `UISubsystem` 初始化时建立，不由外层页替换生命周期
 * `PrototypeRunDebugScreen / FinalBattleEventScreen`：按需打开的 `Overlay Layer` 调试工具，不再和 Battle HUD 常驻同层
 * `Overlay Layer`：默认由 `FinalRunFlowOverlayScreen` 承接 Run 外层主流程；当前 C++ fallback 是右侧紧凑流程面板，不再使用全屏遮罩，面板外区域应尽量保持对 Battle HUD 的点击可达；旧的战后奖励、节点选择、奖励节点、事件节点、商店节点专用页保留为显式调试 / 后续详情页入口
@@ -219,6 +242,13 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 输入优先级：
   * `Modal > Overlay > Battle HUD`
   * Overlay / Modal 关闭后恢复到常驻 HUD 输入模式
+
+## 2.1.0 BattleHUDScreen Slot 化口径
+* `UFinalBattleHUDScreen` 是战斗 HUD 内部 Slot 容器；C++ 仍负责创建具体 panel、绑定 controller / view model 和刷新数据，WBP 只负责 Slot 的位置、尺寸、层级和动画。
+* 推荐 `WBP_BattleHUDScreen` 父类使用 `UFinalBattleHUDScreen`，并按需绑定以下 `Overlay` Slot：`TopBarSlot / ResourceSlot / RunFlowPromptSlot / FeedbackSlot / ContextSlot / CharacterPanelSlot / LegacyEnemyPanelSlot / EnemyDetailSlot / CharacterDetailSlot / CardZoneDetailSlot / UltimateSlot / HandSlot / RecentEventSlot / ActionSlot`。
+* 如果 WBP 直接绑定具体 panel 控件，例如 `HandPanel / EnemyDetailPanel`，C++ 继续初始化这些控件；如果 WBP 只绑定 Slot，C++ 会创建配置的 panel class 并放入对应 Slot。
+* Slot 缺失时不视为错误；缺失区域继续走当前 C++ fallback Canvas 布局。这样可以先只制作 `EnemyDetailSlot / CharacterDetailSlot / RunFlowPromptSlot / FeedbackSlot / RecentEventSlot`，手牌、资源和角色面板等复杂区域后续再迁。
+* Slot 根层和非交互装饰层默认应使用 `SelfHitTestInvisible` 或 `HitTestInvisible`，只让按钮、卡牌 Entry、列表项等真实交互控件参与命中，避免遮挡场中 OverHeadWidget。
 
 ## 2.1.1 Battle World 表现层口径
 * `AFinalBattleDirector` 只负责把 `FinalBattleFlowSubsystem` 的 Snapshot / Event 同步到场中表现 Actor，不承载规则真相。
@@ -243,6 +273,18 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 若 inspected 敌人不存在，详情面板自动清空并隐藏。敌人死亡但仍存在于 snapshot 时，ViewData 通过 `bIsAlive=false` 交给 WBP 表现死亡态。
 * 敌人 OverHeadWidget 点击当前已接入 `InspectEnemyByUnitId()`，不要通过旧 `EnemyPanel` 绕一层，也不要把详情打开逻辑和目标选择逻辑绑定在一起。
 * 旧 `EnemyPanel` 点击目标选择行为暂时保留；正式目标选择后续迁到场中单位 / 拖卡链路时再单独收口。
+
+## 2.1.3 Battle Character Detail Panel 口径
+* `InspectedCharacterUnitId` 是 HUD 只读查看状态，负责角色详情面板；它不提交 BattleCommand，不改变 `SelectedTargetUnitId / CurrentTargetUnitId`，也不影响敌人目标选择。
+* `InspectedCharacterUnitId` 与 `InspectedEnemyUnitId` 当前互斥：查看角色时清空敌人详情，查看敌人时清空角色详情。右侧详情区域首版只显示一个详情对象，避免角色详情和敌人详情叠在同一屏幕区域。
+* `UFinalBattleWidgetController.InspectCharacterByUnitId()` 只验证 snapshot 中存在该角色并刷新 HUD；如果角色不存在或切换战斗后不再存在，详情面板自动清空并隐藏。
+* `UFinalBattleCharacterDetailPanelController` 从 `CachedSnapshot + RunSnapshot + DataRegistry + InspectedCharacterUnitId` 构建 `FFinalBattleHUDCharacterDetailData`，包括名称、等级、定位标签、压力、VitalShare、突破、苏醒计数、崩溃次数、成长属性、运行时属性、状态、被动和奥义详情。
+* 角色运行时属性由 `FinalBattle` snapshot 直接提供：`RuntimeAttack / RuntimeDefense / RuntimeBreakRate / RuntimeCritChance / RuntimeCritDamage`。WBP 只显示 ViewData，不回查 battle runtime，也不自行计算规则真相。
+* `UFinalBattleCharacterDetailPanel / UFinalBattleCharacterDetailWidget / UFinalBattleCharacterDetailStatusLineWidget / UFinalBattleCharacterDetailPassiveLineWidget` 都可以在 `Final > UI` 的 `FinalUIWidgetClassSettings` 中配置。没有正式 WBP 时，C++ fallback `CharacterDetailPanel` 会显示可读文本并提供关闭按钮。
+* `UFinalBattleCharacterDetailWidget` 是 WBP 父类。C++ 提供可选绑定控件与 `OnCharacterDetailViewApplied(ViewData)`，WBP 只负责布局、头像映射、条形图、状态行、被动行和关闭按钮表现。推荐绑定名：`ContentRoot / EmptyText / CloseButton / TitleText / RoleText / StateText / StressText / StressBar / BreakthroughText / BreakthroughBar / VitalText / AwakenText / CollapseText / GrowthText / RuntimeStatsText / StatusBox / EmptyStatusText / PassiveBox / EmptyPassiveText / UltimateNameText / UltimateCostText / UltimateStateText / UltimateRulesText`。
+* 角色详情状态行使用 `UFinalBattleCharacterDetailStatusLineWidget` 作为 WBP 父类。推荐绑定名：`StatusNameText / StackText / DurationText / SummaryText`。`UFinalBattleCharacterDetailWidget.StatusLineWidgetClass` 可指定状态行 WBP；未指定时优先使用 `FinalUIWidgetClassSettings.BattleCharacterDetailStatusLineWidgetClass`，再回退到 C++ 状态行。
+* 角色详情被动行使用 `UFinalBattleCharacterDetailPassiveLineWidget` 作为 WBP 父类。推荐绑定名：`PassiveNameText / StackText / DurationText / SummaryText`。`UFinalBattleCharacterDetailWidget.PassiveLineWidgetClass` 可指定被动行 WBP；未指定时优先使用 `FinalUIWidgetClassSettings.BattleCharacterDetailPassiveLineWidgetClass`，再回退到 C++ 被动行。
+* `UFinalBattleCharacterEntryWidget` 当前支持整块点击打开角色详情，也支持可选 `InspectButton`。该按钮只负责打开详情，不负责角色选择、奥义释放或任何规则结算。后续如果加入玩家场中头顶 UI，应复用 `InspectCharacterByUnitId()`，不要把角色详情打开逻辑写进 Battle 规则层。
 
 ## 2.2 Run 外层流程编排口径
 * `RunFlowSubsystem` 是当前 Run 外层流程的集中编排入口

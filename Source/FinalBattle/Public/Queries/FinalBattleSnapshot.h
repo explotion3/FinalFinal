@@ -57,6 +57,9 @@ struct FINALBATTLE_API FFinalBattleSnapshot
 	FFinalBattleDeckViewData DeckState;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleCardZoneViewData> CardZones;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	TArray<FFinalBattleCharacterViewData> Characters;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")

@@ -5,6 +5,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Controllers/FinalBattleWidgetController.h"
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
 #include "UI/Settings/FinalUIWidgetClassSettings.h"
@@ -59,6 +60,18 @@ UFinalBattleEnemyDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFina
 }
 
 template <>
+UFinalBattleCharacterDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleCharacterDetailPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleCharacterDetailPanel>(UFinalUIWidgetClassSettings::GetBattleCharacterDetailPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleCardZoneDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleCardZoneDetailPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleCardZoneDetailPanel>(UFinalUIWidgetClassSettings::GetBattleCardZoneDetailPanelClass(), WidgetName);
+}
+
+template <>
 UFinalBattleHandPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleHandPanel>(const TCHAR* WidgetName)
 {
 	return WidgetTree->ConstructWidget<UFinalBattleHandPanel>(UFinalUIWidgetClassSettings::GetBattleHandPanelClass(), WidgetName);
@@ -101,6 +114,107 @@ void UFinalBattleHUDScreen::InitializeScreen(UFinalBattleHUDViewModel* InViewMod
 	InitializePanels();
 }
 
+void UFinalBattleHUDScreen::AddPanelToSlot(UOverlay* TargetSlot, UWidget* Panel) const
+{
+	if (TargetSlot == nullptr || Panel == nullptr || Panel->GetParent() != nullptr)
+	{
+		return;
+	}
+
+	if (UOverlaySlot* PanelSlot = TargetSlot->AddChildToOverlay(Panel))
+	{
+		PanelSlot->SetHorizontalAlignment(HAlign_Fill);
+		PanelSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+}
+
+void UFinalBattleHUDScreen::EnsurePanelsInBlueprintSlots()
+{
+	if (TopBarSlot != nullptr && TopBarPanel == nullptr)
+	{
+		TopBarPanel = CreateConfiguredPanel<UFinalBattleTopBarPanel>(TEXT("TopBarPanel"));
+		AddPanelToSlot(TopBarSlot, TopBarPanel);
+	}
+
+	if (ResourceSlot != nullptr && ResourcePanel == nullptr)
+	{
+		ResourcePanel = CreateConfiguredPanel<UFinalBattleResourcePanel>(TEXT("ResourcePanel"));
+		AddPanelToSlot(ResourceSlot, ResourcePanel);
+	}
+
+	if (RunFlowPromptSlot != nullptr && RunFlowPromptPanel == nullptr)
+	{
+		RunFlowPromptPanel = CreateConfiguredPanel<UFinalRunFlowPromptPanel>(TEXT("RunFlowPromptPanel"));
+		AddPanelToSlot(RunFlowPromptSlot, RunFlowPromptPanel);
+	}
+
+	if (FeedbackSlot != nullptr && FeedbackPanel == nullptr)
+	{
+		FeedbackPanel = CreateConfiguredPanel<UFinalBattleFeedbackPanel>(TEXT("FeedbackPanel"));
+		AddPanelToSlot(FeedbackSlot, FeedbackPanel);
+	}
+
+	if (ContextSlot != nullptr && ContextPanel == nullptr)
+	{
+		ContextPanel = CreateConfiguredPanel<UFinalBattleContextPanel>(TEXT("ContextPanel"));
+		AddPanelToSlot(ContextSlot, ContextPanel);
+	}
+
+	if (CharacterPanelSlot != nullptr && CharacterPanel == nullptr)
+	{
+		CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
+		AddPanelToSlot(CharacterPanelSlot, CharacterPanel);
+	}
+
+	if (LegacyEnemyPanelSlot != nullptr && EnemyPanel == nullptr)
+	{
+		EnemyPanel = CreateConfiguredPanel<UFinalBattleEnemyPanel>(TEXT("EnemyPanel"));
+		AddPanelToSlot(LegacyEnemyPanelSlot, EnemyPanel);
+	}
+
+	if (EnemyDetailSlot != nullptr && EnemyDetailPanel == nullptr)
+	{
+		EnemyDetailPanel = CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(TEXT("EnemyDetailPanel"));
+		AddPanelToSlot(EnemyDetailSlot, EnemyDetailPanel);
+	}
+
+	if (CharacterDetailSlot != nullptr && CharacterDetailPanel == nullptr)
+	{
+		CharacterDetailPanel = CreateConfiguredPanel<UFinalBattleCharacterDetailPanel>(TEXT("CharacterDetailPanel"));
+		AddPanelToSlot(CharacterDetailSlot, CharacterDetailPanel);
+	}
+
+	if (CardZoneDetailSlot != nullptr && CardZoneDetailPanel == nullptr)
+	{
+		CardZoneDetailPanel = CreateConfiguredPanel<UFinalBattleCardZoneDetailPanel>(TEXT("CardZoneDetailPanel"));
+		AddPanelToSlot(CardZoneDetailSlot, CardZoneDetailPanel);
+	}
+
+	if (UltimateSlot != nullptr && UltimatePanel == nullptr)
+	{
+		UltimatePanel = CreateConfiguredPanel<UFinalBattleUltimatePanel>(TEXT("UltimatePanel"));
+		AddPanelToSlot(UltimateSlot, UltimatePanel);
+	}
+
+	if (HandSlot != nullptr && HandPanel == nullptr)
+	{
+		HandPanel = CreateConfiguredPanel<UFinalBattleHandPanel>(TEXT("HandPanel"));
+		AddPanelToSlot(HandSlot, HandPanel);
+	}
+
+	if (RecentEventSlot != nullptr && RecentEventPanel == nullptr)
+	{
+		RecentEventPanel = CreateConfiguredPanel<UFinalBattleRecentEventPanel>(TEXT("RecentEventPanel"));
+		AddPanelToSlot(RecentEventSlot, RecentEventPanel);
+	}
+
+	if (ActionSlot != nullptr && ActionPanel == nullptr)
+	{
+		ActionPanel = CreateConfiguredPanel<UFinalBattleActionPanel>(TEXT("ActionPanel"));
+		AddPanelToSlot(ActionSlot, ActionPanel);
+	}
+}
+
 void UFinalBattleHUDScreen::EnsureWidgetTree()
 {
 	if (WidgetTree == nullptr)
@@ -119,13 +233,32 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		CharacterPanel != nullptr ||
 		EnemyPanel != nullptr ||
 		EnemyDetailPanel != nullptr ||
+		CharacterDetailPanel != nullptr ||
+		CardZoneDetailPanel != nullptr ||
 		HandPanel != nullptr ||
 		UltimatePanel != nullptr ||
 		RecentEventPanel != nullptr ||
 		ActionPanel != nullptr;
 
-	if (WidgetTree->RootWidget != nullptr && bHasBlueprintPanelSlots)
+	const bool bHasBlueprintLayoutSlots =
+		TopBarSlot != nullptr ||
+		ResourceSlot != nullptr ||
+		RunFlowPromptSlot != nullptr ||
+		FeedbackSlot != nullptr ||
+		ContextSlot != nullptr ||
+		CharacterPanelSlot != nullptr ||
+		LegacyEnemyPanelSlot != nullptr ||
+		EnemyDetailSlot != nullptr ||
+		CharacterDetailSlot != nullptr ||
+		CardZoneDetailSlot != nullptr ||
+		UltimateSlot != nullptr ||
+		HandSlot != nullptr ||
+		RecentEventSlot != nullptr ||
+		ActionSlot != nullptr;
+
+	if (WidgetTree->RootWidget != nullptr && (bHasBlueprintPanelSlots || bHasBlueprintLayoutSlots))
 	{
+		EnsurePanelsInBlueprintSlots();
 		return;
 	}
 
@@ -153,11 +286,11 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	BattlefieldGlass->AddChildToOverlay(VignetteBorder);
 
 	ResourcePanel = CreateConfiguredPanel<UFinalBattleResourcePanel>(TEXT("ResourcePanel"));
-	if (UCanvasPanelSlot* ResourceSlot = RootCanvas->AddChildToCanvas(ResourcePanel))
+	if (UCanvasPanelSlot* ResourceCanvasSlot = RootCanvas->AddChildToCanvas(ResourcePanel))
 	{
-		ResourceSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-		ResourceSlot->SetOffsets(FMargin(0.0f));
-		ResourceSlot->SetZOrder(80);
+		ResourceCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+		ResourceCanvasSlot->SetOffsets(FMargin(0.0f));
+		ResourceCanvasSlot->SetZOrder(80);
 	}
 
 	RunFlowPromptPanel = CreateConfiguredPanel<UFinalRunFlowPromptPanel>(TEXT("RunFlowPromptPanel"));
@@ -169,11 +302,19 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	}
 
 	FeedbackPanel = CreateConfiguredPanel<UFinalBattleFeedbackPanel>(TEXT("FeedbackPanel"));
-	if (UCanvasPanelSlot* FeedbackSlot = RootCanvas->AddChildToCanvas(FeedbackPanel))
+	if (UCanvasPanelSlot* FeedbackCanvasSlot = RootCanvas->AddChildToCanvas(FeedbackPanel))
 	{
-		FeedbackSlot->SetAnchors(FAnchors(0.32f, 0.90f, 0.68f, 0.98f));
-		FeedbackSlot->SetOffsets(FMargin(0.0f));
-		FeedbackSlot->SetZOrder(20);
+		FeedbackCanvasSlot->SetAnchors(FAnchors(0.32f, 0.90f, 0.68f, 0.98f));
+		FeedbackCanvasSlot->SetOffsets(FMargin(0.0f));
+		FeedbackCanvasSlot->SetZOrder(20);
+	}
+
+	ContextPanel = CreateConfiguredPanel<UFinalBattleContextPanel>(TEXT("ContextPanel"));
+	if (UCanvasPanelSlot* ContextCanvasSlot = RootCanvas->AddChildToCanvas(ContextPanel))
+	{
+		ContextCanvasSlot->SetAnchors(FAnchors(0.825f, 0.02f, 0.985f, 0.18f));
+		ContextCanvasSlot->SetOffsets(FMargin(0.0f));
+		ContextCanvasSlot->SetZOrder(62);
 	}
 
 	CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
@@ -191,34 +332,50 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	}
 
 	EnemyDetailPanel = CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(TEXT("EnemyDetailPanel"));
-	if (UCanvasPanelSlot* EnemyDetailSlot = RootCanvas->AddChildToCanvas(EnemyDetailPanel))
+	if (UCanvasPanelSlot* EnemyDetailCanvasSlot = RootCanvas->AddChildToCanvas(EnemyDetailPanel))
 	{
-		EnemyDetailSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
-		EnemyDetailSlot->SetOffsets(FMargin(0.0f));
-		EnemyDetailSlot->SetZOrder(85);
+		EnemyDetailCanvasSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
+		EnemyDetailCanvasSlot->SetOffsets(FMargin(0.0f));
+		EnemyDetailCanvasSlot->SetZOrder(85);
+	}
+
+	CharacterDetailPanel = CreateConfiguredPanel<UFinalBattleCharacterDetailPanel>(TEXT("CharacterDetailPanel"));
+	if (UCanvasPanelSlot* CharacterDetailCanvasSlot = RootCanvas->AddChildToCanvas(CharacterDetailPanel))
+	{
+		CharacterDetailCanvasSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
+		CharacterDetailCanvasSlot->SetOffsets(FMargin(0.0f));
+		CharacterDetailCanvasSlot->SetZOrder(86);
+	}
+
+	CardZoneDetailPanel = CreateConfiguredPanel<UFinalBattleCardZoneDetailPanel>(TEXT("CardZoneDetailPanel"));
+	if (UCanvasPanelSlot* CardZoneDetailCanvasSlot = RootCanvas->AddChildToCanvas(CardZoneDetailPanel))
+	{
+		CardZoneDetailCanvasSlot->SetAnchors(FAnchors(0.24f, 0.14f, 0.76f, 0.78f));
+		CardZoneDetailCanvasSlot->SetOffsets(FMargin(0.0f));
+		CardZoneDetailCanvasSlot->SetZOrder(95);
 	}
 
 	UltimatePanel = CreateConfiguredPanel<UFinalBattleUltimatePanel>(TEXT("UltimatePanel"));
-	if (UCanvasPanelSlot* UltimateSlot = RootCanvas->AddChildToCanvas(UltimatePanel))
+	if (UCanvasPanelSlot* UltimateCanvasSlot = RootCanvas->AddChildToCanvas(UltimatePanel))
 	{
-		UltimateSlot->SetAnchors(FAnchors(0.015f, 0.49f, 0.18f, 0.65f));
-		UltimateSlot->SetOffsets(FMargin(0.0f));
+		UltimateCanvasSlot->SetAnchors(FAnchors(0.015f, 0.49f, 0.18f, 0.65f));
+		UltimateCanvasSlot->SetOffsets(FMargin(0.0f));
 	}
 
 	HandPanel = CreateConfiguredPanel<UFinalBattleHandPanel>(TEXT("HandPanel"));
-	if (UCanvasPanelSlot* HandSlot = RootCanvas->AddChildToCanvas(HandPanel))
+	if (UCanvasPanelSlot* HandCanvasSlot = RootCanvas->AddChildToCanvas(HandPanel))
 	{
-		HandSlot->SetAnchors(FAnchors(0.16f, 0.56f, 0.82f, 0.985f));
-		HandSlot->SetOffsets(FMargin(0.0f));
-		HandSlot->SetZOrder(40);
+		HandCanvasSlot->SetAnchors(FAnchors(0.16f, 0.56f, 0.82f, 0.985f));
+		HandCanvasSlot->SetOffsets(FMargin(0.0f));
+		HandCanvasSlot->SetZOrder(40);
 	}
 
 	ActionPanel = CreateConfiguredPanel<UFinalBattleActionPanel>(TEXT("ActionPanel"));
-	if (UCanvasPanelSlot* ActionSlot = RootCanvas->AddChildToCanvas(ActionPanel))
+	if (UCanvasPanelSlot* ActionCanvasSlot = RootCanvas->AddChildToCanvas(ActionPanel))
 	{
-		ActionSlot->SetAnchors(FAnchors(0.825f, 0.63f, 0.985f, 0.975f));
-		ActionSlot->SetOffsets(FMargin(0.0f));
-		ActionSlot->SetZOrder(60);
+		ActionCanvasSlot->SetAnchors(FAnchors(0.825f, 0.63f, 0.985f, 0.975f));
+		ActionCanvasSlot->SetOffsets(FMargin(0.0f));
+		ActionCanvasSlot->SetZOrder(60);
 	}
 
 }
@@ -265,6 +422,16 @@ void UFinalBattleHUDScreen::InitializePanels()
 	if (EnemyDetailPanel)
 	{
 		EnemyDetailPanel->InitializePanel(BattleViewModel->GetEnemyDetailViewModel(), BattleController->GetEnemyDetailPanelController());
+	}
+
+	if (CharacterDetailPanel)
+	{
+		CharacterDetailPanel->InitializePanel(BattleViewModel->GetCharacterDetailViewModel(), BattleController->GetCharacterDetailPanelController());
+	}
+
+	if (CardZoneDetailPanel)
+	{
+		CardZoneDetailPanel->InitializePanel(BattleViewModel->GetCardZoneDetailViewModel(), BattleController->GetCardZoneDetailPanelController());
 	}
 
 	if (HandPanel)

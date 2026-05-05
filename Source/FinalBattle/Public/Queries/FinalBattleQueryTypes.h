@@ -40,6 +40,21 @@ struct FINALBATTLE_API FFinalBattleCharacterViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	int32 VitalShare = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RuntimeAttack = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RuntimeDefense = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	float RuntimeBreakRate = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	float RuntimeCritChance = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	float RuntimeCritDamage = 1.5f;
 };
 
 USTRUCT(BlueprintType)
@@ -109,6 +124,19 @@ struct FINALBATTLE_API FFinalBattleEnemyViewData
 };
 
 UENUM(BlueprintType)
+enum class EFinalBattleCardZone : uint8
+{
+	DrawPile,
+	Hand,
+	DiscardPile,
+	OngoingZone,
+	ConsumePile,
+
+	DrawPileTop UMETA(Hidden),
+	DrawPileBottom UMETA(Hidden)
+};
+
+UENUM(BlueprintType)
 enum class EFinalBattleCardTargetRequirement : uint8
 {
 	None,
@@ -164,6 +192,72 @@ struct FINALBATTLE_API FFinalBattleCardViewData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	bool bCollapsedCard = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattleCardZoneEntryViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FGuid CardInstanceId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalCardId CardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName RuntimeOwnerUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalCardType CardType = EFinalCardType::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 BaseCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 RuntimeCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FGameplayTagContainer RuntimeKeywords;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText ResolvedRulesText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bRetained = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bConsumeOnPlay = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bOngoingCard = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bGeneratedCard = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bTemporaryCard = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattleCardZoneViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalBattleCardZone Zone = EFinalBattleCardZone::DrawPile;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 Count = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	TArray<FFinalBattleCardZoneEntryViewData> Cards;
 };
 
 USTRUCT(BlueprintType)

@@ -7,7 +7,13 @@
 
 class UFinalBattleActionPanel;
 class UFinalBattleCardEntryWidget;
+class UFinalBattleCardZoneEntryWidget;
+class UFinalBattleCardZoneDetailPanel;
 class UFinalBattleCharacterEntryWidget;
+class UFinalBattleCharacterDetailPanel;
+class UFinalBattleCharacterDetailPassiveLineWidget;
+class UFinalBattleCharacterDetailStatusLineWidget;
+class UFinalBattleCharacterDetailWidget;
 class UFinalBattleCharacterPanel;
 class UFinalBattleContextPanel;
 class UFinalBattleEnemyEntryWidget;
@@ -28,6 +34,7 @@ class UFinalRunFlowOptionButton;
 class UFinalRunFlowOverlayScreen;
 class UFinalRunGrowthChoiceOverlayScreen;
 class UFinalRunFlowPromptPanel;
+class UFinalUIRootLayout;
 
 UCLASS(Config=Game, DefaultConfig, DisplayName="Final UI Widget Classes")
 class FINALAPP_API UFinalUIWidgetClassSettings : public UDeveloperSettings
@@ -39,6 +46,7 @@ public:
 	virtual FName GetSectionName() const override;
 
 	static TSubclassOf<UFinalBattleHUDScreen> GetBattleHUDScreenClass();
+	static TSubclassOf<UFinalUIRootLayout> GetRootLayoutClass();
 	static TSubclassOf<UFinalBattleTopBarPanel> GetBattleTopBarPanelClass();
 	static TSubclassOf<UFinalBattleResourcePanel> GetBattleResourcePanelClass();
 	static TSubclassOf<UFinalRunFlowPromptPanel> GetBattleRunFlowPromptPanelClass();
@@ -47,15 +55,21 @@ public:
 	static TSubclassOf<UFinalBattleCharacterPanel> GetBattleCharacterPanelClass();
 	static TSubclassOf<UFinalBattleEnemyPanel> GetBattleEnemyPanelClass();
 	static TSubclassOf<UFinalBattleEnemyDetailPanel> GetBattleEnemyDetailPanelClass();
+	static TSubclassOf<UFinalBattleCharacterDetailPanel> GetBattleCharacterDetailPanelClass();
 	static TSubclassOf<UFinalBattleHandPanel> GetBattleHandPanelClass();
+	static TSubclassOf<UFinalBattleCardZoneDetailPanel> GetBattleCardZoneDetailPanelClass();
 	static TSubclassOf<UFinalBattleUltimatePanel> GetBattleUltimatePanelClass();
 	static TSubclassOf<UFinalBattleRecentEventPanel> GetBattleRecentEventPanelClass();
 	static TSubclassOf<UFinalBattleActionPanel> GetBattleActionPanelClass();
 	static TSubclassOf<UFinalBattleCardEntryWidget> GetBattleCardEntryWidgetClass();
+	static TSubclassOf<UFinalBattleCardZoneEntryWidget> GetBattleCardZoneEntryWidgetClass();
 	static TSubclassOf<UFinalBattleCharacterEntryWidget> GetBattleCharacterEntryWidgetClass();
 	static TSubclassOf<UFinalBattleEnemyEntryWidget> GetBattleEnemyEntryWidgetClass();
 	static TSubclassOf<UFinalBattleEnemyDetailWidget> GetBattleEnemyDetailWidgetClass();
 	static TSubclassOf<UFinalBattleEnemyDetailStatusLineWidget> GetBattleEnemyDetailStatusLineWidgetClass();
+	static TSubclassOf<UFinalBattleCharacterDetailWidget> GetBattleCharacterDetailWidgetClass();
+	static TSubclassOf<UFinalBattleCharacterDetailStatusLineWidget> GetBattleCharacterDetailStatusLineWidgetClass();
+	static TSubclassOf<UFinalBattleCharacterDetailPassiveLineWidget> GetBattleCharacterDetailPassiveLineWidgetClass();
 	static TSubclassOf<UFinalBattleUltimateEntryWidget> GetBattleUltimateEntryWidgetClass();
 	static TSubclassOf<UFinalBattleLogEntryWidget> GetBattleLogEntryWidgetClass();
 	static TSubclassOf<UFinalRunFlowOverlayScreen> GetRunFlowOverlayScreenClass();
@@ -64,6 +78,9 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
 	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Root Layout")
+	TSoftClassPtr<UFinalUIRootLayout> RootLayoutClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
 	TSoftClassPtr<UFinalBattleTopBarPanel> BattleTopBarPanelClass;
@@ -90,7 +107,13 @@ public:
 	TSoftClassPtr<UFinalBattleEnemyDetailPanel> BattleEnemyDetailPanelClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleCharacterDetailPanel> BattleCharacterDetailPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
 	TSoftClassPtr<UFinalBattleHandPanel> BattleHandPanelClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
+	TSoftClassPtr<UFinalBattleCardZoneDetailPanel> BattleCardZoneDetailPanelClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Panels")
 	TSoftClassPtr<UFinalBattleUltimatePanel> BattleUltimatePanelClass;
@@ -105,6 +128,9 @@ public:
 	TSoftClassPtr<UFinalBattleCardEntryWidget> BattleCardEntryWidgetClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCardZoneEntryWidget> BattleCardZoneEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
 	TSoftClassPtr<UFinalBattleCharacterEntryWidget> BattleCharacterEntryWidgetClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
@@ -115,6 +141,15 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
 	TSoftClassPtr<UFinalBattleEnemyDetailStatusLineWidget> BattleEnemyDetailStatusLineWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCharacterDetailWidget> BattleCharacterDetailWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCharacterDetailStatusLineWidget> BattleCharacterDetailStatusLineWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
+	TSoftClassPtr<UFinalBattleCharacterDetailPassiveLineWidget> BattleCharacterDetailPassiveLineWidgetClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Entries")
 	TSoftClassPtr<UFinalBattleUltimateEntryWidget> BattleUltimateEntryWidgetClass;

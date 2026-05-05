@@ -5,6 +5,7 @@
 #include "Facade/FinalBattleSessionTypes.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Queries/FinalBattleQueryTypes.h"
 #include "Runtime/FinalBattleCardInstance.h"
 #include "Systems/FinalBattleCardMatchCriteria.h"
 
@@ -13,18 +14,9 @@ class FFinalBattleUnitService;
 struct FFinalBattleCardInitData;
 struct FFinalBattleCardRefreshRequest;
 struct FFinalBattleCardViewData;
+struct FFinalBattleCardZoneViewData;
 struct FFinalBattleState;
 struct FFinalTeamDeckState;
-
-enum class EFinalBattleCardZone : uint8
-{
-	Hand,           // 手牌区
-	DrawPileTop,    // 抽牌堆顶
-	DrawPileBottom, // 抽牌堆底
-	DiscardPile,    // 弃牌堆
-	OngoingZone,    // 持续区
-	ConsumePile     // 消耗区
-};
 
 class FFinalBattleCardService
 {
@@ -152,6 +144,11 @@ public:
 		const FFinalBattleState& BattleState,
 		const FFinalBattleUnitService& UnitService,
 		TArray<FFinalBattleCardViewData>& OutViews) const;
+
+	// 基于当前五个牌区构建对外只读的牌区明细视图数据。
+	void BuildCardZoneViews(
+		const FFinalBattleState& BattleState,
+		TArray<FFinalBattleCardZoneViewData>& OutViews) const;
 
 private:
 	// 抽牌堆为空时，把弃牌堆洗回抽牌堆。

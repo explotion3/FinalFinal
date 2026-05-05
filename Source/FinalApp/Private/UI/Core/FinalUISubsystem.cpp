@@ -381,7 +381,7 @@ void UFinalUISubsystem::EnsureRootLayout()
 		return;
 	}
 
-	RootLayout = CreateWidget<UFinalUIRootLayout>(PrimaryPlayerController, UFinalUIRootLayout::StaticClass());
+	RootLayout = CreateWidget<UFinalUIRootLayout>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRootLayoutClass());
 	if (RootLayout)
 	{
 		RootLayout->AddToViewport(0);

@@ -232,6 +232,168 @@ struct FINALAPP_API FFinalBattleHUDEnemyDetailData
 };
 
 USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCharacterDetailStatusEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalStatusId StatusId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText SummaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentStacks = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RemainingDuration = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCharacterDetailPassiveEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalPassiveId PassiveId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText SummaryText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentStacks = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RemainingDuration = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCharacterDetailData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bHasCharacter = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName RuntimeUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalCharacterId CharacterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText RoleText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName IconId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName ArtId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 Level = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentStress = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 StressCap = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float StressPercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 VitalShare = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 BreakthroughValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 BreakthroughRequiredValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float BreakthroughFillNormalized = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bBreakthroughReady = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RootBone = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 Insight = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 KillingIntent = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentAwakenCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CurrentAwakenThreshold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 CollapseCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bCollapsed = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bIsInspected = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RuntimeAttack = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RuntimeDefense = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float RuntimeBreakRate = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float RuntimeCritChance = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	float RuntimeCritDamage = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText UltimateNameText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText UltimateRulesText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 UltimateCostEP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bUltimateDefinitionReady = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bUltimateCanActivate = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bUltimateBlockedByCollapse = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bUltimateUsedThisBattle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDCharacterDetailStatusEntry> Statuses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDCharacterDetailPassiveEntry> Passives;
+};
+
+USTRUCT(BlueprintType)
 struct FINALAPP_API FFinalBattleHUDCardEntry
 {
 	GENERATED_BODY()
@@ -289,6 +451,99 @@ struct FINALAPP_API FFinalBattleHUDCardEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
 	bool bCollapsedCard = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCardZoneEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FGuid CardInstanceId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FFinalCardId CardId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FName OwnerUnitId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText OwnerDisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalCardType CardType = EFinalCardType::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText TypeText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 BaseCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 RuntimeCostAP = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText KeywordText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText RulesText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bRetained = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bConsumeOnPlay = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bOngoingCard = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bGeneratedCard = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bTemporaryCard = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALAPP_API FFinalBattleHUDCardZoneDetailData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bIsOpen = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	bool bHasActiveBattle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	EFinalBattleCardZone SelectedZone = EFinalBattleCardZone::DrawPile;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	FText TitleText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 Count = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	TArray<FFinalBattleHUDCardZoneEntry> Entries;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 DrawPileCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 HandCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 DiscardPileCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 OngoingZoneCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|UI")
+	int32 ConsumePileCount = 0;
 };
 
 USTRUCT(BlueprintType)

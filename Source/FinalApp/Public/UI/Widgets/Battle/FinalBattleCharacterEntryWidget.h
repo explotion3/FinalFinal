@@ -21,6 +21,7 @@ class FINALAPP_API UFinalBattleCharacterEntryWidget : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	void Configure(const FFinalBattleHUDCharacterEntry& InEntry);
 
@@ -38,7 +39,11 @@ protected:
 	void OnCharacterEntryViewApplied(const FFinalBattleHUDCharacterEntry& ViewData);
 
 private:
+	UFUNCTION()
+	void HandleInspectClicked();
+
 	void EnsureWidgetTree();
+	bool TryInspectCharacter() const;
 	FText BuildFallbackLabel() const;
 	FText BuildLevelText() const;
 	FText BuildStressText() const;
@@ -48,6 +53,9 @@ private:
 
 	UPROPERTY(Transient)
 	FFinalBattleHUDCharacterEntry CharacterEntryViewData;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|CharacterEntry")
+	bool bAllowInspectOnClick = true;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UBorder> RootBorder;

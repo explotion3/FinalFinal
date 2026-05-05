@@ -31,7 +31,23 @@ public:
 
 private:
 	void EnsureLayoutTree();
+	bool HasBoundLayerWidgets() const;
 	UOverlay* ResolveLayer(EFinalUIScreenLayer Layer) const;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> HUDLayer;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> OverlayLayer;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> ModalLayer;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> TooltipLayer;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> ToastLayer;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCanvasPanel> RootCanvas;

@@ -1,10 +1,15 @@
 #include "UI/Settings/FinalUIWidgetClassSettings.h"
 
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
+#include "UI/Root/FinalUIRootLayout.h"
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunGrowthChoiceOverlayScreen.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCardZoneEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCharacterDetailPassiveLineWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCharacterDetailStatusLineWidget.h"
+#include "UI/Widgets/Battle/FinalBattleCharacterDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyDetailStatusLineWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
@@ -47,6 +52,11 @@ TSubclassOf<UFinalBattleHUDScreen> UFinalUIWidgetClassSettings::GetBattleHUDScre
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleHUDScreenClass);
 }
 
+TSubclassOf<UFinalUIRootLayout> UFinalUIWidgetClassSettings::GetRootLayoutClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RootLayoutClass);
+}
+
 TSubclassOf<UFinalBattleTopBarPanel> UFinalUIWidgetClassSettings::GetBattleTopBarPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTopBarPanelClass);
@@ -87,9 +97,19 @@ TSubclassOf<UFinalBattleEnemyDetailPanel> UFinalUIWidgetClassSettings::GetBattle
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyDetailPanelClass);
 }
 
+TSubclassOf<UFinalBattleCharacterDetailPanel> UFinalUIWidgetClassSettings::GetBattleCharacterDetailPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterDetailPanelClass);
+}
+
 TSubclassOf<UFinalBattleHandPanel> UFinalUIWidgetClassSettings::GetBattleHandPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleHandPanelClass);
+}
+
+TSubclassOf<UFinalBattleCardZoneDetailPanel> UFinalUIWidgetClassSettings::GetBattleCardZoneDetailPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCardZoneDetailPanelClass);
 }
 
 TSubclassOf<UFinalBattleUltimatePanel> UFinalUIWidgetClassSettings::GetBattleUltimatePanelClass()
@@ -112,6 +132,11 @@ TSubclassOf<UFinalBattleCardEntryWidget> UFinalUIWidgetClassSettings::GetBattleC
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCardEntryWidgetClass);
 }
 
+TSubclassOf<UFinalBattleCardZoneEntryWidget> UFinalUIWidgetClassSettings::GetBattleCardZoneEntryWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCardZoneEntryWidgetClass);
+}
+
 TSubclassOf<UFinalBattleCharacterEntryWidget> UFinalUIWidgetClassSettings::GetBattleCharacterEntryWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterEntryWidgetClass);
@@ -130,6 +155,21 @@ TSubclassOf<UFinalBattleEnemyDetailWidget> UFinalUIWidgetClassSettings::GetBattl
 TSubclassOf<UFinalBattleEnemyDetailStatusLineWidget> UFinalUIWidgetClassSettings::GetBattleEnemyDetailStatusLineWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyDetailStatusLineWidgetClass);
+}
+
+TSubclassOf<UFinalBattleCharacterDetailWidget> UFinalUIWidgetClassSettings::GetBattleCharacterDetailWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterDetailWidgetClass);
+}
+
+TSubclassOf<UFinalBattleCharacterDetailStatusLineWidget> UFinalUIWidgetClassSettings::GetBattleCharacterDetailStatusLineWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterDetailStatusLineWidgetClass);
+}
+
+TSubclassOf<UFinalBattleCharacterDetailPassiveLineWidget> UFinalUIWidgetClassSettings::GetBattleCharacterDetailPassiveLineWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterDetailPassiveLineWidgetClass);
 }
 
 TSubclassOf<UFinalBattleUltimateEntryWidget> UFinalUIWidgetClassSettings::GetBattleUltimateEntryWidgetClass()

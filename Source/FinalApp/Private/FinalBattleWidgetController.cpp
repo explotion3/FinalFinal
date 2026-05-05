@@ -36,6 +36,9 @@ void UFinalBattleWidgetController::Initialize(UFinalBattleHUDViewModel* InViewMo
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 	InspectedEnemyUnitId = NAME_None;
+	InspectedCharacterUnitId = NAME_None;
+	bCardZoneDetailOpen = false;
+	SelectedCardZone = EFinalBattleCardZone::DrawPile;
 
 	if (ViewModel)
 	{
@@ -61,6 +64,9 @@ void UFinalBattleWidgetController::BindToBattleFlow(UFinalBattleFlowSubsystem* I
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 	InspectedEnemyUnitId = NAME_None;
+	InspectedCharacterUnitId = NAME_None;
+	bCardZoneDetailOpen = false;
+	SelectedCardZone = EFinalBattleCardZone::DrawPile;
 
 	if (BattleFlowSubsystem == nullptr)
 	{
@@ -93,6 +99,9 @@ void UFinalBattleWidgetController::UnbindFromBattleFlow()
 	LastInteractionEvent = FFinalBattleEvent{};
 	SelectedEnemyUnitId = NAME_None;
 	InspectedEnemyUnitId = NAME_None;
+	InspectedCharacterUnitId = NAME_None;
+	bCardZoneDetailOpen = false;
+	SelectedCardZone = EFinalBattleCardZone::DrawPile;
 }
 
 void UFinalBattleWidgetController::RefreshFromSession(UFinalBattleSession* Session)
@@ -108,6 +117,8 @@ void UFinalBattleWidgetController::RefreshFromSession(UFinalBattleSession* Sessi
 	LastInteractionEvent = CachedBattleEvents.Num() > 0 ? CachedBattleEvents.Last() : FFinalBattleEvent{};
 	RefreshSelectedEnemyFromSnapshot();
 	RefreshInspectedEnemyFromSnapshot();
+	RefreshInspectedCharacterFromSnapshot();
+	RefreshInspectedCardZoneFromSnapshot();
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	for (const FFinalBattleEvent& BattleEvent : CachedBattleEvents)
 	{
@@ -274,6 +285,7 @@ bool UFinalBattleWidgetController::InspectEnemyByUnitId(const FName RuntimeUnitI
 	}
 
 	InspectedEnemyUnitId = RuntimeUnitId;
+	InspectedCharacterUnitId = NAME_None;
 	RebuildPresentation();
 	return true;
 }
@@ -292,6 +304,82 @@ void UFinalBattleWidgetController::ClearInspectedEnemy()
 FName UFinalBattleWidgetController::GetInspectedEnemyUnitId() const
 {
 	return InspectedEnemyUnitId;
+}
+
+bool UFinalBattleWidgetController::InspectCharacterByUnitId(const FName RuntimeUnitId)
+{
+	const bool bExists = CachedSnapshot.Characters.ContainsByPredicate(
+		[&RuntimeUnitId](const FFinalBattleCharacterViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == RuntimeUnitId;
+		});
+
+	if (!bExists)
+	{
+		InspectedCharacterUnitId = NAME_None;
+		RebuildPresentation();
+		return false;
+	}
+
+	InspectedCharacterUnitId = RuntimeUnitId;
+	InspectedEnemyUnitId = NAME_None;
+	RebuildPresentation();
+	return true;
+}
+
+void UFinalBattleWidgetController::ClearInspectedCharacter()
+{
+	if (InspectedCharacterUnitId.IsNone())
+	{
+		return;
+	}
+
+	InspectedCharacterUnitId = NAME_None;
+	RebuildPresentation();
+}
+
+FName UFinalBattleWidgetController::GetInspectedCharacterUnitId() const
+{
+	return InspectedCharacterUnitId;
+}
+
+void UFinalBattleWidgetController::InspectCardZone(const EFinalBattleCardZone Zone)
+{
+	bCardZoneDetailOpen = true;
+	SelectedCardZone = Zone;
+	RebuildPresentation();
+}
+
+void UFinalBattleWidgetController::SetSelectedCardZone(const EFinalBattleCardZone Zone)
+{
+	if (!bCardZoneDetailOpen)
+	{
+		bCardZoneDetailOpen = true;
+	}
+
+	SelectedCardZone = Zone;
+	RebuildPresentation();
+}
+
+void UFinalBattleWidgetController::ClearCardZoneDetail()
+{
+	if (!bCardZoneDetailOpen)
+	{
+		return;
+	}
+
+	bCardZoneDetailOpen = false;
+	RebuildPresentation();
+}
+
+bool UFinalBattleWidgetController::IsCardZoneDetailOpen() const
+{
+	return bCardZoneDetailOpen;
+}
+
+EFinalBattleCardZone UFinalBattleWidgetController::GetSelectedCardZone() const
+{
+	return SelectedCardZone;
 }
 
 FText UFinalBattleWidgetController::GetLastInteractionFeedback() const
@@ -356,9 +444,19 @@ UFinalBattleEnemyDetailPanelController* UFinalBattleWidgetController::GetEnemyDe
 	return EnemyDetailPanelController;
 }
 
+UFinalBattleCharacterDetailPanelController* UFinalBattleWidgetController::GetCharacterDetailPanelController() const
+{
+	return CharacterDetailPanelController;
+}
+
 UFinalBattleHandPanelController* UFinalBattleWidgetController::GetHandPanelController() const
 {
 	return HandPanelController;
+}
+
+UFinalBattleCardZoneDetailPanelController* UFinalBattleWidgetController::GetCardZoneDetailPanelController() const
+{
+	return CardZoneDetailPanelController;
 }
 
 UFinalBattleUltimatePanelController* UFinalBattleWidgetController::GetUltimatePanelController() const
@@ -398,6 +496,8 @@ void UFinalBattleWidgetController::HandleBattleSnapshotChanged(const FFinalBattl
 
 	RefreshSelectedEnemyFromSnapshot();
 	RefreshInspectedEnemyFromSnapshot();
+	RefreshInspectedCharacterFromSnapshot();
+	RefreshInspectedCardZoneFromSnapshot();
 	ViewModel->ApplySnapshot(CachedSnapshot);
 	RebuildPresentation();
 }
@@ -445,6 +545,9 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		DataRegistry,
 		SelectedEnemyUnitId,
 		InspectedEnemyUnitId,
+		InspectedCharacterUnitId,
+		bCardZoneDetailOpen,
+		SelectedCardZone,
 		LastInteractionFeedback,
 		LastInteractionEvent
 	};
@@ -456,7 +559,9 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	if (CharacterPanelController) { CharacterPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (EnemyPanelController) { EnemyPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (EnemyDetailPanelController) { EnemyDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (CharacterDetailPanelController) { CharacterDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (HandPanelController) { HandPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (CardZoneDetailPanelController) { CardZoneDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (UltimatePanelController) { UltimatePanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (RecentEventPanelController) { RecentEventPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (ActionPanelController) { ActionPanelController->RefreshFromCoordinatorData(CoordinatorData); }
@@ -513,10 +618,22 @@ void UFinalBattleWidgetController::EnsurePanelControllers()
 		EnemyDetailPanelController->InitializeEnemyDetailPanel(this, ViewModel->GetEnemyDetailViewModel());
 	}
 
+	if (CharacterDetailPanelController == nullptr)
+	{
+		CharacterDetailPanelController = NewObject<UFinalBattleCharacterDetailPanelController>(this);
+		CharacterDetailPanelController->InitializeCharacterDetailPanel(this, ViewModel->GetCharacterDetailViewModel());
+	}
+
 	if (HandPanelController == nullptr)
 	{
 		HandPanelController = NewObject<UFinalBattleHandPanelController>(this);
 		HandPanelController->InitializeHandPanel(this, ViewModel->GetHandViewModel());
+	}
+
+	if (CardZoneDetailPanelController == nullptr)
+	{
+		CardZoneDetailPanelController = NewObject<UFinalBattleCardZoneDetailPanelController>(this);
+		CardZoneDetailPanelController->InitializeCardZoneDetailPanel(this, ViewModel->GetCardZoneDetailViewModel());
 	}
 
 	if (UltimatePanelController == nullptr)
@@ -565,6 +682,45 @@ void UFinalBattleWidgetController::RefreshInspectedEnemyFromSnapshot()
 	if (!bInspectedEnemyStillExists)
 	{
 		InspectedEnemyUnitId = NAME_None;
+	}
+}
+
+void UFinalBattleWidgetController::RefreshInspectedCharacterFromSnapshot()
+{
+	if (InspectedCharacterUnitId.IsNone())
+	{
+		return;
+	}
+
+	const bool bInspectedCharacterStillExists = CachedSnapshot.Characters.ContainsByPredicate(
+		[this](const FFinalBattleCharacterViewData& Candidate)
+		{
+			return Candidate.RuntimeUnitId == InspectedCharacterUnitId;
+		});
+
+	if (!bInspectedCharacterStillExists)
+	{
+		InspectedCharacterUnitId = NAME_None;
+	}
+}
+
+void UFinalBattleWidgetController::RefreshInspectedCardZoneFromSnapshot()
+{
+	if (!bCardZoneDetailOpen)
+	{
+		return;
+	}
+
+	const bool bSelectedZoneExists = CachedSnapshot.CardZones.ContainsByPredicate(
+		[this](const FFinalBattleCardZoneViewData& Candidate)
+		{
+			return Candidate.Zone == SelectedCardZone;
+		});
+
+	if (!bSelectedZoneExists)
+	{
+		bCardZoneDetailOpen = false;
+		SelectedCardZone = EFinalBattleCardZone::DrawPile;
 	}
 }
 

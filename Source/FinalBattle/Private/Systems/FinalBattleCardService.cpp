@@ -497,6 +497,35 @@ FFinalBattleCardRuntimeBehavior BuildRuntimeBehaviorFromKeywords(const FGameplay
 	return Behavior;
 }
 
+FFinalBattleCardZoneEntryViewData BuildCardZoneEntryView(
+	const FFinalBattleCardInstance& CardInstance,
+	const EFinalBattleCardZone Zone)
+{
+	const UFinalCardDefinition* EffectiveDefinition = CardInstance.ProjectedDefinition != nullptr
+		? CardInstance.ProjectedDefinition
+		: CardInstance.BaseDefinition;
+
+	FFinalBattleCardZoneEntryViewData EntryView;
+	EntryView.CardInstanceId = CardInstance.CardInstanceId;
+	EntryView.CardId = CardInstance.CardId;
+	EntryView.RuntimeOwnerUnitId = CardInstance.RuntimeOwnerUnitId;
+	EntryView.DisplayName = EffectiveDefinition != nullptr && !EffectiveDefinition->DisplayName.IsEmpty()
+		? EffectiveDefinition->DisplayName
+		: FText::FromName(CardInstance.CardId.Value);
+	EntryView.CardType = EffectiveDefinition != nullptr ? EffectiveDefinition->CardType : EFinalCardType::Attack;
+	EntryView.BaseCostAP = EffectiveDefinition != nullptr ? EffectiveDefinition->BaseCostAP : CardInstance.RuntimeCostAP;
+	EntryView.RuntimeCostAP = CardInstance.RuntimeCostAP;
+	EntryView.RuntimeKeywords = CardInstance.RuntimeKeywords;
+	EntryView.ResolvedRulesText = BuildResolvedRulesTextForCard(CardInstance);
+	EntryView.bRetained = CardInstance.RuntimeBehavior.bRetained;
+	EntryView.bConsumeOnPlay = CardInstance.RuntimeBehavior.bConsumeOnPlay;
+	EntryView.bOngoingCard = Zone == EFinalBattleCardZone::OngoingZone
+		|| (EffectiveDefinition != nullptr && EffectiveDefinition->CardType == EFinalCardType::Ability);
+	EntryView.bGeneratedCard = CardInstance.bGeneratedCard;
+	EntryView.bTemporaryCard = CardInstance.bTemporaryCard;
+	return EntryView;
+}
+
 bool RemoveCardInstanceId(TArray<FGuid>& CardInstanceIds, const FGuid& CardInstanceId)
 {
 	return CardInstanceIds.RemoveSingle(CardInstanceId) > 0;
@@ -509,6 +538,7 @@ TArray<FGuid>* ResolveZoneArray(FFinalTeamDeckState& DeckState, const EFinalBatt
 	case EFinalBattleCardZone::Hand:
 		return &DeckState.HandCardInstanceIds;
 
+	case EFinalBattleCardZone::DrawPile:
 	case EFinalBattleCardZone::DrawPileTop:
 	case EFinalBattleCardZone::DrawPileBottom:
 		return &DeckState.DrawPileCardInstanceIds;
@@ -534,6 +564,7 @@ const TArray<FGuid>* ResolveZoneArray(const FFinalTeamDeckState& DeckState, cons
 	case EFinalBattleCardZone::Hand:
 		return &DeckState.HandCardInstanceIds;
 
+	case EFinalBattleCardZone::DrawPile:
 	case EFinalBattleCardZone::DrawPileTop:
 	case EFinalBattleCardZone::DrawPileBottom:
 		return &DeckState.DrawPileCardInstanceIds;
@@ -1273,6 +1304,55 @@ void FFinalBattleCardService::BuildHandCardViews(
 
 		OutViews.Add(MoveTemp(CardView));
 	}
+}
+
+void FFinalBattleCardService::BuildCardZoneViews(
+	const FFinalBattleState& BattleState,
+	TArray<FFinalBattleCardZoneViewData>& OutViews) const
+{
+	auto BuildZone = [this, &BattleState](const EFinalBattleCardZone Zone, const FText& DisplayName, const TArray<FGuid>& CardInstanceIds)
+	{
+		FFinalBattleCardZoneViewData ZoneView;
+		ZoneView.Zone = Zone;
+		ZoneView.DisplayName = DisplayName;
+		ZoneView.Count = CardInstanceIds.Num();
+		ZoneView.Cards.Reserve(CardInstanceIds.Num());
+
+		for (const FGuid& CardInstanceId : CardInstanceIds)
+		{
+			const FFinalBattleCardInstance* CardInstance = FindCardInstance(BattleState, CardInstanceId);
+			if (CardInstance == nullptr)
+			{
+				continue;
+			}
+
+			ZoneView.Cards.Add(BuildCardZoneEntryView(*CardInstance, Zone));
+		}
+
+		return ZoneView;
+	};
+
+	OutViews.Reset();
+	OutViews.Add(BuildZone(
+		EFinalBattleCardZone::DrawPile,
+		NSLOCTEXT("FinalBattleCardZone", "DrawPile", "抽牌堆"),
+		BattleState.DeckState.DrawPileCardInstanceIds));
+	OutViews.Add(BuildZone(
+		EFinalBattleCardZone::Hand,
+		NSLOCTEXT("FinalBattleCardZone", "Hand", "手牌"),
+		BattleState.DeckState.HandCardInstanceIds));
+	OutViews.Add(BuildZone(
+		EFinalBattleCardZone::DiscardPile,
+		NSLOCTEXT("FinalBattleCardZone", "DiscardPile", "弃牌堆"),
+		BattleState.DeckState.DiscardPileCardInstanceIds));
+	OutViews.Add(BuildZone(
+		EFinalBattleCardZone::OngoingZone,
+		NSLOCTEXT("FinalBattleCardZone", "OngoingZone", "持续区"),
+		BattleState.DeckState.OngoingZoneCardInstanceIds));
+	OutViews.Add(BuildZone(
+		EFinalBattleCardZone::ConsumePile,
+		NSLOCTEXT("FinalBattleCardZone", "ConsumePile", "消耗区"),
+		BattleState.DeckState.ConsumePileCardInstanceIds));
 }
 
 FFinalBattleCardProjectionView FFinalBattleCardService::BuildProjectionView(
