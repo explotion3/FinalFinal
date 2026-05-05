@@ -11,6 +11,7 @@ class FINALAPP_API AFinalBattlePlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	AFinalBattlePlayerController();
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 
@@ -70,6 +71,7 @@ public:
 
 private:
 	void RegisterUIBridge();
+	void HandleBattlefieldPrimaryClick();
 	void HandlePlayCardSlot1();
 	void HandlePlayCardSlot2();
 	void HandlePlayCardSlot3();
@@ -77,4 +79,7 @@ private:
 	void HandlePlayCardSlot5();
 	void HandlePlayCardSlot6();
 	void HandleQuickEndTurn();
+
+	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Targeting")
+	TObjectPtr<class UFinalBattleTargetInteractorComponent> TargetInteractorComponent;
 };

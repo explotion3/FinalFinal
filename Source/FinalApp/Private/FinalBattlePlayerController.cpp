@@ -8,6 +8,7 @@
 #include "Subsystems/FinalGameFlowSubsystem.h"
 #include "Subsystems/FinalBattleFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
+#include "World/FinalBattleTargetInteractorComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFinalBattlePlayerController, Log, All);
 
@@ -38,6 +39,11 @@ const TCHAR* LexToString(const EFinalBattleEventType EventType)
 }
 }
 
+AFinalBattlePlayerController::AFinalBattlePlayerController()
+{
+	TargetInteractorComponent = CreateDefaultSubobject<UFinalBattleTargetInteractorComponent>(TEXT("BattleTargetInteractor"));
+}
+
 void AFinalBattlePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
@@ -61,6 +67,7 @@ void AFinalBattlePlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::Six, IE_Pressed, this, &AFinalBattlePlayerController::HandlePlayCardSlot6);
 	InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AFinalBattlePlayerController::HandleQuickEndTurn);
 	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AFinalBattlePlayerController::HandleQuickEndTurn);
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AFinalBattlePlayerController::HandleBattlefieldPrimaryClick);
 }
 
 bool AFinalBattlePlayerController::StartTestBattle()
@@ -457,6 +464,14 @@ void AFinalBattlePlayerController::RegisterUIBridge()
 		{
 			UISubsystem->RegisterPrimaryPlayerController(this);
 		}
+	}
+}
+
+void AFinalBattlePlayerController::HandleBattlefieldPrimaryClick()
+{
+	if (TargetInteractorComponent)
+	{
+		TargetInteractorComponent->HandlePrimaryClick();
 	}
 }
 

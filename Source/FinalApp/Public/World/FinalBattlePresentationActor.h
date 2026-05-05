@@ -7,6 +7,8 @@
 #include "FinalBattlePresentationActor.generated.h"
 
 class UFinalBattleEnemyOverheadWidget;
+class UBoxComponent;
+class UPrimitiveComponent;
 
 UENUM(BlueprintType)
 enum class EFinalBattlePresentationAnimState : uint8
@@ -69,6 +71,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation")
 	FFinalBattlePresentationUnitViewData GetPresentationViewData() const { return PresentationViewData; }
 
+	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation|Targeting")
+	UBoxComponent* GetTargetHitBox() const { return TargetHitBox; }
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation|Targeting")
+	bool IsTargetHitComponent(const UPrimitiveComponent* Component) const;
+
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|Presentation")
 	void OnPresentationStateChanged(EFinalBattlePresentationAnimState NewPresentationState);
@@ -118,6 +126,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Final|Battle|Presentation|Overhead")
 	TObjectPtr<UWidgetComponent> EnemyOverheadWidgetComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Final|Battle|Presentation|Targeting", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBoxComponent> TargetHitBox;
 
 	UPROPERTY(Transient)
 	FName RuntimeUnitId = NAME_None;

@@ -1,5 +1,6 @@
 #include "World/FinalBattlePresentationActor.h"
 
+#include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/World.h"
 #include "PaperFlipbookComponent.h"
@@ -10,6 +11,17 @@
 AFinalBattlePresentationActor::AFinalBattlePresentationActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	TargetHitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TargetHitBox"));
+	TargetHitBox->SetupAttachment(GetRootComponent());
+	TargetHitBox->SetRelativeLocation(FVector(0.0f, 0.0f, 70.0f));
+	TargetHitBox->SetBoxExtent(FVector(48.0f, 48.0f, 90.0f));
+	TargetHitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	TargetHitBox->SetCollisionObjectType(ECC_WorldDynamic);
+	TargetHitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	TargetHitBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	TargetHitBox->SetGenerateOverlapEvents(false);
+	TargetHitBox->SetHiddenInGame(true);
 
 	EnemyOverheadWidgetComponent = CreateDefaultSubobject<UFinalBattleOverheadWidgetComponent>(TEXT("EnemyOverheadWidget"));
 	EnemyOverheadWidgetComponent->SetupAttachment(GetRootComponent());
@@ -43,6 +55,11 @@ void AFinalBattlePresentationActor::InitializePresentationActor(
 	PresentationViewData.RuntimeUnitId = RuntimeUnitId;
 	PresentationViewData.Team = PresentationTeam;
 	RefreshEnemyOverheadWidget();
+}
+
+bool AFinalBattlePresentationActor::IsTargetHitComponent(const UPrimitiveComponent* Component) const
+{
+	return Component != nullptr && Component == TargetHitBox;
 }
 
 void AFinalBattlePresentationActor::ApplyPresentationView(const FFinalBattlePresentationUnitViewData& ViewData)

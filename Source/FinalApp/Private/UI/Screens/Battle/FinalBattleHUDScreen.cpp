@@ -287,12 +287,6 @@ void UFinalBattleHUDScreen::EnsurePanelsInBlueprintSlots()
 		CharacterPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	if (LegacyEnemyPanelSlot != nullptr && EnemyPanel == nullptr)
-	{
-		EnemyPanel = CreateConfiguredPanel<UFinalBattleEnemyPanel>(TEXT("EnemyPanel"));
-		AddPanelToSlot(LegacyEnemyPanelSlot, EnemyPanel);
-	}
-
 	if (EnemyDetailSlot != nullptr && EnemyDetailPanel == nullptr)
 	{
 		EnemyDetailPanel = CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(TEXT("EnemyDetailPanel"));
@@ -451,13 +445,6 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 	{
 		TeamSlot->SetAnchors(FAnchors(0.015f, 0.02f, 0.23f, 0.48f));
 		TeamSlot->SetOffsets(FMargin(0.0f));
-	}
-
-	EnemyPanel = CreateConfiguredPanel<UFinalBattleEnemyPanel>(TEXT("EnemyPanel"));
-	if (UCanvasPanelSlot* EnemySlot = RootCanvas->AddChildToCanvas(EnemyPanel))
-	{
-		EnemySlot->SetAnchors(FAnchors(0.30f, 0.02f, 0.82f, 0.20f));
-		EnemySlot->SetOffsets(FMargin(0.0f));
 	}
 
 	EnemyDetailPanel = CreateConfiguredPanel<UFinalBattleEnemyDetailPanel>(TEXT("EnemyDetailPanel"));

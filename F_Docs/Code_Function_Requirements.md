@@ -60,6 +60,7 @@
 - `FinalData` 不承担运行时规则逻辑
 - `FinalApp` 不保存玩法真相，只负责查询、展示和流程桥接
 - `FinalApp/World` 只负责场中 Actor 表现同步；单位头顶信息应消费结构化表现 ViewData，不在世界 Actor 中渲染 debug 文本或拼接规则详情字符串
+- `FinalApp/World` 的 `BattleTargetInteractor` 只负责把场中目标点击转换为 `SelectTarget` command，不直接修改 `FinalBattle` 状态，也不结算目标合法性之外的规则
 - 敌人头顶 UI 的 C++ 边界固定为 `FFinalBattleEnemyOverheadViewData -> UFinalBattleEnemyOverheadWidget`；WBP 只做视觉绑定和素材映射，不计算 HP / Shield / Break 百分比，不回查 Battle 规则真相
 
 ---
@@ -108,6 +109,7 @@
 - `BattleCommand` 只承载战斗内命令
 - 奖励选择、事件选项、商店购买、成长三选一属于 `RunCommand`
 - 打牌请求由 `FinalApp` 统一通过 battle widget controller 提交；UI 侧只根据 `BattleCardViewData.TargetRequirement` 决定是否需要当前敌人目标，最终合法性仍由 `FinalBattle` 校验
+- 场中点击选择敌人由 `FinalApp` 的 PresentationActor 命中框和 `BattleTargetInteractor` 转发到同一个 `SelectTarget` battle command；旧 `EnemyPanel` 不再作为正式目标选择入口
 
 优先级：`P0`
 

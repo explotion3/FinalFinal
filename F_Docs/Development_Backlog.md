@@ -4,19 +4,21 @@
 
 ## P0
 
-**Battle HUD 敌人信息正式化收口**：系统为 `FinalApp / UI / World`。敌人 OverHead 和敌人详情已经有 C++ ViewData 与 WBP 父类，但旧 `EnemyPanel` 仍承担目标选择和 fallback 信息展示；后续应明确场中 OverHead 显示短信息、详情面板显示完整信息、旧 EnemyPanel 逐步降级为临时目标列表，避免三套敌人信息重复。
+**Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。Run 主流程已经能走通战后奖励、节点推进、事件、商店和成长选择，但页面仍偏原型列表；后续应统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈、关闭/恢复入口，让首章竖切从战斗结束到下一节点都可读。
 
-**状态 / 被动 / 遗物正式 HUD 可见性**：系统为 `FinalApp / UI`。状态、被动、遗物已经有 snapshot/debug/event 可见性，但正式 HUD 还没有稳定展示规范；后续需要先统一状态行 / 状态图标 / tooltip 的基础数据与显示层级，再决定哪些信息常驻、哪些进入详情、哪些只留 Debug。
+**拖卡到场中目标 v0.1**：系统为 `FinalApp / World / UI / FinalBattle command bridge`。场中点击敌人选择目标已经由 `BattleTargetInteractor` 接管；下一步可在手牌 Card Entry 拖拽开始 / 移动 / 松手时复用同一套 `TargetHitBox` trace，完成拖卡悬停目标反馈与松手出牌请求。
 
 ## P1
 
-**BattleTeamPanel WBP 视觉与状态图标**：系统为 `FinalApp / UI / Content`。队伍整体面板的 C++ ViewData、Panel、角色简化 Entry 和状态详情骨架已经建立；后续需要制作 `WBP_BattleTeamPanel / WBP_BattleTeamCharacterEntry / WBP_BattleTeamStatusIcon / WBP_BattleTeamStatusDetailPanel`，补状态图标资源、归属角标和正式点击反馈。
+**敌人意图正式视觉**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 DisplayName、Preview 文本和 icon key，但正式 HUD 还需要清晰展示意图类型、目标、伤害 / 护盾 / 状态预告和阶段信息；这项应在敌人 OverHead / Detail 的信息分工稳定后推进。
 
-**敌人意图正式视觉**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 DisplayName、Preview 文本和 icon key，但正式 HUD 还需要更清晰地展示意图类型、目标、伤害 / 护盾 / 状态预告和阶段信息；这项应在敌人 OverHead / Detail 的信息分工稳定后推进。
+**状态 / 被动 / 遗物正式 HUD 可见性**：系统为 `FinalApp / UI`。状态、被动、遗物已经有 snapshot/debug/event 可见性，但正式 HUD 还没有统一解释层；后续可从状态行 / 状态图标 / tooltip 的基础数据与显示层级开始，再决定哪些信息常驻、哪些进入详情、哪些只留 Debug。
 
-**Battle HUD Debug overlay 增强**：系统为 `FinalApp / UI`。默认 HUD 已从 Debug 信息中降噪，后续应把牌区明细、运行时状态、被动、遗物、事件账本、snapshot 摘要集中到 Debug overlay，方便开发验证。
+**Battle HUD Debug overlay 增强**：系统为 `FinalApp / UI`。默认 HUD 已从 Debug 信息中降噪，后续应把牌区明细、运行时状态、被动、遗物、事件账本、snapshot 摘要集中到 Debug overlay，方便开发验证，不再依赖正式 HUD 的临时文本区。
 
-**Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。Run 主流程已经能走通战后奖励、节点推进、事件、商店和成长选择，但页面仍偏原型列表；后续应在 Battle HUD 主决策信息稳定后，统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈和关闭/恢复入口。
+**Card Zone Detail WBP 视觉收口**：系统为 `FinalApp / UI / Content`。牌区详情已有 snapshot 明细、UI 查看状态和 C++ fallback Tab 面板；后续需要制作正式 `WBP_BattleCardZoneDetailPanel / WBP_BattleCardZoneEntry`，让抽牌堆、弃牌堆、持续区、消耗区的只读查看成为正式 HUD 能力。
+
+**角色 / 队伍状态图标资源与归属表现**：系统为 `FinalApp / UI / Content`。TeamPanel、角色详情、队伍状态详情已经能显示状态数据；后续需要状态图标资源、owner 角标、正负面色彩和简短标签规范，但暂不做复杂 tooltip 也不改变状态规则。
 
 ## P2
 

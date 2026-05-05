@@ -1,5 +1,13 @@
 # Implementation Progress
 
+## 2026-05-05：BattleTargetInteractor v0.1 场中点击选择敌人
+
+- `AFinalBattlePresentationActor` 当前新增 `TargetHitBox`，作为场中目标点击命中区；首版使用 `Visibility` trace，命中区可在敌人表现蓝图视口中调整位置和尺寸。
+- `AFinalBattlePlayerController` 当前持有 `UFinalBattleTargetInteractorComponent`，左键点击会从鼠标位置 trace 场中目标；命中活着的敌方 PresentationActor 后调用 `UFinalBattleWidgetController::SelectEnemyByUnitId()`，继续走 `SelectTarget` battle command。
+- `EnemyOverheadWidget` 当前继续只负责 `InspectEnemyByUnitId()` 打开敌人详情；场中身体点击负责选择目标，详情查看和战斗目标选择保持分离。
+- `UFinalBattleHUDScreen` 当前不再默认创建或注入旧 `EnemyPanel`；显式绑定的旧 EnemyPanel 仍会被折叠并保留为 legacy/debug 兼容入口。
+- 后续拖卡到场中目标应复用 `TargetHitBox + BattleTargetInteractor`，不要重新让 EnemyPanel 承担正式目标选择。
+
 ## 2026-05-01：建立轻量开发 Backlog
 
 - 新增 `F_Docs/Development_Backlog.md` 作为未完成任务池；任务按 `P0 / P1 / P2` 记录，并尽量保持一条任务一段，方便完成后移动。
