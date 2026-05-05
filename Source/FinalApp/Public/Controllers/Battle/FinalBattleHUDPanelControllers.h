@@ -12,6 +12,8 @@ class UFinalBattleTopBarPanelViewModel;
 class UFinalBattleResourcePanelViewModel;
 class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
+class UFinalBattleTeamPanelViewModel;
+class UFinalBattleTeamStatusDetailPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
 class UFinalBattleEnemyDetailPanelViewModel;
@@ -33,6 +35,7 @@ struct FFinalBattleHUDCoordinatorData
 	FName InspectedCharacterUnitId = NAME_None;
 	bool bCardZoneDetailOpen = false;
 	EFinalBattleCardZone SelectedCardZone = EFinalBattleCardZone::DrawPile;
+	bool bTeamStatusDetailOpen = false;
 	FText LastInteractionFeedback;
 	FFinalBattleEvent LastInteractionEvent;
 };
@@ -118,6 +121,43 @@ public:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleTeamPanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeTeamPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleTeamPanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenTeamStatusDetail();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool InspectCharacterByUnitId(FName RuntimeUnitId);
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamPanelViewModel> ViewModel;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleTeamStatusDetailPanelController : public UFinalBattleHUDPanelControllerBase
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeTeamStatusDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleTeamStatusDetailPanelViewModel* InViewModel);
+	virtual void RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearTeamStatusDetail();
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamStatusDetailPanelViewModel> ViewModel;
 };
 
 UCLASS(BlueprintType)

@@ -44,6 +44,28 @@ const FFinalBattleContextPanelData& UFinalBattleContextPanelViewModel::GetData()
 	return Data;
 }
 
+void UFinalBattleTeamPanelViewModel::ApplyData(const FFinalBattleHUDTeamPanelData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleHUDTeamPanelData& UFinalBattleTeamPanelViewModel::GetData() const
+{
+	return Data;
+}
+
+void UFinalBattleTeamStatusDetailPanelViewModel::ApplyData(const FFinalBattleHUDTeamStatusDetailData& InData)
+{
+	Data = InData;
+	BroadcastViewModelChanged();
+}
+
+const FFinalBattleHUDTeamStatusDetailData& UFinalBattleTeamStatusDetailPanelViewModel::GetData() const
+{
+	return Data;
+}
+
 void UFinalBattleCharacterPanelViewModel::ApplyEntries(const TArray<FFinalBattleHUDCharacterEntry>& InEntries)
 {
 	Entries = InEntries;

@@ -42,6 +42,12 @@ public:
 	UFinalBattleContextPanelViewModel* GetContextViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleTeamPanelViewModel* GetTeamViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleTeamStatusDetailPanelViewModel* GetTeamStatusDetailViewModel() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleCharacterPanelViewModel* GetCharacterViewModel() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
@@ -89,6 +95,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelViewModel> ContextViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamPanelViewModel> TeamViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamStatusDetailPanelViewModel> TeamStatusDetailViewModel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleCharacterPanelViewModel> CharacterViewModel;

@@ -6,6 +6,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Controllers/FinalBattleWidgetController.h"
 #include "UI/Panels/Battle/FinalBattleHUDPanels.h"
 #include "UI/Settings/FinalUIWidgetClassSettings.h"
@@ -39,6 +40,18 @@ template <>
 UFinalBattleContextPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleContextPanel>(const TCHAR* WidgetName)
 {
 	return WidgetTree->ConstructWidget<UFinalBattleContextPanel>(UFinalUIWidgetClassSettings::GetBattleContextPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleTeamPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleTeamPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleTeamPanel>(UFinalUIWidgetClassSettings::GetBattleTeamPanelClass(), WidgetName);
+}
+
+template <>
+UFinalBattleTeamStatusDetailPanel* UFinalBattleHUDScreen::CreateConfiguredPanel<UFinalBattleTeamStatusDetailPanel>(const TCHAR* WidgetName)
+{
+	return WidgetTree->ConstructWidget<UFinalBattleTeamStatusDetailPanel>(UFinalUIWidgetClassSettings::GetBattleTeamStatusDetailPanelClass(), WidgetName);
 }
 
 template <>
@@ -128,6 +141,94 @@ void UFinalBattleHUDScreen::AddPanelToSlot(UOverlay* TargetSlot, UWidget* Panel)
 	}
 }
 
+void UFinalBattleHUDScreen::AddTeamStatusDetailPanelToRootFallback()
+{
+	if (WidgetTree == nullptr || TeamStatusDetailPanel != nullptr)
+	{
+		return;
+	}
+
+	UPanelWidget* RootPanel = Cast<UPanelWidget>(WidgetTree->RootWidget);
+	if (RootPanel == nullptr)
+	{
+		return;
+	}
+
+	TeamStatusDetailPanel = CreateConfiguredPanel<UFinalBattleTeamStatusDetailPanel>(TEXT("TeamStatusDetailPanel"));
+	if (TeamStatusDetailPanel == nullptr)
+	{
+		return;
+	}
+
+	if (UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(RootPanel))
+	{
+		if (UCanvasPanelSlot* CanvasSlot = RootCanvas->AddChildToCanvas(TeamStatusDetailPanel))
+		{
+			CanvasSlot->SetAnchors(FAnchors(0.015f, 0.18f, 0.30f, 0.62f));
+			CanvasSlot->SetOffsets(FMargin(0.0f));
+			CanvasSlot->SetZOrder(86);
+		}
+		return;
+	}
+
+	if (UOverlay* RootOverlay = Cast<UOverlay>(RootPanel))
+	{
+		if (UOverlaySlot* OverlaySlot = RootOverlay->AddChildToOverlay(TeamStatusDetailPanel))
+		{
+			OverlaySlot->SetHorizontalAlignment(HAlign_Left);
+			OverlaySlot->SetVerticalAlignment(VAlign_Top);
+			OverlaySlot->SetPadding(FMargin(24.0f, 170.0f, 0.0f, 0.0f));
+		}
+		return;
+	}
+
+	RootPanel->AddChild(TeamStatusDetailPanel);
+}
+
+void UFinalBattleHUDScreen::AddCharacterDetailPanelToRootFallback()
+{
+	if (WidgetTree == nullptr || CharacterDetailPanel != nullptr)
+	{
+		return;
+	}
+
+	UPanelWidget* RootPanel = Cast<UPanelWidget>(WidgetTree->RootWidget);
+	if (RootPanel == nullptr)
+	{
+		return;
+	}
+
+	CharacterDetailPanel = CreateConfiguredPanel<UFinalBattleCharacterDetailPanel>(TEXT("CharacterDetailPanel"));
+	if (CharacterDetailPanel == nullptr)
+	{
+		return;
+	}
+
+	if (UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(RootPanel))
+	{
+		if (UCanvasPanelSlot* CanvasSlot = RootCanvas->AddChildToCanvas(CharacterDetailPanel))
+		{
+			CanvasSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
+			CanvasSlot->SetOffsets(FMargin(0.0f));
+			CanvasSlot->SetZOrder(86);
+		}
+		return;
+	}
+
+	if (UOverlay* RootOverlay = Cast<UOverlay>(RootPanel))
+	{
+		if (UOverlaySlot* OverlaySlot = RootOverlay->AddChildToOverlay(CharacterDetailPanel))
+		{
+			OverlaySlot->SetHorizontalAlignment(HAlign_Right);
+			OverlaySlot->SetVerticalAlignment(VAlign_Top);
+			OverlaySlot->SetPadding(FMargin(0.0f, 170.0f, 24.0f, 0.0f));
+		}
+		return;
+	}
+
+	RootPanel->AddChild(CharacterDetailPanel);
+}
+
 void UFinalBattleHUDScreen::EnsurePanelsInBlueprintSlots()
 {
 	if (TopBarSlot != nullptr && TopBarPanel == nullptr)
@@ -160,10 +261,30 @@ void UFinalBattleHUDScreen::EnsurePanelsInBlueprintSlots()
 		AddPanelToSlot(ContextSlot, ContextPanel);
 	}
 
-	if (CharacterPanelSlot != nullptr && CharacterPanel == nullptr)
+	if (TeamPanelSlot != nullptr && TeamPanel == nullptr)
 	{
-		CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
-		AddPanelToSlot(CharacterPanelSlot, CharacterPanel);
+		TeamPanel = CreateConfiguredPanel<UFinalBattleTeamPanel>(TEXT("TeamPanel"));
+		AddPanelToSlot(TeamPanelSlot, TeamPanel);
+	}
+	else if (CharacterPanelSlot != nullptr && TeamPanel == nullptr)
+	{
+		TeamPanel = CreateConfiguredPanel<UFinalBattleTeamPanel>(TEXT("TeamPanel"));
+		AddPanelToSlot(CharacterPanelSlot, TeamPanel);
+	}
+
+	if (TeamStatusDetailSlot != nullptr && TeamStatusDetailPanel == nullptr)
+	{
+		TeamStatusDetailPanel = CreateConfiguredPanel<UFinalBattleTeamStatusDetailPanel>(TEXT("TeamStatusDetailPanel"));
+		AddPanelToSlot(TeamStatusDetailSlot, TeamStatusDetailPanel);
+	}
+	else if (TeamStatusDetailPanel == nullptr)
+	{
+		AddTeamStatusDetailPanelToRootFallback();
+	}
+
+	if (CharacterPanel)
+	{
+		CharacterPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (LegacyEnemyPanelSlot != nullptr && EnemyPanel == nullptr)
@@ -182,6 +303,10 @@ void UFinalBattleHUDScreen::EnsurePanelsInBlueprintSlots()
 	{
 		CharacterDetailPanel = CreateConfiguredPanel<UFinalBattleCharacterDetailPanel>(TEXT("CharacterDetailPanel"));
 		AddPanelToSlot(CharacterDetailSlot, CharacterDetailPanel);
+	}
+	else if (CharacterDetailPanel == nullptr)
+	{
+		AddCharacterDetailPanelToRootFallback();
 	}
 
 	if (CardZoneDetailSlot != nullptr && CardZoneDetailPanel == nullptr)
@@ -230,6 +355,8 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		RunFlowPromptPanel != nullptr ||
 		FeedbackPanel != nullptr ||
 		ContextPanel != nullptr ||
+		TeamPanel != nullptr ||
+		TeamStatusDetailPanel != nullptr ||
 		CharacterPanel != nullptr ||
 		EnemyPanel != nullptr ||
 		EnemyDetailPanel != nullptr ||
@@ -246,6 +373,8 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		RunFlowPromptSlot != nullptr ||
 		FeedbackSlot != nullptr ||
 		ContextSlot != nullptr ||
+		TeamPanelSlot != nullptr ||
+		TeamStatusDetailSlot != nullptr ||
 		CharacterPanelSlot != nullptr ||
 		LegacyEnemyPanelSlot != nullptr ||
 		EnemyDetailSlot != nullptr ||
@@ -317,11 +446,11 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		ContextCanvasSlot->SetZOrder(62);
 	}
 
-	CharacterPanel = CreateConfiguredPanel<UFinalBattleCharacterPanel>(TEXT("CharacterPanel"));
-	if (UCanvasPanelSlot* CharacterSlot = RootCanvas->AddChildToCanvas(CharacterPanel))
+	TeamPanel = CreateConfiguredPanel<UFinalBattleTeamPanel>(TEXT("TeamPanel"));
+	if (UCanvasPanelSlot* TeamSlot = RootCanvas->AddChildToCanvas(TeamPanel))
 	{
-		CharacterSlot->SetAnchors(FAnchors(0.015f, 0.02f, 0.23f, 0.48f));
-		CharacterSlot->SetOffsets(FMargin(0.0f));
+		TeamSlot->SetAnchors(FAnchors(0.015f, 0.02f, 0.23f, 0.48f));
+		TeamSlot->SetOffsets(FMargin(0.0f));
 	}
 
 	EnemyPanel = CreateConfiguredPanel<UFinalBattleEnemyPanel>(TEXT("EnemyPanel"));
@@ -345,6 +474,14 @@ void UFinalBattleHUDScreen::EnsureWidgetTree()
 		CharacterDetailCanvasSlot->SetAnchors(FAnchors(0.70f, 0.18f, 0.985f, 0.60f));
 		CharacterDetailCanvasSlot->SetOffsets(FMargin(0.0f));
 		CharacterDetailCanvasSlot->SetZOrder(86);
+	}
+
+	TeamStatusDetailPanel = CreateConfiguredPanel<UFinalBattleTeamStatusDetailPanel>(TEXT("TeamStatusDetailPanel"));
+	if (UCanvasPanelSlot* TeamStatusDetailCanvasSlot = RootCanvas->AddChildToCanvas(TeamStatusDetailPanel))
+	{
+		TeamStatusDetailCanvasSlot->SetAnchors(FAnchors(0.015f, 0.18f, 0.30f, 0.62f));
+		TeamStatusDetailCanvasSlot->SetOffsets(FMargin(0.0f));
+		TeamStatusDetailCanvasSlot->SetZOrder(86);
 	}
 
 	CardZoneDetailPanel = CreateConfiguredPanel<UFinalBattleCardZoneDetailPanel>(TEXT("CardZoneDetailPanel"));
@@ -409,9 +546,19 @@ void UFinalBattleHUDScreen::InitializePanels()
 		ContextPanel->InitializePanel(BattleViewModel->GetContextViewModel(), BattleController->GetContextPanelController());
 	}
 
+	if (TeamPanel)
+	{
+		TeamPanel->InitializePanel(BattleViewModel->GetTeamViewModel(), BattleController->GetTeamPanelController());
+	}
+
+	if (TeamStatusDetailPanel)
+	{
+		TeamStatusDetailPanel->InitializePanel(BattleViewModel->GetTeamStatusDetailViewModel(), BattleController->GetTeamStatusDetailPanelController());
+	}
+
 	if (CharacterPanel)
 	{
-		CharacterPanel->InitializePanel(BattleViewModel->GetCharacterViewModel(), BattleController->GetCharacterPanelController());
+		CharacterPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (EnemyPanel)

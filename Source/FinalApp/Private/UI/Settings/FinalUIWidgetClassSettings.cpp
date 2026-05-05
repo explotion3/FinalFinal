@@ -15,6 +15,9 @@
 #include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleLogEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamCharacterEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamStatusDetailLineWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamStatusIconWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
 
 namespace
@@ -82,6 +85,16 @@ TSubclassOf<UFinalBattleContextPanel> UFinalUIWidgetClassSettings::GetBattleCont
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleContextPanelClass);
 }
 
+TSubclassOf<UFinalBattleTeamPanel> UFinalUIWidgetClassSettings::GetBattleTeamPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTeamPanelClass);
+}
+
+TSubclassOf<UFinalBattleTeamStatusDetailPanel> UFinalUIWidgetClassSettings::GetBattleTeamStatusDetailPanelClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTeamStatusDetailPanelClass);
+}
+
 TSubclassOf<UFinalBattleCharacterPanel> UFinalUIWidgetClassSettings::GetBattleCharacterPanelClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleCharacterPanelClass);
@@ -145,6 +158,21 @@ TSubclassOf<UFinalBattleCharacterEntryWidget> UFinalUIWidgetClassSettings::GetBa
 TSubclassOf<UFinalBattleEnemyEntryWidget> UFinalUIWidgetClassSettings::GetBattleEnemyEntryWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleEnemyEntryWidgetClass);
+}
+
+TSubclassOf<UFinalBattleTeamCharacterEntryWidget> UFinalUIWidgetClassSettings::GetBattleTeamCharacterEntryWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTeamCharacterEntryWidgetClass);
+}
+
+TSubclassOf<UFinalBattleTeamStatusIconWidget> UFinalUIWidgetClassSettings::GetBattleTeamStatusIconWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTeamStatusIconWidgetClass);
+}
+
+TSubclassOf<UFinalBattleTeamStatusDetailLineWidget> UFinalUIWidgetClassSettings::GetBattleTeamStatusDetailLineWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->BattleTeamStatusDetailLineWidgetClass);
 }
 
 TSubclassOf<UFinalBattleEnemyDetailWidget> UFinalUIWidgetClassSettings::GetBattleEnemyDetailWidgetClass()

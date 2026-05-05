@@ -609,6 +609,194 @@ void UFinalBattleContextPanelController::InspectCardZone(const EFinalBattleCardZ
 	}
 }
 
+void UFinalBattleTeamPanelController::InitializeTeamPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleTeamPanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleTeamPanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr)
+	{
+		return;
+	}
+
+	TMap<FName, FText> CharacterDisplayNameByRuntimeId;
+	for (const FFinalBattleCharacterViewData& CharacterView : CoordinatorData.Snapshot->Characters)
+	{
+		const FText CharacterName = !CharacterView.DisplayName.IsEmpty() ? CharacterView.DisplayName : FText::FromName(CharacterView.CharacterId.Value);
+		CharacterDisplayNameByRuntimeId.Add(CharacterView.RuntimeUnitId, CharacterName);
+	}
+
+	TArray<FFinalBattleHUDTeamStatusEntry> AllTeamStatuses;
+	auto AppendStatusEntry = [&AllTeamStatuses, &CharacterDisplayNameByRuntimeId, CoordinatorData](const FFinalBattleStatusViewData& StatusView)
+	{
+		FFinalBattleHUDTeamStatusEntry Entry;
+		Entry.StatusInstanceId = StatusView.StatusInstanceId;
+		Entry.StatusId = StatusView.StatusId;
+		Entry.OwnerUnitId = StatusView.OwnerUnitId;
+		Entry.OwnerDisplayName = StatusView.OwnerUnitId == TeamPlayerUnitId
+			? NSLOCTEXT("FinalBattleHUD", "TeamStatusOwner", "队伍")
+			: CharacterDisplayNameByRuntimeId.FindRef(StatusView.OwnerUnitId);
+		Entry.DisplayName = ResolveStatusDisplayName(StatusView, CoordinatorData.DataRegistry);
+		Entry.SummaryText = ResolveStatusSummaryText(StatusView, CoordinatorData.DataRegistry);
+		Entry.CurrentStacks = StatusView.CurrentStacks;
+		Entry.RemainingDuration = StatusView.RemainingDuration;
+		AllTeamStatuses.Add(MoveTemp(Entry));
+	};
+
+	for (const FFinalBattleStatusViewData& TeamStatusView : CoordinatorData.Snapshot->TeamStatuses)
+	{
+		AppendStatusEntry(TeamStatusView);
+	}
+
+	for (const FFinalBattleCharacterStatusesViewData& CharacterStatusesView : CoordinatorData.Snapshot->CharacterStatuses)
+	{
+		for (const FFinalBattleStatusViewData& StatusView : CharacterStatusesView.StatusEntries)
+		{
+			AppendStatusEntry(StatusView);
+		}
+	}
+
+	FFinalBattleHUDTeamPanelData Data;
+	Data.bHasActiveBattle = CoordinatorData.Snapshot->BattleId.IsValid();
+	Data.TeamCurrentHP = CoordinatorData.Snapshot->TeamCurrentHP;
+	Data.TeamMaxHP = CoordinatorData.Snapshot->TeamMaxHP;
+	Data.TeamHealthPercent = CalculateClampedPercent(Data.TeamCurrentHP, Data.TeamMaxHP);
+	Data.TeamShield = CoordinatorData.Snapshot->TeamShield;
+	Data.TeamShieldFramePercent = CalculateClampedPercent(Data.TeamShield, Data.TeamMaxHP);
+	Data.bStatusDetailOpen = CoordinatorData.bTeamStatusDetailOpen;
+
+	for (const FFinalBattleCharacterViewData& CharacterView : CoordinatorData.Snapshot->Characters)
+	{
+		FFinalBattleHUDTeamCharacterEntry CharacterEntry;
+		CharacterEntry.RuntimeUnitId = CharacterView.RuntimeUnitId;
+		CharacterEntry.DisplayName = !CharacterView.DisplayName.IsEmpty() ? CharacterView.DisplayName : FText::FromName(CharacterView.CharacterId.Value);
+		CharacterEntry.ArtId = CharacterView.CharacterId.Value;
+		if (CoordinatorData.RunSnapshot)
+		{
+			const FFinalRunCharacterViewData* RunCharacterView = CoordinatorData.RunSnapshot->Characters.FindByPredicate(
+				[&CharacterView](const FFinalRunCharacterViewData& Candidate)
+				{
+					return Candidate.CharacterId == CharacterView.CharacterId;
+				});
+			if (RunCharacterView)
+			{
+				CharacterEntry.IconId = RunCharacterView->IconId;
+				CharacterEntry.BreakthroughValue = RunCharacterView->BreakthroughValue;
+				CharacterEntry.BreakthroughRequiredValue = RunCharacterView->BreakthroughRequiredValue;
+				CharacterEntry.BreakthroughPercent = CalculateClampedPercent(
+					RunCharacterView->BreakthroughValue,
+					RunCharacterView->BreakthroughRequiredValue);
+				CharacterEntry.bBreakthroughReady =
+					RunCharacterView->BreakthroughRequiredValue > 0
+					&& RunCharacterView->BreakthroughValue >= RunCharacterView->BreakthroughRequiredValue;
+			}
+		}
+		CharacterEntry.CurrentStress = CharacterView.CurrentStress;
+		CharacterEntry.StressCap = CharacterView.StressCap;
+		CharacterEntry.StressPercent = CalculateClampedPercent(CharacterView.CurrentStress, CharacterView.StressCap);
+		CharacterEntry.bCollapsed = CharacterView.bCollapsed;
+		CharacterEntry.bCanActHint = !CharacterView.bCollapsed;
+		Data.Characters.Add(MoveTemp(CharacterEntry));
+	}
+
+	constexpr int32 MaxPreviewStatusCount = 5;
+	const int32 PreviewCount = FMath::Min(MaxPreviewStatusCount, AllTeamStatuses.Num());
+	for (int32 Index = 0; Index < PreviewCount; ++Index)
+	{
+		Data.StatusPreviewEntries.Add(AllTeamStatuses[Index]);
+	}
+	Data.HiddenStatusCount = FMath::Max(0, AllTeamStatuses.Num() - PreviewCount);
+
+	ViewModel->ApplyData(Data);
+}
+
+void UFinalBattleTeamPanelController::OpenTeamStatusDetail()
+{
+	if (Coordinator)
+	{
+		Coordinator->OpenTeamStatusDetail();
+	}
+}
+
+bool UFinalBattleTeamPanelController::InspectCharacterByUnitId(const FName RuntimeUnitId)
+{
+	return Coordinator ? Coordinator->InspectCharacterByUnitId(RuntimeUnitId) : false;
+}
+
+void UFinalBattleTeamStatusDetailPanelController::InitializeTeamStatusDetailPanel(
+	UFinalBattleWidgetController* InCoordinator,
+	UFinalBattleTeamStatusDetailPanelViewModel* InViewModel)
+{
+	InitializePanelController(InCoordinator);
+	ViewModel = InViewModel;
+}
+
+void UFinalBattleTeamStatusDetailPanelController::RefreshFromCoordinatorData(const FFinalBattleHUDCoordinatorData& CoordinatorData)
+{
+	if (ViewModel == nullptr || CoordinatorData.Snapshot == nullptr)
+	{
+		return;
+	}
+
+	FFinalBattleHUDTeamStatusDetailData Data;
+	Data.bOpen = CoordinatorData.bTeamStatusDetailOpen;
+	if (!Data.bOpen)
+	{
+		ViewModel->ApplyData(Data);
+		return;
+	}
+
+	TMap<FName, FText> CharacterDisplayNameByRuntimeId;
+	for (const FFinalBattleCharacterViewData& CharacterView : CoordinatorData.Snapshot->Characters)
+	{
+		CharacterDisplayNameByRuntimeId.Add(
+			CharacterView.RuntimeUnitId,
+			!CharacterView.DisplayName.IsEmpty() ? CharacterView.DisplayName : FText::FromName(CharacterView.CharacterId.Value));
+	}
+
+	auto AppendStatusEntry = [&Data, &CharacterDisplayNameByRuntimeId, CoordinatorData](const FFinalBattleStatusViewData& StatusView)
+	{
+		FFinalBattleHUDTeamStatusEntry Entry;
+		Entry.StatusInstanceId = StatusView.StatusInstanceId;
+		Entry.StatusId = StatusView.StatusId;
+		Entry.OwnerUnitId = StatusView.OwnerUnitId;
+		Entry.OwnerDisplayName = StatusView.OwnerUnitId == TeamPlayerUnitId
+			? NSLOCTEXT("FinalBattleHUD", "TeamStatusDetailOwner", "队伍")
+			: CharacterDisplayNameByRuntimeId.FindRef(StatusView.OwnerUnitId);
+		Entry.DisplayName = ResolveStatusDisplayName(StatusView, CoordinatorData.DataRegistry);
+		Entry.SummaryText = ResolveStatusSummaryText(StatusView, CoordinatorData.DataRegistry);
+		Entry.CurrentStacks = StatusView.CurrentStacks;
+		Entry.RemainingDuration = StatusView.RemainingDuration;
+		Data.Statuses.Add(MoveTemp(Entry));
+	};
+
+	for (const FFinalBattleStatusViewData& TeamStatusView : CoordinatorData.Snapshot->TeamStatuses)
+	{
+		AppendStatusEntry(TeamStatusView);
+	}
+
+	for (const FFinalBattleCharacterStatusesViewData& CharacterStatusesView : CoordinatorData.Snapshot->CharacterStatuses)
+	{
+		for (const FFinalBattleStatusViewData& StatusView : CharacterStatusesView.StatusEntries)
+		{
+			AppendStatusEntry(StatusView);
+		}
+	}
+
+	ViewModel->ApplyData(Data);
+}
+
+void UFinalBattleTeamStatusDetailPanelController::ClearTeamStatusDetail()
+{
+	if (Coordinator)
+	{
+		Coordinator->ClearTeamStatusDetail();
+	}
+}
+
 void UFinalBattleCharacterPanelController::InitializeCharacterPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCharacterPanelViewModel* InViewModel)
 {
 	InitializePanelController(InCoordinator);

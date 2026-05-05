@@ -10,6 +10,8 @@
 
 ## P1
 
+**BattleTeamPanel WBP 视觉与状态图标**：系统为 `FinalApp / UI / Content`。队伍整体面板的 C++ ViewData、Panel、角色简化 Entry 和状态详情骨架已经建立；后续需要制作 `WBP_BattleTeamPanel / WBP_BattleTeamCharacterEntry / WBP_BattleTeamStatusIcon / WBP_BattleTeamStatusDetailPanel`，补状态图标资源、归属角标和正式点击反馈。
+
 **敌人意图正式视觉**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 DisplayName、Preview 文本和 icon key，但正式 HUD 还需要更清晰地展示意图类型、目标、伤害 / 护盾 / 状态预告和阶段信息；这项应在敌人 OverHead / Detail 的信息分工稳定后推进。
 
 **Battle HUD Debug overlay 增强**：系统为 `FinalApp / UI`。默认 HUD 已从 Debug 信息中降噪，后续应把牌区明细、运行时状态、被动、遗物、事件账本、snapshot 摘要集中到 Debug overlay，方便开发验证。

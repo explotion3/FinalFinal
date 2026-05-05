@@ -382,6 +382,33 @@ EFinalBattleCardZone UFinalBattleWidgetController::GetSelectedCardZone() const
 	return SelectedCardZone;
 }
 
+void UFinalBattleWidgetController::OpenTeamStatusDetail()
+{
+	if (bTeamStatusDetailOpen)
+	{
+		return;
+	}
+
+	bTeamStatusDetailOpen = true;
+	RebuildPresentation();
+}
+
+void UFinalBattleWidgetController::ClearTeamStatusDetail()
+{
+	if (!bTeamStatusDetailOpen)
+	{
+		return;
+	}
+
+	bTeamStatusDetailOpen = false;
+	RebuildPresentation();
+}
+
+bool UFinalBattleWidgetController::IsTeamStatusDetailOpen() const
+{
+	return bTeamStatusDetailOpen;
+}
+
 FText UFinalBattleWidgetController::GetLastInteractionFeedback() const
 {
 	return LastInteractionFeedback;
@@ -427,6 +454,16 @@ UFinalBattleFeedbackPanelController* UFinalBattleWidgetController::GetFeedbackPa
 UFinalBattleContextPanelController* UFinalBattleWidgetController::GetContextPanelController() const
 {
 	return ContextPanelController;
+}
+
+UFinalBattleTeamPanelController* UFinalBattleWidgetController::GetTeamPanelController() const
+{
+	return TeamPanelController;
+}
+
+UFinalBattleTeamStatusDetailPanelController* UFinalBattleWidgetController::GetTeamStatusDetailPanelController() const
+{
+	return TeamStatusDetailPanelController;
 }
 
 UFinalBattleCharacterPanelController* UFinalBattleWidgetController::GetCharacterPanelController() const
@@ -548,6 +585,7 @@ void UFinalBattleWidgetController::RebuildPresentation()
 		InspectedCharacterUnitId,
 		bCardZoneDetailOpen,
 		SelectedCardZone,
+		bTeamStatusDetailOpen,
 		LastInteractionFeedback,
 		LastInteractionEvent
 	};
@@ -556,6 +594,8 @@ void UFinalBattleWidgetController::RebuildPresentation()
 	if (ResourcePanelController) { ResourcePanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (FeedbackPanelController) { FeedbackPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (ContextPanelController) { ContextPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (TeamPanelController) { TeamPanelController->RefreshFromCoordinatorData(CoordinatorData); }
+	if (TeamStatusDetailPanelController) { TeamStatusDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (CharacterPanelController) { CharacterPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (EnemyPanelController) { EnemyPanelController->RefreshFromCoordinatorData(CoordinatorData); }
 	if (EnemyDetailPanelController) { EnemyDetailPanelController->RefreshFromCoordinatorData(CoordinatorData); }
@@ -598,6 +638,18 @@ void UFinalBattleWidgetController::EnsurePanelControllers()
 	{
 		ContextPanelController = NewObject<UFinalBattleContextPanelController>(this);
 		ContextPanelController->InitializeContext(this, ViewModel->GetContextViewModel());
+	}
+
+	if (TeamPanelController == nullptr)
+	{
+		TeamPanelController = NewObject<UFinalBattleTeamPanelController>(this);
+		TeamPanelController->InitializeTeamPanel(this, ViewModel->GetTeamViewModel());
+	}
+
+	if (TeamStatusDetailPanelController == nullptr)
+	{
+		TeamStatusDetailPanelController = NewObject<UFinalBattleTeamStatusDetailPanelController>(this);
+		TeamStatusDetailPanelController->InitializeTeamStatusDetailPanel(this, ViewModel->GetTeamStatusDetailViewModel());
 	}
 
 	if (CharacterPanelController == nullptr)

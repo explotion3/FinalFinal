@@ -22,6 +22,16 @@ void UFinalBattleHUDViewModel::EnsurePanelViewModels()
 		ContextViewModel = NewObject<UFinalBattleContextPanelViewModel>(this);
 	}
 
+	if (TeamViewModel == nullptr)
+	{
+		TeamViewModel = NewObject<UFinalBattleTeamPanelViewModel>(this);
+	}
+
+	if (TeamStatusDetailViewModel == nullptr)
+	{
+		TeamStatusDetailViewModel = NewObject<UFinalBattleTeamStatusDetailPanelViewModel>(this);
+	}
+
 	if (CharacterViewModel == nullptr)
 	{
 		CharacterViewModel = NewObject<UFinalBattleCharacterPanelViewModel>(this);
@@ -112,6 +122,16 @@ UFinalBattleFeedbackPanelViewModel* UFinalBattleHUDViewModel::GetFeedbackViewMod
 UFinalBattleContextPanelViewModel* UFinalBattleHUDViewModel::GetContextViewModel() const
 {
 	return ContextViewModel;
+}
+
+UFinalBattleTeamPanelViewModel* UFinalBattleHUDViewModel::GetTeamViewModel() const
+{
+	return TeamViewModel;
+}
+
+UFinalBattleTeamStatusDetailPanelViewModel* UFinalBattleHUDViewModel::GetTeamStatusDetailViewModel() const
+{
+	return TeamStatusDetailViewModel;
 }
 
 UFinalBattleCharacterPanelViewModel* UFinalBattleHUDViewModel::GetCharacterViewModel() const

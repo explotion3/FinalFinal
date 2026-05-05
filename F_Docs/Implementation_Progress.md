@@ -437,3 +437,16 @@
 - `UFinalBattleHUDScreen` 当前新增 Battle HUD 内部 Slot 协议，支持 `TopBarSlot / ResourceSlot / RunFlowPromptSlot / FeedbackSlot / ContextSlot / CharacterPanelSlot / LegacyEnemyPanelSlot / EnemyDetailSlot / CharacterDetailSlot / CardZoneDetailSlot / UltimateSlot / HandSlot / RecentEventSlot / ActionSlot`。
 - Battle HUD 仍由 C++ 创建和初始化具体 panel；如果 WBP 提供对应 Slot，C++ 会把配置的 panel class 放入 Slot；如果 Slot 缺失，则继续使用现有 C++ Canvas fallback 布局。
 - 本轮只建立 Slot 协议与可配置 RootLayout，不重做手牌、资源、角色面板或敌人 OverHead 的正式视觉。
+
+## 2026-05-05 Battle TeamPanel v0.1：队伍整体面板 C++ 父类与 ViewData
+
+- `BattleTeamPanel` 当前已成为玩家队伍常驻信息的新入口，C++ 从 battle snapshot / run snapshot 投影共享生命、护盾、角色压力/突破和队伍/角色状态预览。
+- `UFinalBattleHUDScreen` 当前支持 `TeamPanelSlot / TeamStatusDetailSlot`；旧 `CharacterPanelSlot` 暂作为兼容别名，未配置 `TeamPanelSlot` 时会注入新的 `BattleTeamPanel`。
+- 旧 `CharacterPanel` 不再由 Battle HUD 初始化为常驻角色信息面板；角色完整信息继续通过 `CharacterDetailPanel` 查看。
+
+## 2026-05-05 Battle TeamPanel：角色 Entry 深入查看链路
+
+- `UFinalBattleTeamCharacterEntryWidget` 当前支持可选 `InspectButton` 与整块点击 fallback，点击后通过 `TeamPanelController` 调用 `InspectCharacterByUnitId(RuntimeUnitId)`。
+- TeamPanel 角色查看入口只修改 HUD 的 `InspectedCharacterUnitId`，不提交 BattleCommand，不改变当前敌人目标，也不影响出牌请求路径。
+- `UFinalBattleHUDScreen` 当前在缺少 `CharacterDetailSlot` 时也会创建 C++ fallback `CharacterDetailPanel`，确保 TeamPanel 角色 Entry 点击后有可见详情面板。
+- `TeamStatusDetailPanel` 当前提供只读状态详情骨架，可展示 `team_player` 状态与所有角色状态；状态图标资源、Tooltip 和美术归属角标留到后续。

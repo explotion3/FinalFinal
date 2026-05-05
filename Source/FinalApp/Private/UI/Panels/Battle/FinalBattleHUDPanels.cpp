@@ -9,6 +9,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/ProgressBar.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
@@ -29,6 +30,9 @@
 #include "UI/Widgets/Battle/FinalBattleEnemyDetailWidget.h"
 #include "UI/Widgets/Battle/FinalBattleEnemyEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleLogEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamCharacterEntryWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamStatusDetailLineWidget.h"
+#include "UI/Widgets/Battle/FinalBattleTeamStatusIconWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
 
 namespace
@@ -770,6 +774,305 @@ void UFinalBattleContextPanel::InspectCardZone(const EFinalBattleCardZone Zone)
 	if (PanelController)
 	{
 		PanelController->InspectCardZone(Zone);
+	}
+}
+
+void UFinalBattleTeamPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+	if (StatusDetailButton)
+	{
+		StatusDetailButton->OnClicked.AddUniqueDynamic(this, &UFinalBattleTeamPanel::HandleStatusDetailClicked);
+	}
+}
+
+void UFinalBattleTeamPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.AddDynamic(this, &UFinalBattleTeamPanel::HandleViewModelChanged);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamPanel::NativeDestruct()
+{
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleTeamPanel::HandleViewModelChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UFinalBattleTeamPanel::InitializePanel(UFinalBattleTeamPanelViewModel* InViewModel, UFinalBattleTeamPanelController* InController)
+{
+	PanelViewModel = InViewModel;
+	PanelController = InController;
+	SetPresentationContext(InController, InViewModel);
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamPanel::HandleViewModelChanged()
+{
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamPanel::HandleStatusDetailClicked()
+{
+	if (PanelController)
+	{
+		PanelController->OpenTeamStatusDetail();
+	}
+}
+
+void UFinalBattleTeamPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("TeamPanelBorder"), FLinearColor(0.08f, 0.12f, 0.16f, 0.94f));
+	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TeamPanelRoot"));
+	HealthText = CreateLabel(WidgetTree, TEXT("HealthText"), 14);
+	HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthBar"));
+	HealthBar->SetFillColorAndOpacity(FLinearColor(0.78f, 0.12f, 0.10f, 1.0f));
+	ShieldText = CreateLabel(WidgetTree, TEXT("ShieldText"), 12);
+	ShieldFrameBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("ShieldFrameBar"));
+	ShieldFrameBar->SetFillColorAndOpacity(FLinearColor(0.18f, 0.55f, 0.95f, 0.85f));
+	CharacterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CharacterBox"));
+	StatusDetailButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StatusDetailButton"));
+	UHorizontalBox* StatusRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("StatusPreviewBox"));
+	StatusPreviewBox = StatusRow;
+	StatusOverflowText = CreateLabel(WidgetTree, TEXT("StatusOverflowText"), 11);
+	StatusDetailButton->AddChild(StatusRow);
+
+	RootBox->AddChildToVerticalBox(HealthText);
+	RootBox->AddChildToVerticalBox(HealthBar);
+	RootBox->AddChildToVerticalBox(ShieldText);
+	RootBox->AddChildToVerticalBox(ShieldFrameBar);
+	RootBox->AddChildToVerticalBox(CharacterBox);
+	RootBox->AddChildToVerticalBox(StatusDetailButton);
+	RootBox->AddChildToVerticalBox(StatusOverflowText);
+	Border->SetContent(RootBox);
+	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleTeamPanel::RefreshFromViewModel()
+{
+	if (PanelViewModel == nullptr)
+	{
+		return;
+	}
+
+	EnsureWidgetTree();
+	const FFinalBattleHUDTeamPanelData& Data = PanelViewModel->GetData();
+	if (HealthText)
+	{
+		HealthText->SetText(BuildHealthText(Data));
+	}
+	if (HealthBar)
+	{
+		HealthBar->SetPercent(Data.TeamHealthPercent);
+	}
+	if (ShieldText)
+	{
+		ShieldText->SetText(BuildShieldText(Data));
+	}
+	if (ShieldFrameBar)
+	{
+		ShieldFrameBar->SetPercent(Data.TeamShieldFramePercent);
+		ShieldFrameBar->SetVisibility(Data.TeamShield > 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	RefreshCharacters(Data);
+	RefreshStatusPreview(Data);
+}
+
+void UFinalBattleTeamPanel::RefreshCharacters(const FFinalBattleHUDTeamPanelData& Data)
+{
+	if (CharacterBox == nullptr)
+	{
+		return;
+	}
+
+	CharacterBox->ClearChildren();
+	TSubclassOf<UFinalBattleTeamCharacterEntryWidget> EntryClass = TeamCharacterEntryWidgetClass
+		? TeamCharacterEntryWidgetClass
+		: UFinalUIWidgetClassSettings::GetBattleTeamCharacterEntryWidgetClass();
+	for (const FFinalBattleHUDTeamCharacterEntry& Entry : Data.Characters)
+	{
+		UFinalBattleTeamCharacterEntryWidget* EntryWidget = CreateConfiguredEntryWidget(this, EntryClass);
+		if (EntryWidget == nullptr)
+		{
+			continue;
+		}
+		EntryWidget->SetPresentationContext(PanelController, PanelViewModel);
+		EntryWidget->ApplyTeamCharacterEntryView(Entry);
+		CharacterBox->AddChild(EntryWidget);
+	}
+}
+
+void UFinalBattleTeamPanel::RefreshStatusPreview(const FFinalBattleHUDTeamPanelData& Data)
+{
+	if (StatusPreviewBox)
+	{
+		StatusPreviewBox->ClearChildren();
+		TSubclassOf<UFinalBattleTeamStatusIconWidget> IconClass = TeamStatusIconWidgetClass
+			? TeamStatusIconWidgetClass
+			: UFinalUIWidgetClassSettings::GetBattleTeamStatusIconWidgetClass();
+		for (const FFinalBattleHUDTeamStatusEntry& Entry : Data.StatusPreviewEntries)
+		{
+			UFinalBattleTeamStatusIconWidget* StatusWidget = CreateConfiguredEntryWidget(this, IconClass);
+			if (StatusWidget == nullptr)
+			{
+				continue;
+			}
+			StatusWidget->SetPresentationContext(PanelController, PanelViewModel);
+			StatusWidget->ApplyTeamStatusIconView(Entry);
+			StatusPreviewBox->AddChild(StatusWidget);
+		}
+	}
+
+	if (StatusOverflowText)
+	{
+		StatusOverflowText->SetVisibility(Data.HiddenStatusCount > 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		StatusOverflowText->SetText(FText::FromString(FString::Printf(TEXT("+%d"), Data.HiddenStatusCount)));
+	}
+}
+
+FText UFinalBattleTeamPanel::BuildHealthText(const FFinalBattleHUDTeamPanelData& Data) const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleTeamPanel", "HealthText", "共享生命 {0}/{1}"),
+		FText::AsNumber(Data.TeamCurrentHP),
+		FText::AsNumber(Data.TeamMaxHP));
+}
+
+FText UFinalBattleTeamPanel::BuildShieldText(const FFinalBattleHUDTeamPanelData& Data) const
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleTeamPanel", "ShieldText", "护盾 {0}"),
+		FText::AsNumber(Data.TeamShield));
+}
+
+void UFinalBattleTeamStatusDetailPanel::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+	if (CloseButton)
+	{
+		CloseButton->OnClicked.AddUniqueDynamic(this, &UFinalBattleTeamStatusDetailPanel::HandleCloseClicked);
+	}
+}
+
+void UFinalBattleTeamStatusDetailPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.AddDynamic(this, &UFinalBattleTeamStatusDetailPanel::HandleViewModelChanged);
+	}
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamStatusDetailPanel::NativeDestruct()
+{
+	if (PanelViewModel)
+	{
+		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleTeamStatusDetailPanel::HandleViewModelChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UFinalBattleTeamStatusDetailPanel::InitializePanel(
+	UFinalBattleTeamStatusDetailPanelViewModel* InViewModel,
+	UFinalBattleTeamStatusDetailPanelController* InController)
+{
+	PanelViewModel = InViewModel;
+	PanelController = InController;
+	SetPresentationContext(InController, InViewModel);
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamStatusDetailPanel::HandleViewModelChanged()
+{
+	RefreshFromViewModel();
+}
+
+void UFinalBattleTeamStatusDetailPanel::HandleCloseClicked()
+{
+	if (PanelController)
+	{
+		PanelController->ClearTeamStatusDetail();
+	}
+}
+
+void UFinalBattleTeamStatusDetailPanel::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* Border = CreateSection(WidgetTree, TEXT("TeamStatusDetailBorder"), FLinearColor(0.06f, 0.08f, 0.12f, 0.96f));
+	ContentRoot = Border;
+	UVerticalBox* RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TeamStatusDetailRoot"));
+	CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+	UTextBlock* CloseText = CreateLabel(WidgetTree, TEXT("CloseButtonText"), 12);
+	CloseText->SetText(NSLOCTEXT("FinalBattleTeamStatusDetail", "Close", "关闭"));
+	CloseButton->AddChild(CloseText);
+	EmptyText = CreateLabel(WidgetTree, TEXT("EmptyText"), 12);
+	StatusListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusListBox"));
+	RootBox->AddChildToVerticalBox(CloseButton);
+	RootBox->AddChildToVerticalBox(EmptyText);
+	RootBox->AddChildToVerticalBox(StatusListBox);
+	Border->SetContent(RootBox);
+	WidgetTree->RootWidget = Border;
+}
+
+void UFinalBattleTeamStatusDetailPanel::RefreshFromViewModel()
+{
+	if (PanelViewModel == nullptr)
+	{
+		return;
+	}
+
+	EnsureWidgetTree();
+	const FFinalBattleHUDTeamStatusDetailData& Data = PanelViewModel->GetData();
+	SetVisibility(Data.bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (ContentRoot)
+	{
+		ContentRoot->SetVisibility(Data.bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (EmptyText)
+	{
+		EmptyText->SetVisibility(Data.Statuses.Num() == 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		EmptyText->SetText(NSLOCTEXT("FinalBattleTeamStatusDetail", "NoStatuses", "无状态"));
+	}
+
+	if (StatusListBox == nullptr)
+	{
+		return;
+	}
+
+	StatusListBox->ClearChildren();
+	TSubclassOf<UFinalBattleTeamStatusDetailLineWidget> LineClass = StatusLineWidgetClass
+		? StatusLineWidgetClass
+		: UFinalUIWidgetClassSettings::GetBattleTeamStatusDetailLineWidgetClass();
+	for (const FFinalBattleHUDTeamStatusEntry& Entry : Data.Statuses)
+	{
+		UFinalBattleTeamStatusDetailLineWidget* LineWidget = CreateConfiguredEntryWidget(this, LineClass);
+		if (LineWidget == nullptr)
+		{
+			continue;
+		}
+		LineWidget->SetPresentationContext(PanelController, PanelViewModel);
+		LineWidget->ApplyTeamStatusDetailLineView(Entry);
+		StatusListBox->AddChild(LineWidget);
 	}
 }
 

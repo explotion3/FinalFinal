@@ -62,6 +62,34 @@ private:
 };
 
 UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleTeamPanelViewModel : public UFinalViewModelBase
+{
+	GENERATED_BODY()
+
+public:
+	void ApplyData(const FFinalBattleHUDTeamPanelData& InData);
+	const FFinalBattleHUDTeamPanelData& GetData() const;
+
+private:
+	UPROPERTY(Transient)
+	FFinalBattleHUDTeamPanelData Data;
+};
+
+UCLASS(BlueprintType)
+class FINALAPP_API UFinalBattleTeamStatusDetailPanelViewModel : public UFinalViewModelBase
+{
+	GENERATED_BODY()
+
+public:
+	void ApplyData(const FFinalBattleHUDTeamStatusDetailData& InData);
+	const FFinalBattleHUDTeamStatusDetailData& GetData() const;
+
+private:
+	UPROPERTY(Transient)
+	FFinalBattleHUDTeamStatusDetailData Data;
+};
+
+UCLASS(BlueprintType)
 class FINALAPP_API UFinalBattleCharacterPanelViewModel : public UFinalViewModelBase
 {
 	GENERATED_BODY()

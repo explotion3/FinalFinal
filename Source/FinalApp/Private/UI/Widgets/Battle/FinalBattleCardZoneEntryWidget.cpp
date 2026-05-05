@@ -21,7 +21,7 @@ UTextBlock* CreateFallbackCardZoneText(UWidgetTree& WidgetTree, const FName Widg
 	return TextBlock;
 }
 
-UDataTable* GetCardRichTextStyleSet()
+UDataTable* GetCardZoneRichTextStyleSet()
 {
 	static TWeakObjectPtr<UDataTable> CachedStyleSet;
 	if (CachedStyleSet.IsValid())
@@ -50,7 +50,7 @@ void UFinalBattleCardZoneEntryWidget::NativeOnInitialized()
 		RulesText = WidgetTree->ConstructWidget<URichTextBlock>(URichTextBlock::StaticClass(), TEXT("RulesText"));
 		if (RulesText)
 		{
-			RulesText->SetTextStyleSet(GetCardRichTextStyleSet());
+			RulesText->SetTextStyleSet(GetCardZoneRichTextStyleSet());
 		}
 
 		if (NameText) { RootBox->AddChild(NameText); }
@@ -134,7 +134,7 @@ void UFinalBattleCardZoneEntryWidget::RefreshBoundWidgets()
 
 	if (RulesText)
 	{
-		RulesText->SetTextStyleSet(GetCardRichTextStyleSet());
+		RulesText->SetTextStyleSet(GetCardZoneRichTextStyleSet());
 		RulesText->SetText(CachedViewData.RulesText);
 	}
 }

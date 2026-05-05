@@ -83,6 +83,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	EFinalBattleCardZone GetSelectedCardZone() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void OpenTeamStatusDetail();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	void ClearTeamStatusDetail();
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	bool IsTeamStatusDetailOpen() const;
+
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	FText GetLastInteractionFeedback() const;
 
@@ -103,6 +112,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleContextPanelController* GetContextPanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleTeamPanelController* GetTeamPanelController() const;
+
+	UFUNCTION(BlueprintPure, Category = "Final|UI")
+	UFinalBattleTeamStatusDetailPanelController* GetTeamStatusDetailPanelController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Final|UI")
 	UFinalBattleCharacterPanelController* GetCharacterPanelController() const;
@@ -177,6 +192,9 @@ private:
 	EFinalBattleCardZone SelectedCardZone = EFinalBattleCardZone::DrawPile;
 
 	UPROPERTY(Transient)
+	bool bTeamStatusDetailOpen = false;
+
+	UPROPERTY(Transient)
 	FText LastInteractionFeedback;
 
 	UPROPERTY(Transient)
@@ -193,6 +211,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleContextPanelController> ContextPanelController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamPanelController> TeamPanelController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamStatusDetailPanelController> TeamStatusDetailPanelController;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleCharacterPanelController> CharacterPanelController;

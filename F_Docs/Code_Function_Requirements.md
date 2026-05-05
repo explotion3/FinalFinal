@@ -469,6 +469,9 @@
 - 把权威状态转成 UI 可读数据
 - 不在 Widget 中做规则推导
 - 优先事件驱动刷新，不依赖 Tick 或 Blueprint Binding 轮询权威状态
+- Battle HUD 的队伍整体状态入口为 `BattleTeamPanel`：C++ 从 `BattleSnapshot / RunSnapshot` 投影共享生命、护盾、角色压力/突破和队伍/角色状态；WBP 只消费 ViewData，不回查状态定义或结算规则
+- 旧 `CharacterPanel` 不再作为常驻 HUD 角色信息入口；角色详情由 `InspectedCharacterUnitId` 驱动，队伍状态详情由只读 UI 状态驱动
+- `BattleTeamPanel` 的角色简化 Entry 可以打开角色详情，但该入口只修改 `InspectedCharacterUnitId`，不提交 BattleCommand，不改变 `SelectedTargetUnitId / CurrentTargetUnitId`，也不承担角色目标选择或奥义释放
 
 首版新增要求：
 

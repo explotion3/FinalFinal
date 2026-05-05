@@ -14,6 +14,8 @@ class UFinalBattleResourcePanel;
 class UFinalRunFlowPromptPanel;
 class UFinalBattleFeedbackPanel;
 class UFinalBattleContextPanel;
+class UFinalBattleTeamPanel;
+class UFinalBattleTeamStatusDetailPanel;
 class UFinalBattleCharacterPanel;
 class UFinalBattleEnemyPanel;
 class UFinalBattleEnemyDetailPanel;
@@ -39,6 +41,8 @@ private:
 	void EnsurePanelsInBlueprintSlots();
 	void InitializePanels();
 	void AddPanelToSlot(UOverlay* Slot, UWidget* Panel) const;
+	void AddTeamStatusDetailPanelToRootFallback();
+	void AddCharacterDetailPanelToRootFallback();
 
 	template <typename TPanel>
 	TPanel* CreateConfiguredPanel(const TCHAR* WidgetName);
@@ -63,6 +67,12 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleContextPanel> ContextPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleTeamPanel> TeamPanel;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UFinalBattleTeamStatusDetailPanel> TeamStatusDetailPanel;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UFinalBattleCharacterPanel> CharacterPanel;
@@ -105,6 +115,12 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UOverlay> ContextSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> TeamPanelSlot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UOverlay> TeamStatusDetailSlot;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UOverlay> CharacterPanelSlot;

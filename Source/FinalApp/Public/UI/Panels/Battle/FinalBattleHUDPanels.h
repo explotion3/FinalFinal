@@ -10,12 +10,17 @@ class UButton;
 class UCanvasPanel;
 class UHorizontalBox;
 class UImage;
+class UPanelWidget;
+class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
+class UWidget;
 class UFinalBattleTopBarPanelController;
 class UFinalBattleResourcePanelController;
 class UFinalBattleFeedbackPanelController;
 class UFinalBattleContextPanelController;
+class UFinalBattleTeamPanelController;
+class UFinalBattleTeamStatusDetailPanelController;
 class UFinalBattleCharacterPanelController;
 class UFinalBattleEnemyPanelController;
 class UFinalBattleEnemyDetailPanelController;
@@ -29,6 +34,8 @@ class UFinalBattleTopBarPanelViewModel;
 class UFinalBattleResourcePanelViewModel;
 class UFinalBattleFeedbackPanelViewModel;
 class UFinalBattleContextPanelViewModel;
+class UFinalBattleTeamPanelViewModel;
+class UFinalBattleTeamStatusDetailPanelViewModel;
 class UFinalBattleCharacterPanelViewModel;
 class UFinalBattleEnemyPanelViewModel;
 class UFinalBattleEnemyDetailPanelViewModel;
@@ -42,6 +49,9 @@ class UFinalBattleCardEntryWidget;
 class UFinalBattleCardZoneEntryWidget;
 class UFinalBattleEnemyDetailWidget;
 class UFinalBattleCharacterDetailWidget;
+class UFinalBattleTeamCharacterEntryWidget;
+class UFinalBattleTeamStatusDetailLineWidget;
+class UFinalBattleTeamStatusIconWidget;
 class UFinalRunFlowSubsystem;
 
 struct FFinalBattleHandCardVisualState
@@ -300,6 +310,113 @@ private:
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> ConsumePileButtonText;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleTeamPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleTeamPanelViewModel* InViewModel, UFinalBattleTeamPanelController* InController);
+
+private:
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	UFUNCTION()
+	void HandleStatusDetailClicked();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+	void RefreshCharacters(const FFinalBattleHUDTeamPanelData& Data);
+	void RefreshStatusPreview(const FFinalBattleHUDTeamPanelData& Data);
+	FText BuildHealthText(const FFinalBattleHUDTeamPanelData& Data) const;
+	FText BuildShieldText(const FFinalBattleHUDTeamPanelData& Data) const;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle HUD|Team")
+	TSubclassOf<UFinalBattleTeamCharacterEntryWidget> TeamCharacterEntryWidgetClass;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle HUD|Team")
+	TSubclassOf<UFinalBattleTeamStatusIconWidget> TeamStatusIconWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamPanelController> PanelController;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> HealthText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UProgressBar> HealthBar;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> ShieldText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UProgressBar> ShieldFrameBar;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UPanelWidget> CharacterBox;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UPanelWidget> StatusPreviewBox;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> StatusOverflowText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> StatusDetailButton;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class FINALAPP_API UFinalBattleTeamStatusDetailPanel : public UFinalPanelWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+	void InitializePanel(UFinalBattleTeamStatusDetailPanelViewModel* InViewModel, UFinalBattleTeamStatusDetailPanelController* InController);
+
+private:
+	UFUNCTION()
+	void HandleViewModelChanged();
+
+	UFUNCTION()
+	void HandleCloseClicked();
+
+	void EnsureWidgetTree();
+	void RefreshFromViewModel();
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle HUD|Team")
+	TSubclassOf<UFinalBattleTeamStatusDetailLineWidget> StatusLineWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamStatusDetailPanelViewModel> PanelViewModel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFinalBattleTeamStatusDetailPanelController> PanelController;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UWidget> ContentRoot;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> EmptyText;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UPanelWidget> StatusListBox;
+
+	UPROPERTY(Transient, meta=(BindWidgetOptional))
+	TObjectPtr<UButton> CloseButton;
 };
 
 UCLASS(BlueprintType, Blueprintable)
