@@ -21,6 +21,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Targeting")
 	AFinalBattlePresentationActor* TraceBattleTargetUnderCursor() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Targeting")
+	AFinalBattlePresentationActor* TraceEnemyTargetUnderCursor() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Targeting")
+	AFinalBattlePresentationActor* TraceBattleTargetAtScreenPosition(FVector2D ViewportScreenPosition) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Targeting")
+	AFinalBattlePresentationActor* TraceEnemyTargetAtScreenPosition(FVector2D ViewportScreenPosition) const;
+
 private:
 	APlayerController* ResolveOwningPlayerController() const;
 	bool SelectPresentationTarget(AFinalBattlePresentationActor* TargetActor) const;
@@ -30,4 +39,10 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Targeting", meta = (ClampMin = "100.0"))
 	float TraceDistance = 100000.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Targeting|Debug")
+	bool bDrawDebugTargetTrace = false;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Targeting|Debug", meta = (ClampMin = "0.0"))
+	float DebugTraceDrawDuration = 0.08f;
 };

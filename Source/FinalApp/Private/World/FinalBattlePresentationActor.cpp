@@ -62,6 +62,18 @@ bool AFinalBattlePresentationActor::IsTargetHitComponent(const UPrimitiveCompone
 	return Component != nullptr && Component == TargetHitBox;
 }
 
+void AFinalBattlePresentationActor::SetDropPreviewTarget(const bool bInDropPreviewTarget)
+{
+	if (bIsDropPreviewTarget == bInDropPreviewTarget)
+	{
+		return;
+	}
+
+	bIsDropPreviewTarget = bInDropPreviewTarget;
+	RefreshPresentationState();
+	OnDropPreviewTargetChanged(bIsDropPreviewTarget);
+}
+
 void AFinalBattlePresentationActor::ApplyPresentationView(const FFinalBattlePresentationUnitViewData& ViewData)
 {
 	const bool bWasAlive = bIsAlive;
@@ -202,6 +214,12 @@ void AFinalBattlePresentationActor::ApplyPresentationVisualState(const EFinalBat
 	default:
 		ApplyTint(NormalVisualTint);
 		break;
+	}
+
+	if (bIsDropPreviewTarget && NewPresentationState != EFinalBattlePresentationAnimState::Defeat)
+	{
+		SpriteComponent->SetRelativeScale3D(BaseSpriteRelativeScale * DropPreviewScaleMultiplier);
+		ApplyTint(DropPreviewVisualTint);
 	}
 }
 

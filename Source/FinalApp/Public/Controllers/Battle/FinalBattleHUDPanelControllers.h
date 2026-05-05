@@ -240,6 +240,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	bool PlayCardByHandIndex(int32 HandIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool PlayCardByHandIndexWithTarget(int32 HandIndex, FName TargetUnitId);
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UFinalBattleHandPanelViewModel> ViewModel;

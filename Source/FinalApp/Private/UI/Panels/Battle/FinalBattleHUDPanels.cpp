@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/SlateBlueprintLibrary.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -16,6 +17,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/PlayerController.h"
 #include "Styling/CoreStyle.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "Queries/FinalRunSnapshot.h"
@@ -34,6 +37,8 @@
 #include "UI/Widgets/Battle/FinalBattleTeamStatusDetailLineWidget.h"
 #include "UI/Widgets/Battle/FinalBattleTeamStatusIconWidget.h"
 #include "UI/Widgets/Battle/FinalBattleUltimateEntryWidget.h"
+#include "World/FinalBattlePresentationActor.h"
+#include "World/FinalBattleTargetInteractorComponent.h"
 
 namespace
 {
@@ -1577,6 +1582,7 @@ void UFinalBattleHandPanel::NativeConstruct()
 
 void UFinalBattleHandPanel::NativeDestruct()
 {
+	CancelActiveCardDrag();
 	if (PanelViewModel)
 	{
 		PanelViewModel->OnViewModelChanged.RemoveDynamic(this, &UFinalBattleHandPanel::HandleViewModelChanged);
@@ -1587,6 +1593,8 @@ void UFinalBattleHandPanel::NativeDestruct()
 void UFinalBattleHandPanel::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	UpdateDragState(MyGeometry, InDeltaTime);
 
 	const bool bHoverLayoutDirty = UpdateHoverAlphas(InDeltaTime);
 	if (bHandLayoutDirty)
@@ -1623,6 +1631,11 @@ void UFinalBattleHandPanel::HandleViewModelChanged()
 
 void UFinalBattleHandPanel::HandleCardHoverChanged(const FGuid CardInstanceId, const int32 HandIndex, const bool bHovered)
 {
+	if (ActiveDragCardInstanceId.IsValid() && ActiveDragCardInstanceId == CardInstanceId)
+	{
+		return;
+	}
+
 	if (bHovered)
 	{
 		HoveredCardInstanceId = CardInstanceId;
@@ -1632,6 +1645,36 @@ void UFinalBattleHandPanel::HandleCardHoverChanged(const FGuid CardInstanceId, c
 		HoveredCardInstanceId.Invalidate();
 	}
 	bHandLayoutDirty = true;
+}
+
+void UFinalBattleHandPanel::HandleCardPointerPressed(const FGuid CardInstanceId, const int32 HandIndex, const FVector2D ScreenPosition)
+{
+	const FFinalBattleHandCardVisualState* Visual = CardVisuals.Find(CardInstanceId);
+	if (Visual == nullptr || !Visual->bCanPlayHint || Visual->bLeaving || Visual->bEntering)
+	{
+		return;
+	}
+
+	DragCandidateCardInstanceId = CardInstanceId;
+	DragCandidateHandIndex = HandIndex;
+	DragStartScreenPosition = ScreenPosition;
+	bHasDragCandidate = true;
+}
+
+void UFinalBattleHandPanel::HandleCardPointerReleased(const FGuid CardInstanceId, const int32 HandIndex, const FVector2D ScreenPosition)
+{
+	if (ActiveDragCardInstanceId.IsValid() && ActiveDragCardInstanceId == CardInstanceId)
+	{
+		FinishActiveCardDrag(GetCachedGeometry(), ScreenPosition);
+		return;
+	}
+
+	if (bHasDragCandidate && DragCandidateCardInstanceId == CardInstanceId)
+	{
+		bHasDragCandidate = false;
+		DragCandidateCardInstanceId.Invalidate();
+		DragCandidateHandIndex = INDEX_NONE;
+	}
 }
 
 void UFinalBattleHandPanel::EnsureWidgetTree()
@@ -1694,6 +1737,7 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		{
 			ExistingVisual->HandIndex = Index;
 			ExistingVisual->bCanPlayHint = Entry.bCanPlayHint;
+			ExistingVisual->TargetRequirement = Entry.TargetRequirement;
 			ExistingVisual->bLeaving = false;
 			ExistingVisual->Widget->Configure(PanelController, Index, Entry);
 			continue;
@@ -1707,12 +1751,15 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 
 		CardWidget->Configure(PanelController, Index, Entry);
 		CardWidget->OnCardHoverChanged.AddDynamic(this, &UFinalBattleHandPanel::HandleCardHoverChanged);
+		CardWidget->OnCardPointerPressed.AddDynamic(this, &UFinalBattleHandPanel::HandleCardPointerPressed);
+		CardWidget->OnCardPointerReleased.AddDynamic(this, &UFinalBattleHandPanel::HandleCardPointerReleased);
 
 		FFinalBattleHandCardVisualState NewVisual;
 		NewVisual.CardInstanceId = CardInstanceId;
 		NewVisual.Widget = CardWidget;
 		NewVisual.HandIndex = Index;
 		NewVisual.bCanPlayHint = Entry.bCanPlayHint;
+		NewVisual.TargetRequirement = Entry.TargetRequirement;
 		const bool bShouldAnimateEntry = bHasReceivedHandSnapshot || bAnimateInitialHand;
 		NewVisual.CurrentPosition = bShouldAnimateEntry ? EnterStartPosition : FVector2D::ZeroVector;
 		NewVisual.TargetPosition = NewVisual.CurrentPosition;
@@ -1760,6 +1807,16 @@ void UFinalBattleHandPanel::RefreshFromViewModel()
 		if (HoveredCardInstanceId == CardInstanceId)
 		{
 			HoveredCardInstanceId.Invalidate();
+		}
+		if (DragCandidateCardInstanceId == CardInstanceId)
+		{
+			bHasDragCandidate = false;
+			DragCandidateCardInstanceId.Invalidate();
+			DragCandidateHandIndex = INDEX_NONE;
+		}
+		if (ActiveDragCardInstanceId == CardInstanceId)
+		{
+			CancelActiveCardDrag();
 		}
 	}
 
@@ -1879,6 +1936,225 @@ void UFinalBattleHandPanel::ArrangeHandCards()
 	bHandLayoutDirty = false;
 }
 
+void UFinalBattleHandPanel::UpdateDragState(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	FVector2D ScreenPosition = DragStartScreenPosition;
+	if (FSlateApplication::IsInitialized())
+	{
+		ScreenPosition = FSlateApplication::Get().GetCursorPos();
+	}
+
+	if (!ActiveDragCardInstanceId.IsValid())
+	{
+		if (!bHasDragCandidate)
+		{
+			return;
+		}
+
+		if (FVector2D::Distance(ScreenPosition, DragStartScreenPosition) < FMath::Max(1.0f, DragStartDistance))
+		{
+			return;
+		}
+
+		FFinalBattleHandCardVisualState* Visual = CardVisuals.Find(DragCandidateCardInstanceId);
+		if (Visual == nullptr || !Visual->bCanPlayHint || Visual->bLeaving || Visual->bEntering)
+		{
+			bHasDragCandidate = false;
+			DragCandidateCardInstanceId.Invalidate();
+			DragCandidateHandIndex = INDEX_NONE;
+			return;
+		}
+
+		BeginActiveCardDrag(*Visual, ScreenPosition);
+	}
+
+	FFinalBattleHandCardVisualState* ActiveVisual = CardVisuals.Find(ActiveDragCardInstanceId);
+	if (ActiveVisual == nullptr)
+	{
+		CancelActiveCardDrag();
+		return;
+	}
+
+	const FVector2D LocalPointer = MyGeometry.AbsoluteToLocal(ScreenPosition);
+	ActiveVisual->DragFollowPosition = LocalPointer + ActiveVisual->DragPointerOffset;
+
+	if (ActiveDragTargetRequirement == EFinalBattleCardTargetRequirement::Enemy)
+	{
+		AFinalBattlePresentationActor* TargetActor = nullptr;
+		if (UFinalBattleTargetInteractorComponent* TargetInteractor = ResolveTargetInteractor())
+		{
+			FVector2D PixelPosition = FVector2D::ZeroVector;
+			FVector2D ViewportPosition = FVector2D::ZeroVector;
+			USlateBlueprintLibrary::AbsoluteToViewport(this, ScreenPosition, PixelPosition, ViewportPosition);
+			TargetActor = TargetInteractor->TraceEnemyTargetAtScreenPosition(PixelPosition);
+		}
+
+		if (ActiveDragTargetActor.Get() != TargetActor)
+		{
+			ClearDragPreviewTarget();
+			ActiveDragTargetActor = TargetActor;
+			if (TargetActor)
+			{
+				TargetActor->SetDropPreviewTarget(true);
+			}
+		}
+
+		ActiveVisual->bDragLockedToTarget = TargetActor != nullptr;
+	}
+	else
+	{
+		ClearDragPreviewTarget();
+		ActiveVisual->bDragLockedToTarget = false;
+	}
+
+	const float TargetLockAlpha = ActiveVisual->bDragLockedToTarget ? 1.0f : 0.0f;
+	const float SafeLockInterpSpeed = FMath::Max(0.0f, DragTargetLockInterpSpeed);
+	ActiveVisual->DragTargetLockAlpha = SafeLockInterpSpeed > 0.0f
+		? FMath::FInterpTo(ActiveVisual->DragTargetLockAlpha, TargetLockAlpha, InDeltaTime, SafeLockInterpSpeed)
+		: TargetLockAlpha;
+	if (FMath::IsNearlyEqual(ActiveVisual->DragTargetLockAlpha, TargetLockAlpha, 0.001f))
+	{
+		ActiveVisual->DragTargetLockAlpha = TargetLockAlpha;
+	}
+
+	const float SafeCardScale = FMath::Max(0.01f, CardScale);
+	const float SafeDragScaleInterpSpeed = FMath::Max(0.0f, DragScaleInterpSpeed);
+	ActiveVisual->DragVisualScale = SafeDragScaleInterpSpeed > 0.0f
+		? FMath::FInterpTo(ActiveVisual->DragVisualScale, SafeCardScale, InDeltaTime, SafeDragScaleInterpSpeed)
+		: SafeCardScale;
+	if (FMath::IsNearlyEqual(ActiveVisual->DragVisualScale, SafeCardScale, 0.001f))
+	{
+		ActiveVisual->DragVisualScale = SafeCardScale;
+	}
+
+	ApplyCardVisualState(*ActiveVisual);
+}
+
+void UFinalBattleHandPanel::BeginActiveCardDrag(FFinalBattleHandCardVisualState& VisualState, const FVector2D& ScreenPosition)
+{
+	UFinalBattleCardEntryWidget* CardWidget = VisualState.Widget.Get();
+	if (CardWidget == nullptr)
+	{
+		return;
+	}
+
+	UCanvasPanelSlot* CardSlot = Cast<UCanvasPanelSlot>(CardWidget->Slot);
+	const FVector2D LocalPointer = GetCachedGeometry().AbsoluteToLocal(ScreenPosition);
+	VisualState.DragPointerOffset = CardSlot ? CardSlot->GetPosition() - LocalPointer : FVector2D::ZeroVector;
+	VisualState.DragFollowPosition = LocalPointer + VisualState.DragPointerOffset;
+	VisualState.bDragging = true;
+	VisualState.bDragLockedToTarget = false;
+	VisualState.DragTargetLockAlpha = 0.0f;
+	VisualState.DragVisualScale = FMath::Lerp(
+		VisualState.CurrentScale,
+		VisualState.CurrentScale * FMath::Max(0.01f, HoverScale),
+		FMath::Clamp(VisualState.HoverAlpha, 0.0f, 1.0f));
+	VisualState.bEntering = false;
+	VisualState.bLeaving = false;
+
+	ActiveDragCardInstanceId = VisualState.CardInstanceId;
+	ActiveDragHandIndex = VisualState.HandIndex;
+	ActiveDragTargetRequirement = VisualState.TargetRequirement;
+	HoveredCardInstanceId = VisualState.CardInstanceId;
+	bHasDragCandidate = false;
+	DragCandidateCardInstanceId.Invalidate();
+	DragCandidateHandIndex = INDEX_NONE;
+	CardWidget->SuppressNextClick();
+	ApplyCardVisualState(VisualState);
+}
+
+void UFinalBattleHandPanel::FinishActiveCardDrag(const FGeometry& MyGeometry, const FVector2D& ScreenPosition)
+{
+	const FGuid FinishedCardInstanceId = ActiveDragCardInstanceId;
+	FFinalBattleHandCardVisualState* Visual = CardVisuals.Find(FinishedCardInstanceId);
+	const int32 FinishedHandIndex = ActiveDragHandIndex;
+	const EFinalBattleCardTargetRequirement FinishedRequirement = ActiveDragTargetRequirement;
+	AFinalBattlePresentationActor* TargetActor = ActiveDragTargetActor.Get();
+
+	bool bSubmitted = false;
+	if (PanelController)
+	{
+		if (FinishedRequirement == EFinalBattleCardTargetRequirement::Enemy)
+		{
+			if (TargetActor != nullptr)
+			{
+				bSubmitted = PanelController->PlayCardByHandIndexWithTarget(FinishedHandIndex, TargetActor->GetRuntimeUnitId());
+			}
+		}
+		else if (FinishedRequirement == EFinalBattleCardTargetRequirement::None && IsOutsideHandPlayArea(MyGeometry, ScreenPosition))
+		{
+			bSubmitted = PanelController->PlayCardByHandIndex(FinishedHandIndex);
+		}
+	}
+
+	if (Visual != nullptr)
+	{
+		Visual->bDragging = false;
+		Visual->bDragLockedToTarget = false;
+		Visual->DragTargetLockAlpha = 0.0f;
+		Visual->DragVisualScale = FMath::Max(0.01f, CardScale);
+	}
+
+	ClearDragPreviewTarget();
+	ActiveDragCardInstanceId.Invalidate();
+	ActiveDragHandIndex = INDEX_NONE;
+	ActiveDragTargetRequirement = EFinalBattleCardTargetRequirement::None;
+	bHandLayoutDirty = true;
+
+	if (!bSubmitted && Visual != nullptr)
+	{
+		ApplyCardVisualState(*Visual);
+	}
+}
+
+void UFinalBattleHandPanel::CancelActiveCardDrag()
+{
+	if (FFinalBattleHandCardVisualState* Visual = CardVisuals.Find(ActiveDragCardInstanceId))
+	{
+		Visual->bDragging = false;
+		Visual->bDragLockedToTarget = false;
+		Visual->DragTargetLockAlpha = 0.0f;
+		Visual->DragVisualScale = FMath::Max(0.01f, CardScale);
+	}
+
+	ClearDragPreviewTarget();
+	ActiveDragCardInstanceId.Invalidate();
+	ActiveDragHandIndex = INDEX_NONE;
+	ActiveDragTargetRequirement = EFinalBattleCardTargetRequirement::None;
+	bHasDragCandidate = false;
+	DragCandidateCardInstanceId.Invalidate();
+	DragCandidateHandIndex = INDEX_NONE;
+	bHandLayoutDirty = true;
+}
+
+void UFinalBattleHandPanel::ClearDragPreviewTarget()
+{
+	if (AFinalBattlePresentationActor* PreviewActor = ActiveDragTargetActor.Get())
+	{
+		PreviewActor->SetDropPreviewTarget(false);
+	}
+	ActiveDragTargetActor.Reset();
+}
+
+bool UFinalBattleHandPanel::IsOutsideHandPlayArea(const FGeometry& MyGeometry, const FVector2D& ScreenPosition) const
+{
+	const FVector2D LocalPointer = MyGeometry.AbsoluteToLocal(ScreenPosition);
+	const FVector2D LocalSize = MyGeometry.GetLocalSize();
+	const float HandAreaPadding = DragPlayLeaveHandPadding;
+	const bool bInside =
+		LocalPointer.X >= -HandAreaPadding
+		&& LocalPointer.Y >= -HandAreaPadding
+		&& LocalPointer.X <= LocalSize.X + HandAreaPadding
+		&& LocalPointer.Y <= LocalSize.Y + HandAreaPadding;
+	return !bInside;
+}
+
+UFinalBattleTargetInteractorComponent* UFinalBattleHandPanel::ResolveTargetInteractor() const
+{
+	APlayerController* PlayerController = GetOwningPlayer();
+	return PlayerController ? PlayerController->FindComponentByClass<UFinalBattleTargetInteractorComponent>() : nullptr;
+}
+
 bool UFinalBattleHandPanel::UpdateHoverAlphas(const float InDeltaTime)
 {
 	bool bAnyAlphaChanged = false;
@@ -1886,7 +2162,8 @@ bool UFinalBattleHandPanel::UpdateHoverAlphas(const float InDeltaTime)
 	for (TPair<FGuid, FFinalBattleHandCardVisualState>& VisualPair : CardVisuals)
 	{
 		FFinalBattleHandCardVisualState& Visual = VisualPair.Value;
-		const float TargetAlpha = VisualPair.Key == HoveredCardInstanceId && Visual.bCanPlayHint && !Visual.bLeaving ? 1.0f : 0.0f;
+		const bool bLockedDragCard = Visual.bDragging && Visual.DragTargetLockAlpha > 0.01f;
+		const float TargetAlpha = (bLockedDragCard || (VisualPair.Key == HoveredCardInstanceId && Visual.bCanPlayHint && !Visual.bLeaving)) ? 1.0f : 0.0f;
 		const float CurrentAlpha = Visual.HoverAlpha;
 		float NewAlpha = SafeInterpSpeed > 0.0f
 			? FMath::FInterpTo(CurrentAlpha, TargetAlpha, InDeltaTime, SafeInterpSpeed)
@@ -1920,6 +2197,13 @@ bool UFinalBattleHandPanel::UpdateCardVisuals(const float InDeltaTime)
 		if (CardWidget == nullptr)
 		{
 			CardIdsToRemove.Add(VisualPair.Key);
+			bAnyVisualChanged = true;
+			continue;
+		}
+
+		if (Visual.bDragging)
+		{
+			ApplyCardVisualState(Visual);
 			bAnyVisualChanged = true;
 			continue;
 		}
@@ -2007,17 +2291,33 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 	const float PanelHeight = PanelSize.Y > 0.0f ? PanelSize.Y : PanelHeightOverride;
 	const float BaseY = PanelHeight - BottomPadding;
 	const float SafeHoverScale = FMath::Max(0.01f, HoverScale);
-	const float HoverAlpha = VisualState.bLeaving ? 0.0f : VisualState.HoverAlpha;
+	const float DragLockAlpha = VisualState.bDragging
+		? FMath::Clamp(VisualState.DragTargetLockAlpha, 0.0f, 1.0f)
+		: 0.0f;
+	const float HoverAlpha = VisualState.bDragging
+		? DragLockAlpha
+		: (VisualState.bLeaving ? 0.0f : VisualState.HoverAlpha);
 	const float BaseOpacity = VisualState.bCanPlayHint
 		? 1.0f
 		: FMath::Clamp(UnplayableOpacity, 0.0f, 1.0f);
+	const FVector2D BasePosition = VisualState.bDragging
+		? VisualState.DragFollowPosition
+		: VisualState.CurrentPosition;
+	const float BaseAngle = VisualState.bDragging
+		? 0.0f
+		: VisualState.CurrentAngle;
+	const float BaseScale = VisualState.bDragging
+		? FMath::Max(0.01f, VisualState.DragVisualScale)
+		: VisualState.CurrentScale;
 	const FVector2D HoverPosition(
-		VisualState.CurrentPosition.X,
+		VisualState.bDragging ? VisualState.CurrentPosition.X : BasePosition.X,
 		FMath::RoundToFloat(BaseY - HoverLift));
-	const FVector2D BlendedPosition = FMath::Lerp(VisualState.CurrentPosition, HoverPosition, HoverAlpha);
-	const float BlendedAngle = FMath::Lerp(VisualState.CurrentAngle, HoverAngle, HoverAlpha);
-	const float BlendedScale = FMath::Lerp(VisualState.CurrentScale, VisualState.CurrentScale * SafeHoverScale, HoverAlpha);
-	const bool bShouldRaiseCard = VisualState.CardInstanceId == HoveredCardInstanceId && VisualState.bCanPlayHint && !VisualState.bLeaving;
+	const FVector2D BlendedPosition = FMath::Lerp(BasePosition, HoverPosition, HoverAlpha);
+	const float BlendedAngle = FMath::Lerp(BaseAngle, HoverAngle, HoverAlpha);
+	const float BlendedScale = VisualState.bDragging
+		? BaseScale
+		: FMath::Lerp(BaseScale, BaseScale * SafeHoverScale, HoverAlpha);
+	const bool bShouldRaiseCard = (VisualState.CardInstanceId == HoveredCardInstanceId || VisualState.bDragging) && VisualState.bCanPlayHint && !VisualState.bLeaving;
 
 	CardSlot->SetAutoSize(false);
 	CardSlot->SetSize(SafeCardSize);
@@ -2025,7 +2325,9 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 		FMath::RoundToFloat(BlendedPosition.X),
 		FMath::RoundToFloat(BlendedPosition.Y)));
 	CardSlot->SetAlignment(FVector2D(0.5f, 1.0f));
-	CardSlot->SetZOrder(bShouldRaiseCard ? HoverZOrder + VisualState.BaseZOrder : VisualState.BaseZOrder);
+	CardSlot->SetZOrder(VisualState.bDragging
+		? DraggingZOrder + VisualState.BaseZOrder
+		: (bShouldRaiseCard ? HoverZOrder + VisualState.BaseZOrder : VisualState.BaseZOrder));
 
 	FWidgetTransform Transform = CardWidget->GetRenderTransform();
 	Transform.Angle = BlendedAngle;
@@ -2033,7 +2335,11 @@ void UFinalBattleHandPanel::ApplyCardVisualState(const FFinalBattleHandCardVisua
 	Transform.Translation = FVector2D::ZeroVector;
 	CardWidget->SetRenderTransform(Transform);
 	CardWidget->SetRenderTransformPivot(FVector2D(0.5f, 1.0f));
-	CardWidget->SetRenderOpacity(BaseOpacity);
+	const float DragLockedOpacityAlpha = VisualState.bDragging ? DragLockAlpha : 0.0f;
+	CardWidget->SetRenderOpacity(FMath::Lerp(
+		BaseOpacity,
+		FMath::Clamp(DragTargetLockedOpacity, 0.0f, 1.0f),
+		DragLockedOpacityAlpha));
 }
 
 void UFinalBattleCardZoneDetailPanel::NativeOnInitialized()

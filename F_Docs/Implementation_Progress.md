@@ -1,5 +1,13 @@
 # Implementation Progress
 
+## 2026-05-05：Drag Card To Battle Target v0.1
+
+- `UFinalBattleCardEntryWidget` 当前新增轻量指针按下 / 释放事件，未超过拖拽阈值时仍走原点击出牌路径；AP 不足牌不会进入拖卡出牌状态。
+- `UFinalBattleHandPanel` 当前承担拖卡状态机：无目标牌拖出手牌区域释放会提交普通 `PlayCard`，敌方目标牌命中活着敌人 `TargetHitBox` 释放会提交带 `TargetUnitId` 的 `PlayCard`。
+- `UFinalBattleTargetInteractorComponent` 当前新增只读 `TraceEnemyTargetUnderCursor()`，供拖卡期间查询当前鼠标下的敌人目标；点击场中身体选择目标的路径保持不变。
+- `AFinalBattlePresentationActor` 当前支持 drop preview 目标表现，拖卡命中敌人时可高亮目标，离开或释放后清除；`EnemyOverheadWidget` 仍只负责打开详情。
+- `UFinalBattleWidgetController / UFinalBattleHandPanelController` 当前新增按手牌索引和目标单位提交出牌请求的桥接接口；最终 AP、目标与规则合法性仍由 `FinalBattle` 校验。
+
 ## 2026-05-05：BattleTargetInteractor v0.1 场中点击选择敌人
 
 - `AFinalBattlePresentationActor` 当前新增 `TargetHitBox`，作为场中目标点击命中区；首版使用 `Visibility` trace，命中区可在敌人表现蓝图视口中调整位置和尺寸。

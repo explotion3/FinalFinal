@@ -7,6 +7,7 @@
 #include "Components/VerticalBox.h"
 #include "Controllers/Battle/FinalBattleHUDPanelControllers.h"
 #include "Engine/DataTable.h"
+#include "Framework/Application/SlateApplication.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 
 namespace
@@ -87,6 +88,8 @@ void UFinalBattleCardEntryWidget::NativeOnInitialized()
 	if (CardButton)
 	{
 		CardButton->OnClicked.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonClicked);
+		CardButton->OnPressed.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonPressed);
+		CardButton->OnReleased.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonReleased);
 		CardButton->OnHovered.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonHovered);
 		CardButton->OnUnhovered.AddDynamic(this, &UFinalBattleCardEntryWidget::HandleButtonUnhovered);
 	}
@@ -126,12 +129,33 @@ void UFinalBattleCardEntryWidget::Configure(UFinalBattleHandPanelController* InC
 	RebuildVisual();
 }
 
+void UFinalBattleCardEntryWidget::SuppressNextClick()
+{
+	bSuppressNextClick = true;
+}
+
 void UFinalBattleCardEntryWidget::HandleButtonClicked()
 {
+	if (bSuppressNextClick)
+	{
+		bSuppressNextClick = false;
+		return;
+	}
+
 	if (PanelController.IsValid())
 	{
 		PanelController->PlayCardByHandIndex(HandIndex);
 	}
+}
+
+void UFinalBattleCardEntryWidget::HandleButtonPressed()
+{
+	OnCardPointerPressed.Broadcast(CardInstanceId, HandIndex, FSlateApplication::Get().GetCursorPos());
+}
+
+void UFinalBattleCardEntryWidget::HandleButtonReleased()
+{
+	OnCardPointerReleased.Broadcast(CardInstanceId, HandIndex, FSlateApplication::Get().GetCursorPos());
 }
 
 void UFinalBattleCardEntryWidget::HandleButtonHovered()

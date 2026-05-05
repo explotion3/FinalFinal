@@ -39,6 +39,9 @@ public:
 	bool RequestPlayCardByHandIndex(int32 HandIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	bool RequestPlayCardByHandIndexWithTarget(int32 HandIndex, FName TargetUnitId);
+
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	bool PlayCardByHandIndex(int32 HandIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")

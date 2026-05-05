@@ -6,11 +6,11 @@
 
 **Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。Run 主流程已经能走通战后奖励、节点推进、事件、商店和成长选择，但页面仍偏原型列表；后续应统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈、关闭/恢复入口，让首章竖切从战斗结束到下一节点都可读。
 
-**拖卡到场中目标 v0.1**：系统为 `FinalApp / World / UI / FinalBattle command bridge`。场中点击敌人选择目标已经由 `BattleTargetInteractor` 接管；下一步可在手牌 Card Entry 拖拽开始 / 移动 / 松手时复用同一套 `TargetHitBox` trace，完成拖卡悬停目标反馈与松手出牌请求。
-
 ## P1
 
 **敌人意图正式视觉**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 DisplayName、Preview 文本和 icon key，但正式 HUD 还需要清晰展示意图类型、目标、伤害 / 护盾 / 状态预告和阶段信息；这项应在敌人 OverHead / Detail 的信息分工稳定后推进。
+
+**拖卡出牌反馈增强 v0.2**：系统为 `FinalApp / World / UI`。拖卡出牌 v0.1 已打通基础投放；后续可补拖拽连线、目标合法性预览、友方目标、拖拽 ghost 视觉、手柄/键盘等价路径，以及更明确的释放成功/取消反馈。
 
 **状态 / 被动 / 遗物正式 HUD 可见性**：系统为 `FinalApp / UI`。状态、被动、遗物已经有 snapshot/debug/event 可见性，但正式 HUD 还没有统一解释层；后续可从状态行 / 状态图标 / tooltip 的基础数据与显示层级开始，再决定哪些信息常驻、哪些进入详情、哪些只留 Debug。
 

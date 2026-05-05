@@ -1259,6 +1259,11 @@ bool UFinalBattleHandPanelController::PlayCardByHandIndex(const int32 HandIndex)
 	return Coordinator ? Coordinator->RequestPlayCardByHandIndex(HandIndex) : false;
 }
 
+bool UFinalBattleHandPanelController::PlayCardByHandIndexWithTarget(const int32 HandIndex, const FName TargetUnitId)
+{
+	return Coordinator ? Coordinator->RequestPlayCardByHandIndexWithTarget(HandIndex, TargetUnitId) : false;
+}
+
 void UFinalBattleCardZoneDetailPanelController::InitializeCardZoneDetailPanel(UFinalBattleWidgetController* InCoordinator, UFinalBattleCardZoneDetailPanelViewModel* InViewModel)
 {
 	InitializePanelController(InCoordinator);

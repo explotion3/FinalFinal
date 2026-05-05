@@ -10,6 +10,7 @@ class UTextBlock;
 class UFinalBattleHandPanelController;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FFinalBattleCardHoverChangedSignature, FGuid, CardInstanceId, int32, HandIndex, bool, bHovered);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FFinalBattleCardPointerSignature, FGuid, CardInstanceId, int32, HandIndex, FVector2D, ScreenPosition);
 
 UCLASS(BlueprintType, Blueprintable)
 class FINALAPP_API UFinalBattleCardEntryWidget : public UFinalWidgetBase
@@ -24,9 +25,23 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Final|Battle HUD|Card")
 	FFinalBattleCardHoverChangedSignature OnCardHoverChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "Final|Battle HUD|Card")
+	FFinalBattleCardPointerSignature OnCardPointerPressed;
+
+	UPROPERTY(BlueprintAssignable, Category = "Final|Battle HUD|Card")
+	FFinalBattleCardPointerSignature OnCardPointerReleased;
+
+	void SuppressNextClick();
+
 private:
 	UFUNCTION()
 	void HandleButtonClicked();
+
+	UFUNCTION()
+	void HandleButtonPressed();
+
+	UFUNCTION()
+	void HandleButtonReleased();
 
 	UFUNCTION()
 	void HandleButtonHovered();
@@ -47,6 +62,7 @@ private:
 	FSlateColor CachedCostColor;
 	bool bCachedCanPlayHint = true;
 	bool bUsesFallbackLayout = false;
+	bool bSuppressNextClick = false;
 
 	UPROPERTY(Transient, meta=(BindWidgetOptional))
 	TObjectPtr<UButton> CardButton;

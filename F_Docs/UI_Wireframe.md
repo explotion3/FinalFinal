@@ -14,6 +14,7 @@
   * 独立敌人详情查看状态 `InspectedEnemyUnitId`
   * 独立牌区详情查看状态 `InspectCardZone / SelectedCardZone`
   * 点击手牌出牌
+  * 拖卡出牌：无目标牌拖出手牌区释放；敌方目标牌拖到场中敌人身体命中框释放
   * 点击奥义按钮转发 `PlayUltimate`
   * `1~6` 快捷出牌
   * 点击 / `Enter / Space` 结束回合
@@ -225,7 +226,11 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `Enter / Space`：结束回合
 * `F1 / F2 / F3`：预留为霍断岳 / 叶半夏 / 沈清弦奥义
 * 点击敌人场中身体命中框：切换当前目标
-* 点击手牌：打出该牌
+* 点击手牌：沿用快捷出牌路径，按当前目标需求由 `FinalBattle` 做最终合法性校验
+* 拖动 `TargetRequirement = None` 的手牌离开手牌区域并释放：打出该牌；仍在手牌区域内释放则取消拖拽
+* 拖动 `TargetRequirement = Enemy` 的手牌到敌人场中身体命中框并释放：对该敌人出牌；空白处、非敌人区域或未命中活着敌人时释放则取消拖拽
+* 拖动敌方目标牌命中敌人时，卡牌回到拖拽前 hover 位置，敌人表现 Actor 进入 drop preview；离开命中框后卡牌重新跟随鼠标并清除 preview
+* AP 不足牌不进入拖卡出牌状态，仍保留不可用表现；点击仍走统一请求路径并由 Battle 返回失败反馈
 * 点击奥义按钮：转发 `PlayUltimate`
 * 点击敌人头顶 UI：调用 `InspectEnemyByUnitId(RuntimeUnitId)` 打开 / 刷新敌人详情面板，不切换当前战斗目标
 
@@ -255,7 +260,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `AFinalBattleDirector` 只负责把 `FinalBattleFlowSubsystem` 的 Snapshot / Event 同步到场中表现 Actor，不承载规则真相。
 * 推荐通过 `BP_BattleDirector : AFinalBattleDirector` 保存战斗表现默认配置，例如 `DefaultPlayerPresentationClass / DefaultEnemyPresentationClass / EnemyPresentationClassMappings`；关卡中放置 BP 子类，避免每次直接改 C++ Actor 实例。
 * `AFinalBattlePresentationActor` 只消费 `FFinalBattlePresentationUnitViewData` 并播放选中、攻击、受击、击败等表现；不再拼接或渲染单位 debug 文本。
-* `AFinalBattlePresentationActor.TargetHitBox` 是场中目标选择命中区，首版使用 `Visibility` trace。WBP / 蓝图子类可在视口中调整命中框位置和尺寸；点击活着的敌人命中框会经 `UFinalBattleTargetInteractorComponent` 转发到 `SelectEnemyByUnitId()`，不在 Actor 或 WBP 内修改战斗真相。
+* `AFinalBattlePresentationActor.TargetHitBox` 是场中目标选择与拖卡投放命中区，首版使用 `Visibility` trace。WBP / 蓝图子类可在视口中调整命中框位置和尺寸；点击活着的敌人命中框会经 `UFinalBattleTargetInteractorComponent` 转发到 `SelectEnemyByUnitId()`，拖卡命中则只提供目标查询并由 HandPanel 在松手时提交出牌请求，不在 Actor 或 WBP 内修改战斗真相。
 * 敌人头顶 UI 当前由 `AFinalBattlePresentationActor.EnemyOverheadWidgetComponent` 挂载，Widget 父类为 `UFinalBattleEnemyOverheadWidget`。C++ 负责投影 `FFinalBattleEnemyOverheadViewData`，包括 HP / Shield / Break 百分比、先机、意图、敌人 rank tag 与状态数组；WBP 只负责视觉绑定、图标映射和动画。OverHead 属于轻量战场信息：HP 文本只显示当前血量，意图文本优先显示 intent `DisplayName`，完整意图说明放在敌人详情面板。
 * `UFinalBattleEnemyOverheadWidget` 会自动刷新一组可选绑定控件：`NameText / HPText / HealthBar / ShieldFrameBar / BreakBar / InitiativeText / IntentText / StatusBox / TargetedVisual / DefeatedVisual`。WBP 中存在同名控件即可自动接线；缺失控件不会报错。
 * `UFinalBattleEnemyOverheadWidget` 支持可选 `InspectButton` 绑定。WBP 推荐放置一个覆盖头顶 UI 根区域的透明 Button，命名为 `InspectButton` 并勾选 Is Variable；点击只打开详情，不选择目标。若没有该按钮，C++ 保留左键点击 fallback，但正式表现应优先使用 Button 控制命中范围。
@@ -274,7 +279,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 敌人详情状态行使用 `UFinalBattleEnemyDetailStatusLineWidget` 作为 WBP 父类。推荐绑定名：`StatusNameText / StackText / DurationText / SummaryText`。`UFinalBattleEnemyDetailWidget.StatusLineWidgetClass` 可指定状态行 WBP；未指定时优先使用 `FinalUIWidgetClassSettings.BattleEnemyDetailStatusLineWidgetClass`，再回退到 C++ 状态行。
 * 若 inspected 敌人不存在，详情面板自动清空并隐藏。敌人死亡但仍存在于 snapshot 时，ViewData 通过 `bIsAlive=false` 交给 WBP 表现死亡态。
 * 敌人 OverHeadWidget 点击当前已接入 `InspectEnemyByUnitId()`，不要通过旧 `EnemyPanel` 绕一层，也不要把详情打开逻辑和目标选择逻辑绑定在一起。
-* 旧 `EnemyPanel` 已退出正式 HUD 目标选择入口；相关类保留为 legacy/debug 兼容，后续拖卡目标选择应复用场中 `TargetHitBox` 链路。
+* 旧 `EnemyPanel` 已退出正式 HUD 目标选择入口；相关类保留为 legacy/debug 兼容，拖卡目标选择复用场中 `TargetHitBox` 链路。
 
 ## 2.1.3 Battle Character Detail Panel 口径
 * `InspectedCharacterUnitId` 是 HUD 只读查看状态，负责角色详情面板；它不提交 BattleCommand，不改变 `SelectedTargetUnitId / CurrentTargetUnitId`，也不影响敌人目标选择。

@@ -45,6 +45,8 @@ class UFinalBattleCardZoneDetailPanelViewModel;
 class UFinalBattleUltimatePanelViewModel;
 class UFinalBattleRecentEventPanelViewModel;
 class UFinalBattleActionPanelViewModel;
+class AFinalBattlePresentationActor;
+class UFinalBattleTargetInteractorComponent;
 class UFinalBattleCardEntryWidget;
 class UFinalBattleCardZoneEntryWidget;
 class UFinalBattleEnemyDetailWidget;
@@ -67,10 +69,17 @@ struct FFinalBattleHandCardVisualState
 	float TargetScale = 1.0f;
 	float HoverAlpha = 0.0f;
 	int32 BaseZOrder = 0;
+	EFinalBattleCardTargetRequirement TargetRequirement = EFinalBattleCardTargetRequirement::None;
 	bool bCanPlayHint = true;
+	bool bDragging = false;
+	bool bDragLockedToTarget = false;
+	float DragTargetLockAlpha = 0.0f;
+	float DragVisualScale = 1.0f;
 	bool bEntering = false;
 	bool bLeaving = false;
 	bool bSnapToTargetOnNextArrange = false;
+	FVector2D DragFollowPosition = FVector2D::ZeroVector;
+	FVector2D DragPointerOffset = FVector2D::ZeroVector;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -640,6 +649,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Layout")
 	bool bAllowOverlap = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "1.0"))
+	float DragStartDistance = 18.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag")
+	float DragPlayLeaveHandPadding = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag")
+	int32 DraggingZOrder = 180;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DragTargetLockedOpacity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0"))
+	float DragTargetLockInterpSpeed = 12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle HUD|Hand Drag", meta = (ClampMin = "0.0"))
+	float DragScaleInterpSpeed = 12.0f;
+
 private:
 	UFUNCTION()
 	void HandleViewModelChanged();
@@ -647,9 +674,22 @@ private:
 	UFUNCTION()
 	void HandleCardHoverChanged(FGuid CardInstanceId, int32 HandIndex, bool bHovered);
 
+	UFUNCTION()
+	void HandleCardPointerPressed(FGuid CardInstanceId, int32 HandIndex, FVector2D ScreenPosition);
+
+	UFUNCTION()
+	void HandleCardPointerReleased(FGuid CardInstanceId, int32 HandIndex, FVector2D ScreenPosition);
+
 	void EnsureWidgetTree();
 	void RefreshFromViewModel();
 	void ArrangeHandCards();
+	void UpdateDragState(const FGeometry& MyGeometry, float InDeltaTime);
+	void BeginActiveCardDrag(FFinalBattleHandCardVisualState& VisualState, const FVector2D& ScreenPosition);
+	void FinishActiveCardDrag(const FGeometry& MyGeometry, const FVector2D& ScreenPosition);
+	void CancelActiveCardDrag();
+	void ClearDragPreviewTarget();
+	bool IsOutsideHandPlayArea(const FGeometry& MyGeometry, const FVector2D& ScreenPosition) const;
+	UFinalBattleTargetInteractorComponent* ResolveTargetInteractor() const;
 	bool UpdateHoverAlphas(float InDeltaTime);
 	bool UpdateCardVisuals(float InDeltaTime);
 	void ApplyCardVisualState(const FFinalBattleHandCardVisualState& VisualState);
@@ -666,6 +706,14 @@ private:
 	TMap<FGuid, FFinalBattleHandCardVisualState> CardVisuals;
 	TArray<FGuid> OrderedCardInstanceIds;
 	FGuid HoveredCardInstanceId;
+	FGuid DragCandidateCardInstanceId;
+	int32 DragCandidateHandIndex = INDEX_NONE;
+	FVector2D DragStartScreenPosition = FVector2D::ZeroVector;
+	bool bHasDragCandidate = false;
+	FGuid ActiveDragCardInstanceId;
+	int32 ActiveDragHandIndex = INDEX_NONE;
+	EFinalBattleCardTargetRequirement ActiveDragTargetRequirement = EFinalBattleCardTargetRequirement::None;
+	TWeakObjectPtr<AFinalBattlePresentationActor> ActiveDragTargetActor;
 
 	bool bHandLayoutDirty = false;
 	bool bHasReceivedHandSnapshot = false;

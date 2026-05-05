@@ -65,6 +65,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation")
 	bool IsPresentationSelected() const { return bIsSelected; }
 
+	UFUNCTION(BlueprintCallable, Category = "Final|Battle|Presentation|Targeting")
+	void SetDropPreviewTarget(bool bInDropPreviewTarget);
+
+	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation|Targeting")
+	bool IsDropPreviewTarget() const { return bIsDropPreviewTarget; }
+
 	UFUNCTION(BlueprintPure, Category = "Final|Battle|Presentation")
 	FText GetDisplayNameText() const { return PresentationViewData.DisplayName; }
 
@@ -83,6 +89,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|Presentation")
 	void OnPresentationViewApplied(const FFinalBattlePresentationUnitViewData& ViewData);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Final|Battle|Presentation|Targeting")
+	void OnDropPreviewTargetChanged(bool bNewDropPreviewTarget);
 
 private:
 	void EnsureVisualDefaultsInitialized();
@@ -116,10 +125,16 @@ private:
 	FLinearColor HitVisualTint = FLinearColor(1.0f, 0.55f, 0.55f, 1.0f);
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual")
+	FLinearColor DropPreviewVisualTint = FLinearColor(1.15f, 1.05f, 0.55f, 1.0f);
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual")
 	FLinearColor DefeatVisualTint = FLinearColor(0.35f, 0.35f, 0.35f, 1.0f);
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual", meta = (ClampMin = "1.0"))
 	float SelectedScaleMultiplier = 1.08f;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual", meta = (ClampMin = "1.0"))
+	float DropPreviewScaleMultiplier = 1.12f;
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|Presentation|Visual")
 	bool bHideActorOnDefeat = false;
@@ -153,6 +168,9 @@ private:
 
 	UPROPERTY(Transient)
 	bool bIsSelected = false;
+
+	UPROPERTY(Transient)
+	bool bIsDropPreviewTarget = false;
 
 	UPROPERTY(Transient)
 	FFinalBattlePresentationUnitViewData PresentationViewData;

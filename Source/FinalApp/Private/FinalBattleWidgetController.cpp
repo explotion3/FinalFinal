@@ -222,6 +222,54 @@ bool UFinalBattleWidgetController::RequestPlayCardByHandIndex(const int32 HandIn
 	return SubmitBattleCommandWithFeedback(Command);
 }
 
+bool UFinalBattleWidgetController::RequestPlayCardByHandIndexWithTarget(const int32 HandIndex, const FName TargetUnitId)
+{
+	if (BattleFlowSubsystem == nullptr || BattleFlowSubsystem->GetActiveBattleSession() == nullptr)
+	{
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可操作的战斗。")),
+			EFinalBattleCommandRejectReason::BattleNotInitialized,
+			RejectBattleNotInitializedTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
+		RebuildPresentation();
+		return false;
+	}
+
+	if (!CachedSnapshot.HandCards.IsValidIndex(HandIndex))
+	{
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("手牌索引无效。")),
+			EFinalBattleCommandRejectReason::UnsupportedCommand,
+			RejectUnsupportedCommandTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
+		RebuildPresentation();
+		return false;
+	}
+
+	const FFinalBattleCardViewData& CardView = CachedSnapshot.HandCards[HandIndex];
+	if (CardView.TargetRequirement != EFinalBattleCardTargetRequirement::Enemy)
+	{
+		return RequestPlayCardByHandIndex(HandIndex);
+	}
+
+	if (TargetUnitId.IsNone())
+	{
+		LastInteractionEvent = BuildLocalRejectEvent(
+			FText::FromString(TEXT("当前没有可选中的敌人目标。")),
+			EFinalBattleCommandRejectReason::InvalidTarget,
+			RejectInvalidTargetTag);
+		LastInteractionFeedback = LastInteractionEvent.Message;
+		RebuildPresentation();
+		return false;
+	}
+
+	FFinalBattleCommand Command;
+	Command.CommandType = EFinalBattleCommandType::PlayCard;
+	Command.CardInstanceId = CardView.CardInstanceId;
+	Command.TargetUnitId = TargetUnitId;
+	return SubmitBattleCommandWithFeedback(Command);
+}
+
 bool UFinalBattleWidgetController::PlayCardByHandIndex(const int32 HandIndex)
 {
 	return RequestPlayCardByHandIndex(HandIndex);
