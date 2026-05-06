@@ -760,6 +760,86 @@ bool FFinalRunFlowEventNodeDedicatedOverlayTest::RunTest(const FString& Paramete
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFinalRunFlowShopNodeDedicatedOverlayTest,
+	"Final.Editor.RunFlow.ShopNodeUsesDedicatedOverlay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFinalRunFlowShopNodeDedicatedOverlayTest::RunTest(const FString& Parameters)
+{
+	using namespace FinalRunFlowGrowthUITests;
+
+	FAutomationContext Context;
+	if (!Context.Initialize(*this, TEXT("FinalRunFlowShopNodeDedicatedOverlayTest")))
+	{
+		return false;
+	}
+
+	FFinalCharacterId CharacterId;
+	UFinalRunSession* RunSession = Context.BootstrapStarterRun(*this, CharacterId);
+	if (RunSession == nullptr)
+	{
+		return false;
+	}
+
+	if (!TestNotNull(TEXT("Starter run should start a battle from the configured route entry."), Context.GameFlowSubsystem->StartBattleFromRunSession()))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Starter battle result should apply back to the run."), Context.GameFlowSubsystem->CompleteBattleAndApplyResult(Context.BuildSyntheticVictoryResult(*RunSession)));
+
+	FFinalRunSnapshot Snapshot = RunSession->GetSnapshot();
+	if (Snapshot.PendingBattleReward.bHasPendingReward)
+	{
+		TestTrue(TEXT("Post-battle card reward can be skipped to reach route progression."), RunSession->SkipPendingBattleReward());
+	}
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName RewardNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Reward node id should be available."), RewardNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured reward node."), RunSession->AdvanceToNode(RewardNodeId));
+
+	FFinalRunCommand ResolveRewardCommand;
+	ResolveRewardCommand.CommandType = EFinalRunCommandType::ResolveReward;
+	TestTrue(TEXT("Reward node should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveRewardCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName EventNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Event node id should be available after reward node."), EventNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured event node."), RunSession->AdvanceToNode(EventNodeId));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FFinalRunEventOptionViewData* EventOption = Snapshot.PendingEventNode.Options.FindByPredicate([](const FFinalRunEventOptionViewData& Option)
+	{
+		return Option.OptionId != NAME_None && Option.bSelectable;
+	});
+	TestNotNull(TEXT("Event node should expose a selectable option before the shop node."), EventOption);
+	if (EventOption == nullptr)
+	{
+		return false;
+	}
+
+	FFinalRunCommand ResolveEventCommand;
+	ResolveEventCommand.CommandType = EFinalRunCommandType::ResolveEvent;
+	ResolveEventCommand.PayloadId = EventOption->OptionId;
+	TestTrue(TEXT("Event node should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveEventCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	const FName ShopNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
+	TestFalse(TEXT("Shop node id should be available after event node."), ShopNodeId.IsNone());
+	TestTrue(TEXT("Run should advance to the configured shop node."), RunSession->AdvanceToNode(ShopNodeId));
+
+	Context.RunFlowSubsystem->HandleRunSessionChanged();
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+
+	const FFinalRunSnapshot ShopSnapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
+	TestEqual(TEXT("Run should be pending shop node."), ShopSnapshot.Progression.FlowStage, EFinalRunFlowStage::PendingShopNode);
+	TestTrue(TEXT("Shop node should expose offers."), ShopSnapshot.PendingShopNode.Offers.Num() > 0);
+	TestEqual(TEXT("Pending shop node should present the dedicated shop overlay."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::ShopNode);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFinalRunFlowPostBattleGrowthSnapshotDoesNotRebroadcastTest,
 	"Final.Editor.RunFlow.PostBattleGrowthSnapshotDoesNotRebroadcast",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

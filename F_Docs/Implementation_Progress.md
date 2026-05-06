@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-06：Run Shop 专用页 v0.1
+
+- `PendingShopNode` 阶段当前自动打开专用 `FinalRunShopNodeOverlayScreen`；`PendingGrowthChoice`、战后 Reward 专用页和 Event 专用页优先级保持不变。
+- `FinalRunShopNodeOverlayScreen` 当前显示商店标题、摘要、当前节点、金币、商品数量和商品 Entry 列表；点击商品通过 `RunFlowSubsystem.ResolveShopOffer(OfferId)` 转发给 `FinalRun`。
+- 新增 `FinalRunShopOfferEntryWidget` 作为商店商品 Entry 父类，支持 `Title / Description / Price / PreviewReward / State / DisabledReason / Icon / Tier / PurchasedVisual` 可选绑定；Entry 不保存 Run 真相，不直接调用 `RunSession`。
+- `FinalUIWidgetClassSettings` 当前新增 `RunShopNodeOverlayScreenClass / RunShopOfferEntryWidgetClass`，未配置时继续使用 C++ fallback。旧上一件 / 下一件 / 购买当前商品绑定保留兼容，但默认隐藏，不再作为主交互。
+
 ## 2026-05-06：Run Event 专用页 v0.1
 
 - `PendingEventNode` 阶段当前自动打开专用 `FinalRunEventNodeOverlayScreen`；`PendingGrowthChoice` 和战后 Reward 专用页优先级保持不变。

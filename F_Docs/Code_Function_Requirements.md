@@ -524,6 +524,8 @@
 - `FinalRunRewardCandidateEntryWidget` 是只读候选 Entry，只负责展示和点击回调，不允许直接调用 `RunSession`
 - `FinalRunEventNodeOverlayScreen` 是事件节点专用页：只消费 `RunSnapshot.PendingEventNode` 构建选项列表，点击选项经 `RunFlowSubsystem.ResolveEventOption(OptionId)` 转发；页面不自行判断事件结算、不直接调用 `RunSession`
 - `FinalRunEventOptionEntryWidget` 是只读事件选项 Entry，只负责展示选项标题、结果摘要、奖励预览、阻塞原因和点击回调
+- `FinalRunShopNodeOverlayScreen` 是商店节点专用页：只消费 `RunSnapshot.PendingShopNode` 构建商品列表，点击商品经 `RunFlowSubsystem.ResolveShopOffer(OfferId)` 转发；页面不自行判断金币、库存、奖励合法性，也不直接调用 `RunSession`
+- `FinalRunShopOfferEntryWidget` 是只读商品 Entry，只负责展示商品名、描述、价格、奖励预览、阻塞原因、购买状态和点击回调
 - `FinalGameFlowSubsystem` 当前是 BattleGrowthFact -> Run 突破值桥接层，同时负责“立即弹 / 延后弹”的安全窗口判断
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
 - Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相

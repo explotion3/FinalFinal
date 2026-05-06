@@ -1,11 +1,17 @@
 #include "UI/Screens/Flow/FinalRunShopNodeOverlayScreen.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
+#include "Styling/CoreStyle.h"
 
 using namespace FinalRunFlowScreenUtils;
 
@@ -51,6 +57,155 @@ FString BuildShopOffersSummaryString(const TArray<FFinalRunShopOfferViewData>& O
 	OffersSummary.TrimEndInline();
 	return OffersSummary;
 }
+
+FName FindFirstShopOfferIconId(const FFinalRunShopOfferViewData& Offer)
+{
+	for (const FFinalRunRewardEntryViewData& RewardEntryView : Offer.RewardEntryViews)
+	{
+		if (RewardEntryView.IconId != NAME_None)
+		{
+			return RewardEntryView.IconId;
+		}
+	}
+	return NAME_None;
+}
+
+EFinalRunRewardPresentationKind FindFirstShopOfferPresentationKind(const FFinalRunShopOfferViewData& Offer)
+{
+	return Offer.RewardEntryViews.Num() > 0
+		? Offer.RewardEntryViews[0].PresentationKind
+		: EFinalRunRewardPresentationKind::None;
+}
+
+EFinalRunRewardVisualTier FindFirstShopOfferVisualTier(const FFinalRunShopOfferViewData& Offer)
+{
+	return Offer.RewardEntryViews.Num() > 0
+		? Offer.RewardEntryViews[0].VisualTier
+		: EFinalRunRewardVisualTier::None;
+}
+}
+
+void UFinalRunShopOfferEntryWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+
+	if (OfferButton)
+	{
+		OfferButton->OnClicked.AddUniqueDynamic(this, &UFinalRunShopOfferEntryWidget::HandleClicked);
+	}
+
+	RefreshBoundWidgets();
+}
+
+void UFinalRunShopOfferEntryWidget::ApplyOfferView(const FFinalRunShopOfferEntryViewData& InViewData)
+{
+	CachedViewData = InViewData;
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+	OnOfferViewApplied(CachedViewData);
+}
+
+void UFinalRunShopOfferEntryWidget::HandleClicked()
+{
+	OnOfferClicked.Broadcast(this);
+}
+
+void UFinalRunShopOfferEntryWidget::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	OfferButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OfferButton"));
+	WidgetTree->RootWidget = OfferButton;
+
+	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ShopOfferRoot"));
+	RootBorder->SetBrushColor(FLinearColor(0.12f, 0.08f, 0.04f, 0.94f));
+	RootBorder->SetPadding(FMargin(8.0f));
+	OfferButton->AddChild(RootBorder);
+
+	UVerticalBox* TextBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ShopOfferTextBox"));
+	RootBorder->SetContent(TextBox);
+
+	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+	TitleText->SetAutoWrapText(true);
+	TitleText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 14));
+	TextBox->AddChildToVerticalBox(TitleText);
+
+	DescriptionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescriptionText"));
+	DescriptionText->SetAutoWrapText(true);
+	DescriptionText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(DescriptionText);
+
+	PriceText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PriceText"));
+	PriceText->SetAutoWrapText(true);
+	PriceText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(PriceText);
+
+	PreviewRewardText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PreviewRewardText"));
+	PreviewRewardText->SetAutoWrapText(true);
+	PreviewRewardText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(PreviewRewardText);
+
+	StateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StateText"));
+	StateText->SetAutoWrapText(true);
+	StateText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(StateText);
+
+	DisabledReasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DisabledReasonText"));
+	DisabledReasonText->SetAutoWrapText(true);
+	DisabledReasonText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(DisabledReasonText);
+}
+
+void UFinalRunShopOfferEntryWidget::RefreshBoundWidgets()
+{
+	if (TitleText)
+	{
+		TitleText->SetText(CachedViewData.Title);
+	}
+	if (DescriptionText)
+	{
+		DescriptionText->SetText(CachedViewData.Description);
+		DescriptionText->SetVisibility(CachedViewData.Description.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (PriceText)
+	{
+		PriceText->SetText(CachedViewData.PriceText);
+		PriceText->SetVisibility(CachedViewData.PriceText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (PreviewRewardText)
+	{
+		PreviewRewardText->SetText(CachedViewData.PreviewRewardText);
+		PreviewRewardText->SetVisibility(CachedViewData.PreviewRewardText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (StateText)
+	{
+		StateText->SetText(CachedViewData.StateText);
+	}
+	if (DisabledReasonText)
+	{
+		DisabledReasonText->SetText(CachedViewData.DisabledReason);
+		DisabledReasonText->SetVisibility(CachedViewData.DisabledReason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (OfferButton)
+	{
+		OfferButton->SetIsEnabled(CachedViewData.bEnabled);
+	}
+	if (IconImage)
+	{
+		IconImage->SetVisibility(CachedViewData.IconId.IsNone() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (TierVisual)
+	{
+		TierVisual->SetVisibility(CachedViewData.VisualTier == EFinalRunRewardVisualTier::None ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (PurchasedVisual)
+	{
+		PurchasedVisual->SetVisibility(CachedViewData.bPurchased ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UFinalRunShopNodeOverlayScreen::NativeOnInitialized()
@@ -79,14 +234,6 @@ void UFinalRunShopNodeOverlayScreen::HandleNextOfferClicked()
 
 void UFinalRunShopNodeOverlayScreen::HandlePurchaseOfferClicked()
 {
-	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
-	if (RunFlowSubsystem == nullptr)
-	{
-		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "ShopNodeMissingRunFlow", "当前无法访问 RunFlowSubsystem，无法提交商店节点购买请求。"));
-		RebuildVisual();
-		return;
-	}
-
 	const FFinalRunShopOfferViewData* SelectedOffer = GetSelectedOfferView(GetCachedSnapshot().PendingShopNode, SelectedOfferIndex);
 	if (SelectedOffer == nullptr || SelectedOffer->OfferId == NAME_None)
 	{
@@ -95,7 +242,27 @@ void UFinalRunShopNodeOverlayScreen::HandlePurchaseOfferClicked()
 		return;
 	}
 
-	const bool bAccepted = RunFlowSubsystem->ResolveShopOffer(SelectedOffer->OfferId);
+	HandlePurchaseOfferById(SelectedOffer->OfferId);
+}
+
+void UFinalRunShopNodeOverlayScreen::HandlePurchaseOfferById(const FName OfferId)
+{
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "ShopNodeMissingRunFlow", "当前无法访问 RunFlowSubsystem，无法提交商店节点购买请求。"));
+		RebuildVisual();
+		return;
+	}
+
+	if (OfferId == NAME_None)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "ShopNodeMissingOfferId", "当前没有可提交的商店商品。"));
+		RebuildVisual();
+		return;
+	}
+
+	const bool bAccepted = RunFlowSubsystem->ResolveShopOffer(OfferId);
 	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
 	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
 		? RunFlowSubsystem->GetLastFlowMessage()
@@ -103,6 +270,16 @@ void UFinalRunShopNodeOverlayScreen::HandlePurchaseOfferClicked()
 			? NSLOCTEXT("FinalFlowUI", "ShopNodeResolveSucceeded", "已转发 ResolveShop。")
 			: NSLOCTEXT("FinalFlowUI", "ShopNodeResolveFailed", "ResolveShop 执行失败。")));
 	RebuildVisual();
+}
+
+void UFinalRunShopNodeOverlayScreen::HandleOfferClicked(UFinalRunShopOfferEntryWidget* OfferEntry)
+{
+	if (OfferEntry == nullptr)
+	{
+		return;
+	}
+
+	HandlePurchaseOfferById(OfferEntry->GetOfferViewData().OfferId);
 }
 
 void UFinalRunShopNodeOverlayScreen::HandleCloseClicked()
@@ -126,17 +303,35 @@ void UFinalRunShopNodeOverlayScreen::EnsureWidgetTree()
 		CurrentNodeText = CreateStageLabel(TEXT("ShopNodeOverlayCurrentNode"), 13);
 		ContentBox->InsertChildAt(2, CurrentNodeText);
 	}
+	if (NodeText == nullptr)
+	{
+		NodeText = CurrentNodeText;
+	}
+
+	if (OfferListBox == nullptr)
+	{
+		OfferListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("OfferListBox"));
+		ContentBox->InsertChildAt(3, OfferListBox);
+	}
+
+	if (RewardPreviewBox == nullptr)
+	{
+		RewardPreviewBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardPreviewBox"));
+		ContentBox->InsertChildAt(4, RewardPreviewBox);
+	}
 
 	if (OffersListText == nullptr)
 	{
 		OffersListText = CreateStageLabel(TEXT("ShopNodeOverlayOffersList"), 13);
-		ContentBox->InsertChildAt(3, OffersListText);
+		OffersListText->SetVisibility(ESlateVisibility::Collapsed);
+		ContentBox->InsertChildAt(5, OffersListText);
 	}
 
 	if (SelectedOfferText == nullptr)
 	{
 		SelectedOfferText = CreateStageLabel(TEXT("ShopNodeOverlaySelectedOffer"), 13);
-		ContentBox->InsertChildAt(4, SelectedOfferText);
+		SelectedOfferText->SetVisibility(ESlateVisibility::Collapsed);
+		ContentBox->InsertChildAt(6, SelectedOfferText);
 	}
 
 	if (PreviousOfferButton == nullptr)
@@ -236,7 +431,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 	if (SummaryText)
 	{
 		SummaryText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "ShopNodeOverlaySummaryText", "流程阶段: {0}\n商店标题: {1}\n商店摘要: {2}\n节点内容存在: {3}\n可解析: {4}\n已解析: {5}\n商品数: {6}\n当前金币: {7} | 遗物数: {8} | 牌库数: {9}"),
+			NSLOCTEXT("FinalFlowUI", "ShopNodeOverlaySummaryText", "{1}\n\n{2}\n\n商品 {6} | 当前金币 {7}"),
 			FormatFlowStageText(Progression.FlowStage),
 			FormatOptionalText(PendingShopNode.Title, NSLOCTEXT("FinalFlowUI", "ShopNodeNoTitle", "未公开标题")),
 			FormatOptionalText(PendingShopNode.Summary, NSLOCTEXT("FinalFlowUI", "ShopNodeNoSummary", "当前没有额外摘要说明。")),
@@ -249,9 +444,9 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 			FText::AsNumber(Snapshot.DeckCount)));
 	}
 
-	if (CurrentNodeText)
+	if (NodeText)
 	{
-		CurrentNodeText->SetText(BuildCurrentNodeSummaryText(Progression));
+		NodeText->SetText(BuildCurrentNodeSummaryText(Progression));
 	}
 
 	if (OffersListText)
@@ -259,6 +454,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		OffersListText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "ShopNodeOverlayOffersText", "商店商品列表:\n{0}"),
 			FText::FromString(BuildShopOffersSummaryString(PendingShopNode.Offers, SelectedOfferIndex))));
+		OffersListText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (SelectedOfferText)
@@ -280,6 +476,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 				FormatOptionalText(SelectedOffer->AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "ShopNodeSelectedOfferNoAvailability", "当前没有额外限制说明。")),
 				FText::FromString(BuildRewardPresentationSummaryString(SelectedOffer->RewardEntryViews, SelectedOffer->RewardEntries))));
 		}
+		SelectedOfferText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (GapText)
@@ -287,7 +484,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"ShopNodeOverlayGapText",
-			"当前页已优先消费 ShopOffer.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是真实图标资源、分页、刷新与二次确认表现。"));
+			"选择一个商品。购买成功后商店节点会完成，并进入路线推进阶段。"));
 	}
 
 	if (FeedbackText)
@@ -298,11 +495,13 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 	if (PreviousOfferButton)
 	{
 		PreviousOfferButton->SetIsEnabled(PendingShopNode.Offers.Num() > 1);
+		PreviousOfferButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (NextOfferButton)
 	{
 		NextOfferButton->SetIsEnabled(PendingShopNode.Offers.Num() > 1);
+		NextOfferButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (PurchaseOfferButton)
@@ -315,6 +514,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 			&& SelectedOffer->OfferId != NAME_None
 			&& SelectedOffer->bPurchasable
 			&& !SelectedOffer->bPurchased);
+		PurchaseOfferButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (PurchaseOfferButtonText)
@@ -344,4 +544,99 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 			PurchaseOfferButtonText->SetText(NSLOCTEXT("FinalFlowUI", "ShopNodePurchaseButton", "购买当前商品"));
 		}
 	}
+
+	RebuildOfferList();
+}
+
+void UFinalRunShopNodeOverlayScreen::RebuildOfferList()
+{
+	if (OfferListBox == nullptr || WidgetTree == nullptr)
+	{
+		return;
+	}
+
+	OfferListBox->ClearChildren();
+	const FFinalRunPendingShopNodeViewData& PendingShopNode = GetCachedSnapshot().PendingShopNode;
+	const TSubclassOf<UFinalRunShopOfferEntryWidget> ConfiguredEntryClass = UFinalUIWidgetClassSettings::GetRunShopOfferEntryWidgetClass();
+	UClass* EntryClass = ConfiguredEntryClass.Get() ? ConfiguredEntryClass.Get() : UFinalRunShopOfferEntryWidget::StaticClass();
+
+	for (int32 OfferIndex = 0; OfferIndex < PendingShopNode.Offers.Num(); ++OfferIndex)
+	{
+		UFinalRunShopOfferEntryWidget* OfferEntry = WidgetTree->ConstructWidget<UFinalRunShopOfferEntryWidget>(
+			EntryClass,
+			FName(*FString::Printf(TEXT("ShopOfferEntry_%d"), OfferIndex)));
+		if (OfferEntry == nullptr)
+		{
+			continue;
+		}
+
+		OfferEntry->OnOfferClicked.AddUObject(this, &UFinalRunShopNodeOverlayScreen::HandleOfferClicked);
+		OfferEntry->ApplyOfferView(BuildOfferEntryData(OfferIndex));
+
+		UVerticalBoxSlot* EntrySlot = OfferListBox->AddChildToVerticalBox(OfferEntry);
+		if (EntrySlot)
+		{
+			EntrySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		}
+	}
+
+	OfferListBox->SetVisibility(PendingShopNode.Offers.Num() > 0 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
+
+FFinalRunShopOfferEntryViewData UFinalRunShopNodeOverlayScreen::BuildOfferEntryData(const int32 OfferIndex) const
+{
+	FFinalRunShopOfferEntryViewData EntryData;
+	const FFinalRunPendingShopNodeViewData& PendingShopNode = GetCachedSnapshot().PendingShopNode;
+	if (!PendingShopNode.Offers.IsValidIndex(OfferIndex))
+	{
+		EntryData.Title = NSLOCTEXT("FinalFlowUI", "ShopOfferEntryInvalid", "无效商店商品");
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "ShopOfferEntryInvalidState", "不可购买");
+		return EntryData;
+	}
+
+	const FFinalRunShopOfferViewData& Offer = PendingShopNode.Offers[OfferIndex];
+	EntryData.OfferId = Offer.OfferId;
+	EntryData.OfferIndex = OfferIndex;
+	EntryData.Title = FormatOptionalText(
+		Offer.DisplayName,
+		FormatOptionalName(Offer.OfferId, NSLOCTEXT("FinalFlowUI", "ShopOfferEntryTitleFallback", "未命名商品")));
+	EntryData.Description = FormatOptionalText(
+		Offer.Description,
+		NSLOCTEXT("FinalFlowUI", "ShopOfferEntryDescriptionFallback", "无额外商品说明。"));
+	EntryData.PriceText = FText::Format(
+		NSLOCTEXT("FinalFlowUI", "ShopOfferEntryPrice", "价格 {0} 金"),
+		FText::AsNumber(Offer.Price));
+	EntryData.PreviewRewardText = FText::FromString(BuildRewardPresentationSummaryString(Offer.RewardEntryViews, Offer.RewardEntries));
+	EntryData.DisabledReason = Offer.AvailabilityMessage;
+	EntryData.IconId = FindFirstShopOfferIconId(Offer);
+	EntryData.PresentationKind = FindFirstShopOfferPresentationKind(Offer);
+	EntryData.VisualTier = FindFirstShopOfferVisualTier(Offer);
+	EntryData.bPurchased = Offer.bPurchased;
+	EntryData.bEnabled = PendingShopNode.bHasPendingContent
+		&& PendingShopNode.bCanResolve
+		&& !PendingShopNode.bResolved
+		&& Offer.bPurchasable
+		&& !Offer.bPurchased
+		&& Offer.OfferId != NAME_None;
+
+	if (Offer.bPurchased)
+	{
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "ShopOfferEntryPurchased", "已购买");
+	}
+	else if (EntryData.bEnabled)
+	{
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "ShopOfferEntryEnabled", "可购买");
+	}
+	else if (PendingShopNode.bResolved)
+	{
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "ShopOfferEntryNodeResolved", "商店已完成");
+	}
+	else
+	{
+		EntryData.StateText = FormatOptionalText(
+			Offer.AvailabilityMessage,
+			NSLOCTEXT("FinalFlowUI", "ShopOfferEntryDisabled", "暂不可购买"));
+	}
+
+	return EntryData;
 }

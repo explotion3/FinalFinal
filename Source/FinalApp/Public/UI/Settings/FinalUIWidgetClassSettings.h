@@ -44,6 +44,8 @@ class UFinalRunEventOptionEntryWidget;
 class UFinalRunRewardCandidateEntryWidget;
 class UFinalRunRewardOverlayScreen;
 class UFinalRunRouteNodeEntryWidget;
+class UFinalRunShopNodeOverlayScreen;
+class UFinalRunShopOfferEntryWidget;
 class UFinalUIRootLayout;
 
 UCLASS(Config=Game, DefaultConfig, DisplayName="Final UI Widget Classes")
@@ -91,10 +93,12 @@ public:
 	static TSubclassOf<UFinalRunGrowthChoiceOverlayScreen> GetRunGrowthChoiceOverlayScreenClass();
 	static TSubclassOf<UFinalRunRewardOverlayScreen> GetRunRewardOverlayScreenClass();
 	static TSubclassOf<UFinalRunEventNodeOverlayScreen> GetRunEventNodeOverlayScreenClass();
+	static TSubclassOf<UFinalRunShopNodeOverlayScreen> GetRunShopNodeOverlayScreenClass();
 	static TSubclassOf<UFinalRunFlowOptionButton> GetRunFlowOptionButtonClass();
 	static TSubclassOf<UFinalRunRouteNodeEntryWidget> GetRunRouteNodeEntryWidgetClass();
 	static TSubclassOf<UFinalRunRewardCandidateEntryWidget> GetRunRewardCandidateEntryWidgetClass();
 	static TSubclassOf<UFinalRunEventOptionEntryWidget> GetRunEventOptionEntryWidgetClass();
+	static TSubclassOf<UFinalRunShopOfferEntryWidget> GetRunShopOfferEntryWidgetClass();
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
 	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
@@ -205,6 +209,9 @@ public:
 	TSoftClassPtr<UFinalRunEventNodeOverlayScreen> RunEventNodeOverlayScreenClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunShopNodeOverlayScreen> RunShopNodeOverlayScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunFlowOptionButton> RunFlowOptionButtonClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
@@ -215,4 +222,7 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunEventOptionEntryWidget> RunEventOptionEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunShopOfferEntryWidget> RunShopOfferEntryWidgetClass;
 };

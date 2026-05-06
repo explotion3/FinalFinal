@@ -487,7 +487,7 @@ void UFinalUISubsystem::EnsureFlowScreens()
 
 	if (ShopNodeOverlayScreen == nullptr)
 	{
-		ShopNodeOverlayScreen = CreateWidget<UFinalRunShopNodeOverlayScreen>(PrimaryPlayerController, UFinalRunShopNodeOverlayScreen::StaticClass());
+		ShopNodeOverlayScreen = CreateWidget<UFinalRunShopNodeOverlayScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRunShopNodeOverlayScreenClass());
 	}
 
 	if (PlaceholderModalScreen == nullptr)
