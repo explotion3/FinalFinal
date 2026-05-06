@@ -142,6 +142,11 @@ void ClearActionOverride(FFinalBattleEnemyState& EnemyState)
 	EnemyState.ActionOverridePreviewText = FText::GetEmpty();
 }
 
+void RestoreBreakAfterSkippedAction(FFinalBattleEnemyState& EnemyState)
+{
+	EnemyState.CurrentBreakValue = FMath::Max(EnemyState.MaxBreakValue, 0);
+}
+
 FFinalBattleEnemyActionSequenceResult ResolveSingleEnemyAction(
 	FFinalBattleState& BattleState,
 	FFinalBattleEnemyState& EnemyState,
@@ -160,6 +165,7 @@ FFinalBattleEnemyActionSequenceResult ResolveSingleEnemyAction(
 	if (HasSkipActionOverride(EnemyState))
 	{
 		Result.GeneratedEvents.Add(BuildEnemySkippedEvent(EnemyState));
+		RestoreBreakAfterSkippedAction(EnemyState);
 		ClearActionOverride(EnemyState);
 		MarkActionOpportunitySpent(EnemyState);
 		return Result;

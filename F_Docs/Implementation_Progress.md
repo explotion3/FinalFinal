@@ -1,5 +1,19 @@
 # Implementation Progress
 
+## 2026-05-06：RunFlow 路线总览与阶段动作协议收口
+
+- `FinalRunSnapshot` 当前新增 `RouteOverview`，由 `FinalRunSession` 从已配置路线、当前节点、已访问 / 已解决节点和当前 FlowStage 派生整条路线 ViewData；`FinalApp` 不再需要自行推断路线节点状态。
+- `RouteOverview.Nodes` 当前包含节点类型、显示名、章节 / 层数、后继节点、当前 / 已访问 / 已解决 / 锁定 / 可达 / 待解决 / resolver 是否实现等字段，供后续路线图、HD-2D RunMap 和房间卡改造复用。
+- `FinalRunSnapshot` 当前新增 `AvailableFlowActions`，按当前阶段生成可执行动作投影：战后奖励领取 / 跳过、前进到下一节点、奖励节点确认、事件选项、商店购买等；禁用动作会保留原因文本。
+- `FinalRunFlowOverlayScreen` 当前优先使用 `AvailableFlowActions` 构建主操作按钮；旧的专用 reward / event / shop / progression 数据区仍保留一轮作为详情展示和兼容 fallback。
+- 本轮不新增保存字段、不改变 `SubmitRunCommand()` 权威校验，也不做路线视觉大改；后续 Run UI、场景化 Run 地图和房间卡路线改造应消费 `RouteOverview + AvailableFlowActions`。
+
+## 2026-05-06：Break 恢复 v0.1
+
+- Break 敌人当前在敌方行动阶段结算 `SkipNextAction` 后，会把 `CurrentBreakValue` 恢复到 `MaxBreakValue`，再清除行动覆盖并进入本轮行动机会已消耗状态。
+- Break 恢复当前由 `FinalBattleInitiativeService` 在结算无法行动时处理；UI / Actor / WBP 只消费恢复后的 snapshot，不计算恢复量。
+- 首版 Break 恢复为全额恢复，不新增规则配置，也不按敌人类型区分恢复量；后续若需要半恢复、延迟恢复或首领特殊恢复，再单独扩 `BattleRuleConfig` 或敌人定义。
+
 ## 2026-05-06：Enemy Initiative Visual v0.1
 
 - 敌人 OverHead 当前继续保持轻量，只通过 `InitiativeText` 显示当前先机值；C++ ViewData 同步携带初始先机、响应值、行动状态、行动次数和行动覆盖，供后续 WBP 扩展。

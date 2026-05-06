@@ -562,6 +562,20 @@ bool FFinalPrototypeBattleWritebackAndSaveRestoreTest::RunTest(const FString& Pa
 		TEXT("Prototype battle victory should surface a pending reward or a progressed post-battle state."),
 		SnapshotAfterBattle.PendingBattleReward.bHasPendingReward
 			|| SnapshotAfterBattle.Progression.FlowStage == EFinalRunFlowStage::AwaitingNodeAdvance);
+	TestEqual(TEXT("Route overview should preserve the current node after battle write-back."), SnapshotAfterBattle.RouteOverview.CurrentNodeId, SnapshotAfterBattle.Progression.CurrentNodeId);
+	TestEqual(TEXT("Route overview should mirror the current flow stage after battle write-back."), SnapshotAfterBattle.RouteOverview.CurrentFlowStage, SnapshotAfterBattle.Progression.FlowStage);
+	TestTrue(TEXT("Route overview should expose configured run nodes after battle write-back."), SnapshotAfterBattle.RouteOverview.Nodes.Num() > 0);
+	if (SnapshotAfterBattle.PendingBattleReward.bHasPendingReward)
+	{
+		TestTrue(TEXT("Pending battle reward should expose unified flow actions."), SnapshotAfterBattle.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+		{
+			return Action.CommandType == EFinalRunCommandType::ClaimPendingBattleReward && Action.bEnabled;
+		}));
+		TestTrue(TEXT("Pending battle reward should expose a skip flow action."), SnapshotAfterBattle.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+		{
+			return Action.CommandType == EFinalRunCommandType::SkipPendingBattleReward && Action.bEnabled;
+		}));
+	}
 
 	const FFinalRunSaveData SaveData = RunSession->ExportSaveData();
 	TestTrue(TEXT("Prototype run save data should keep the current supported save version."), SaveData.IsSupportedVersion());
@@ -594,6 +608,8 @@ bool FFinalPrototypeBattleWritebackAndSaveRestoreTest::RunTest(const FString& Pa
 	TestEqual(TEXT("Restored snapshot gold should match the exported run snapshot."), RestoredSnapshot.Gold, SnapshotAfterBattle.Gold);
 	TestEqual(TEXT("Restored snapshot deck count should match the exported run snapshot."), RestoredSnapshot.DeckCount, SnapshotAfterBattle.DeckCount);
 	TestEqual(TEXT("Restored snapshot relic count should match the exported run snapshot."), RestoredSnapshot.RelicCount, SnapshotAfterBattle.RelicCount);
+	TestEqual(TEXT("Restored route overview node count should match the exported run snapshot."), RestoredSnapshot.RouteOverview.Nodes.Num(), SnapshotAfterBattle.RouteOverview.Nodes.Num());
+	TestEqual(TEXT("Restored flow action count should match the exported run snapshot."), RestoredSnapshot.AvailableFlowActions.Num(), SnapshotAfterBattle.AvailableFlowActions.Num());
 	TestTrue(TEXT("Restored run event sequence should remain self-consistent after save/load."), RestoredRunSession->GetLatestRunEventSequence() >= RunSession->GetLatestRunEventSequence());
 	return !HasAnyErrors();
 }
@@ -654,8 +670,19 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	TestTrue(TEXT("Opening battle result should apply to run."), Context.GameFlowSubsystem->CompleteBattleAndApplyResult(OpeningVictoryResult));
 
 	FFinalRunSnapshot Snapshot = RunSession->GetSnapshot();
+	TestEqual(TEXT("Starter route overview should expose all route nodes."), Snapshot.RouteOverview.Nodes.Num(), RouteDefinition->NodeDefinitions.Num());
+	TestEqual(TEXT("Starter route overview entry node should match route definition."), Snapshot.RouteOverview.EntryNodeId, RouteDefinition->EntryNodeId);
+	TestEqual(TEXT("Starter route overview current node should match progression current node."), Snapshot.RouteOverview.CurrentNodeId, Snapshot.Progression.CurrentNodeId);
 	TestEqual(TEXT("Victory gold should be applied immediately."), Snapshot.Gold, InitialGold + SyntheticVictoryRewardGold);
 	TestTrue(TEXT("Post-battle reward should expose card candidates."), Snapshot.PendingBattleReward.bHasPendingReward);
+	TestTrue(TEXT("Post-battle reward should expose unified claim actions."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::ClaimPendingBattleReward && Action.bEnabled;
+	}));
+	TestTrue(TEXT("Post-battle reward should expose unified skip action."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::SkipPendingBattleReward && Action.bEnabled;
+	}));
 	TestTrue(TEXT("Post-battle reward should expose no more than three card candidates."), Snapshot.PendingBattleReward.RewardEntries.Num() <= 3);
 	TestTrue(TEXT("Post-battle reward candidates should be card grants."), Snapshot.PendingBattleReward.RewardEntries.ContainsByPredicate([](const FFinalRunRewardEntry& Entry)
 	{
@@ -683,6 +710,10 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	TestEqual(TEXT("Choosing one card reward should add exactly one card to RunDeck."), Snapshot.DeckCount, InitialDeckCount + 1);
 	TestEqual(TEXT("Run should wait for node advance after reward claim."), Snapshot.Progression.FlowStage, EFinalRunFlowStage::AwaitingNodeAdvance);
 	TestTrue(TEXT("Run should expose at least one next node after opening reward claim."), Snapshot.Progression.AvailableNextNodes.Num() > 0);
+	TestTrue(TEXT("Awaiting node advance should expose unified advance actions."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::AdvanceToNode && Action.bEnabled;
+	}));
 
 	const FName RewardNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;
 	TestFalse(TEXT("Reward node id should be available."), RewardNodeId.IsNone());
@@ -698,6 +729,10 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	TestTrue(TEXT("Run should advance to the configured event node."), RunSession->AdvanceToNode(EventNodeId));
 
 	Snapshot = RunSession->GetSnapshot();
+	TestTrue(TEXT("Event node should expose unified event actions."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::ResolveEvent;
+	}));
 	FName EventOptionId = NAME_None;
 	for (const FFinalRunEventOptionViewData& Option : Snapshot.PendingEventNode.Options)
 	{
@@ -720,6 +755,10 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	TestTrue(TEXT("Run should advance to the configured shop node."), RunSession->AdvanceToNode(ShopNodeId));
 
 	Snapshot = RunSession->GetSnapshot();
+	TestTrue(TEXT("Shop node should expose unified shop actions."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::ResolveShop;
+	}));
 	FName ShopOfferId = NAME_None;
 	for (const FFinalRunShopOfferViewData& Offer : Snapshot.PendingShopNode.Offers)
 	{
@@ -772,7 +811,10 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 		TestTrue(TEXT("Boss post-battle card reward can be skipped."), RunSession->SkipPendingBattleReward());
 	}
 
-	TestEqual(TEXT("Run should end after resolving the boss post-battle reward because no next node exists."), RunSession->GetSnapshot().Progression.FlowStage, EFinalRunFlowStage::RunEnded);
+	Snapshot = RunSession->GetSnapshot();
+	TestEqual(TEXT("Run should end after resolving the boss post-battle reward because no next node exists."), Snapshot.Progression.FlowStage, EFinalRunFlowStage::RunEnded);
+	TestTrue(TEXT("RunEnded route overview should remain readable."), Snapshot.RouteOverview.bRunEnded && Snapshot.RouteOverview.Nodes.Num() == RouteDefinition->NodeDefinitions.Num());
+	TestEqual(TEXT("RunEnded should not expose unified flow actions."), Snapshot.AvailableFlowActions.Num(), 0);
 	return !HasAnyErrors();
 }
 

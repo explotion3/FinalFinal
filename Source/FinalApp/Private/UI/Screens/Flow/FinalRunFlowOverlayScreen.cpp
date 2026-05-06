@@ -188,6 +188,49 @@ FFinalRunFlowOptionButtonData BuildShopOfferOptionData(const FFinalRunShopOfferV
 	return Data;
 }
 
+FFinalRunFlowOptionButtonData BuildFlowActionOptionData(const FFinalRunFlowActionViewData& Action)
+{
+	FFinalRunFlowOptionButtonData Data;
+	Data.Kind = EFinalRunFlowOptionKind::FlowAction;
+	Data.CommandType = Action.CommandType;
+	Data.PayloadId = Action.PayloadId;
+	Data.Title = Action.DisplayText;
+	Data.Subtitle = Action.Description;
+	Data.bEnabled = Action.bEnabled;
+	Data.State = Action.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "RunFlowActionStateEnabled", "可执行")
+		: FormatOptionalText(Action.DisabledReason, NSLOCTEXT("FinalFlowUI", "RunFlowActionStateDisabled", "暂不可执行"));
+	return Data;
+}
+
+UVerticalBox* ResolveFlowActionListBox(
+	const FFinalRunFlowActionViewData& Action,
+	UVerticalBox* RewardOptionListBox,
+	UVerticalBox* NextNodeListBox,
+	UVerticalBox* EventOptionListBox,
+	UVerticalBox* ShopOfferListBox)
+{
+	switch (Action.CommandType)
+	{
+	case EFinalRunCommandType::ClaimPendingBattleReward:
+	case EFinalRunCommandType::SkipPendingBattleReward:
+		return RewardOptionListBox;
+
+	case EFinalRunCommandType::AdvanceToNode:
+		return NextNodeListBox;
+
+	case EFinalRunCommandType::ResolveEvent:
+		return EventOptionListBox;
+
+	case EFinalRunCommandType::ResolveShop:
+		return ShopOfferListBox;
+
+	case EFinalRunCommandType::ResolveReward:
+	default:
+		return RewardOptionListBox;
+	}
+}
+
 FText BuildEventOptionSelectionText(const FFinalRunEventOptionViewData& Option)
 {
 	return FText::Format(
@@ -958,6 +1001,17 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 
 	const bool bPendingBattleReward = Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward;
+	if (Snapshot.AvailableFlowActions.Num() > 0)
+	{
+		for (const FFinalRunFlowActionViewData& Action : Snapshot.AvailableFlowActions)
+		{
+			AddOption(
+				ResolveFlowActionListBox(Action, RewardOptionListBox, NextNodeListBox, EventOptionListBox, ShopOfferListBox),
+				BuildFlowActionOptionData(Action));
+		}
+		return;
+	}
+
 	if (bPendingBattleReward)
 	{
 		for (int32 RewardIndex = 0; RewardIndex < Snapshot.PendingBattleReward.RewardEntries.Num(); ++RewardIndex)
@@ -1074,6 +1128,50 @@ void UFinalRunFlowOverlayScreen::HandleListOptionClicked(UFinalRunFlowOptionButt
 		bAccepted = RunFlowSubsystem->ResolveShopOffer(OptionButton->GetPayloadId());
 		SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowListShopSucceeded", "已提交商店商品。");
 		FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowListShopFailed", "提交商店商品失败。");
+		break;
+
+	case EFinalRunFlowOptionKind::FlowAction:
+		switch (OptionButton->GetCommandType())
+		{
+		case EFinalRunCommandType::ClaimPendingBattleReward:
+			bAccepted = RunFlowSubsystem->ClaimPendingBattleRewardById(OptionButton->GetPayloadId());
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionClaimRewardSucceeded", "已领取战后卡牌奖励。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionClaimRewardFailed", "领取战后卡牌奖励失败。");
+			break;
+
+		case EFinalRunCommandType::SkipPendingBattleReward:
+			bAccepted = RunFlowSubsystem->SkipPendingBattleReward();
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionSkipRewardSucceeded", "已跳过战后卡牌奖励。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionSkipRewardFailed", "跳过战后卡牌奖励失败。");
+			break;
+
+		case EFinalRunCommandType::AdvanceToNode:
+			bAccepted = RunFlowSubsystem->AdvanceToNode(OptionButton->GetPayloadId());
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionAdvanceSucceeded", "已推进到选中节点。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionAdvanceFailed", "推进节点失败。");
+			break;
+
+		case EFinalRunCommandType::ResolveReward:
+			bAccepted = RunFlowSubsystem->ResolveRewardNode();
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveRewardSucceeded", "已确认奖励节点。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveRewardFailed", "确认奖励节点失败。");
+			break;
+
+		case EFinalRunCommandType::ResolveEvent:
+			bAccepted = RunFlowSubsystem->ResolveEventOption(OptionButton->GetPayloadId());
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveEventSucceeded", "已提交事件选项。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveEventFailed", "提交事件选项失败。");
+			break;
+
+		case EFinalRunCommandType::ResolveShop:
+			bAccepted = RunFlowSubsystem->ResolveShopOffer(OptionButton->GetPayloadId());
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveShopSucceeded", "已提交商店商品。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveShopFailed", "提交商店商品失败。");
+			break;
+
+		default:
+			break;
+		}
 		break;
 	}
 

@@ -29,6 +29,12 @@ struct FINALRUN_API FFinalRunSnapshot
 	FFinalRunProgressionViewData Progression;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FFinalRunRouteOverviewViewData RouteOverview;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunFlowActionViewData> AvailableFlowActions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	FFinalRunCurrentBuildViewData CurrentBuild;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")

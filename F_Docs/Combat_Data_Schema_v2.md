@@ -659,6 +659,19 @@ EvolutionStage: Evolved
 - 当前 `RunDeck` 已是 Run 内唯一牌组真相源；战斗起始请求首版仍兼容 `DeckCardIds`，但已补显式 `DeckEntries`，其中至少包含 `SourceRunCardInstanceId / EffectiveCardId / OwnerCharacterId`。
 - 如果这张卡当前也存在于 active battle，进化后会按 `SourceRunCardInstanceId` 同步刷新对应 `BattleCardInstance` 的展示与结算引用；当前覆盖范围包含 hand / draw / discard / consume / ongoing 中的直接来源实例。
 
+### 6.4 RunSnapshot RouteOverview / FlowAction
+
+`RunSnapshot` 现在公开一层正式 RunFlow 投影：
+
+- `RouteOverview`：整条已配置路线的只读总览，包含 `RouteId / DisplayName / EntryNodeId / CurrentNodeId / CurrentFlowStage / bRunEnded`，以及每个节点的 `NodeId / NodeType / DisplayName / DisplayLabel / ChapterIndex / FloorIndex / NextNodeIds / bCurrent / bVisited / bResolved / bLocked / bReachable / bNeedsResolution / bHasImplementedResolver / AvailabilityReason / AvailabilityMessage`。
+- `AvailableFlowActions`：当前阶段可展示给 UI / World 的动作列表，包含 `ActionId / CommandType / PayloadId / DisplayText / Description / bEnabled / DisabledReason`。
+
+说明：
+
+- `RouteOverview` 和 `AvailableFlowActions` 都由 `FinalRunSession` 从 `ConfiguredRunNodes / CurrentNodeId / VisitedNodeIds / ResolvedNodeIds / CurrentFlowStage` 派生，不新增第二套 Run 真相。
+- `AvailableFlowActions` 只是一层可执行意图投影，最终合法性仍由 `SubmitRunCommand()` 校验。
+- 未来 HD-2D RunMap、路线图 UI、房间卡改造都应消费这层协议，不在 `FinalApp / World` 中反推路线状态。
+
 ### 6.4 PendingGrowthChoiceState
 
 用途：描述一次角色升级待处理的成长三选一。
@@ -802,6 +815,7 @@ EvolutionStage: Evolved
 - `Final.Keyword.Fast` 牌跳过本次先机减少事件；奥义默认不触发先机事件。
 - 敌人先机归零后进入 `PendingEnemyActionQueue`，同窗口多个敌人按 `PositionIndex` 稳定行动。
 - `ActionOverrideType = SkipNextAction` 表示该敌人下一次行动被覆盖为“无法行动”。该敌人不会响应先机减少事件，不会进入先机队列，在敌方行动阶段结算一次跳过后清除覆盖。
+- `SkipNextAction` 结算后，敌人 `CurrentBreakValue` 恢复到 `MaxBreakValue`。首版 Break 恢复为全额恢复。
 - `SkipNextAction` 不替换 `CurrentIntentId / CurrentIntentDefinition`，也不推进普通 intent 的使用次数、冷却、连续使用统计或 scripted step。
 
 ### 7.3.1 BattleIntentViewData

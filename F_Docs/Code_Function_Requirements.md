@@ -173,6 +173,7 @@
 - 普通牌 / 崩溃牌完整结算后触发先机减少；快速牌跳过；奥义默认不触发。
 - 敌人先机归零后由 `FinalBattle` 排入 `PendingEnemyActionQueue`，并按站位稳定结算。
 - Break 当前不直接替换敌人 intent，而是设置 `ActionOverrideType = SkipNextAction`；该覆盖在敌方行动阶段结算一次“无法行动”后清除。
+- `SkipNextAction` 结算后由 `FinalBattle` 恢复敌人韧性到 `MaxBreakValue`，UI 只消费恢复后的 snapshot。
 - `SkipNextAction` 不调用普通 intent 执行，也不推进普通 intent 的 use count、cooldown、scripted step 或连续使用统计。
 
 优先级：`P0`
@@ -516,6 +517,7 @@
 当前阶段补充：
 
 - `FinalRunFlowSubsystem` 仍是 `FinalApp` 内唯一的 Run 外层流程桥接入口
+- `FinalRunSession` 通过 `RunSnapshot.RouteOverview` 提供整条路线的节点状态，通过 `RunSnapshot.AvailableFlowActions` 提供当前阶段可展示动作；`FinalApp / World` 只消费这些 ViewData 并提交对应 `RunCommand`，不自行推断路线真相
 - `FinalGameFlowSubsystem` 当前是 BattleGrowthFact -> Run 突破值桥接层，同时负责“立即弹 / 延后弹”的安全窗口判断
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
 - Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相

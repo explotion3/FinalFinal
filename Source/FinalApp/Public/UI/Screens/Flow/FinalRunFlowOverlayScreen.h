@@ -15,6 +15,7 @@ enum class EFinalRunFlowOptionKind : uint8
 	NextNode,
 	EventOption,
 	ShopOffer,
+	FlowAction,
 	GrowthChoice
 };
 
@@ -24,6 +25,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FFinalRunFlowOptionClickedNative, UFinalRunF
 struct FINALAPP_API FFinalRunFlowOptionButtonData
 {
 	EFinalRunFlowOptionKind Kind = EFinalRunFlowOptionKind::Reward;
+	EFinalRunCommandType CommandType = EFinalRunCommandType::AdvanceToNode;
 	FName PayloadId = NAME_None;
 	int32 PayloadIndex = INDEX_NONE;
 	FText Title;
@@ -45,6 +47,7 @@ public:
 	void ConfigureOption(const FFinalRunFlowOptionButtonData& InData);
 
 	EFinalRunFlowOptionKind GetOptionKind() const { return OptionKind; }
+	EFinalRunCommandType GetCommandType() const { return CachedData.CommandType; }
 	FName GetPayloadId() const { return PayloadId; }
 	int32 GetPayloadIndex() const { return PayloadIndex; }
 

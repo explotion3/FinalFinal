@@ -669,6 +669,8 @@ void UFinalRunSession::InitializeRun()
 	RunLogEntries.Reset();
 	ConfiguredRunNodes.Reset();
 	ConfiguredRouteId = NAME_None;
+	ConfiguredRouteDisplayName = FText::GetEmpty();
+	ConfiguredRouteEntryNodeId = NAME_None;
 	VisitedNodeIds.Reset();
 	ResolvedNodeIds.Reset();
 	CurrentNodeId = NAME_None;
@@ -688,6 +690,8 @@ void UFinalRunSession::InitializeRun()
 void UFinalRunSession::ConfigureRunNodeGraph(const TArray<FFinalRunNodeDefinition>& NodeDefinitions, const FName InCurrentNodeId)
 {
 	ConfiguredRouteId = NAME_None;
+	ConfiguredRouteDisplayName = FText::GetEmpty();
+	ConfiguredRouteEntryNodeId = InCurrentNodeId;
 	ConfigureRunNodeGraphInternal(NodeDefinitions, InCurrentNodeId);
 }
 
@@ -757,6 +761,8 @@ bool UFinalRunSession::ConfigureRunRouteDefinitionInternal(const UFinalRunRouteD
 	}
 
 	ConfiguredRouteId = RouteDefinition.RouteId;
+	ConfiguredRouteDisplayName = RouteDefinition.DisplayName;
+	ConfiguredRouteEntryNodeId = RouteDefinition.EntryNodeId;
 	ConfigureRunNodeGraphInternal(RouteDefinition.NodeDefinitions, RouteDefinition.EntryNodeId);
 	return true;
 }
@@ -1167,6 +1173,9 @@ FFinalRunSnapshot UFinalRunSession::GetSnapshot() const
 	Snapshot.Progression.bCanAdvanceToNextNode =
 		CurrentFlowStage == EFinalRunFlowStage::AwaitingNodeAdvance
 		&& UnlockedNextNodeCount > 0;
+
+	Snapshot.RouteOverview = BuildRouteOverviewView(Snapshot.Progression.AvailableNextNodes);
+	Snapshot.AvailableFlowActions = BuildAvailableFlowActions(Snapshot);
 
 	Snapshot.CurrentBuild = BuildCurrentBuildViewData(CurrentState, DataRegistry);
 	Snapshot.PendingGrowthChoice.bHasPendingChoice = CurrentState.PendingGrowthChoice.bIsValid;
@@ -1874,6 +1883,199 @@ TArray<FFinalRunNodeOptionViewData> UFinalRunSession::BuildAvailableNextNodeView
 	}
 
 	return Views;
+}
+
+FFinalRunRouteOverviewViewData UFinalRunSession::BuildRouteOverviewView(const TArray<FFinalRunNodeOptionViewData>& AvailableNextNodeViews) const
+{
+	FFinalRunRouteOverviewViewData View;
+	View.RouteId = ConfiguredRouteId;
+	View.DisplayName = ConfiguredRouteDisplayName;
+	View.CurrentNodeId = CurrentNodeId;
+	View.CurrentFlowStage = CurrentFlowStage;
+	View.bRunEnded = CurrentFlowStage == EFinalRunFlowStage::RunEnded;
+	View.EntryNodeId = !ConfiguredRouteEntryNodeId.IsNone()
+		? ConfiguredRouteEntryNodeId
+		: (ConfiguredRunNodes.Num() > 0 ? ConfiguredRunNodes[0].NodeId : NAME_None);
+
+	TMap<FName, FFinalRunNodeOptionViewData> NextNodeViewsById;
+	for (const FFinalRunNodeOptionViewData& NextNodeView : AvailableNextNodeViews)
+	{
+		NextNodeViewsById.Add(NextNodeView.NodeId, NextNodeView);
+	}
+
+	for (const FFinalRunNodeDefinition& NodeDefinition : ConfiguredRunNodes)
+	{
+		FFinalRunRouteNodeViewData NodeView;
+		NodeView.NodeId = NodeDefinition.NodeId;
+		NodeView.NodeType = NodeDefinition.NodeType;
+		NodeView.DisplayName = NodeDefinition.DisplayName.IsEmpty()
+			? GetDefaultNodeDisplayName(NodeDefinition.NodeType)
+			: NodeDefinition.DisplayName;
+		NodeView.DisplayLabel = NodeDefinition.DisplayLabel.IsNone()
+			? GetDefaultNodeDisplayLabel(NodeDefinition.NodeType)
+			: NodeDefinition.DisplayLabel;
+		NodeView.ChapterIndex = NodeDefinition.ChapterIndex;
+		NodeView.FloorIndex = NodeDefinition.FloorIndex;
+		NodeView.NextNodeIds = NodeDefinition.NextNodeIds;
+		NodeView.bCurrent = NodeDefinition.NodeId == CurrentNodeId;
+		NodeView.bVisited = VisitedNodeIds.Contains(NodeDefinition.NodeId);
+		NodeView.bResolved = ResolvedNodeIds.Contains(NodeDefinition.NodeId);
+		NodeView.bNeedsResolution = NodeView.bCurrent
+			&& CurrentFlowStage != EFinalRunFlowStage::None
+			&& CurrentFlowStage != EFinalRunFlowStage::AwaitingNodeAdvance
+			&& CurrentFlowStage != EFinalRunFlowStage::RunEnded;
+		NodeView.bHasImplementedResolver = HasImplementedNodeResolver(NodeDefinition.NodeType);
+		NodeView.bReachable = NodeView.bCurrent;
+
+		if (const FFinalRunNodeOptionViewData* NextNodeView = NextNodeViewsById.Find(NodeDefinition.NodeId))
+		{
+			NodeView.bReachable = !NextNodeView->bLocked;
+			NodeView.bLocked = NextNodeView->bLocked;
+			NodeView.AvailabilityReason = NextNodeView->AvailabilityReason;
+			NodeView.AvailabilityMessage = NextNodeView->AvailabilityMessage;
+		}
+		else if (NodeDefinition.bStartsLocked)
+		{
+			NodeView.bLocked = true;
+			NodeView.AvailabilityReason = EFinalRunNodeAvailabilityReason::DefinitionLocked;
+			NodeView.AvailabilityMessage = NodeDefinition.LockedReason.IsEmpty()
+				? FText::FromString(TEXT("This node is locked."))
+				: NodeDefinition.LockedReason;
+		}
+
+		View.Nodes.Add(MoveTemp(NodeView));
+	}
+
+	return View;
+}
+
+TArray<FFinalRunFlowActionViewData> UFinalRunSession::BuildAvailableFlowActions(const FFinalRunSnapshot& Snapshot) const
+{
+	TArray<FFinalRunFlowActionViewData> Actions;
+	auto AddAction = [&Actions](
+		const FName ActionId,
+		const EFinalRunCommandType CommandType,
+		const FName PayloadId,
+		const FText& DisplayText,
+		const FText& Description,
+		const bool bEnabled,
+		const FText& DisabledReason = FText::GetEmpty())
+	{
+		FFinalRunFlowActionViewData Action;
+		Action.ActionId = ActionId;
+		Action.CommandType = CommandType;
+		Action.PayloadId = PayloadId;
+		Action.DisplayText = DisplayText;
+		Action.Description = Description;
+		Action.bEnabled = bEnabled;
+		Action.DisabledReason = DisabledReason;
+		Actions.Add(MoveTemp(Action));
+	};
+
+	if (Snapshot.PendingBattleReward.bHasPendingReward
+		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
+	{
+		const int32 RewardActionCount = FMath::Min(3, Snapshot.PendingBattleReward.RewardEntries.Num());
+		for (int32 RewardIndex = 0; RewardIndex < RewardActionCount; ++RewardIndex)
+		{
+			const FFinalRunRewardEntry& RewardEntry = Snapshot.PendingBattleReward.RewardEntries[RewardIndex];
+			const FFinalRunRewardEntryViewData* RewardView = Snapshot.PendingBattleReward.RewardEntryViews.IsValidIndex(RewardIndex)
+				? &Snapshot.PendingBattleReward.RewardEntryViews[RewardIndex]
+				: nullptr;
+			const FText RewardName = RewardView != nullptr && !RewardView->PrimaryText.IsEmpty()
+				? RewardView->PrimaryText
+				: (RewardEntry.DisplayName.IsEmpty() ? FText::FromName(RewardEntry.RewardId) : RewardEntry.DisplayName);
+			AddAction(
+				FName(*FString::Printf(TEXT("run.action.claim_battle_reward.%d"), RewardIndex)),
+				EFinalRunCommandType::ClaimPendingBattleReward,
+				RewardEntry.RewardId,
+				FText::Format(NSLOCTEXT("FinalRunSession", "FlowActionClaimBattleReward", "选择：{0}"), RewardName),
+				RewardView != nullptr ? RewardView->DetailText : FText::GetEmpty(),
+				Snapshot.PendingBattleReward.bCanClaim,
+				Snapshot.PendingBattleReward.bCanClaim ? FText::GetEmpty() : Snapshot.Progression.CurrentNodeStateMessage);
+		}
+
+		AddAction(
+			TEXT("run.action.skip_battle_reward"),
+			EFinalRunCommandType::SkipPendingBattleReward,
+			NAME_None,
+			NSLOCTEXT("FinalRunSession", "FlowActionSkipBattleReward", "跳过卡牌奖励"),
+			NSLOCTEXT("FinalRunSession", "FlowActionSkipBattleRewardDescription", "不领取本次战后卡牌候选，继续推进路线。"),
+			Snapshot.PendingBattleReward.bCanClaim,
+			Snapshot.PendingBattleReward.bCanClaim ? FText::GetEmpty() : Snapshot.Progression.CurrentNodeStateMessage);
+		return Actions;
+	}
+
+	switch (Snapshot.Progression.FlowStage)
+	{
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		for (const FFinalRunNodeOptionViewData& NodeView : Snapshot.Progression.AvailableNextNodes)
+		{
+			if (NodeView.bLocked)
+			{
+				continue;
+			}
+			AddAction(
+				FName(*FString::Printf(TEXT("run.action.advance.%s"), *NodeView.NodeId.ToString())),
+				EFinalRunCommandType::AdvanceToNode,
+				NodeView.NodeId,
+				FText::Format(
+					NSLOCTEXT("FinalRunSession", "FlowActionAdvanceToNode", "前往：{0}"),
+					NodeView.DisplayName.IsEmpty() ? FText::FromName(NodeView.NodeId) : NodeView.DisplayName),
+				FText::Format(
+					NSLOCTEXT("FinalRunSession", "FlowActionAdvanceToNodeDescription", "{0} · 第 {1} 章 / 第 {2} 层"),
+					GetDefaultNodeDisplayName(NodeView.NodeType),
+					FText::AsNumber(NodeView.ChapterIndex),
+					FText::AsNumber(NodeView.FloorIndex)),
+				Snapshot.Progression.bCanAdvanceToNextNode);
+		}
+		break;
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		AddAction(
+			TEXT("run.action.resolve_reward_node"),
+			EFinalRunCommandType::ResolveReward,
+			NAME_None,
+			NSLOCTEXT("FinalRunSession", "FlowActionResolveRewardNode", "确认奖励"),
+			Snapshot.PendingRewardNode.Summary,
+			Snapshot.PendingRewardNode.bHasPendingContent && Snapshot.PendingRewardNode.bCanResolve && !Snapshot.PendingRewardNode.bResolved,
+			Snapshot.PendingRewardNode.bResolved ? NSLOCTEXT("FinalRunSession", "FlowActionRewardNodeResolved", "当前奖励节点已解析。") : Snapshot.Progression.CurrentNodeStateMessage);
+		break;
+
+	case EFinalRunFlowStage::PendingEventNode:
+		for (const FFinalRunEventOptionViewData& OptionView : Snapshot.PendingEventNode.Options)
+		{
+			AddAction(
+				FName(*FString::Printf(TEXT("run.action.event.%s"), *OptionView.OptionId.ToString())),
+				EFinalRunCommandType::ResolveEvent,
+				OptionView.OptionId,
+				OptionView.DisplayText,
+				OptionView.OutcomeSummary,
+				Snapshot.PendingEventNode.bCanResolve && !Snapshot.PendingEventNode.bResolved && OptionView.bSelectable,
+				OptionView.bSelectable ? FText::GetEmpty() : OptionView.AvailabilityMessage);
+		}
+		break;
+
+	case EFinalRunFlowStage::PendingShopNode:
+		for (const FFinalRunShopOfferViewData& OfferView : Snapshot.PendingShopNode.Offers)
+		{
+			const bool bEnabled = Snapshot.PendingShopNode.bCanResolve && !Snapshot.PendingShopNode.bResolved && OfferView.bPurchasable && !OfferView.bPurchased;
+			AddAction(
+				FName(*FString::Printf(TEXT("run.action.shop.%s"), *OfferView.OfferId.ToString())),
+				EFinalRunCommandType::ResolveShop,
+				OfferView.OfferId,
+				OfferView.DisplayName,
+				OfferView.Description,
+				bEnabled,
+				bEnabled ? FText::GetEmpty() : OfferView.AvailabilityMessage);
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return Actions;
 }
 
 FFinalRunPendingRewardNodeViewData UFinalRunSession::BuildPendingRewardNodeView() const

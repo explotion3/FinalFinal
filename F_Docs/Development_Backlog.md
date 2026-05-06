@@ -4,11 +4,11 @@
 
 ## P0
 
-**Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。Run 主流程已经能走通战后奖励、节点推进、事件、商店和成长选择，但页面仍偏原型列表；后续应统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈、关闭/恢复入口，让首章竖切从战斗结束到下一节点都可读。
+**Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。RunFlow 协议当前已由 `RouteOverview + AvailableFlowActions` 收口，Run 主流程也能走通战后奖励、节点推进、事件、商店和成长选择；后续重点转向视觉和交互可读性，统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈、关闭/恢复入口，让首章竖切从战斗结束到下一节点都可读。
 
 ## P1
 
-**先机系统后续增强**：系统为 `FinalBattle / FinalApp / UI`。正式先机 v0.1 已落地，详情面板也能查看当前 / 初始 / 响应、行动状态、行动次数和行动覆盖；后续剩余工作是 Break 恢复、复动 / 多动、迟滞 / 抢拍类状态或遗物、正式先机 UI 动画，以及 OverHead 中更清晰的“行动进度”表现。
+**先机系统后续增强**：系统为 `FinalBattle / FinalApp / UI`。正式先机 v0.1 已落地，详情面板也能查看当前 / 初始 / 响应、行动状态、行动次数和行动覆盖，Break 敌人跳过行动后会恢复韧性；后续剩余工作是复动 / 多动、迟滞 / 抢拍类状态或遗物、可配置 Break 恢复量、正式先机 UI 动画，以及 OverHead 中更清晰的“行动进度”表现。
 
 **敌人意图数值预告增强**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 snapshot 结构化 `IntentViewData`，OverHead / Detail 也能显示短名、Preview 文本和一个意图图标；后续剩余工作是建立正式图标资源表、按意图类型统一视觉颜色，并逐步从 intent effects 生成目标、伤害 / 护盾 / 状态预告等更细的可视条目。
 
@@ -23,6 +23,8 @@
 **角色 / 队伍状态图标资源与归属表现**：系统为 `FinalApp / UI / Content`。TeamPanel、角色详情、队伍状态详情已经能显示状态数据；后续需要状态图标资源、owner 角标、正负面色彩和简短标签规范，但暂不做复杂 tooltip 也不改变状态规则。
 
 ## P2
+
+**场景化 RunMap / 房间卡路线改造探索**：系统为 `FinalRun / FinalApp / World / UI`。当前先保持静态路线和 `RouteOverview + AvailableFlowActions` 协议稳定；后续若采用“小型 HD-2D 场景化 Run 地图”或“系统给路线、玩家用房间卡改造路线”的方案，应先复用现有路线总览协议做只读地图，再逐步扩替换 / 插入 / 风险倍率，不要直接重写 Run 权威流程。
 
 **主菜单 / 设置页基于 Core UI 建立**：系统为 `FinalApp / UI`。Core UI 可继续复用到主菜单、设置页、地图页等大类界面；后续需要按 `Screen / Panel / Entry` 的轻量结构建立非战斗 UI，不复制 Battle HUD 的重型 panel 三件套。
 

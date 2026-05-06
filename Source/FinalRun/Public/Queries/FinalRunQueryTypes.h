@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Commands/FinalRunCommand.h"
 #include "Ids/FinalIds.h"
 #include "Run/Definitions/FinalRunNodeContentDefinition.h"
 #include "Requests/FinalBattleResult.h"
@@ -55,6 +56,114 @@ enum class EFinalRunRewardVisualTier : uint8
 	Legendary,
 	Utility,
 	Progression
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunRouteNodeViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName NodeId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunNodeType NodeType = EFinalRunNodeType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName DisplayLabel = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 ChapterIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	int32 FloorIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FName> NextNodeIds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bCurrent = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bVisited = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bResolved = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bLocked = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bReachable = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bNeedsResolution = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bHasImplementedResolver = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunNodeAvailabilityReason AvailabilityReason = EFinalRunNodeAvailabilityReason::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText AvailabilityMessage;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunRouteOverviewViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName RouteId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName EntryNodeId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FFinalRunRouteNodeViewData> Nodes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName CurrentNodeId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunFlowStage CurrentFlowStage = EFinalRunFlowStage::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bRunEnded = false;
+};
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunFlowActionViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName ActionId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	EFinalRunCommandType CommandType = EFinalRunCommandType::AdvanceToNode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FName PayloadId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisplayText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	bool bEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	FText DisabledReason;
 };
 
 USTRUCT(BlueprintType)

@@ -101,6 +101,8 @@ private:
 	bool GenerateGrowthChoicesForCharacter(const FFinalRunPersistentCharacterState& CharacterState);
 	const FFinalRunNodeDefinition* FindNodeDefinition(const FName& NodeId) const;
 	TArray<FFinalRunNodeOptionViewData> BuildAvailableNextNodeViews() const;
+	FFinalRunRouteOverviewViewData BuildRouteOverviewView(const TArray<FFinalRunNodeOptionViewData>& AvailableNextNodeViews) const;
+	TArray<FFinalRunFlowActionViewData> BuildAvailableFlowActions(const FFinalRunSnapshot& Snapshot) const;
 	FFinalRunPendingRewardNodeViewData BuildPendingRewardNodeView() const;
 	FFinalRunPendingEventNodeViewData BuildPendingEventNodeView() const;
 	FFinalRunPendingShopNodeViewData BuildPendingShopNodeView() const;
@@ -124,6 +126,8 @@ private:
 
 	TArray<FFinalRunNodeDefinition> ConfiguredRunNodes;
 	FName ConfiguredRouteId = NAME_None;
+	FText ConfiguredRouteDisplayName;
+	FName ConfiguredRouteEntryNodeId = NAME_None;
 	TSet<FName> VisitedNodeIds;
 	TSet<FName> ResolvedNodeIds;
 	FName CurrentNodeId = NAME_None;

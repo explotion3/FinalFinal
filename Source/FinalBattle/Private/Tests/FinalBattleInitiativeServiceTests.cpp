@@ -238,6 +238,7 @@ bool FFinalBattleInitiativeBreakSkipActionOverrideTest::RunTest(const FString& P
 
 	TestEqual(TEXT("Skipped action should not damage team."), EndTurnResult.TotalDamageToTeam, 0);
 	TestEqual(TEXT("Skip override should clear after resolving."), EnemyState.ActionOverrideType, EFinalEnemyActionOverrideType::None);
+	TestEqual(TEXT("Break should recover after the skipped action resolves."), EnemyState.CurrentBreakValue, EnemyState.MaxBreakValue);
 	TestEqual(TEXT("Skipped action should spend the action opportunity."), EnemyState.InitiativeState, EFinalEnemyInitiativeState::ActionSpent);
 	TestEqual(TEXT("Skipped action should not commit the normal intent."), EnemyState.IntentRuntimeStates[0].UseCount, 0);
 	TestTrue(TEXT("Skipped action should emit EnemyActionSkipped."), EndTurnResult.GeneratedEvents.ContainsByPredicate(

@@ -316,6 +316,8 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 若突破值在玩家命令结算后首次达到阈值，Growth overlay 会立即成为当前外层页；若来自敌方阶段、被动链或战斗胜利，则等下一个安全窗口再展示
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于成长选择、战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只触发 `RunFlowSubsystem.RefreshRunFlow(true)`，不直接执行任何 RunCommand
 * `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`；节点显示优先使用 `DisplayName`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback
+* `RunSnapshot.RouteOverview` 是路线可视化的主输入：路线图 UI、未来 HD-2D RunMap 和房间卡改造都应读取它的节点状态，不在 Widget 或 World Actor 中反推 visited / resolved / reachable / locked。
+* `RunSnapshot.AvailableFlowActions` 是当前阶段主操作列表：RunFlowOverlay、未来场景物体交互或路线按钮都应把点击转换为该 action 对应的 `RunCommand`，最终合法性仍由 `FinalRunSession` 校验。
 * `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass` 与 `RunFlowOptionButtonClass`；未配置时继续使用 C++ fallback
 * 旧的上一个 / 下一个 / 执行当前操作按钮保留为字段与奖励节点 fallback，但不再是战后奖励、节点推进、事件、商店的主流程交互路径
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
