@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/Widget.h"
 #include "Styling/CoreStyle.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
@@ -203,34 +204,6 @@ FFinalRunFlowOptionButtonData BuildFlowActionOptionData(const FFinalRunFlowActio
 	return Data;
 }
 
-UVerticalBox* ResolveFlowActionListBox(
-	const FFinalRunFlowActionViewData& Action,
-	UVerticalBox* RewardOptionListBox,
-	UVerticalBox* NextNodeListBox,
-	UVerticalBox* EventOptionListBox,
-	UVerticalBox* ShopOfferListBox)
-{
-	switch (Action.CommandType)
-	{
-	case EFinalRunCommandType::ClaimPendingBattleReward:
-	case EFinalRunCommandType::SkipPendingBattleReward:
-		return RewardOptionListBox;
-
-	case EFinalRunCommandType::AdvanceToNode:
-		return NextNodeListBox;
-
-	case EFinalRunCommandType::ResolveEvent:
-		return EventOptionListBox;
-
-	case EFinalRunCommandType::ResolveShop:
-		return ShopOfferListBox;
-
-	case EFinalRunCommandType::ResolveReward:
-	default:
-		return RewardOptionListBox;
-	}
-}
-
 FText BuildEventOptionSelectionText(const FFinalRunEventOptionViewData& Option)
 {
 	return FText::Format(
@@ -265,6 +238,164 @@ FText BuildCompactCurrentNodeText(const FFinalRunProgressionViewData& Progressio
 		FText::AsNumber(Progression.CurrentChapter),
 		FText::AsNumber(Progression.CurrentFloor));
 }
+
+FText FormatRouteNodeStateText(const FFinalRunRouteNodeViewData& Node)
+{
+	if (Node.bCurrent)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateCurrent", "当前");
+	}
+	if (Node.bResolved)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateResolved", "已解决");
+	}
+	if (Node.bVisited)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateVisited", "已访问");
+	}
+	if (Node.bLocked)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateLocked", "锁定");
+	}
+	if (Node.bReachable)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateReachable", "可前往");
+	}
+	if (Node.bNeedsResolution)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateNeedsResolution", "待解决");
+	}
+
+	return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeStateFuture", "未到达");
+}
+
+FText BuildRouteNodeLabelText(const FFinalRunRouteNodeViewData& Node)
+{
+	const FText NodeName = FormatRunNodeDisplayName(Node.DisplayName, Node.NodeId, Node.NodeType);
+	if (!Node.DisplayLabel.IsNone())
+	{
+		return FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeLabelWithDisplayLabel", "{0} · {1}"),
+			FText::FromName(Node.DisplayLabel),
+			NodeName);
+	}
+
+	return NodeName;
+}
+
+FText BuildRouteNodeAvailabilityText(const FFinalRunRouteNodeViewData& Node)
+{
+	if (!Node.AvailabilityMessage.IsEmpty())
+	{
+		return Node.AvailabilityMessage;
+	}
+
+	if (!Node.bHasImplementedResolver && Node.bNeedsResolution)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeResolverMissing", "当前节点解析器尚未实现。");
+	}
+
+	if (Node.bReachable)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeReachableMessage", "当前可达。");
+	}
+
+	return FText::GetEmpty();
+}
+}
+
+void UFinalRunRouteNodeEntryWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+}
+
+void UFinalRunRouteNodeEntryWidget::ApplyRouteNodeView(const FFinalRunRouteNodeViewData& InViewData)
+{
+	CachedViewData = InViewData;
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+	OnRouteNodeViewApplied(CachedViewData);
+}
+
+void UFinalRunRouteNodeEntryWidget::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RouteNodeEntryRoot"));
+	RootBorder->SetBrushColor(FLinearColor(0.08f, 0.09f, 0.08f, 0.88f));
+	RootBorder->SetPadding(FMargin(8.0f));
+	WidgetTree->RootWidget = RootBorder;
+
+	UVerticalBox* TextBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RouteNodeEntryTextBox"));
+	RootBorder->SetContent(TextBox);
+
+	NodeLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NodeLabelText"));
+	NodeLabelText->SetAutoWrapText(true);
+	NodeLabelText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 12));
+	TextBox->AddChildToVerticalBox(NodeLabelText);
+
+	NodeTypeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NodeTypeText"));
+	NodeTypeText->SetAutoWrapText(true);
+	NodeTypeText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(NodeTypeText);
+
+	StateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StateText"));
+	StateText->SetAutoWrapText(true);
+	StateText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(StateText);
+
+	AvailabilityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AvailabilityText"));
+	AvailabilityText->SetAutoWrapText(true);
+	AvailabilityText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(AvailabilityText);
+}
+
+void UFinalRunRouteNodeEntryWidget::RefreshBoundWidgets()
+{
+	if (NodeLabelText)
+	{
+		NodeLabelText->SetText(BuildRouteNodeLabelText(CachedViewData));
+	}
+	if (NodeTypeText)
+	{
+		NodeTypeText->SetText(FText::Format(
+			NSLOCTEXT("FinalFlowUI", "RunFlowRouteNodeTypeLine", "{0} | 第 {1} 章 / 第 {2} 层"),
+			FormatNodeTypeText(CachedViewData.NodeType),
+			FText::AsNumber(CachedViewData.ChapterIndex),
+			FText::AsNumber(CachedViewData.FloorIndex)));
+	}
+	if (StateText)
+	{
+		StateText->SetText(FormatRouteNodeStateText(CachedViewData));
+	}
+	if (AvailabilityText)
+	{
+		const FText Availability = BuildRouteNodeAvailabilityText(CachedViewData);
+		AvailabilityText->SetText(Availability);
+		AvailabilityText->SetVisibility(Availability.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+
+	if (CurrentVisual)
+	{
+		CurrentVisual->SetVisibility(CachedViewData.bCurrent ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (VisitedVisual)
+	{
+		VisitedVisual->SetVisibility(CachedViewData.bVisited ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (LockedVisual)
+	{
+		LockedVisual->SetVisibility(CachedViewData.bLocked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (ResolvedVisual)
+	{
+		ResolvedVisual->SetVisibility(CachedViewData.bResolved ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UFinalRunFlowOptionButton::NativeOnInitialized()
@@ -631,14 +762,26 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 		SummaryText = CreateStageLabel(TEXT("RunFlowOverlaySummary"), 14);
 		ContentBox->AddChildToVerticalBox(SummaryText);
 
+		CurrentStageText = CreateStageLabel(TEXT("CurrentStageText"), 13);
+		ContentBox->AddChildToVerticalBox(CurrentStageText);
+
 		CurrentNodeText = CreateStageLabel(TEXT("RunFlowCurrentNode"), 13);
 		ContentBox->AddChildToVerticalBox(CurrentNodeText);
+
+		RouteSummaryText = CreateStageLabel(TEXT("RouteSummaryText"), 12);
+		ContentBox->AddChildToVerticalBox(RouteSummaryText);
+
+		RouteNodeListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RouteNodeListBox"));
+		ContentBox->AddChildToVerticalBox(RouteNodeListBox);
 
 		StageDetailText = CreateStageLabel(TEXT("RunFlowStageDetail"), 13);
 		ContentBox->AddChildToVerticalBox(StageDetailText);
 
 		SelectionText = CreateStageLabel(TEXT("RunFlowSelection"), 13);
 		ContentBox->AddChildToVerticalBox(SelectionText);
+
+		ActionListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ActionListBox"));
+		ContentBox->AddChildToVerticalBox(ActionListBox);
 
 		RewardOptionListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardOptionListBox"));
 		ContentBox->AddChildToVerticalBox(RewardOptionListBox);
@@ -794,10 +937,22 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 			FText::AsNumber(Snapshot.RelicCount)));
 	}
 
+	if (CurrentStageText)
+	{
+		CurrentStageText->SetText(BuildCurrentStageText());
+	}
+
 	if (CurrentNodeText)
 	{
 		CurrentNodeText->SetText(BuildCompactCurrentNodeText(Progression));
 	}
+
+	if (RouteSummaryText)
+	{
+		RouteSummaryText->SetText(BuildRouteSummaryText());
+	}
+
+	RebuildRouteNodeList();
 
 	if (StageDetailText)
 	{
@@ -939,6 +1094,11 @@ void UFinalRunFlowOverlayScreen::ClampSelectionIndices()
 
 void UFinalRunFlowOverlayScreen::ClearOptionLists()
 {
+	if (ActionListBox)
+	{
+		ActionListBox->ClearChildren();
+		ActionListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	if (RewardOptionListBox)
 	{
 		RewardOptionListBox->ClearChildren();
@@ -959,6 +1119,44 @@ void UFinalRunFlowOverlayScreen::ClearOptionLists()
 		ShopOfferListBox->ClearChildren();
 		ShopOfferListBox->SetVisibility(ESlateVisibility::Collapsed);
 	}
+}
+
+void UFinalRunFlowOverlayScreen::RebuildRouteNodeList()
+{
+	if (WidgetTree == nullptr || RouteNodeListBox == nullptr)
+	{
+		return;
+	}
+
+	RouteNodeListBox->ClearChildren();
+
+	const TArray<FFinalRunRouteNodeViewData>& Nodes = GetCachedSnapshot().RouteOverview.Nodes;
+	if (Nodes.IsEmpty())
+	{
+		RouteNodeListBox->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const TSubclassOf<UFinalRunRouteNodeEntryWidget> EntryClass = UFinalUIWidgetClassSettings::GetRunRouteNodeEntryWidgetClass();
+	UClass* ResolvedEntryClass = EntryClass.Get() ? EntryClass.Get() : UFinalRunRouteNodeEntryWidget::StaticClass();
+	for (const FFinalRunRouteNodeViewData& Node : Nodes)
+	{
+		UFinalRunRouteNodeEntryWidget* NodeEntry = WidgetTree->ConstructWidget<UFinalRunRouteNodeEntryWidget>(
+			ResolvedEntryClass,
+			*FString::Printf(TEXT("RunRouteNode_%s_%s"), *Node.NodeId.ToString(), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
+		if (NodeEntry == nullptr)
+		{
+			continue;
+		}
+
+		NodeEntry->ApplyRouteNodeView(Node);
+		if (UVerticalBoxSlot* NodeSlot = RouteNodeListBox->AddChildToVerticalBox(NodeEntry))
+		{
+			NodeSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		}
+	}
+
+	RouteNodeListBox->SetVisibility(RouteNodeListBox->GetChildrenCount() > 0 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UFinalRunFlowOverlayScreen::RebuildOptionLists()
@@ -1005,9 +1203,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 	{
 		for (const FFinalRunFlowActionViewData& Action : Snapshot.AvailableFlowActions)
 		{
-			AddOption(
-				ResolveFlowActionListBox(Action, RewardOptionListBox, NextNodeListBox, EventOptionListBox, ShopOfferListBox),
-				BuildFlowActionOptionData(Action));
+			AddOption(ActionListBox, BuildFlowActionOptionData(Action));
 		}
 		return;
 	}
@@ -1320,6 +1516,72 @@ FText UFinalRunFlowOverlayScreen::BuildSecondaryActionText() const
 	}
 
 	return NSLOCTEXT("FinalFlowUI", "RunFlowSecondaryActionUnavailable", "当前无次要操作");
+}
+
+FText UFinalRunFlowOverlayScreen::BuildRouteSummaryText() const
+{
+	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
+	const FFinalRunRouteOverviewViewData& RouteOverview = Snapshot.RouteOverview;
+	if (RouteOverview.Nodes.IsEmpty())
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowRouteSummaryEmpty", "路线总览暂不可用。");
+	}
+
+	int32 VisitedCount = 0;
+	int32 ResolvedCount = 0;
+	int32 ReachableCount = 0;
+	int32 LockedCount = 0;
+	for (const FFinalRunRouteNodeViewData& Node : RouteOverview.Nodes)
+	{
+		VisitedCount += Node.bVisited ? 1 : 0;
+		ResolvedCount += Node.bResolved ? 1 : 0;
+		ReachableCount += Node.bReachable ? 1 : 0;
+		LockedCount += Node.bLocked ? 1 : 0;
+	}
+
+	return FText::Format(
+		NSLOCTEXT("FinalFlowUI", "RunFlowRouteSummary", "路线：{0}\n节点 {1} | 已访问 {2} | 已解决 {3} | 可达 {4} | 锁定 {5}"),
+		FormatOptionalText(RouteOverview.DisplayName, FormatOptionalName(RouteOverview.RouteId, NSLOCTEXT("FinalFlowUI", "RunFlowRouteSummaryUnnamed", "未命名路线"))),
+		FText::AsNumber(RouteOverview.Nodes.Num()),
+		FText::AsNumber(VisitedCount),
+		FText::AsNumber(ResolvedCount),
+		FText::AsNumber(ReachableCount),
+		FText::AsNumber(LockedCount));
+}
+
+FText UFinalRunFlowOverlayScreen::BuildCurrentStageText() const
+{
+	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
+	const EFinalRunFlowStage FlowStage = Snapshot.Progression.FlowStage;
+	if (Snapshot.PendingBattleReward.bHasPendingReward || FlowStage == EFinalRunFlowStage::PendingBattleReward)
+	{
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageBattleReward", "当前阶段：战后奖励");
+	}
+
+	switch (FlowStage)
+	{
+	case EFinalRunFlowStage::AwaitingNodeAdvance:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageNodeAdvance", "当前阶段：选择下一节点");
+
+	case EFinalRunFlowStage::PendingRewardNode:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageRewardNode", "当前阶段：奖励节点");
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageEventNode", "当前阶段：事件节点");
+
+	case EFinalRunFlowStage::PendingShopNode:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageShopNode", "当前阶段：商店节点");
+
+	case EFinalRunFlowStage::RunEnded:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageRunEnded", "当前阶段：Run 已结束");
+
+	case EFinalRunFlowStage::PreparingBattle:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStagePreparingBattle", "当前阶段：准备战斗");
+
+	case EFinalRunFlowStage::None:
+	default:
+		return NSLOCTEXT("FinalFlowUI", "RunFlowStageNone", "当前阶段：无待处理流程");
+	}
 }
 
 bool UFinalRunFlowOverlayScreen::CanUsePreviousNext() const

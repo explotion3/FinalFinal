@@ -39,6 +39,7 @@ class UFinalRunFlowOptionButton;
 class UFinalRunFlowOverlayScreen;
 class UFinalRunGrowthChoiceOverlayScreen;
 class UFinalRunFlowPromptPanel;
+class UFinalRunRouteNodeEntryWidget;
 class UFinalUIRootLayout;
 
 UCLASS(Config=Game, DefaultConfig, DisplayName="Final UI Widget Classes")
@@ -85,6 +86,7 @@ public:
 	static TSubclassOf<UFinalRunFlowOverlayScreen> GetRunFlowOverlayScreenClass();
 	static TSubclassOf<UFinalRunGrowthChoiceOverlayScreen> GetRunGrowthChoiceOverlayScreenClass();
 	static TSubclassOf<UFinalRunFlowOptionButton> GetRunFlowOptionButtonClass();
+	static TSubclassOf<UFinalRunRouteNodeEntryWidget> GetRunRouteNodeEntryWidgetClass();
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
 	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
@@ -190,4 +192,7 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunFlowOptionButton> RunFlowOptionButtonClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunRouteNodeEntryWidget> RunRouteNodeEntryWidgetClass;
 };

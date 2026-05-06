@@ -4,7 +4,7 @@
 
 ## P0
 
-**Run 外层流程页面可读化**：系统为 `FinalRun / FinalApp / UI`。RunFlow 协议当前已由 `RouteOverview + AvailableFlowActions` 收口，Run 主流程也能走通战后奖励、节点推进、事件、商店和成长选择；后续重点转向视觉和交互可读性，统一整理 RunFlowOverlay、Reward、Event、Shop、Growth 的标题、候选卡片、反馈、关闭/恢复入口，让首章竖切从战斗结束到下一节点都可读。
+**Run 外层专用页视觉收口**：系统为 `FinalRun / FinalApp / UI`。RunFlow 协议和统一主流程页当前已由 `RouteOverview + AvailableFlowActions` 收口，主页面能显示路线概览、阶段摘要、动作列表和反馈；后续重点转向 Reward / Event / Shop / Growth 专用页的视觉和交互整理，包括候选卡片、商品条目、事件选项、反馈、关闭 / 恢复入口与 WBP 视觉一致性，让首章竖切从战斗结束到下一节点都更可读。
 
 ## P1
 

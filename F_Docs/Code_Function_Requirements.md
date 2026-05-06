@@ -518,6 +518,8 @@
 
 - `FinalRunFlowSubsystem` 仍是 `FinalApp` 内唯一的 Run 外层流程桥接入口
 - `FinalRunSession` 通过 `RunSnapshot.RouteOverview` 提供整条路线的节点状态，通过 `RunSnapshot.AvailableFlowActions` 提供当前阶段可展示动作；`FinalApp / World` 只消费这些 ViewData 并提交对应 `RunCommand`，不自行推断路线真相
+- `FinalRunFlowOverlayScreen` 是统一 RunFlow 主流程页：顶部 / 路线概览 / 动作列表 / 反馈区都只消费 `RunSnapshot`，主操作按钮只从 `AvailableFlowActions` 构建；旧 reward / event / shop / progression 专用数据区只能作为兼容 fallback 或详情参考
+- `FinalRunRouteNodeEntryWidget` 是只读路线节点 Entry，不允许直接推进节点；所有节点推进仍必须通过 `AvailableFlowActions` 里的 `AdvanceToNode` 动作提交到 `RunFlowSubsystem`
 - `FinalGameFlowSubsystem` 当前是 BattleGrowthFact -> Run 突破值桥接层，同时负责“立即弹 / 延后弹”的安全窗口判断
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
 - Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相

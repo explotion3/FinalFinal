@@ -8,6 +8,7 @@
 class UButton;
 class UTextBlock;
 class UVerticalBox;
+class UWidget;
 
 enum class EFinalRunFlowOptionKind : uint8
 {
@@ -20,6 +21,7 @@ enum class EFinalRunFlowOptionKind : uint8
 };
 
 class UFinalRunFlowOptionButton;
+class UFinalRunRouteNodeEntryWidget;
 DECLARE_MULTICAST_DELEGATE_OneParam(FFinalRunFlowOptionClickedNative, UFinalRunFlowOptionButton*);
 
 struct FINALAPP_API FFinalRunFlowOptionButtonData
@@ -89,6 +91,52 @@ private:
 };
 
 UCLASS()
+class FINALAPP_API UFinalRunRouteNodeEntryWidget : public UFinalWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeOnInitialized() override;
+
+	void ApplyRouteNodeView(const FFinalRunRouteNodeViewData& InViewData);
+	const FFinalRunRouteNodeViewData& GetRouteNodeViewData() const { return CachedViewData; }
+
+protected:
+	UFUNCTION(BlueprintImplementableEvent, Category = "Final|RunFlow")
+	void OnRouteNodeViewApplied(const FFinalRunRouteNodeViewData& ViewData);
+
+private:
+	void EnsureWidgetTree();
+	void RefreshBoundWidgets();
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> NodeLabelText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> NodeTypeText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StateText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> AvailabilityText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> CurrentVisual;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> VisitedVisual;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> LockedVisual;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> ResolvedVisual;
+
+	FFinalRunRouteNodeViewData CachedViewData;
+};
+
+UCLASS()
 class FINALAPP_API UFinalRunFlowOverlayScreen : public UFinalRunStageOverlayScreenBase
 {
 	GENERATED_BODY()
@@ -125,6 +173,7 @@ private:
 
 	void EnsureWidgetTree();
 	void RebuildVisual();
+	void RebuildRouteNodeList();
 	void RebuildOptionLists();
 	void ClearOptionLists();
 	void ClampSelectionIndices();
@@ -139,6 +188,8 @@ private:
 	bool CanUsePreviousNext() const;
 	bool CanUsePrimaryAction() const;
 	bool CanUseSecondaryAction() const;
+	FText BuildRouteSummaryText() const;
+	FText BuildCurrentStageText() const;
 
 	const FFinalRunNodeOptionViewData* GetSelectedNextNode() const;
 	const FFinalRunEventOptionViewData* GetSelectedEventOption() const;
@@ -146,6 +197,12 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CurrentNodeText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> CurrentStageText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> RouteSummaryText;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StageDetailText;
@@ -164,6 +221,12 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> ShopOfferListBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> RouteNodeListBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> ActionListBox;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RewardOption0Button;

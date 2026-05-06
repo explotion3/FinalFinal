@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-06：RunFlow 主流程页面可读化 v0.1
+
+- `FinalRunFlowOverlayScreen` 当前收口为统一 RunFlow 主流程页：顶部显示当前阶段 / 当前节点 / 路线摘要，中部显示 `RouteOverview.Nodes` 的只读路线列表，主操作区只从 `AvailableFlowActions` 构建动作按钮。
+- 新增 `FinalRunRouteNodeEntryWidget` 作为路线节点 Entry 父类，支持 `NodeLabelText / NodeTypeText / StateText / AvailabilityText / CurrentVisual / VisitedVisual / LockedVisual / ResolvedVisual` 可选绑定；该 Entry 只显示节点状态，不提交 RunCommand。
+- `FinalUIWidgetClassSettings` 当前新增 `RunRouteNodeEntryWidgetClass`，允许 WBP 替换路线节点 Entry；未配置时继续使用 C++ fallback。
+- 旧 reward / event / shop / next-node 分区仍保留为兼容 fallback 和详情参考，但主流程按钮来源已经统一到 `AvailableFlowActions`，UI 不再按阶段自行推断动作。
+
 ## 2026-05-06：RunFlow 路线总览与阶段动作协议收口
 
 - `FinalRunSnapshot` 当前新增 `RouteOverview`，由 `FinalRunSession` 从已配置路线、当前节点、已访问 / 已解决节点和当前 FlowStage 派生整条路线 ViewData；`FinalApp` 不再需要自行推断路线节点状态。

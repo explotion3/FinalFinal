@@ -224,3 +224,8 @@ TSubclassOf<UFinalRunFlowOptionButton> UFinalUIWidgetClassSettings::GetRunFlowOp
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunFlowOptionButtonClass);
 }
+
+TSubclassOf<UFinalRunRouteNodeEntryWidget> UFinalUIWidgetClassSettings::GetRunRouteNodeEntryWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRouteNodeEntryWidgetClass);
+}

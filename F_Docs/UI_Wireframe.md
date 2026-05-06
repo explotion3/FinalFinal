@@ -315,10 +315,11 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `FinalRunGrowthChoiceOverlayScreen` 当前是独立 screen，只消费 `RunSnapshot.PendingGrowthChoice` 与角色 view data；它不保存成长真相，只负责选择并转发 `SelectGrowthChoice`
 * 若突破值在玩家命令结算后首次达到阈值，Growth overlay 会立即成为当前外层页；若来自敌方阶段、被动链或战斗胜利，则等下一个安全窗口再展示
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为可恢复入口：当流程处于成长选择、战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只触发 `RunFlowSubsystem.RefreshRunFlow(true)`，不直接执行任何 RunCommand
-* `FinalRunFlowOverlayScreen` 当前主操作区采用列表按钮：战后卡牌候选、下一节点、事件选项、商店商品都直接显示为按钮；点击后分别转发 `ClaimPendingBattleRewardById / AdvanceToNode / ResolveEventOption / ResolveShopOffer`；节点显示优先使用 `DisplayName`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback
+* `FinalRunFlowOverlayScreen` 当前主操作区优先消费 `RunSnapshot.AvailableFlowActions`，统一生成动作按钮；战后奖励、节点推进、奖励节点、事件选项、商店购买都通过 action 转发到 `RunFlowSubsystem -> RunSession.SubmitRunCommand()`，不在 UI 中分阶段重建命令真相。
+* `FinalRunFlowOverlayScreen` 当前同时消费 `RunSnapshot.RouteOverview` 生成只读路线概览；节点显示优先使用 `DisplayName / DisplayLabel`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback。
 * `RunSnapshot.RouteOverview` 是路线可视化的主输入：路线图 UI、未来 HD-2D RunMap 和房间卡改造都应读取它的节点状态，不在 Widget 或 World Actor 中反推 visited / resolved / reachable / locked。
 * `RunSnapshot.AvailableFlowActions` 是当前阶段主操作列表：RunFlowOverlay、未来场景物体交互或路线按钮都应把点击转换为该 action 对应的 `RunCommand`，最终合法性仍由 `FinalRunSession` 校验。
-* `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass` 与 `RunFlowOptionButtonClass`；未配置时继续使用 C++ fallback
+* `Final > UI` 的 Widget Class 设置支持替换 `RunFlowOverlayScreenClass / RunFlowOptionButtonClass / RunRouteNodeEntryWidgetClass`；未配置时继续使用 C++ fallback
 * 旧的上一个 / 下一个 / 执行当前操作按钮保留为字段与奖励节点 fallback，但不再是战后奖励、节点推进、事件、商店的主流程交互路径
 * `UISubsystem` 中保留的 `ShowBattleRewardOverlayPlaceholder / ShowNodeProgressOverlayPlaceholder / ShowNodeSelectOverlayPlaceholder / ShowRewardNodeOverlayPlaceholder / ShowEventNodeOverlayPlaceholder / ShowShopNodeOverlayPlaceholder` 现在属于显式调用 / 调试入口，不再是主流程驱动点
 * `RunFlowSubsystem.GetLastFlowMessage()` 当前对奖励结果事件优先拼接 `RunEvent.RewardEntryViews` 与 `AffectedCharacterResults`，因此 Reward 页、节点页和 `PrototypeRunDebugScreen` 的最近反馈不会再以 raw `RunEvent.RewardEntries` 或本地 Growth 推断为主路径
@@ -329,7 +330,11 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 可绑定控件名：
 * `TitleText`
 * `SummaryText`
+* `CurrentStageText`
 * `CurrentNodeText`
+* `RouteSummaryText`
+* `RouteNodeListBox`
+* `ActionListBox`
 * `StageDetailText`
 * `FeedbackText`
 * `RewardOptionListBox`
@@ -350,6 +355,15 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `OptionLabel`：旧版兼容字段；如果 WBP 只绑定这个控件，C++ 会写入合并后的多行文本
 
 条目数据来源仍是 `RunSnapshot` 展示数据，点击后由 `FinalRunFlowOverlayScreen` 统一转发到 `RunFlowSubsystem`。
+
+推荐 `WBP_RunRouteNodeEntry` 父类使用 `FinalRunRouteNodeEntryWidget`。它只负责显示路线节点状态，不提交 `RunCommand`；节点推进必须来自 `AvailableFlowActions` 中的 `AdvanceToNode` 动作。
+
+可绑定控件名：
+* `NodeLabelText`：节点主标题，例如 `战斗 1-2` 或节点显示名
+* `NodeTypeText`：节点类型，例如普通战斗、事件、商店、Boss
+* `StateText`：当前 / 已访问 / 已解决 / 可前往 / 锁定等状态摘要
+* `AvailabilityText`：不可用原因或可前往提示
+* `CurrentVisual / VisitedVisual / LockedVisual / ResolvedVisual`：可选视觉标记，由 C++ 根据节点 ViewData 控制显隐
 
 ### 2.2.2 RunGrowthChoiceOverlay WBP 绑定建议
 推荐 `WBP_RunGrowthChoiceOverlay` 父类使用 `FinalRunGrowthChoiceOverlayScreen`。它是独立 overlay，不与统一 `RunFlowOverlay` 混用。
