@@ -165,6 +165,15 @@
 - 处理中途 Break 检查
 - 处理先机减少事件
 - 处理敌人插队时机与同窗口优先级
+- 处理 Break 产生的 `SkipNextAction` 行动覆盖
+
+当前边界：
+
+- 先机规则属于 `FinalBattle` 权威系统，`FinalApp / UI / Actor / WBP` 只消费 snapshot 和事件。
+- 普通牌 / 崩溃牌完整结算后触发先机减少；快速牌跳过；奥义默认不触发。
+- 敌人先机归零后由 `FinalBattle` 排入 `PendingEnemyActionQueue`，并按站位稳定结算。
+- Break 当前不直接替换敌人 intent，而是设置 `ActionOverrideType = SkipNextAction`；该覆盖在敌方行动阶段结算一次“无法行动”后清除。
+- `SkipNextAction` 不调用普通 intent 执行，也不推进普通 intent 的 use count、cooldown、scripted step 或连续使用统计。
 
 优先级：`P0`
 
@@ -581,7 +590,7 @@
 - 卡牌与牌区循环
 - AP / EP 资源系统
 - 伤害、治疗、压力与临界状态机
-- Break 与先机
+- Break 与先机 / 行动覆盖
 - 状态系统
 - 敌人意图与行动
 - 角色升级成长三选一
@@ -649,7 +658,7 @@
 3. `FinalRun` 组装战斗输入
 4. `FinalBattle` 创建战斗并初始化牌堆
 5. 玩家打出 1 张牌
-6. 结算伤害、削韧、Break、先机与压力
+6. 结算伤害、削韧、Break、先机、行动覆盖与压力
 7. 压力可进入 `Critical`，并在继续受压时进入崩溃判定
 8. 敌人行动
 9. 战斗胜利

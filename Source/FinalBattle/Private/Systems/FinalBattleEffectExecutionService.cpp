@@ -26,6 +26,7 @@
 #include "Systems/FinalBattleCardService.h"
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEventService.h"
+#include "Systems/FinalBattleInitiativeService.h"
 #include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
@@ -46,6 +47,7 @@ const FFinalBattleTriggerService& GetTriggerService();
 const FFinalBattleResourceService& GetResourceService();
 const FFinalBattleStatusService& GetStatusService();
 const FFinalBattlePassiveService& GetPassiveService();
+const FFinalBattleInitiativeService& GetInitiativeService();
 const FFinalEnemyIntentService& GetEnemyIntentService();
 bool ExecuteEffectListInternal(
 	FFinalBattleState& State,
@@ -85,6 +87,12 @@ const FFinalBattleEventService& GetEventService()
 {
 	static const FFinalBattleEventService EventService;
 	return EventService;
+}
+
+const FFinalBattleInitiativeService& GetInitiativeService()
+{
+	static const FFinalBattleInitiativeService InitiativeService;
+	return InitiativeService;
 }
 
 const FFinalBattleTriggerService& GetTriggerService()
@@ -575,7 +583,6 @@ int32 ApplyDamageToEnemy(
 	EnemyState.CurrentShield -= ShieldAbsorbed;
 	const int32 HpDamage = FMath::Max(DamageAmount - ShieldAbsorbed, 0);
 	EnemyState.CurrentHP = FMath::Max(0, EnemyState.CurrentHP - HpDamage);
-	EnemyState.CurrentInitiative = FMath::Max(0, EnemyState.CurrentInitiative - 1);
 
 	if (EnemyState.CurrentHP <= 0)
 	{
@@ -659,6 +666,7 @@ int32 ApplyBonusBreakToEnemy(FFinalBattleEnemyState& EnemyState, const int32 Bre
 	const int32 ClampedBreakAmount = FMath::Max(BreakAmount, 0);
 	const int32 PreviousBreakValue = EnemyState.CurrentBreakValue;
 	EnemyState.CurrentBreakValue = FMath::Max(EnemyState.CurrentBreakValue - ClampedBreakAmount, 0);
+	GetInitiativeService().ApplyBreakSkipActionOverride(EnemyState, PreviousBreakValue);
 	return FMath::Max(PreviousBreakValue - EnemyState.CurrentBreakValue, 0);
 }
 

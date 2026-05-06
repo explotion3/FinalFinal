@@ -13,6 +13,12 @@
 #include "Runtime/FinalBattleStatusInstance.h"
 #include "Runtime/FinalTeamDeckState.h"
 
+struct FFinalBattlePendingEnemyAction
+{
+	FName EnemyUnitId = NAME_None;
+	FName ReasonTag = NAME_None;
+};
+
 struct FFinalBattleState
 {
 	FGuid BattleId;
@@ -37,6 +43,7 @@ struct FFinalBattleState
 	TArray<FFinalBattleRelicRuntimeState> RelicRuntimeStates;
 	TArray<FFinalBattlePassiveInstance> PassiveInstances;
 	TArray<FFinalBattleEnemyState> Enemies;
+	TArray<FFinalBattlePendingEnemyAction> PendingEnemyActionQueue;
 	TArray<FFinalBattleCardInstance> CardInstances;
 	TMap<FGuid, int32> CardInstanceIndexById;
 	TArray<FFinalBattleStatusInstance> StatusInstances;

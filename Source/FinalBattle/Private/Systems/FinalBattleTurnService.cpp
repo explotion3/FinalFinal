@@ -7,17 +7,16 @@
 #include "Systems/FinalBattleConditionService.h"
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEnemyActionService.h"
+#include "Systems/FinalBattleInitiativeService.h"
 #include "Systems/FinalBattlePassiveService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleStatusService.h"
 #include "Systems/FinalBattleTriggerService.h"
 #include "Systems/FinalBattleUnitService.h"
-#include "Systems/FinalEnemyIntentService.h"
 
 namespace
 {
-const FName TeamPlayerUnitId(TEXT("team_player"));
 const FName PassiveRemovedExpiredReasonTag(TEXT("passive.removed.expired"));
 
 const FFinalBattlePassiveService& GetPassiveService()
@@ -26,10 +25,10 @@ const FFinalBattlePassiveService& GetPassiveService()
 	return PassiveService;
 }
 
-const FFinalEnemyIntentService& GetEnemyIntentService()
+const FFinalBattleInitiativeService& GetInitiativeService()
 {
-	static const FFinalEnemyIntentService IntentService;
-	return IntentService;
+	static const FFinalBattleInitiativeService InitiativeService;
+	return InitiativeService;
 }
 
 FFinalBattleEvent BuildPassiveRemovedEvent(const FFinalBattlePassiveRemovalResult& RemovalResult)
@@ -89,40 +88,22 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 		return Result;
 	}
 
-	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)
+	const FFinalBattleEnemyActionSequenceResult EnemyActionSequenceResult = GetInitiativeService().ResolveEndTurnEnemyActions(
+		BattleState,
+		EnemyActionService,
+		UnitService,
+		TriggerService,
+		EffectExecutionService);
+	Result.TotalDamageToTeam += EnemyActionSequenceResult.TotalDamageToTeam;
+	Result.TotalEnemyShieldGained += EnemyActionSequenceResult.TotalEnemyShieldGained;
+	Result.ResolvedEffectCount += EnemyActionSequenceResult.ResolvedEffectCount;
+	Result.GeneratedEvents.Append(EnemyActionSequenceResult.GeneratedEvents);
+	Result.bBattleLost = Result.bBattleLost || EnemyActionSequenceResult.bBattleLost;
+
+	if (Result.bBattleLost || BattleState.TeamCurrentHP <= 0)
 	{
-		if (EnemyState.CurrentHP <= 0)
-		{
-			continue;
-		}
-
-		const FFinalBattleEnemyActionResult ActionResult = EnemyActionService.ResolveEnemyAction(
-			BattleState,
-			EnemyState,
-			UnitService,
-			TriggerService,
-			EffectExecutionService);
-		Result.TotalDamageToTeam += ActionResult.DamageToTeam;
-		Result.TotalEnemyShieldGained += ActionResult.EnemyShieldGained;
-		Result.ResolvedEffectCount += ActionResult.ResolvedEffectCount;
-
-		EnemyState.bActedThisRound = true;
-
-		FFinalBattleEvent EnemyActionEvent;
-		EnemyActionEvent.EventType = EFinalBattleEventType::EnemyActed;
-		EnemyActionEvent.SourceUnitId = EnemyState.RuntimeUnitId;
-		EnemyActionEvent.TargetUnitId = TeamPlayerUnitId;
-		EnemyActionEvent.RelatedTag = EnemyState.CurrentIntentId;
-		EnemyActionEvent.PrimaryValue = ActionResult.DamageToTeam;
-		EnemyActionEvent.SecondaryValue = ActionResult.EnemyShieldGained;
-		EnemyActionEvent.Message = FText::Format(
-			NSLOCTEXT("FinalBattleTurnService", "EnemyActed", "{0} resolved intent {1}."),
-			EnemyState.DisplayName.IsEmpty() ? FText::FromName(EnemyState.RuntimeUnitId) : EnemyState.DisplayName,
-			EnemyState.CurrentIntentText.IsEmpty() ? FText::FromString(TEXT("Attack")) : EnemyState.CurrentIntentText);
-		Result.GeneratedEvents.Add(MoveTemp(EnemyActionEvent));
-
-		GetEnemyIntentService().CommitCurrentIntentExecution(EnemyState, BattleState.CurrentRound);
-		GetEnemyIntentService().RefreshIntent(EnemyState, BattleState.CurrentRound + 1);
+		Result.bBattleLost = true;
+		return Result;
 	}
 
 	ResourceService.GainEndTurnEP(BattleState, RuleConfig);
@@ -145,10 +126,7 @@ FFinalBattleEndTurnResult FFinalBattleTurnService::ResolveEndTurn(
 		UnitService,
 		Result.GeneratedEvents);
 
-	for (FFinalBattleEnemyState& EnemyState : BattleState.Enemies)
-	{
-		EnemyState.bActedThisRound = false;
-	}
+	GetInitiativeService().ResetEnemyInitiativeForNewRound(BattleState);
 
 	const int32 TurnStartDrawCount = RuleConfig
 		? FMath::Max(RuleConfig->TurnStartDrawCount, 0)

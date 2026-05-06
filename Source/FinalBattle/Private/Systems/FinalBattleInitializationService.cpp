@@ -254,7 +254,12 @@ void FFinalBattleInitializationService::InitializeBattle(
 			EnemyState.CurrentShield = 0;
 			EnemyState.MaxBreakValue = LoadedEnemy->MaxBreakValue;
 			EnemyState.CurrentBreakValue = LoadedEnemy->MaxBreakValue;
-			EnemyState.CurrentInitiative = LoadedEnemy->InitialInitiativeValue;
+			EnemyState.InitialInitiative = FMath::Max(LoadedEnemy->InitialInitiativeValue, 0);
+			EnemyState.CurrentInitiative = EnemyState.InitialInitiative;
+			EnemyState.InitiativeResponse = FMath::Max(LoadedEnemy->InitiativeResponse, 0);
+			EnemyState.InitiativeState = EFinalEnemyInitiativeState::Counting;
+			EnemyState.ActionsTakenThisRound = 0;
+			EnemyState.MaxActionsPerRound = 1;
 			EnemyState.RuntimeDamagePower = LoadedEnemy->BaseDamagePower;
 			EnemyState.IntentSelectRule = LoadedEnemy->IntentSelectRule;
 			EnemyState.PhaseSequence = LoadedEnemy->PhaseSequence;

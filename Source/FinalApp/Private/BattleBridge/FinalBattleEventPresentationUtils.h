@@ -211,6 +211,12 @@ inline FText GetEventTypeText(const EFinalBattleEventType EventType)
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeTargetChanged", "TargetChanged");
 	case EFinalBattleEventType::EnemyActed:
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeEnemyActed", "EnemyActed");
+	case EFinalBattleEventType::EnemyInitiativeChanged:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeEnemyInitiativeChanged", "EnemyInitiativeChanged");
+	case EFinalBattleEventType::EnemyQueuedByInitiative:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeEnemyQueuedByInitiative", "EnemyQueuedByInitiative");
+	case EFinalBattleEventType::EnemyActionSkipped:
+		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeEnemyActionSkipped", "EnemyActionSkipped");
 	case EFinalBattleEventType::TurnTransition:
 		return NSLOCTEXT("FinalBattleEventPresentation", "EventTypeTurnTransition", "TurnTransition");
 	case EFinalBattleEventType::PhaseChanged:
@@ -331,6 +337,12 @@ inline FText BuildTitleText(
 		return NSLOCTEXT("FinalBattleEventPresentation", "TitleTargetChanged", "目标切换");
 	case EFinalBattleEventType::EnemyActed:
 		return NSLOCTEXT("FinalBattleEventPresentation", "TitleEnemyActed", "敌方行动");
+	case EFinalBattleEventType::EnemyInitiativeChanged:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitleEnemyInitiativeChanged", "先机变化");
+	case EFinalBattleEventType::EnemyQueuedByInitiative:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitleEnemyQueuedByInitiative", "先机触发");
+	case EFinalBattleEventType::EnemyActionSkipped:
+		return NSLOCTEXT("FinalBattleEventPresentation", "TitleEnemyActionSkipped", "敌方无法行动");
 	case EFinalBattleEventType::TurnTransition:
 		return NSLOCTEXT("FinalBattleEventPresentation", "TitleTurnTransition", "回合切换");
 	case EFinalBattleEventType::PhaseChanged:
@@ -409,6 +421,31 @@ inline FText BuildSummaryText(
 		if (!SourceName.IsEmpty())
 		{
 			return FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "SummaryEnemyActed", "{0} 已执行当前行动"), SourceName);
+		}
+		break;
+
+	case EFinalBattleEventType::EnemyInitiativeChanged:
+		if (!SourceName.IsEmpty())
+		{
+			return FText::Format(
+				NSLOCTEXT("FinalBattleEventPresentation", "SummaryEnemyInitiativeChanged", "{0} 先机 {1} -> {2}"),
+				SourceName,
+				FText::AsNumber(Event.PrimaryValue),
+				FText::AsNumber(Event.SecondaryValue));
+		}
+		break;
+
+	case EFinalBattleEventType::EnemyQueuedByInitiative:
+		if (!SourceName.IsEmpty())
+		{
+			return FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "SummaryEnemyQueuedByInitiative", "{0} 先机归零，准备行动"), SourceName);
+		}
+		break;
+
+	case EFinalBattleEventType::EnemyActionSkipped:
+		if (!SourceName.IsEmpty())
+		{
+			return FText::Format(NSLOCTEXT("FinalBattleEventPresentation", "SummaryEnemyActionSkipped", "{0} 无法行动"), SourceName);
 		}
 		break;
 

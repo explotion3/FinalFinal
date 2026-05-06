@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Ids/FinalIds.h"
+#include "Queries/FinalBattleQueryTypes.h"
 #include "Types/FinalCoreTypes.h"
 
 class UFinalEnemyIntentDefinition;
@@ -36,7 +37,16 @@ struct FFinalBattleEnemyState
 	int32 MaxBreakValue = 0;
 	int32 CurrentBreakValue = 0;
 	int32 CurrentInitiative = 0;
+	int32 InitialInitiative = 0;
+	int32 InitiativeResponse = 0;
+	EFinalEnemyInitiativeState InitiativeState = EFinalEnemyInitiativeState::Counting;
+	int32 ActionsTakenThisRound = 0;
+	int32 MaxActionsPerRound = 1;
 	int32 RuntimeDamagePower = 0;
+	EFinalEnemyActionOverrideType ActionOverrideType = EFinalEnemyActionOverrideType::None;
+	FName ActionOverrideReasonTag = NAME_None;
+	FText ActionOverrideDisplayName;
+	FText ActionOverridePreviewText;
 	EFinalIntentSelectRule IntentSelectRule = EFinalIntentSelectRule::Cycle;
 	TArray<FFinalEnemyPhaseDefinition> PhaseSequence;
 	TArray<FFinalBattleEnemyScriptedIntentRuntimeStep> ScriptedIntentSequence;

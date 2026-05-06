@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/SlateBrush.h"
 #include "UI/ViewModels/Battle/FinalBattleHUDTypes.h"
 #include "UI/Widgets/FinalWidgetBase.h"
 #include "FinalBattleEnemyDetailWidget.generated.h"
 
 class UButton;
 class UFinalBattleEnemyDetailStatusLineWidget;
+class UImage;
 class UPanelWidget;
 class UProgressBar;
 class UTextBlock;
@@ -40,6 +42,7 @@ private:
 	FText BuildHPText() const;
 	FText BuildShieldText() const;
 	FText BuildBreakText() const;
+	void RefreshIntentIcon();
 	void RefreshStatusLines();
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail", meta = (ClampMin = "1"))
@@ -47,6 +50,15 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail")
 	TSubclassOf<UFinalBattleEnemyDetailStatusLineWidget> StatusLineWidgetClass;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail|Intent")
+	TMap<FName, FSlateBrush> IntentIconBrushes;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail|Intent")
+	FSlateBrush DefaultIntentIconBrush;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyDetail|Intent")
+	bool bHideIntentIconWhenMissingBrush = true;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ContentRoot;
@@ -86,6 +98,9 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> IntentText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UImage> IntentIconImage;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PhaseText;

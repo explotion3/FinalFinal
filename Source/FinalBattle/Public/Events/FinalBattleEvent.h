@@ -20,6 +20,9 @@ enum class EFinalBattleEventType : uint8
 	UltimateResolved,
 	TargetChanged,
 	EnemyActed,
+	EnemyInitiativeChanged,
+	EnemyQueuedByInitiative,
+	EnemyActionSkipped,
 	TurnTransition,
 	PhaseChanged,
 	BattleResolved

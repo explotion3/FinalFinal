@@ -1,5 +1,6 @@
 #include "Systems/FinalBattleSnapshotBuilder.h"
 
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Runtime/FinalBattleCharacterState.h"
 #include "Runtime/FinalBattleEnemyState.h"
 #include "Runtime/FinalBattleState.h"
@@ -41,6 +42,51 @@ FFinalBattlePhaseProgressViewData BuildPhaseProgress(const FFinalBattleEnemyStat
 	const float PhaseSpan = FMath::Max(UpperBound - LowerBound, KINDA_SMALL_NUMBER);
 	PhaseProgress.ProgressWithinPhase = FMath::Clamp((UpperBound - CurrentHpPercent) / PhaseSpan, 0.0f, 1.0f);
 	return PhaseProgress;
+}
+
+FFinalBattleIntentViewData BuildIntentView(const FFinalBattleEnemyState& EnemyState)
+{
+	FFinalBattleIntentViewData IntentView;
+
+	if (EnemyState.ActionOverrideType == EFinalEnemyActionOverrideType::SkipNextAction)
+	{
+		IntentView.bHasIntent = true;
+		IntentView.IntentId = EnemyState.ActionOverrideReasonTag;
+		IntentView.IconId = EnemyState.ActionOverrideReasonTag;
+		IntentView.DisplayName = EnemyState.ActionOverrideDisplayName.IsEmpty()
+			? NSLOCTEXT("FinalBattleSnapshotBuilder", "SkipNextActionDisplayName", "无法行动")
+			: EnemyState.ActionOverrideDisplayName;
+		IntentView.PreviewText = EnemyState.ActionOverridePreviewText.IsEmpty()
+			? NSLOCTEXT("FinalBattleSnapshotBuilder", "SkipNextActionPreview", "该敌人本次行动被跳过。")
+			: EnemyState.ActionOverridePreviewText;
+		return IntentView;
+	}
+
+	IntentView.IntentId = EnemyState.CurrentIntentId;
+	IntentView.IconId = EnemyState.CurrentIntentId;
+	IntentView.bHasIntent = !EnemyState.CurrentIntentId.IsNone() || !EnemyState.CurrentIntentText.IsEmpty();
+
+	const UFinalEnemyIntentDefinition* IntentDefinition = EnemyState.CurrentIntentDefinition;
+	if (IntentDefinition != nullptr)
+	{
+		IntentView.bHasIntent = true;
+		IntentView.IntentId = IntentDefinition->IntentId.IsNone()
+			? EnemyState.CurrentIntentId
+			: IntentDefinition->IntentId;
+		IntentView.IconId = IntentView.IntentId;
+		IntentView.IntentType = IntentDefinition->IntentType;
+		IntentView.DisplayName = !IntentDefinition->DisplayName.IsEmpty()
+			? IntentDefinition->DisplayName
+			: EnemyState.CurrentIntentText;
+		IntentView.PreviewText = !IntentDefinition->PreviewText.IsEmpty()
+			? IntentDefinition->PreviewText
+			: (!EnemyState.CurrentIntentText.IsEmpty() ? EnemyState.CurrentIntentText : IntentView.DisplayName);
+		return IntentView;
+	}
+
+	IntentView.DisplayName = EnemyState.CurrentIntentText;
+	IntentView.PreviewText = EnemyState.CurrentIntentText;
+	return IntentView;
 }
 
 const FFinalBattlePassiveService& GetPassiveService()
@@ -125,8 +171,16 @@ FFinalBattleSnapshot FFinalBattleSnapshotBuilder::BuildSnapshot(
 		EnemyView.MaxBreakValue = EnemyState.MaxBreakValue;
 		EnemyView.CurrentBreakValue = EnemyState.CurrentBreakValue;
 		EnemyView.CurrentInitiative = EnemyState.CurrentInitiative;
+		EnemyView.InitialInitiative = EnemyState.InitialInitiative;
+		EnemyView.InitiativeResponse = EnemyState.InitiativeResponse;
+		EnemyView.InitiativeState = EnemyState.InitiativeState;
+		EnemyView.ActionsTakenThisRound = EnemyState.ActionsTakenThisRound;
+		EnemyView.MaxActionsPerRound = EnemyState.MaxActionsPerRound;
+		EnemyView.bHasActionOverride = EnemyState.ActionOverrideType != EFinalEnemyActionOverrideType::None;
+		EnemyView.ActionOverrideType = EnemyState.ActionOverrideType;
 		EnemyView.CurrentPhaseTag = EnemyState.CurrentPhaseTag;
 		EnemyView.CurrentIntentId = EnemyState.CurrentIntentId;
+		EnemyView.CurrentIntent = BuildIntentView(EnemyState);
 		EnemyView.PhaseProgress = BuildPhaseProgress(EnemyState);
 		EnemyView.IntentText = EnemyState.CurrentIntentText;
 		EnemyView.bActedThisRound = EnemyState.bActedThisRound;

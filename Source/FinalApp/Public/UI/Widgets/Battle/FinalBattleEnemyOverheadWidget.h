@@ -1,10 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/SlateBrush.h"
 #include "UI/Widgets/FinalWidgetBase.h"
 #include "World/FinalBattlePresentationTypes.h"
 #include "FinalBattleEnemyOverheadWidget.generated.h"
 
+class UImage;
 class UPanelWidget;
 class UProgressBar;
 class UTextBlock;
@@ -41,6 +43,7 @@ private:
 	void HandleInspectButtonClicked();
 
 	bool TryInspectEnemy() const;
+	void RefreshIntentIcon();
 	FText BuildHPText() const;
 	FText BuildStatusText(const FFinalBattleOverheadStatusViewData& StatusView) const;
 
@@ -55,6 +58,15 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyOverhead")
 	bool bHideDefeatedWidget = false;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyOverhead|Intent")
+	TMap<FName, FSlateBrush> IntentIconBrushes;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyOverhead|Intent")
+	FSlateBrush DefaultIntentIconBrush;
+
+	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyOverhead|Intent")
+	bool bHideIntentIconWhenMissingBrush = true;
 
 	UPROPERTY(EditAnywhere, Category = "Final|Battle|EnemyOverhead", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float DefeatedOpacity = 0.35f;
@@ -79,6 +91,9 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> IntentText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UImage> IntentIconImage;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> InspectButton;

@@ -3,7 +3,6 @@
 #include "Battle/Definitions/FinalCardDefinition.h"
 #include "Battle/Definitions/FinalCharacterDefinition.h"
 #include "Battle/Definitions/FinalEnemyDefinition.h"
-#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
@@ -183,22 +182,6 @@ FName ResolveEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
 	}
 
 	return NAME_None;
-}
-
-FText ResolveEnemyIntentDisplayName(const FFinalBattleEnemyViewData& EnemyView, const UFinalDataRegistry* DataRegistry)
-{
-	if (DataRegistry != nullptr && !EnemyView.CurrentIntentId.IsNone())
-	{
-		if (const UFinalEnemyIntentDefinition* IntentDefinition = DataRegistry->FindEnemyIntentDefinition(EnemyView.CurrentIntentId))
-		{
-			if (!IntentDefinition->DisplayName.IsEmpty())
-			{
-				return IntentDefinition->DisplayName;
-			}
-		}
-	}
-
-	return EnemyView.IntentText;
 }
 
 FText ResolveRelicDisplayName(const FFinalBattleStartRelicInput& RelicInput)
@@ -414,6 +397,12 @@ FText ResolveFeedbackTitleTextInternal(
 		return NSLOCTEXT("FinalBattleHUD", "FeedbackUltimateResolved", "奥义结算");
 	case EFinalBattleEventType::EnemyActed:
 		return NSLOCTEXT("FinalBattleHUD", "FeedbackEnemyActed", "敌方行动");
+	case EFinalBattleEventType::EnemyInitiativeChanged:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackEnemyInitiativeChanged", "先机变化");
+	case EFinalBattleEventType::EnemyQueuedByInitiative:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackEnemyQueuedByInitiative", "先机触发");
+	case EFinalBattleEventType::EnemyActionSkipped:
+		return NSLOCTEXT("FinalBattleHUD", "FeedbackEnemyActionSkipped", "敌方无法行动");
 	case EFinalBattleEventType::TurnTransition:
 		return NSLOCTEXT("FinalBattleHUD", "FeedbackTurnTransition", "回合切换");
 	case EFinalBattleEventType::PhaseChanged:
@@ -925,7 +914,9 @@ void UFinalBattleEnemyPanelController::RefreshFromCoordinatorData(const FFinalBa
 		Entry.TotalPhases = EnemyView.PhaseProgress.TotalPhases;
 		Entry.PhaseProgressWithinPhase = EnemyView.PhaseProgress.ProgressWithinPhase;
 		Entry.PhaseProgressText = FormatEnemyPhaseProgressText(EnemyView.PhaseProgress);
-		Entry.IntentText = EnemyView.IntentText;
+		Entry.IntentText = !EnemyView.CurrentIntent.PreviewText.IsEmpty()
+			? EnemyView.CurrentIntent.PreviewText
+			: EnemyView.IntentText;
 		Entry.bSelected = EnemyView.RuntimeUnitId == CoordinatorData.SelectedEnemyUnitId;
 		Entry.bActedThisRound = EnemyView.bActedThisRound;
 		Entry.StatusTexts = EnemyStatusTextsByOwner.FindRef(EnemyView.RuntimeUnitId);
@@ -984,9 +975,16 @@ void UFinalBattleEnemyDetailPanelController::RefreshFromCoordinatorData(const FF
 	Data.BreakPercent = CalculateClampedPercent(EnemyView->CurrentBreakValue, EnemyView->MaxBreakValue);
 	Data.CurrentInitiative = EnemyView->CurrentInitiative;
 	Data.InitiativeText = FText::AsNumber(EnemyView->CurrentInitiative);
-	Data.IntentText = EnemyView->IntentText;
-	Data.IntentNameText = ResolveEnemyIntentDisplayName(*EnemyView, CoordinatorData.DataRegistry);
-	Data.IntentIconId = EnemyView->CurrentIntentId;
+	Data.IntentText = !EnemyView->CurrentIntent.PreviewText.IsEmpty()
+		? EnemyView->CurrentIntent.PreviewText
+		: EnemyView->IntentText;
+	Data.IntentNameText = !EnemyView->CurrentIntent.DisplayName.IsEmpty()
+		? EnemyView->CurrentIntent.DisplayName
+		: Data.IntentText;
+	Data.IntentType = EnemyView->CurrentIntent.IntentType;
+	Data.IntentIconId = EnemyView->CurrentIntent.IconId.IsNone()
+		? EnemyView->CurrentIntentId
+		: EnemyView->CurrentIntent.IconId;
 	Data.PhaseProgressText = FormatEnemyPhaseProgressText(EnemyView->PhaseProgress);
 	Data.bIsCurrentBattleTarget = EnemyView->RuntimeUnitId == CoordinatorData.SelectedEnemyUnitId;
 	Data.bIsInspected = true;

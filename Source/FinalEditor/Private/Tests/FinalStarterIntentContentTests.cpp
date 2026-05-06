@@ -233,6 +233,10 @@ namespace FinalStarterIntentContentTests
 		{
 			bValid &= Test.TestFalse(TEXT("Starter enemy should expose an intent id."), EnemyView.CurrentIntentId.IsNone());
 			bValid &= Test.TestFalse(TEXT("Starter enemy should expose readable intent text."), EnemyView.IntentText.IsEmpty());
+			bValid &= Test.TestTrue(TEXT("Starter enemy should expose structured current intent."), EnemyView.CurrentIntent.bHasIntent);
+			bValid &= Test.TestEqual(TEXT("Structured intent id should match legacy intent id."), EnemyView.CurrentIntent.IntentId, EnemyView.CurrentIntentId);
+			bValid &= Test.TestFalse(TEXT("Structured intent should expose a display name."), EnemyView.CurrentIntent.DisplayName.IsEmpty());
+			bValid &= Test.TestFalse(TEXT("Structured intent should expose preview text."), EnemyView.CurrentIntent.PreviewText.IsEmpty());
 		}
 
 		for (int32 TurnIndex = 0; TurnIndex < 2 && !Snapshot.bBattleEnded; ++TurnIndex)

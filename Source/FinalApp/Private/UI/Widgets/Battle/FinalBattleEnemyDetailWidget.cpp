@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -49,6 +50,10 @@ void UFinalBattleEnemyDetailWidget::RefreshBoundWidgets()
 
 	if (!EnemyDetailViewData.bHasEnemy)
 	{
+		if (IntentIconImage)
+		{
+			IntentIconImage->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		return;
 	}
 
@@ -112,6 +117,8 @@ void UFinalBattleEnemyDetailWidget::RefreshBoundWidgets()
 		IntentDetailText->SetText(EnemyDetailViewData.IntentText);
 	}
 
+	RefreshIntentIcon();
+
 	if (PhaseText)
 	{
 		PhaseText->SetText(EnemyDetailViewData.PhaseProgressText);
@@ -149,6 +156,30 @@ void UFinalBattleEnemyDetailWidget::HandleCloseClicked()
 	{
 		DetailController->ClearInspectedEnemy();
 	}
+}
+
+void UFinalBattleEnemyDetailWidget::RefreshIntentIcon()
+{
+	if (IntentIconImage == nullptr)
+	{
+		return;
+	}
+
+	if (const FSlateBrush* IntentBrush = IntentIconBrushes.Find(EnemyDetailViewData.IntentIconId))
+	{
+		IntentIconImage->SetBrush(*IntentBrush);
+		IntentIconImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
+	if (bHideIntentIconWhenMissingBrush)
+	{
+		IntentIconImage->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	IntentIconImage->SetBrush(DefaultIntentIconBrush);
+	IntentIconImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
 FText UFinalBattleEnemyDetailWidget::BuildHPText() const

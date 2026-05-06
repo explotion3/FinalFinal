@@ -15,6 +15,7 @@
 #include "Systems/FinalBattleEffectExecutionService.h"
 #include "Systems/FinalBattleEffectExecutionTypes.h"
 #include "Systems/FinalBattleInitializationService.h"
+#include "Systems/FinalBattleInitiativeService.h"
 #include "Systems/FinalBattleRelicService.h"
 #include "Systems/FinalBattleResourceService.h"
 #include "Systems/FinalBattleSnapshotBuilder.h"
@@ -248,6 +249,12 @@ const FFinalBattleTriggerService& GetTriggerService()
 	return TriggerService;
 }
 
+const FFinalBattleInitiativeService& GetInitiativeService()
+{
+	static const FFinalBattleInitiativeService InitiativeService;
+	return InitiativeService;
+}
+
 const FFinalBattleInitializationService& GetInitializationService()
 {
 	static const FFinalBattleInitializationService InitializationService;
@@ -369,6 +376,20 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 		GetEventService().AppendBattleEvent(State, RelicEvent);
 	}
 
+	const FFinalBattleEnemyActionSequenceResult InitiativeResult = GetInitiativeService().ResolveCardInitiativeEvents(
+		State,
+		RuleConfig,
+		RelicCardContext,
+		OwnerCharacterState != nullptr && OwnerCharacterState->bCollapsed,
+		GetEnemyActionService(),
+		GetUnitService(),
+		GetTriggerService(),
+		GetEffectExecutionService());
+	for (const FFinalBattleEvent& InitiativeEvent : InitiativeResult.GeneratedEvents)
+	{
+		GetEventService().AppendBattleEvent(State, InitiativeEvent);
+	}
+
 	Event.EventType = EFinalBattleEventType::CardResolved;
 	Event.SourceUnitId = ResolvedRuntimeOwnerUnitId;
 	Event.TargetUnitId = GetUnitService().ResolveCommandTargetUnitId(State, Command);
@@ -390,6 +411,21 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayCardCommand(FFinalBattleState
 			FText::AsNumber(Summary.TotalTeamShieldGained),
 			FText::AsNumber(Summary.TotalCardsDrawn),
 			FText::AsNumber(Summary.TotalAPGained));
+		return GetEventService().FinalizeBattleEvent(State, Event);
+	}
+
+	if (InitiativeResult.bBattleLost)
+	{
+		MarkBattleResolved(State, false);
+		Event.EventType = EFinalBattleEventType::BattleResolved;
+		Event.TargetUnitId = TeamPlayerUnitId;
+		Event.PrimaryValue = InitiativeResult.TotalDamageToTeam;
+		Event.SecondaryValue = InitiativeResult.TotalEnemyShieldGained;
+		Event.Message = FText::Format(
+			NSLOCTEXT("FinalBattleResolver", "CardPlayInitiativeDefeat", "Enemy initiative actions resolved {0} effects. Team damage {1}, enemy shield {2}. Battle lost."),
+			FText::AsNumber(InitiativeResult.ResolvedEffectCount),
+			FText::AsNumber(InitiativeResult.TotalDamageToTeam),
+			FText::AsNumber(InitiativeResult.TotalEnemyShieldGained));
 		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 
@@ -470,6 +506,18 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 	GetEffectExecutionService().ExecuteEffectList(State, OwnerCharacterState->UltimateDefinition->Effects, &Command, nullptr, OwnerCharacterState, nullptr, GetUnitService(), Summary);
 	EmitGrowthFactsFromSummary(State, Summary);
 
+	const FFinalBattleEnemyActionSequenceResult InitiativeResult = GetInitiativeService().ResolveUltimateInitiativeEvents(
+		State,
+		RuleConfig,
+		GetEnemyActionService(),
+		GetUnitService(),
+		GetTriggerService(),
+		GetEffectExecutionService());
+	for (const FFinalBattleEvent& InitiativeEvent : InitiativeResult.GeneratedEvents)
+	{
+		GetEventService().AppendBattleEvent(State, InitiativeEvent);
+	}
+
 	Event.EventType = EFinalBattleEventType::UltimateResolved;
 	Event.TargetUnitId = GetUnitService().ResolveCommandTargetUnitId(State, Command);
 	Event.PrimaryValue = Summary.TotalDamageToEnemies;
@@ -490,6 +538,21 @@ FFinalBattleEvent FFinalBattleResolver::ExecutePlayUltimateCommand(FFinalBattleS
 			FText::AsNumber(Summary.TotalHealingToTeam),
 			FText::AsNumber(Summary.TotalTeamShieldGained),
 			FText::AsNumber(Summary.TotalAPGained));
+		return GetEventService().FinalizeBattleEvent(State, Event);
+	}
+
+	if (InitiativeResult.bBattleLost)
+	{
+		MarkBattleResolved(State, false);
+		Event.EventType = EFinalBattleEventType::BattleResolved;
+		Event.TargetUnitId = TeamPlayerUnitId;
+		Event.PrimaryValue = InitiativeResult.TotalDamageToTeam;
+		Event.SecondaryValue = InitiativeResult.TotalEnemyShieldGained;
+		Event.Message = FText::Format(
+			NSLOCTEXT("FinalBattleResolver", "UltimateInitiativeDefeat", "Enemy initiative actions resolved {0} effects. Team damage {1}, enemy shield {2}. Battle lost."),
+			FText::AsNumber(InitiativeResult.ResolvedEffectCount),
+			FText::AsNumber(InitiativeResult.TotalDamageToTeam),
+			FText::AsNumber(InitiativeResult.TotalEnemyShieldGained));
 		return GetEventService().FinalizeBattleEvent(State, Event);
 	}
 

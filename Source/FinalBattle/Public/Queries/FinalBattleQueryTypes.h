@@ -73,6 +73,45 @@ struct FINALBATTLE_API FFinalBattlePhaseProgressViewData
 };
 
 USTRUCT(BlueprintType)
+struct FINALBATTLE_API FFinalBattleIntentViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bHasIntent = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName IntentId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalIntentType IntentType = EFinalIntentType::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FText PreviewText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FName IconId = NAME_None;
+};
+
+UENUM(BlueprintType)
+enum class EFinalEnemyInitiativeState : uint8
+{
+	Counting,
+	ReadyToAct,
+	ActionSpent
+};
+
+UENUM(BlueprintType)
+enum class EFinalEnemyActionOverrideType : uint8
+{
+	None,
+	SkipNextAction
+};
+
+USTRUCT(BlueprintType)
 struct FINALBATTLE_API FFinalBattleEnemyViewData
 {
 	GENERATED_BODY()
@@ -108,14 +147,40 @@ struct FINALBATTLE_API FFinalBattleEnemyViewData
 	int32 CurrentInitiative = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 InitialInitiative = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 InitiativeResponse = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalEnemyInitiativeState InitiativeState = EFinalEnemyInitiativeState::Counting;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 ActionsTakenThisRound = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	int32 MaxActionsPerRound = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	bool bHasActionOverride = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	EFinalEnemyActionOverrideType ActionOverrideType = EFinalEnemyActionOverrideType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FName CurrentPhaseTag = NAME_None;
 
+	// Legacy view field. Prefer CurrentIntent.IntentId for new UI.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FName CurrentIntentId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
+	FFinalBattleIntentViewData CurrentIntent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FFinalBattlePhaseProgressViewData PhaseProgress;
 
+	// Legacy view field. Prefer CurrentIntent.PreviewText for new UI.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Battle")
 	FText IntentText;
 

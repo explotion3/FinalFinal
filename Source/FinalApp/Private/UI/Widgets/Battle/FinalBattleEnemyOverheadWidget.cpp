@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -89,8 +90,12 @@ void UFinalBattleEnemyOverheadWidget::RefreshBoundWidgets()
 
 	if (IntentText)
 	{
-		IntentText->SetText(EnemyOverheadViewData.IntentText);
+		IntentText->SetText(!EnemyOverheadViewData.IntentNameText.IsEmpty()
+			? EnemyOverheadViewData.IntentNameText
+			: EnemyOverheadViewData.IntentText);
 	}
+
+	RefreshIntentIcon();
 
 	if (TargetedVisual)
 	{
@@ -168,6 +173,30 @@ bool UFinalBattleEnemyOverheadWidget::TryInspectEnemy() const
 	const UFinalUISubsystem* UISubsystem = GameInstance->GetSubsystem<UFinalUISubsystem>();
 	UFinalBattleWidgetController* BattleWidgetController = UISubsystem ? UISubsystem->GetBattleWidgetController() : nullptr;
 	return BattleWidgetController ? BattleWidgetController->InspectEnemyByUnitId(EnemyOverheadViewData.RuntimeUnitId) : false;
+}
+
+void UFinalBattleEnemyOverheadWidget::RefreshIntentIcon()
+{
+	if (IntentIconImage == nullptr)
+	{
+		return;
+	}
+
+	if (const FSlateBrush* IntentBrush = IntentIconBrushes.Find(EnemyOverheadViewData.IntentIconId))
+	{
+		IntentIconImage->SetBrush(*IntentBrush);
+		IntentIconImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
+	if (bHideIntentIconWhenMissingBrush)
+	{
+		IntentIconImage->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	IntentIconImage->SetBrush(DefaultIntentIconBrush);
+	IntentIconImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
 FText UFinalBattleEnemyOverheadWidget::BuildHPText() const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
 #include "FinalBattlePresentationTypes.generated.h"
@@ -72,6 +73,12 @@ struct FINALAPP_API FFinalBattleEnemyOverheadViewData
 
 	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
 	FText IntentText;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	FText IntentNameText;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	EFinalIntentType IntentType = EFinalIntentType::Attack;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
 	FName IntentIconId = NAME_None;

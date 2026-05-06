@@ -145,7 +145,9 @@ bool AFinalBattlePlayerController::DumpBattleSnapshotToLog() const
 			EnemyView.CurrentBreakValue,
 			EnemyView.CurrentInitiative,
 			EnemyView.CurrentPhaseTag == NAME_None ? TEXT("None") : *EnemyView.CurrentPhaseTag.ToString(),
-			*EnemyView.IntentText.ToString());
+			*(!EnemyView.CurrentIntent.PreviewText.IsEmpty()
+				? EnemyView.CurrentIntent.PreviewText
+				: EnemyView.IntentText).ToString());
 	}
 
 	for (const FFinalBattleCardViewData& CardView : Snapshot.HandCards)

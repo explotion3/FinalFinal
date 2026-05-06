@@ -783,8 +783,48 @@ EvolutionStage: Evolved
 | `CurrentHP` | 当前生命 |
 | `CurrentBreakValue` | 当前韧性 |
 | `CurrentInitiative` | 当前先机 |
-| `CurrentIntentId` | 当前意图 |
-| `bActedThisRound` | 本回合是否已行动 |
+| `InitialInitiative` | 本轮初始先机 |
+| `InitiativeResponse` | 每次先机减少事件扣减量 |
+| `InitiativeState` | `Counting / ReadyToAct / ActionSpent` |
+| `ActionsTakenThisRound` | 本轮已执行行动次数 |
+| `MaxActionsPerRound` | 本轮最大行动次数，首版默认 1 |
+| `ActionOverrideType` | 行动覆盖类型，首版支持 `None / SkipNextAction` |
+| `ActionOverrideReasonTag` | 行动覆盖原因标签 |
+| `ActionOverrideDisplayName` | 行动覆盖表现短名 |
+| `ActionOverridePreviewText` | 行动覆盖表现说明 |
+| `CurrentIntentId` | 当前意图 ID（legacy view field，后续 UI 优先使用 `CurrentIntent.IntentId`） |
+| `CurrentIntent` | 当前意图结构化 ViewData |
+| `bActedThisRound` | 旧兼容字段；新逻辑优先使用 `InitiativeState / ActionsTakenThisRound` |
+
+说明：
+
+- 正式先机 v0.1 中，`CurrentInitiative` 是权威倒计数值；普通牌 / 崩溃牌完整结算后会按敌人 `InitiativeResponse` 扣减。
+- `Final.Keyword.Fast` 牌跳过本次先机减少事件；奥义默认不触发先机事件。
+- 敌人先机归零后进入 `PendingEnemyActionQueue`，同窗口多个敌人按 `PositionIndex` 稳定行动。
+- `ActionOverrideType = SkipNextAction` 表示该敌人下一次行动被覆盖为“无法行动”。该敌人不会响应先机减少事件，不会进入先机队列，在敌方行动阶段结算一次跳过后清除覆盖。
+- `SkipNextAction` 不替换 `CurrentIntentId / CurrentIntentDefinition`，也不推进普通 intent 的使用次数、冷却、连续使用统计或 scripted step。
+
+### 7.3.1 BattleIntentViewData
+
+用途：描述敌人当前公开意图的 snapshot 显示数据。该结构由 `FinalBattle` 构建，`FinalApp` 不再为了显示短名反查 `EnemyIntentDefinition`。
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `bHasIntent` | 当前是否有可显示意图 |
+| `IntentId` | 意图 ID |
+| `IntentType` | 意图类型 |
+| `DisplayName` | 短意图名，供 OverHead 使用 |
+| `PreviewText` | 完整预览文本，供详情面板使用 |
+| `IconId` | 图标映射键，首版等于 `IntentId` |
+
+兼容说明：
+
+- `BattleEnemyViewData.CurrentIntentId / IntentText` 暂时保留一轮作为旧 UI / fallback 兼容字段。
+- 新 UI 应优先读取 `CurrentIntent.DisplayName / PreviewText / IconId`。
+- `IconId` 只提供显示层映射键；具体图标资源由 `FinalApp / UI` 的 WBP 或样式资源映射，不属于 `FinalBattle` 规则真相。
+- 若敌人拥有 `SkipNextAction`，`CurrentIntent` 会表现为“无法行动”短名和说明；runtime 原 `CurrentIntentId / CurrentIntentDefinition` 保留普通意图，不被覆盖污染。
 
 ### 7.4 TeamDeckState
 

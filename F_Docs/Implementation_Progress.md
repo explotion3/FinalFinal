@@ -1,5 +1,26 @@
 # Implementation Progress
 
+## 2026-05-06：FinalBattle 正式先机系统 v0.1
+
+- `FinalBattle` 当前已建立权威先机规则：普通牌 / 崩溃牌在完整结算后触发先机减少事件，敌人按 `InitiativeResponse` 扣减 `CurrentInitiative`，归零后进入 `PendingEnemyActionQueue` 并按 `PositionIndex` 稳定顺序立即行动。
+- `Final.Keyword.Fast` 牌当前会跳过本次先机事件；奥义默认不触发先机，仍可通过规则配置启用。
+- 敌人 runtime 当前新增 `InitialInitiative / InitiativeResponse / InitiativeState / ActionsTakenThisRound / MaxActionsPerRound`，行动机会耗尽由 `InitiativeState = ActionSpent` 表达，不再用负先机值代表无行动机会。
+- Break 当前通过 runtime `ActionOverrideType = SkipNextAction` 覆盖下一次行动：拥有该覆盖的敌人不响应后续先机减少，不进入先机队列，敌人行动阶段结算一次“无法行动”后清除覆盖，且不会推进原普通 intent 的使用次数、冷却或 scripted step。
+- `FinalBattle` snapshot 当前会在 `CurrentIntent` 中把 `SkipNextAction` 表现为“无法行动”短名和说明，但不会替换 runtime 原 `CurrentIntentId / CurrentIntentDefinition`。
+- 本轮新增 `EnemyInitiativeChanged / EnemyQueuedByInitiative / EnemyActionSkipped` 事件，供 Battle Log / HUD feedback 观察先机变化、入队和 Break 跳过行动。
+
+## 2026-05-06：Enemy Intent Visual v0.1
+
+- 敌人 OverHead 当前优先消费 `EnemyView.CurrentIntent.DisplayName / IconId / IntentType`，只显示短意图名和一个意图图标，不再把完整 preview 长句塞进头顶 UI。
+- `UFinalBattleEnemyOverheadWidget / UFinalBattleEnemyDetailWidget` 当前都支持可选 `IntentIconImage`，并通过 `IntentIconBrushes` 按 `IntentIconId` 在 WBP / C++ 父类默认值中映射图标资源；缺少控件或 brush 时不会中断 HUD。
+- 敌人详情面板当前继续显示短意图名和完整 `PreviewText`，并可显示与 OverHead 同源的意图图标；先机正式规则由 `FinalBattle` snapshot 提供，UI 不自行计算行动时机。
+
+## 2026-05-05：FinalBattle IntentViewData v0.1
+
+- `FinalBattle` snapshot 当前新增 `FFinalBattleIntentViewData`，由 `FinalBattleSnapshotBuilder` 从敌人当前 intent definition / fallback 文本构建 `IntentId / IntentType / DisplayName / PreviewText / IconId`。
+- `FFinalBattleEnemyViewData` 当前保留旧 `CurrentIntentId / IntentText` 兼容字段，但 `FinalApp` 的 OverHead 与 Enemy Detail 已优先消费结构化 `CurrentIntent`。
+- 敌人 OverHead 当前显示短意图名，敌人详情面板显示完整 preview 文本；先机 UI 仍先显示 `CurrentInitiative`，正式先机动画和行动进度表现留后续。
+
 ## 2026-05-05：Drag Card To Battle Target v0.1
 
 - `UFinalBattleCardEntryWidget` 当前新增轻量指针按下 / 释放事件；点击松开不再直接出牌，手牌出牌统一走拖动释放路径。AP 不足牌不会进入拖卡出牌状态。
