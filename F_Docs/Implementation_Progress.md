@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-06：Run Reward 专用页 v0.1
+
+- `PendingBattleReward` 阶段当前自动打开专用 `FinalRunRewardOverlayScreen`；`PendingGrowthChoice` 仍保持更高优先级。
+- `FinalRunRewardOverlayScreen` 当前显示战斗结果、来源节点、自动入账金币、当前金币和最多 3 个卡牌候选；候选点击和跳过都继续通过 `RunFlowSubsystem` 转发给 `FinalRun`。
+- 新增 `FinalRunRewardCandidateEntryWidget` 作为战后奖励候选 Entry 父类，支持 `Title / Subtitle / Detail / Meta / State / Icon / Tier` 可选绑定；Entry 不保存 Run 真相。
+- `FinalUIWidgetClassSettings` 当前新增 `RunRewardOverlayScreenClass / RunRewardCandidateEntryWidgetClass`，未配置时继续使用 C++ fallback。
+
 ## 2026-05-06：RunFlow 主流程页面可读化 v0.1
 
 - `FinalRunFlowOverlayScreen` 当前收口为统一 RunFlow 主流程页：顶部显示当前阶段 / 当前节点 / 路线摘要，中部显示 `RouteOverview.Nodes` 的只读路线列表，主操作区只从 `AvailableFlowActions` 构建动作按钮。

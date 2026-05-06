@@ -454,7 +454,7 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 	if (Snapshot.PendingBattleReward.bHasPendingReward
 		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
 	{
-		return EFinalRunPresentedOverlay::RunFlow;
+		return EFinalRunPresentedOverlay::BattleReward;
 	}
 
 	switch (Snapshot.Progression.FlowStage)

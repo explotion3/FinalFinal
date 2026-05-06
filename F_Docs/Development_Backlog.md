@@ -4,7 +4,7 @@
 
 ## P0
 
-**Run 外层专用页视觉收口**：系统为 `FinalRun / FinalApp / UI`。RunFlow 协议和统一主流程页当前已由 `RouteOverview + AvailableFlowActions` 收口，主页面能显示路线概览、阶段摘要、动作列表和反馈；后续重点转向 Reward / Event / Shop / Growth 专用页的视觉和交互整理，包括候选卡片、商品条目、事件选项、反馈、关闭 / 恢复入口与 WBP 视觉一致性，让首章竖切从战斗结束到下一节点都更可读。
+**Run 外层专用页视觉收口**：系统为 `FinalRun / FinalApp / UI`。RunFlow 主页面和战后 Reward 专用页当前已经完成 C++ 可读化，后续重点转向 Event / Shop / Growth 专用页的视觉和交互整理，包括商品条目、事件选项、成长候选、反馈、关闭 / 恢复入口与 WBP 视觉一致性，让首章竖切从战斗结束到下一节点都更可读。
 
 ## P1
 

@@ -5,6 +5,7 @@
 #include "UI/Screens/Battle/FinalBattleHUDScreen.h"
 #include "UI/Screens/Flow/FinalRunFlowOverlayScreen.h"
 #include "UI/Screens/Flow/FinalRunGrowthChoiceOverlayScreen.h"
+#include "UI/Screens/Flow/FinalRunRewardOverlayScreen.h"
 #include "UI/Widgets/Battle/FinalBattleCardEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCardZoneEntryWidget.h"
 #include "UI/Widgets/Battle/FinalBattleCharacterDetailPassiveLineWidget.h"
@@ -220,6 +221,11 @@ TSubclassOf<UFinalRunGrowthChoiceOverlayScreen> UFinalUIWidgetClassSettings::Get
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunGrowthChoiceOverlayScreenClass);
 }
 
+TSubclassOf<UFinalRunRewardOverlayScreen> UFinalUIWidgetClassSettings::GetRunRewardOverlayScreenClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRewardOverlayScreenClass);
+}
+
 TSubclassOf<UFinalRunFlowOptionButton> UFinalUIWidgetClassSettings::GetRunFlowOptionButtonClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunFlowOptionButtonClass);
@@ -228,4 +234,9 @@ TSubclassOf<UFinalRunFlowOptionButton> UFinalUIWidgetClassSettings::GetRunFlowOp
 TSubclassOf<UFinalRunRouteNodeEntryWidget> UFinalUIWidgetClassSettings::GetRunRouteNodeEntryWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRouteNodeEntryWidgetClass);
+}
+
+TSubclassOf<UFinalRunRewardCandidateEntryWidget> UFinalUIWidgetClassSettings::GetRunRewardCandidateEntryWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRewardCandidateEntryWidgetClass);
 }

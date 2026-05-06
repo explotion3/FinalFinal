@@ -39,6 +39,8 @@ class UFinalRunFlowOptionButton;
 class UFinalRunFlowOverlayScreen;
 class UFinalRunGrowthChoiceOverlayScreen;
 class UFinalRunFlowPromptPanel;
+class UFinalRunRewardCandidateEntryWidget;
+class UFinalRunRewardOverlayScreen;
 class UFinalRunRouteNodeEntryWidget;
 class UFinalUIRootLayout;
 
@@ -85,8 +87,10 @@ public:
 	static TSubclassOf<UFinalBattleLogEntryWidget> GetBattleLogEntryWidgetClass();
 	static TSubclassOf<UFinalRunFlowOverlayScreen> GetRunFlowOverlayScreenClass();
 	static TSubclassOf<UFinalRunGrowthChoiceOverlayScreen> GetRunGrowthChoiceOverlayScreenClass();
+	static TSubclassOf<UFinalRunRewardOverlayScreen> GetRunRewardOverlayScreenClass();
 	static TSubclassOf<UFinalRunFlowOptionButton> GetRunFlowOptionButtonClass();
 	static TSubclassOf<UFinalRunRouteNodeEntryWidget> GetRunRouteNodeEntryWidgetClass();
+	static TSubclassOf<UFinalRunRewardCandidateEntryWidget> GetRunRewardCandidateEntryWidgetClass();
 
 	UPROPERTY(Config, EditAnywhere, Category="Battle HUD|Screen")
 	TSoftClassPtr<UFinalBattleHUDScreen> BattleHUDScreenClass;
@@ -191,8 +195,14 @@ public:
 	TSoftClassPtr<UFinalRunGrowthChoiceOverlayScreen> RunGrowthChoiceOverlayScreenClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunRewardOverlayScreen> RunRewardOverlayScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunFlowOptionButton> RunFlowOptionButtonClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunRouteNodeEntryWidget> RunRouteNodeEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunRewardCandidateEntryWidget> RunRewardCandidateEntryWidgetClass;
 };

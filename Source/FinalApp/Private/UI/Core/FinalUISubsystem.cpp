@@ -467,7 +467,7 @@ void UFinalUISubsystem::EnsureFlowScreens()
 
 	if (RewardOverlayScreen == nullptr)
 	{
-		RewardOverlayScreen = CreateWidget<UFinalRunRewardOverlayScreen>(PrimaryPlayerController, UFinalRunRewardOverlayScreen::StaticClass());
+		RewardOverlayScreen = CreateWidget<UFinalRunRewardOverlayScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRunRewardOverlayScreenClass());
 	}
 
 	if (NodeOverlayScreen == nullptr)

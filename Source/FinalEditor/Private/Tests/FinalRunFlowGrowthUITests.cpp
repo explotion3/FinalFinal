@@ -636,6 +636,10 @@ bool FFinalRunFlowGrowthOverlayPriorityTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	Context.RunFlowSubsystem->HandleRunSessionChanged();
+	Context.RunFlowSubsystem->RefreshRunFlow(true);
+	TestEqual(TEXT("Pending battle reward should present the dedicated reward overlay before growth is added."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::BattleReward);
+
 	TestTrue(TEXT("Breakthrough gain should still create a pending growth choice while a battle reward is waiting."), RunSession->AddBreakthroughValue(CharacterId, 100));
 
 	Context.RunFlowSubsystem->HandleRunSessionChanged();
