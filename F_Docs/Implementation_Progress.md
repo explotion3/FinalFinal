@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-06：Run Event 专用页 v0.1
+
+- `PendingEventNode` 阶段当前自动打开专用 `FinalRunEventNodeOverlayScreen`；`PendingGrowthChoice` 和战后 Reward 专用页优先级保持不变。
+- `FinalRunEventNodeOverlayScreen` 当前显示事件标题、摘要、当前节点信息和事件选项列表；点击选项通过 `RunFlowSubsystem.ResolveEventOption(OptionId)` 转发给 `FinalRun`。
+- 新增 `FinalRunEventOptionEntryWidget` 作为事件选项 Entry 父类，支持 `Title / Description / PreviewReward / Cost / State / DisabledReason / Icon / Tier` 可选绑定；Entry 不保存 Run 真相。
+- `FinalUIWidgetClassSettings` 当前新增 `RunEventNodeOverlayScreenClass / RunEventOptionEntryWidgetClass`，未配置时继续使用 C++ fallback。
+
 ## 2026-05-06：Run Reward 专用页 v0.1
 
 - `PendingBattleReward` 阶段当前自动打开专用 `FinalRunRewardOverlayScreen`；`PendingGrowthChoice` 仍保持更高优先级。

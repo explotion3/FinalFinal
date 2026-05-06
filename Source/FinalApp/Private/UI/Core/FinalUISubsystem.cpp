@@ -482,7 +482,7 @@ void UFinalUISubsystem::EnsureFlowScreens()
 
 	if (EventNodeOverlayScreen == nullptr)
 	{
-		EventNodeOverlayScreen = CreateWidget<UFinalRunEventNodeOverlayScreen>(PrimaryPlayerController, UFinalRunEventNodeOverlayScreen::StaticClass());
+		EventNodeOverlayScreen = CreateWidget<UFinalRunEventNodeOverlayScreen>(PrimaryPlayerController, UFinalUIWidgetClassSettings::GetRunEventNodeOverlayScreenClass());
 	}
 
 	if (ShopNodeOverlayScreen == nullptr)

@@ -1,11 +1,17 @@
 #include "UI/Screens/Flow/FinalRunEventNodeOverlayScreen.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
 #include "UI/Screens/Flow/FinalRunFlowScreenUtils.h"
+#include "UI/Settings/FinalUIWidgetClassSettings.h"
+#include "Styling/CoreStyle.h"
 
 using namespace FinalRunFlowScreenUtils;
 
@@ -49,6 +55,163 @@ FString BuildEventOptionsSummaryString(const TArray<FFinalRunEventOptionViewData
 	OptionsSummary.TrimEndInline();
 	return OptionsSummary;
 }
+
+FText BuildEventOptionMetaText(const FFinalRunEventOptionViewData& Option)
+{
+	const int32 RewardEntryCount = Option.RewardEntryViews.Num() > 0 ? Option.RewardEntryViews.Num() : Option.RewardEntries.Num();
+	return FText::Format(
+		NSLOCTEXT("FinalFlowUI", "EventOptionMetaText", "奖励条目 {0}"),
+		FText::AsNumber(RewardEntryCount));
+}
+
+FName FindFirstEventOptionIconId(const FFinalRunEventOptionViewData& Option)
+{
+	for (const FFinalRunRewardEntryViewData& RewardEntryView : Option.RewardEntryViews)
+	{
+		if (RewardEntryView.IconId != NAME_None)
+		{
+			return RewardEntryView.IconId;
+		}
+	}
+	return NAME_None;
+}
+
+EFinalRunRewardPresentationKind FindFirstEventOptionPresentationKind(const FFinalRunEventOptionViewData& Option)
+{
+	return Option.RewardEntryViews.Num() > 0
+		? Option.RewardEntryViews[0].PresentationKind
+		: EFinalRunRewardPresentationKind::None;
+}
+
+EFinalRunRewardVisualTier FindFirstEventOptionVisualTier(const FFinalRunEventOptionViewData& Option)
+{
+	return Option.RewardEntryViews.Num() > 0
+		? Option.RewardEntryViews[0].VisualTier
+		: EFinalRunRewardVisualTier::None;
+}
+}
+
+void UFinalRunEventOptionEntryWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+
+	if (OptionButton)
+	{
+		OptionButton->OnClicked.AddUniqueDynamic(this, &UFinalRunEventOptionEntryWidget::HandleClicked);
+	}
+
+	RefreshBoundWidgets();
+}
+
+void UFinalRunEventOptionEntryWidget::ApplyOptionView(const FFinalRunEventOptionEntryViewData& InViewData)
+{
+	CachedViewData = InViewData;
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+	OnOptionViewApplied(CachedViewData);
+}
+
+void UFinalRunEventOptionEntryWidget::HandleClicked()
+{
+	OnOptionClicked.Broadcast(this);
+}
+
+void UFinalRunEventOptionEntryWidget::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	OptionButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("OptionButton"));
+	WidgetTree->RootWidget = OptionButton;
+
+	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("EventOptionRoot"));
+	RootBorder->SetBrushColor(FLinearColor(0.08f, 0.07f, 0.11f, 0.94f));
+	RootBorder->SetPadding(FMargin(8.0f));
+	OptionButton->AddChild(RootBorder);
+
+	UVerticalBox* TextBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("EventOptionTextBox"));
+	RootBorder->SetContent(TextBox);
+
+	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+	TitleText->SetAutoWrapText(true);
+	TitleText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 14));
+	TextBox->AddChildToVerticalBox(TitleText);
+
+	DescriptionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescriptionText"));
+	DescriptionText->SetAutoWrapText(true);
+	DescriptionText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(DescriptionText);
+
+	PreviewRewardText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PreviewRewardText"));
+	PreviewRewardText->SetAutoWrapText(true);
+	PreviewRewardText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11));
+	TextBox->AddChildToVerticalBox(PreviewRewardText);
+
+	CostText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CostText"));
+	CostText->SetAutoWrapText(true);
+	CostText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(CostText);
+
+	StateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StateText"));
+	StateText->SetAutoWrapText(true);
+	StateText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(StateText);
+
+	DisabledReasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DisabledReasonText"));
+	DisabledReasonText->SetAutoWrapText(true);
+	DisabledReasonText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10));
+	TextBox->AddChildToVerticalBox(DisabledReasonText);
+}
+
+void UFinalRunEventOptionEntryWidget::RefreshBoundWidgets()
+{
+	if (TitleText)
+	{
+		TitleText->SetText(CachedViewData.Title);
+	}
+	if (DescriptionText)
+	{
+		DescriptionText->SetText(CachedViewData.Description);
+		DescriptionText->SetVisibility(CachedViewData.Description.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (PreviewRewardText)
+	{
+		PreviewRewardText->SetText(CachedViewData.PreviewRewardText);
+		PreviewRewardText->SetVisibility(CachedViewData.PreviewRewardText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (CostText)
+	{
+		CostText->SetText(CachedViewData.CostText);
+		CostText->SetVisibility(CachedViewData.CostText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (StateText)
+	{
+		StateText->SetText(CachedViewData.StateText);
+	}
+	if (DisabledReasonText)
+	{
+		DisabledReasonText->SetText(CachedViewData.DisabledReason);
+		DisabledReasonText->SetVisibility(CachedViewData.DisabledReason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (OptionButton)
+	{
+		OptionButton->SetIsEnabled(CachedViewData.bEnabled);
+	}
+	if (IconImage)
+	{
+		IconImage->SetVisibility(CachedViewData.IconId.IsNone() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (TierVisual)
+	{
+		TierVisual->SetVisibility(CachedViewData.VisualTier == EFinalRunRewardVisualTier::None ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UFinalRunEventNodeOverlayScreen::NativeOnInitialized()
@@ -77,14 +240,6 @@ void UFinalRunEventNodeOverlayScreen::HandleNextOptionClicked()
 
 void UFinalRunEventNodeOverlayScreen::HandleResolveOptionClicked()
 {
-	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
-	if (RunFlowSubsystem == nullptr)
-	{
-		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "EventNodeMissingRunFlow", "当前无法访问 RunFlowSubsystem，无法提交事件节点选项。"));
-		RebuildVisual();
-		return;
-	}
-
 	const FFinalRunEventOptionViewData* SelectedOption = GetSelectedOptionView(GetCachedSnapshot().PendingEventNode, SelectedOptionIndex);
 	if (SelectedOption == nullptr || SelectedOption->OptionId == NAME_None)
 	{
@@ -93,7 +248,27 @@ void UFinalRunEventNodeOverlayScreen::HandleResolveOptionClicked()
 		return;
 	}
 
-	const bool bAccepted = RunFlowSubsystem->ResolveEventOption(SelectedOption->OptionId);
+	HandleResolveOptionById(SelectedOption->OptionId);
+}
+
+void UFinalRunEventNodeOverlayScreen::HandleResolveOptionById(const FName OptionId)
+{
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "EventNodeMissingRunFlow", "当前无法访问 RunFlowSubsystem，无法提交事件节点选项。"));
+		RebuildVisual();
+		return;
+	}
+
+	if (OptionId == NAME_None)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "EventNodeMissingOptionId", "当前没有可提交的事件选项。"));
+		RebuildVisual();
+		return;
+	}
+
+	const bool bAccepted = RunFlowSubsystem->ResolveEventOption(OptionId);
 	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
 	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
 		? RunFlowSubsystem->GetLastFlowMessage()
@@ -101,6 +276,16 @@ void UFinalRunEventNodeOverlayScreen::HandleResolveOptionClicked()
 			? NSLOCTEXT("FinalFlowUI", "EventNodeResolveSucceeded", "已转发 ResolveEvent。")
 			: NSLOCTEXT("FinalFlowUI", "EventNodeResolveFailed", "ResolveEvent 执行失败。")));
 	RebuildVisual();
+}
+
+void UFinalRunEventNodeOverlayScreen::HandleOptionClicked(UFinalRunEventOptionEntryWidget* OptionEntry)
+{
+	if (OptionEntry == nullptr)
+	{
+		return;
+	}
+
+	HandleResolveOptionById(OptionEntry->GetOptionViewData().OptionId);
 }
 
 void UFinalRunEventNodeOverlayScreen::HandleCloseClicked()
@@ -124,17 +309,35 @@ void UFinalRunEventNodeOverlayScreen::EnsureWidgetTree()
 		CurrentNodeText = CreateStageLabel(TEXT("EventNodeOverlayCurrentNode"), 13);
 		ContentBox->InsertChildAt(2, CurrentNodeText);
 	}
+	if (NodeText == nullptr)
+	{
+		NodeText = CurrentNodeText;
+	}
+
+	if (OptionListBox == nullptr)
+	{
+		OptionListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("OptionListBox"));
+		ContentBox->InsertChildAt(3, OptionListBox);
+	}
+
+	if (RewardPreviewBox == nullptr)
+	{
+		RewardPreviewBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardPreviewBox"));
+		ContentBox->InsertChildAt(4, RewardPreviewBox);
+	}
 
 	if (OptionsListText == nullptr)
 	{
 		OptionsListText = CreateStageLabel(TEXT("EventNodeOverlayOptionsList"), 13);
-		ContentBox->InsertChildAt(3, OptionsListText);
+		OptionsListText->SetVisibility(ESlateVisibility::Collapsed);
+		ContentBox->InsertChildAt(5, OptionsListText);
 	}
 
 	if (SelectedOptionText == nullptr)
 	{
 		SelectedOptionText = CreateStageLabel(TEXT("EventNodeOverlaySelectedOption"), 13);
-		ContentBox->InsertChildAt(4, SelectedOptionText);
+		SelectedOptionText->SetVisibility(ESlateVisibility::Collapsed);
+		ContentBox->InsertChildAt(6, SelectedOptionText);
 	}
 
 	if (PreviousOptionButton == nullptr)
@@ -234,7 +437,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 	if (SummaryText)
 	{
 		SummaryText->SetText(FText::Format(
-			NSLOCTEXT("FinalFlowUI", "EventNodeOverlaySummaryText", "流程阶段: {0}\n事件标题: {1}\n事件摘要: {2}\n节点内容存在: {3}\n可解析: {4}\n已解析: {5}\n选项数: {6}\n当前金币: {7} | 遗物数: {8} | 牌库数: {9}"),
+			NSLOCTEXT("FinalFlowUI", "EventNodeOverlaySummaryText", "{1}\n\n{2}\n\n选项 {6} | 当前金币 {7}"),
 			FormatFlowStageText(Progression.FlowStage),
 			FormatOptionalText(PendingEventNode.Title, NSLOCTEXT("FinalFlowUI", "EventNodeNoTitle", "未公开标题")),
 			FormatOptionalText(PendingEventNode.Summary, NSLOCTEXT("FinalFlowUI", "EventNodeNoSummary", "当前没有额外摘要说明。")),
@@ -247,9 +450,9 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 			FText::AsNumber(Snapshot.DeckCount)));
 	}
 
-	if (CurrentNodeText)
+	if (NodeText)
 	{
-		CurrentNodeText->SetText(BuildCurrentNodeSummaryText(Progression));
+		NodeText->SetText(BuildCurrentNodeSummaryText(Progression));
 	}
 
 	if (OptionsListText)
@@ -257,6 +460,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 		OptionsListText->SetText(FText::Format(
 			NSLOCTEXT("FinalFlowUI", "EventNodeOverlayOptionsText", "事件选项列表:\n{0}"),
 			FText::FromString(BuildEventOptionsSummaryString(PendingEventNode.Options, SelectedOptionIndex))));
+		OptionsListText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (SelectedOptionText)
@@ -276,29 +480,31 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 				FormatOptionalText(SelectedOption->AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "EventNodeSelectedOptionNoAvailability", "当前没有额外限制说明。")),
 				FText::FromString(BuildRewardPresentationSummaryString(SelectedOption->RewardEntryViews, SelectedOption->RewardEntries))));
 		}
+		SelectedOptionText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (GapText)
 	{
-		GapText->SetText(NSLOCTEXT(
-			"FinalFlowUI",
-			"EventNodeOverlayGapText",
-			"当前页已优先消费 EventOption.RewardEntryViews 的 PresentationKind / VisualTier / DetailText / IconId，并在缺失时回退到 raw RewardEntries。剩余缺口主要是 richer 布局、长文本滚动、二次确认和更复杂的分支表现。"));
+		GapText->SetText(NSLOCTEXT("FinalFlowUI", "EventNodeOverlayGapText", "选择一个事件选项。不可选项会保留显示，并给出阻塞原因。"));
 	}
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "EventNodeOverlayFeedbackDefault", "当前页面会把选中的 OptionId 通过 ResolveEvent 转发给 RunFlowSubsystem，由它统一刷新或切页。")));
+		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "EventNodeOverlayFeedbackDefault", "事件选项会通过 RunFlowSubsystem 提交，由 FinalRun 统一校验和结算。")));
 	}
+
+	RebuildOptionList();
 
 	if (PreviousOptionButton)
 	{
 		PreviousOptionButton->SetIsEnabled(PendingEventNode.Options.Num() > 1);
+		PreviousOptionButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (NextOptionButton)
 	{
 		NextOptionButton->SetIsEnabled(PendingEventNode.Options.Num() > 1);
+		NextOptionButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (ResolveOptionButton)
@@ -310,6 +516,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 			&& SelectedOption != nullptr
 			&& SelectedOption->OptionId != NAME_None
 			&& SelectedOption->bSelectable);
+		ResolveOptionButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (ResolveOptionButtonText)
@@ -335,4 +542,76 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 			ResolveOptionButtonText->SetText(NSLOCTEXT("FinalFlowUI", "EventNodeResolveButton", "确认当前事件选项"));
 		}
 	}
+}
+
+void UFinalRunEventNodeOverlayScreen::RebuildOptionList()
+{
+	if (OptionListBox == nullptr || WidgetTree == nullptr)
+	{
+		return;
+	}
+
+	OptionListBox->ClearChildren();
+	const FFinalRunPendingEventNodeViewData& PendingEventNode = GetCachedSnapshot().PendingEventNode;
+	const TSubclassOf<UFinalRunEventOptionEntryWidget> ConfiguredEntryClass = UFinalUIWidgetClassSettings::GetRunEventOptionEntryWidgetClass();
+	UClass* EntryClass = ConfiguredEntryClass.Get() ? ConfiguredEntryClass.Get() : UFinalRunEventOptionEntryWidget::StaticClass();
+
+	for (int32 OptionIndex = 0; OptionIndex < PendingEventNode.Options.Num(); ++OptionIndex)
+	{
+		UFinalRunEventOptionEntryWidget* OptionEntry = WidgetTree->ConstructWidget<UFinalRunEventOptionEntryWidget>(
+			EntryClass,
+			FName(*FString::Printf(TEXT("EventOptionEntry_%d"), OptionIndex)));
+		if (OptionEntry == nullptr)
+		{
+			continue;
+		}
+
+		OptionEntry->OnOptionClicked.AddUObject(this, &UFinalRunEventNodeOverlayScreen::HandleOptionClicked);
+		OptionEntry->ApplyOptionView(BuildOptionEntryData(OptionIndex));
+
+		UVerticalBoxSlot* EntrySlot = OptionListBox->AddChildToVerticalBox(OptionEntry);
+		if (EntrySlot)
+		{
+			EntrySlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		}
+	}
+
+	OptionListBox->SetVisibility(PendingEventNode.Options.Num() > 0 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
+
+FFinalRunEventOptionEntryViewData UFinalRunEventNodeOverlayScreen::BuildOptionEntryData(const int32 OptionIndex) const
+{
+	FFinalRunEventOptionEntryViewData EntryData;
+	const FFinalRunPendingEventNodeViewData& PendingEventNode = GetCachedSnapshot().PendingEventNode;
+	if (!PendingEventNode.Options.IsValidIndex(OptionIndex))
+	{
+		EntryData.Title = NSLOCTEXT("FinalFlowUI", "EventOptionEntryInvalid", "无效事件选项");
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "EventOptionEntryInvalidState", "不可选择");
+		return EntryData;
+	}
+
+	const FFinalRunEventOptionViewData& Option = PendingEventNode.Options[OptionIndex];
+	EntryData.OptionId = Option.OptionId;
+	EntryData.OptionIndex = OptionIndex;
+	EntryData.Title = FormatOptionalText(
+		Option.DisplayText,
+		FormatOptionalName(Option.OptionId, NSLOCTEXT("FinalFlowUI", "EventOptionEntryTitleFallback", "未命名选项")));
+	EntryData.Description = FormatOptionalText(
+		Option.OutcomeSummary,
+		NSLOCTEXT("FinalFlowUI", "EventOptionEntryDescriptionFallback", "无额外结果说明。"));
+	EntryData.PreviewRewardText = FText::FromString(BuildRewardPresentationSummaryString(Option.RewardEntryViews, Option.RewardEntries));
+	EntryData.CostText = BuildEventOptionMetaText(Option);
+	EntryData.DisabledReason = Option.AvailabilityMessage;
+	EntryData.IconId = FindFirstEventOptionIconId(Option);
+	EntryData.PresentationKind = FindFirstEventOptionPresentationKind(Option);
+	EntryData.VisualTier = FindFirstEventOptionVisualTier(Option);
+	EntryData.bEnabled = PendingEventNode.bHasPendingContent
+		&& PendingEventNode.bCanResolve
+		&& !PendingEventNode.bResolved
+		&& Option.bSelectable
+		&& Option.OptionId != NAME_None;
+	EntryData.StateText = EntryData.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "EventOptionEntryEnabled", "可选择")
+		: FormatOptionalText(Option.AvailabilityMessage, NSLOCTEXT("FinalFlowUI", "EventOptionEntryDisabled", "暂不可选择"));
+	return EntryData;
 }

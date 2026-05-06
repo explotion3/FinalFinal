@@ -461,10 +461,12 @@ EFinalRunPresentedOverlay UFinalRunFlowSubsystem::DetermineDesiredOverlay(const 
 	{
 	case EFinalRunFlowStage::AwaitingNodeAdvance:
 	case EFinalRunFlowStage::PendingRewardNode:
-	case EFinalRunFlowStage::PendingEventNode:
 	case EFinalRunFlowStage::PendingShopNode:
 	case EFinalRunFlowStage::RunEnded:
 		return EFinalRunPresentedOverlay::RunFlow;
+
+	case EFinalRunFlowStage::PendingEventNode:
+		return EFinalRunPresentedOverlay::EventNode;
 
 	default:
 		break;
