@@ -1383,7 +1383,7 @@ FText UFinalBattleEnemyDetailPanel::BuildFallbackText(const FFinalBattleHUDEnemy
 
 	const FString StatusText = StatusSegments.Num() > 0 ? FString::Join(StatusSegments, TEXT(" | ")) : TEXT("无");
 	return FText::Format(
-		NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackFormat", "{0}{1}\nHP {2}/{3} | Shield {4}\nBreak {5}/{6} | Init {7}\n意图: {8}\n阶段: {9}\n状态: {10}"),
+		NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackFormat", "{0}{1}\nHP {2}/{3} | Shield {4}\nBreak {5}/{6}\n先机: {7}\n状态: {8} | 行动 {9}/{10} | 覆盖 {11}\n意图: {12}\n阶段: {13}\n状态: {14}"),
 		Data.bIsCurrentBattleTarget ? NSLOCTEXT("FinalBattleHUD", "EnemyDetailTargetPrefix", "[当前目标] ") : FText::GetEmpty(),
 		Data.DisplayName,
 		FText::AsNumber(Data.CurrentHP),
@@ -1391,7 +1391,11 @@ FText UFinalBattleEnemyDetailPanel::BuildFallbackText(const FFinalBattleHUDEnemy
 		FText::AsNumber(Data.CurrentShield),
 		FText::AsNumber(Data.CurrentBreakValue),
 		FText::AsNumber(Data.MaxBreakValue),
-		FText::AsNumber(Data.CurrentInitiative),
+		Data.InitiativeSummaryText,
+		Data.InitiativeStateText,
+		FText::AsNumber(Data.ActionsTakenThisRound),
+		FText::AsNumber(Data.MaxActionsPerRound),
+		Data.bHasActionOverride ? Data.ActionOverrideText : NSLOCTEXT("FinalBattleHUD", "EnemyDetailFallbackNoOverride", "无"),
 		Data.IntentText,
 		Data.PhaseProgressText,
 		FText::FromString(StatusText));

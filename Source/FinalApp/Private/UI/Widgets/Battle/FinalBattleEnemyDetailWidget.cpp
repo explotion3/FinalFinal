@@ -100,6 +100,44 @@ void UFinalBattleEnemyDetailWidget::RefreshBoundWidgets()
 			: FText::AsNumber(EnemyDetailViewData.CurrentInitiative));
 	}
 
+	if (InitialInitiativeText)
+	{
+		InitialInitiativeText->SetText(FText::AsNumber(EnemyDetailViewData.InitialInitiative));
+	}
+
+	if (InitiativeResponseText)
+	{
+		InitiativeResponseText->SetText(FText::Format(
+			NSLOCTEXT("FinalBattleEnemyDetail", "InitiativeResponseFormat", "-{0}"),
+			FText::AsNumber(EnemyDetailViewData.InitiativeResponse)));
+	}
+
+	if (InitiativeStateText)
+	{
+		InitiativeStateText->SetText(EnemyDetailViewData.InitiativeStateText);
+	}
+
+	if (ActionsTakenText)
+	{
+		ActionsTakenText->SetText(FText::Format(
+			NSLOCTEXT("FinalBattleEnemyDetail", "ActionsTakenFormat", "{0}/{1}"),
+			FText::AsNumber(EnemyDetailViewData.ActionsTakenThisRound),
+			FText::AsNumber(EnemyDetailViewData.MaxActionsPerRound)));
+	}
+
+	if (ActionOverrideText)
+	{
+		ActionOverrideText->SetText(EnemyDetailViewData.ActionOverrideText);
+		ActionOverrideText->SetVisibility(EnemyDetailViewData.bHasActionOverride
+			? ESlateVisibility::SelfHitTestInvisible
+			: ESlateVisibility::Collapsed);
+	}
+
+	if (InitiativeSummaryText)
+	{
+		InitiativeSummaryText->SetText(EnemyDetailViewData.InitiativeSummaryText);
+	}
+
 	if (IntentText)
 	{
 		IntentText->SetText(EnemyDetailViewData.IntentText);

@@ -138,6 +138,42 @@ FText FormatCardZoneText(const EFinalBattleCardZone Zone)
 	}
 }
 
+FText FormatEnemyInitiativeStateText(const EFinalEnemyInitiativeState InitiativeState)
+{
+	switch (InitiativeState)
+	{
+	case EFinalEnemyInitiativeState::Counting:
+		return NSLOCTEXT("FinalBattleHUD", "EnemyInitiativeStateCounting", "计数中");
+	case EFinalEnemyInitiativeState::ReadyToAct:
+		return NSLOCTEXT("FinalBattleHUD", "EnemyInitiativeStateReady", "准备行动");
+	case EFinalEnemyInitiativeState::ActionSpent:
+		return NSLOCTEXT("FinalBattleHUD", "EnemyInitiativeStateSpent", "已行动");
+	default:
+		return NSLOCTEXT("FinalBattleHUD", "EnemyInitiativeStateUnknown", "未知");
+	}
+}
+
+FText FormatEnemyActionOverrideText(const EFinalEnemyActionOverrideType ActionOverrideType)
+{
+	switch (ActionOverrideType)
+	{
+	case EFinalEnemyActionOverrideType::SkipNextAction:
+		return NSLOCTEXT("FinalBattleHUD", "EnemyActionOverrideSkipNextAction", "无法行动");
+	case EFinalEnemyActionOverrideType::None:
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+FText FormatEnemyInitiativeSummaryText(const FFinalBattleEnemyViewData& EnemyView)
+{
+	return FText::Format(
+		NSLOCTEXT("FinalBattleHUD", "EnemyInitiativeSummary", "当前 {0} / 初始 {1} / 响应 -{2}"),
+		FText::AsNumber(EnemyView.CurrentInitiative),
+		FText::AsNumber(EnemyView.InitialInitiative),
+		FText::AsNumber(EnemyView.InitiativeResponse));
+}
+
 FText FormatKeywordText(const FGameplayTagContainer& Keywords)
 {
 	TArray<FString> KeywordStrings;
@@ -974,7 +1010,17 @@ void UFinalBattleEnemyDetailPanelController::RefreshFromCoordinatorData(const FF
 	Data.MaxBreakValue = EnemyView->MaxBreakValue;
 	Data.BreakPercent = CalculateClampedPercent(EnemyView->CurrentBreakValue, EnemyView->MaxBreakValue);
 	Data.CurrentInitiative = EnemyView->CurrentInitiative;
+	Data.InitialInitiative = EnemyView->InitialInitiative;
+	Data.InitiativeResponse = EnemyView->InitiativeResponse;
+	Data.InitiativeState = EnemyView->InitiativeState;
 	Data.InitiativeText = FText::AsNumber(EnemyView->CurrentInitiative);
+	Data.InitiativeStateText = FormatEnemyInitiativeStateText(EnemyView->InitiativeState);
+	Data.ActionsTakenThisRound = EnemyView->ActionsTakenThisRound;
+	Data.MaxActionsPerRound = EnemyView->MaxActionsPerRound;
+	Data.bHasActionOverride = EnemyView->bHasActionOverride;
+	Data.ActionOverrideType = EnemyView->ActionOverrideType;
+	Data.ActionOverrideText = FormatEnemyActionOverrideText(EnemyView->ActionOverrideType);
+	Data.InitiativeSummaryText = FormatEnemyInitiativeSummaryText(*EnemyView);
 	Data.IntentText = !EnemyView->CurrentIntent.PreviewText.IsEmpty()
 		? EnemyView->CurrentIntent.PreviewText
 		: EnemyView->IntentText;

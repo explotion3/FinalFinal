@@ -3,6 +3,7 @@
 #include "Battle/Definitions/FinalEnemyIntentDefinition.h"
 #include "CoreMinimal.h"
 #include "Ids/FinalIds.h"
+#include "Queries/FinalBattleQueryTypes.h"
 #include "FinalBattlePresentationTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -67,6 +68,27 @@ struct FINALAPP_API FFinalBattleEnemyOverheadViewData
 
 	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
 	int32 CurrentInitiative = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	int32 InitialInitiative = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	int32 InitiativeResponse = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	EFinalEnemyInitiativeState InitiativeState = EFinalEnemyInitiativeState::Counting;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	int32 ActionsTakenThisRound = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	int32 MaxActionsPerRound = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	bool bHasActionOverride = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
+	EFinalEnemyActionOverrideType ActionOverrideType = EFinalEnemyActionOverrideType::None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Final|Battle|Presentation|Overhead")
 	FText InitiativeText;

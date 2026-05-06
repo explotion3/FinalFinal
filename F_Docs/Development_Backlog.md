@@ -8,7 +8,7 @@
 
 ## P1
 
-**先机系统后续增强**：系统为 `FinalBattle / FinalApp / UI`。正式先机 v0.1 已落地：普通牌 / 崩溃牌触发先机减少，快速牌跳过，奥义默认不触发，归零敌人按站位入队并立即行动，Break 通过 `SkipNextAction` 行动覆盖跳过下一次行动。后续剩余工作是 Break 恢复、复动 / 多动、迟滞 / 抢拍类状态或遗物、正式先机 UI 动画，以及 OverHead 中更清晰的“行动进度”表现。
+**先机系统后续增强**：系统为 `FinalBattle / FinalApp / UI`。正式先机 v0.1 已落地，详情面板也能查看当前 / 初始 / 响应、行动状态、行动次数和行动覆盖；后续剩余工作是 Break 恢复、复动 / 多动、迟滞 / 抢拍类状态或遗物、正式先机 UI 动画，以及 OverHead 中更清晰的“行动进度”表现。
 
 **敌人意图数值预告增强**：系统为 `FinalData / FinalBattle / FinalApp / UI`。当前敌人意图已有 snapshot 结构化 `IntentViewData`，OverHead / Detail 也能显示短名、Preview 文本和一个意图图标；后续剩余工作是建立正式图标资源表、按意图类型统一视觉颜色，并逐步从 intent effects 生成目标、伤害 / 护盾 / 状态预告等更细的可视条目。
 

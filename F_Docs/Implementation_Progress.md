@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-06：Enemy Initiative Visual v0.1
+
+- 敌人 OverHead 当前继续保持轻量，只通过 `InitiativeText` 显示当前先机值；C++ ViewData 同步携带初始先机、响应值、行动状态、行动次数和行动覆盖，供后续 WBP 扩展。
+- 敌人详情面板当前新增完整先机详情 ViewData：当前 / 初始 / 响应、`Counting / ReadyToAct / ActionSpent` 中文状态、本轮行动次数、`SkipNextAction` 行动覆盖文本和摘要文本。
+- `UFinalBattleEnemyDetailWidget` 当前支持 `InitialInitiativeText / InitiativeResponseText / InitiativeStateText / ActionsTakenText / ActionOverrideText / InitiativeSummaryText` 可选绑定；缺失控件不会中断详情刷新，C++ fallback 也会显示先机详情。
+- 本轮只消费 `FinalBattle` snapshot，不改先机规则、不做先机动画、不推导“还差几张牌行动”。
+
 ## 2026-05-06：FinalBattle 正式先机系统 v0.1
 
 - `FinalBattle` 当前已建立权威先机规则：普通牌 / 崩溃牌在完整结算后触发先机减少事件，敌人按 `InitiativeResponse` 扣减 `CurrentInitiative`，归零后进入 `PendingEnemyActionQueue` 并按 `PositionIndex` 稳定顺序立即行动。

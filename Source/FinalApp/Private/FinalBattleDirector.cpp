@@ -73,6 +73,11 @@ FName ResolveDirectorEnemyRankTag(const UFinalEnemyDefinition* EnemyDefinition)
 	return NAME_None;
 }
 
+FText FormatDirectorInitiativeText(const FFinalBattleEnemyViewData& EnemyView)
+{
+	return FText::AsNumber(EnemyView.CurrentInitiative);
+}
+
 }
 
 AFinalBattleDirector::AFinalBattleDirector()
@@ -224,7 +229,14 @@ void AFinalBattleDirector::RefreshPresentationFromSnapshot(const FFinalBattleSna
 		OverheadView.MaxBreakValue = EnemyView.MaxBreakValue;
 		OverheadView.BreakPercent = CalculateDirectorClampedPercent(EnemyView.CurrentBreakValue, EnemyView.MaxBreakValue);
 		OverheadView.CurrentInitiative = EnemyView.CurrentInitiative;
-		OverheadView.InitiativeText = FText::AsNumber(EnemyView.CurrentInitiative);
+		OverheadView.InitialInitiative = EnemyView.InitialInitiative;
+		OverheadView.InitiativeResponse = EnemyView.InitiativeResponse;
+		OverheadView.InitiativeState = EnemyView.InitiativeState;
+		OverheadView.ActionsTakenThisRound = EnemyView.ActionsTakenThisRound;
+		OverheadView.MaxActionsPerRound = EnemyView.MaxActionsPerRound;
+		OverheadView.bHasActionOverride = EnemyView.bHasActionOverride;
+		OverheadView.ActionOverrideType = EnemyView.ActionOverrideType;
+		OverheadView.InitiativeText = FormatDirectorInitiativeText(EnemyView);
 		OverheadView.IntentNameText = !EnemyView.CurrentIntent.DisplayName.IsEmpty()
 			? EnemyView.CurrentIntent.DisplayName
 			: EnemyView.IntentText;
