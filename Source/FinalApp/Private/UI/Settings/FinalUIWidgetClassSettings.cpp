@@ -248,6 +248,11 @@ TSubclassOf<UFinalRunRouteNodeEntryWidget> UFinalUIWidgetClassSettings::GetRunRo
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRouteNodeEntryWidgetClass);
 }
 
+TSubclassOf<UFinalRunGrowthChoiceEntryWidget> UFinalUIWidgetClassSettings::GetRunGrowthChoiceEntryWidgetClass()
+{
+	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunGrowthChoiceEntryWidgetClass);
+}
+
 TSubclassOf<UFinalRunRewardCandidateEntryWidget> UFinalUIWidgetClassSettings::GetRunRewardCandidateEntryWidgetClass()
 {
 	return ResolveConfiguredWidgetClass(GetDefault<UFinalUIWidgetClassSettings>()->RunRewardCandidateEntryWidgetClass);

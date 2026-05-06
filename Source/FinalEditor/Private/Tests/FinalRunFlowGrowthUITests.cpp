@@ -639,6 +639,8 @@ bool FFinalRunFlowGrowthOverlayPriorityTest::RunTest(const FString& Parameters)
 	Context.RunFlowSubsystem->HandleRunSessionChanged();
 	Context.RunFlowSubsystem->RefreshRunFlow(true);
 	TestEqual(TEXT("Pending battle reward should present the dedicated reward overlay before growth is added."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::BattleReward);
+	TestTrue(TEXT("Pending battle reward should expose a restorable run overlay prompt."), Context.RunFlowSubsystem->HasRestorableRunOverlay());
+	TestTrue(TEXT("Pending battle reward restore prompt text should mention reward handling."), Context.RunFlowSubsystem->GetRestorableRunOverlayText().ToString().Contains(TEXT("奖励")));
 
 	TestTrue(TEXT("Breakthrough gain should still create a pending growth choice while a battle reward is waiting."), RunSession->AddBreakthroughValue(CharacterId, 100));
 
@@ -649,6 +651,8 @@ bool FFinalRunFlowGrowthOverlayPriorityTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Snapshot should expose the pending growth choice alongside the pending reward."), Snapshot.PendingGrowthChoice.bHasPendingChoice);
 	TestTrue(TEXT("Snapshot should still retain the pending battle reward."), Snapshot.PendingBattleReward.bHasPendingReward);
 	TestEqual(TEXT("Growth overlay should take priority over the normal run flow overlay when both are pending."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::GrowthChoice);
+	TestTrue(TEXT("Growth overlay should remain restorable through the run prompt."), Context.RunFlowSubsystem->HasRestorableRunOverlay());
+	TestTrue(TEXT("Growth restore prompt text should mention growth handling."), Context.RunFlowSubsystem->GetRestorableRunOverlayText().ToString().Contains(TEXT("成长")));
 	return true;
 }
 
@@ -756,6 +760,8 @@ bool FFinalRunFlowEventNodeDedicatedOverlayTest::RunTest(const FString& Paramete
 	TestEqual(TEXT("Run should be pending event node."), EventSnapshot.Progression.FlowStage, EFinalRunFlowStage::PendingEventNode);
 	TestTrue(TEXT("Event node should expose options."), EventSnapshot.PendingEventNode.Options.Num() > 0);
 	TestEqual(TEXT("Pending event node should present the dedicated event overlay."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::EventNode);
+	TestTrue(TEXT("Pending event node should expose a restorable run overlay prompt."), Context.RunFlowSubsystem->HasRestorableRunOverlay());
+	TestTrue(TEXT("Event restore prompt text should mention event handling."), Context.RunFlowSubsystem->GetRestorableRunOverlayText().ToString().Contains(TEXT("事件")));
 	return true;
 }
 
@@ -835,7 +841,13 @@ bool FFinalRunFlowShopNodeDedicatedOverlayTest::RunTest(const FString& Parameter
 	const FFinalRunSnapshot ShopSnapshot = Context.RunFlowSubsystem->GetCurrentRunSnapshot();
 	TestEqual(TEXT("Run should be pending shop node."), ShopSnapshot.Progression.FlowStage, EFinalRunFlowStage::PendingShopNode);
 	TestTrue(TEXT("Shop node should expose offers."), ShopSnapshot.PendingShopNode.Offers.Num() > 0);
+	TestTrue(TEXT("Shop node should expose a leave shop flow action."), ShopSnapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::LeaveShop && Action.bEnabled;
+	}));
 	TestEqual(TEXT("Pending shop node should present the dedicated shop overlay."), Context.RunFlowSubsystem->GetPresentedOverlay(), EFinalRunPresentedOverlay::ShopNode);
+	TestTrue(TEXT("Pending shop node should expose a restorable run overlay prompt."), Context.RunFlowSubsystem->HasRestorableRunOverlay());
+	TestTrue(TEXT("Shop restore prompt text should mention shop handling."), Context.RunFlowSubsystem->GetRestorableRunOverlayText().ToString().Contains(TEXT("商店")));
 	return true;
 }
 
@@ -931,9 +943,9 @@ bool FFinalRunGrowthOverlayWidgetSelectionTest::RunTest(const FString& Parameter
 	TestEqual(TEXT("Widget selection should update to the requested choice index."), GrowthScreen->GetSelectedChoiceIndex(), 1);
 	TestEqual(TEXT("Widget selection should expose the requested choice instance id."), GrowthScreen->GetSelectedChoiceInstanceId(), PendingSnapshot.PendingGrowthChoice.Choices[1].ChoiceInstanceId);
 
-	TestTrue(TEXT("Confirming the current growth choice through the widget should submit the RunCommand."), GrowthScreen->ConfirmCurrentChoice());
-	TestFalse(TEXT("RunSession pending growth choice should be cleared after widget-driven confirmation."), RunSession->GetSnapshot().PendingGrowthChoice.bHasPendingChoice);
-	TestEqual(TEXT("Widget-driven confirmation should still route through GrowthChoiceApplied."), Context.RunFlowSubsystem->GetLastProcessedRunEvent().EventType, EFinalRunEventType::GrowthChoiceApplied);
+	TestTrue(TEXT("Submitting a growth choice by instance id should route through the widget click-to-confirm path."), GrowthScreen->SubmitChoiceByInstanceId(PendingSnapshot.PendingGrowthChoice.Choices[1].ChoiceInstanceId));
+	TestFalse(TEXT("RunSession pending growth choice should be cleared after widget-driven click confirmation."), RunSession->GetSnapshot().PendingGrowthChoice.bHasPendingChoice);
+	TestEqual(TEXT("Widget-driven click confirmation should still route through GrowthChoiceApplied."), Context.RunFlowSubsystem->GetLastProcessedRunEvent().EventType, EFinalRunEventType::GrowthChoiceApplied);
 	return true;
 }
 

@@ -25,6 +25,7 @@ enum class EFinalRunEventType : uint8
 	RewardNodeResolved,
 	EventNodeResolved,
 	ShopOfferPurchased,
+	ShopNodeLeft,
 	NodeAdvanced
 };
 

@@ -914,6 +914,10 @@ bool UFinalRunSession::SubmitRunCommand(const FFinalRunCommand& Command)
 		bAccepted = TryExecuteResolveShopNode(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
 		break;
 
+	case EFinalRunCommandType::LeaveShop:
+		bAccepted = TryExecuteLeaveShopNode(DetailEvent, RejectReason, FailureMessage);
+		break;
+
 	case EFinalRunCommandType::SelectGrowthChoice:
 		bAccepted = TryExecuteSelectGrowthChoice(Command.PayloadId, DetailEvent, RejectReason, FailureMessage);
 		break;
@@ -1625,8 +1629,10 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 
 	CurrentState.Gold -= ResolvedOffer.SpentGold;
 	FFinalRewardResolver::ApplyValidatedRewardEntriesToRunState(ResolvedOffer.PreviewEntries, CurrentState);
-	MarkCurrentNodeResolved();
-	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+
+	FFinalRunPurchasedShopOffers& PurchasedOffers = CurrentState.PurchasedShopOffersByNode.FindOrAdd(CurrentNodeId);
+	PurchasedOffers.PurchasedOfferIds.AddUnique(OfferId);
+	CurrentFlowStage = EFinalRunFlowStage::PendingShopNode;
 
 	OutDetailEvent.EventType = EFinalRunEventType::ShopOfferPurchased;
 	OutDetailEvent.NodeId = CurrentNodeId;
@@ -1642,6 +1648,35 @@ bool UFinalRunSession::TryExecuteResolveShopNode(const FName& OfferId, FFinalRun
 			NSLOCTEXT("FinalRunSession", "ShopOfferPurchased", "Purchased shop offer {0}."),
 			ResolvedOffer.OfferDefinition->DisplayName.IsEmpty() ? FText::FromName(OfferId) : ResolvedOffer.OfferDefinition->DisplayName)
 		: ResolvedOffer.OfferDefinition->Description;
+	return true;
+}
+
+bool UFinalRunSession::TryExecuteLeaveShopNode(FFinalRunEvent& OutDetailEvent, EFinalRunCommandRejectReason& OutRejectReason, FText& OutFailureMessage)
+{
+	if (CurrentFlowStage != EFinalRunFlowStage::PendingShopNode)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::UnsupportedCommand;
+		OutFailureMessage = FText::FromString(TEXT("LeaveShop is only valid while the run is on a shop node."));
+		return false;
+	}
+
+	const FFinalRunNodeDefinition* CurrentNode = FindNodeDefinition(CurrentNodeId);
+	if (CurrentNode == nullptr || CurrentNode->NodeType != EFinalRunNodeType::Shop)
+	{
+		OutRejectReason = EFinalRunCommandRejectReason::MissingShopNodeContent;
+		OutFailureMessage = FText::FromString(TEXT("The current shop node does not provide shop content."));
+		return false;
+	}
+
+	MarkCurrentNodeResolved();
+	CurrentFlowStage = EFinalRunFlowStage::AwaitingNodeAdvance;
+
+	OutDetailEvent.EventType = EFinalRunEventType::ShopNodeLeft;
+	OutDetailEvent.NodeId = CurrentNodeId;
+	PopulateNodeEventMetadata(OutDetailEvent, *CurrentNode);
+	OutDetailEvent.Message = FText::Format(
+		NSLOCTEXT("FinalRunSession", "ShopNodeLeft", "Left shop node {0}."),
+		OutDetailEvent.NodeDisplayName.IsEmpty() ? FText::FromName(CurrentNodeId) : OutDetailEvent.NodeDisplayName);
 	return true;
 }
 
@@ -2069,6 +2104,16 @@ TArray<FFinalRunFlowActionViewData> UFinalRunSession::BuildAvailableFlowActions(
 				bEnabled,
 				bEnabled ? FText::GetEmpty() : OfferView.AvailabilityMessage);
 		}
+		AddAction(
+			TEXT("run.action.shop.leave"),
+			EFinalRunCommandType::LeaveShop,
+			NAME_None,
+			NSLOCTEXT("FinalRunSession", "RunFlowActionLeaveShop", "离开商店"),
+			NSLOCTEXT("FinalRunSession", "RunFlowActionLeaveShopDesc", "结束当前商店节点并继续路线。"),
+			Snapshot.PendingShopNode.bHasPendingContent && !Snapshot.PendingShopNode.bResolved,
+			Snapshot.PendingShopNode.bResolved
+				? NSLOCTEXT("FinalRunSession", "RunFlowActionLeaveShopResolved", "当前商店节点已完成。")
+				: FText::GetEmpty());
 		break;
 
 	default:

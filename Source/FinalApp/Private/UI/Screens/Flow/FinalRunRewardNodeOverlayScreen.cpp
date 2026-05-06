@@ -44,10 +44,7 @@ void UFinalRunRewardNodeOverlayScreen::HandleResolveRewardClicked()
 
 void UFinalRunRewardNodeOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunRewardNodeOverlayScreen::EnsureWidgetTree()
@@ -144,7 +141,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayFeedbackDefault", "当前页面会把 ResolveReward 意图转发给 RunFlowSubsystem，由它统一刷新或切页。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardNodeOverlayFeedbackDefault", "当前页面会把 ResolveReward 意图转发给 RunFlowSubsystem，由它统一刷新或切页。"));
 	}
 
 	if (ResolveRewardButton)

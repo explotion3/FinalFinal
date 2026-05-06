@@ -773,7 +773,28 @@ bool FFinalPrototypePostBattleCardRewardAndLinearProgressionTest::RunTest(const 
 	FFinalRunCommand ResolveShopCommand;
 	ResolveShopCommand.CommandType = EFinalRunCommandType::ResolveShop;
 	ResolveShopCommand.PayloadId = ShopOfferId;
-	TestTrue(TEXT("Shop offer should resolve through RunCommand."), RunSession->SubmitRunCommand(ResolveShopCommand));
+	TestTrue(TEXT("Shop offer should purchase through RunCommand."), RunSession->SubmitRunCommand(ResolveShopCommand));
+
+	Snapshot = RunSession->GetSnapshot();
+	TestEqual(TEXT("Buying a shop offer should keep the run on the shop node."), Snapshot.Progression.FlowStage, EFinalRunFlowStage::PendingShopNode);
+	TestTrue(TEXT("Shop node should expose LeaveShop after a purchase."), Snapshot.AvailableFlowActions.ContainsByPredicate([](const FFinalRunFlowActionViewData& Action)
+	{
+		return Action.CommandType == EFinalRunCommandType::LeaveShop && Action.bEnabled;
+	}));
+	const FFinalRunShopOfferViewData* PurchasedOffer = Snapshot.PendingShopNode.Offers.FindByPredicate([ShopOfferId](const FFinalRunShopOfferViewData& Offer)
+	{
+		return Offer.OfferId == ShopOfferId;
+	});
+	TestNotNull(TEXT("Purchased offer should remain visible in shop snapshot."), PurchasedOffer);
+	if (PurchasedOffer != nullptr)
+	{
+		TestTrue(TEXT("Purchased offer should be marked purchased."), PurchasedOffer->bPurchased);
+		TestFalse(TEXT("Purchased offer should no longer be purchasable."), PurchasedOffer->bPurchasable);
+	}
+
+	FFinalRunCommand LeaveShopCommand;
+	LeaveShopCommand.CommandType = EFinalRunCommandType::LeaveShop;
+	TestTrue(TEXT("Shop node should resolve when leaving shop."), RunSession->SubmitRunCommand(LeaveShopCommand));
 
 	Snapshot = RunSession->GetSnapshot();
 	const FName EliteNodeId = Snapshot.Progression.AvailableNextNodes.Num() > 0 ? Snapshot.Progression.AvailableNextNodes[0].NodeId : NAME_None;

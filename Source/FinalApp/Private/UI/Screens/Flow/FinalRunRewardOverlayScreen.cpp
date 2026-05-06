@@ -265,10 +265,7 @@ void UFinalRunRewardOverlayScreen::HandleOpenNodePageClicked()
 
 void UFinalRunRewardOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunRewardOverlayScreen::HandleOpenModalClicked()
@@ -445,7 +442,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardOverlayFeedbackDefault", "请选择一项战后卡牌奖励，或跳过本次卡牌奖励。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RewardOverlayFeedbackDefault", "请选择一项战后卡牌奖励，或跳过本次卡牌奖励。"));
 	}
 
 	if (ClaimRewardButton)

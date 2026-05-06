@@ -54,6 +54,7 @@ bool ShouldUseRewardEventFeedback(const EFinalRunEventType EventType)
 	case EFinalRunEventType::BattleStartConfigured:
 	case EFinalRunEventType::RunCommandAccepted:
 	case EFinalRunEventType::RunCommandRejected:
+	case EFinalRunEventType::ShopNodeLeft:
 	case EFinalRunEventType::NodeAdvanced:
 	default:
 		return false;
@@ -255,6 +256,14 @@ bool UFinalRunFlowSubsystem::ResolveShopOffer(const FName OfferId)
 		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForResolveShop", "当前无法访问 RunSession，无法提交商店节点购买请求。"));
 }
 
+bool UFinalRunFlowSubsystem::LeaveShop()
+{
+	return SubmitRunCommand(
+		EFinalRunCommandType::LeaveShop,
+		NAME_None,
+		NSLOCTEXT("FinalRunFlow", "MissingRunSessionForLeaveShop", "当前无法访问 RunSession，无法离开商店节点。"));
+}
+
 bool UFinalRunFlowSubsystem::SelectGrowthChoice(const FName ChoiceInstanceId)
 {
 	return SubmitRunCommand(
@@ -281,6 +290,55 @@ FFinalRunEvent UFinalRunFlowSubsystem::GetLastProcessedRunEvent() const
 FText UFinalRunFlowSubsystem::GetLastFlowMessage() const
 {
 	return LastFlowMessage;
+}
+
+bool UFinalRunFlowSubsystem::HasRestorableRunOverlay() const
+{
+	return DetermineDesiredOverlay(GetCurrentRunSnapshot()) != EFinalRunPresentedOverlay::None;
+}
+
+FText UFinalRunFlowSubsystem::GetRestorableRunOverlayText() const
+{
+	switch (DetermineDesiredOverlay(GetCurrentRunSnapshot()))
+	{
+	case EFinalRunPresentedOverlay::GrowthChoice:
+		return NSLOCTEXT("FinalRunFlow", "RestoreGrowthChoiceOverlay", "继续处理：成长选择");
+
+	case EFinalRunPresentedOverlay::BattleReward:
+		return NSLOCTEXT("FinalRunFlow", "RestoreBattleRewardOverlay", "继续处理：战后奖励");
+
+	case EFinalRunPresentedOverlay::EventNode:
+		return NSLOCTEXT("FinalRunFlow", "RestoreEventNodeOverlay", "继续处理：事件");
+
+	case EFinalRunPresentedOverlay::ShopNode:
+		return NSLOCTEXT("FinalRunFlow", "RestoreShopNodeOverlay", "继续处理：商店");
+
+	case EFinalRunPresentedOverlay::RunFlow:
+	{
+		const FFinalRunSnapshot Snapshot = GetCurrentRunSnapshot();
+		if (Snapshot.Progression.FlowStage == EFinalRunFlowStage::RunEnded)
+		{
+			return NSLOCTEXT("FinalRunFlow", "RestoreRunEndedOverlay", "查看本局结算");
+		}
+
+		if (Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingRewardNode)
+		{
+			return NSLOCTEXT("FinalRunFlow", "RestoreRewardNodeOverlay", "继续处理：奖励节点");
+		}
+
+		return NSLOCTEXT("FinalRunFlow", "RestoreRunFlowOverlay", "继续旅程");
+	}
+
+	case EFinalRunPresentedOverlay::NodeSelect:
+		return NSLOCTEXT("FinalRunFlow", "RestoreNodeSelectOverlay", "继续选择节点");
+
+	case EFinalRunPresentedOverlay::RewardNode:
+		return NSLOCTEXT("FinalRunFlow", "RestoreRewardNodePresentedOverlay", "继续处理：奖励节点");
+
+	case EFinalRunPresentedOverlay::None:
+	default:
+		return NSLOCTEXT("FinalRunFlow", "RestoreRunOverlayUnavailable", "暂无流程操作");
+	}
 }
 
 bool UFinalRunFlowSubsystem::SubmitRunCommand(const EFinalRunCommandType CommandType, const FName PayloadId, const FText& MissingSessionMessage)

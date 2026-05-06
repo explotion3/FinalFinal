@@ -136,6 +136,9 @@ private:
 	void HandlePurchaseOfferClicked();
 
 	UFUNCTION()
+	void HandleLeaveShopClicked();
+
+	UFUNCTION()
 	void HandleCloseClicked();
 
 	void HandlePurchaseOfferById(FName OfferId);
@@ -182,6 +185,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PurchaseOfferButtonText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> LeaveShopButton;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> LeaveShopButtonText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> CloseButton;

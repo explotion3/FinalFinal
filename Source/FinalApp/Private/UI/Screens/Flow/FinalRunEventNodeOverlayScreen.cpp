@@ -290,10 +290,7 @@ void UFinalRunEventNodeOverlayScreen::HandleOptionClicked(UFinalRunEventOptionEn
 
 void UFinalRunEventNodeOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunEventNodeOverlayScreen::EnsureWidgetTree()
@@ -490,7 +487,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "EventNodeOverlayFeedbackDefault", "事件选项会通过 RunFlowSubsystem 提交，由 FinalRun 统一校验和结算。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "EventNodeOverlayFeedbackDefault", "事件选项会通过 RunFlowSubsystem 提交，由 FinalRun 统一校验和结算。"));
 	}
 
 	RebuildOptionList();

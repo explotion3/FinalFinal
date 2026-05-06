@@ -4,7 +4,7 @@
 
 ## P0
 
-**Run 外层专用页视觉收口**：系统为 `FinalRun / FinalApp / UI`。RunFlow 主页面、战后 Reward 专用页、Event 专用页和 Shop 专用页当前已经完成 C++ 可读化，后续 P0 剩余重点是 Growth 专用页候选展示和整体 Run 外层页面的视觉 polish，包括反馈、关闭 / 恢复入口、焦点管理与 WBP 视觉一致性，让首章竖切从战斗结束到下一节点都更可读。
+**Run 外层 WBP 视觉一致性与导航 polish**：系统为 `FinalRun / FinalApp / UI`。RunFlow 主页面、战后 Reward 专用页、Event 专用页、Shop 专用页和 Growth 专用页当前已经完成 C++ 可读化，Overlay 关闭 / 恢复入口与反馈协议也已收口；后续 P0 剩余重点是统一 WBP 视觉语言、补键盘 / 手柄基础导航、焦点循环、列表默认选中与更明确的按钮状态表现。
 
 ## P1
 

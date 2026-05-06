@@ -144,10 +144,7 @@ void UFinalRunNodeOverlayScreen::HandleOpenRewardPageClicked()
 
 void UFinalRunNodeOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunNodeOverlayScreen::HandleOpenModalClicked()
@@ -307,7 +304,7 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会把推进节点意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "NodeOverlayFeedbackDefault", "当前页面会把推进节点意图转发给 RunFlowSubsystem，由它统一决定刷新与切页。"));
 	}
 
 	const bool bHasAvailableNodes = Progression.AvailableNextNodes.Num() > 0;

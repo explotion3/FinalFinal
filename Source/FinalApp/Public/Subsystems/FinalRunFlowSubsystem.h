@@ -57,6 +57,9 @@ public:
 	bool ResolveShopOffer(FName OfferId);
 
 	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
+	bool LeaveShop();
+
+	UFUNCTION(BlueprintCallable, Category = "Final|RunFlow")
 	bool SelectGrowthChoice(FName ChoiceInstanceId);
 
 	UFUNCTION(BlueprintPure, Category = "Final|RunFlow")
@@ -72,6 +75,9 @@ public:
 	{
 		return PresentedOverlay;
 	}
+
+	bool HasRestorableRunOverlay() const;
+	FText GetRestorableRunOverlayText() const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Final|RunFlow")
 	FFinalRunFlowStateChangedSignature OnRunFlowStateChanged;

@@ -212,6 +212,10 @@ void UFinalRunShopNodeOverlayScreen::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	EnsureWidgetTree();
+	if (LeaveShopButton)
+	{
+		LeaveShopButton->OnClicked.AddUniqueDynamic(this, &UFinalRunShopNodeOverlayScreen::HandleLeaveShopClicked);
+	}
 	RebuildVisual();
 }
 
@@ -282,12 +286,29 @@ void UFinalRunShopNodeOverlayScreen::HandleOfferClicked(UFinalRunShopOfferEntryW
 	HandlePurchaseOfferById(OfferEntry->GetOfferViewData().OfferId);
 }
 
+void UFinalRunShopNodeOverlayScreen::HandleLeaveShopClicked()
+{
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "ShopNodeMissingRunFlowForLeave", "当前无法访问 RunFlowSubsystem，无法离开商店。"));
+		RebuildVisual();
+		return;
+	}
+
+	const bool bAccepted = RunFlowSubsystem->LeaveShop();
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bAccepted
+			? NSLOCTEXT("FinalFlowUI", "ShopNodeLeaveSucceeded", "已离开商店。")
+			: NSLOCTEXT("FinalFlowUI", "ShopNodeLeaveFailed", "离开商店失败。")));
+	RebuildVisual();
+}
+
 void UFinalRunShopNodeOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunShopNodeOverlayScreen::EnsureWidgetTree()
@@ -365,6 +386,17 @@ void UFinalRunShopNodeOverlayScreen::EnsureWidgetTree()
 			PurchaseOfferButtonText);
 		PurchaseOfferButton->OnClicked.AddDynamic(this, &UFinalRunShopNodeOverlayScreen::HandlePurchaseOfferClicked);
 		ContentBox->AddChildToVerticalBox(PurchaseOfferButton);
+	}
+
+	if (LeaveShopButton == nullptr)
+	{
+		LeaveShopButton = CreateStageButton(
+			TEXT("ShopNodeOverlayLeaveButton"),
+			TEXT("ShopNodeOverlayLeaveButtonText"),
+			NSLOCTEXT("FinalFlowUI", "ShopNodeLeaveButton", "离开商店"),
+			LeaveShopButtonText);
+		LeaveShopButton->OnClicked.AddDynamic(this, &UFinalRunShopNodeOverlayScreen::HandleLeaveShopClicked);
+		ContentBox->AddChildToVerticalBox(LeaveShopButton);
 	}
 
 	if (CloseButton == nullptr)
@@ -484,12 +516,12 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		GapText->SetText(NSLOCTEXT(
 			"FinalFlowUI",
 			"ShopNodeOverlayGapText",
-			"选择一个商品。购买成功后商店节点会完成，并进入路线推进阶段。"));
+			"选择商品购买；可购买多个商品。点击离开商店后结束当前商店节点并进入路线推进阶段。"));
 	}
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "ShopNodeOverlayFeedbackDefault", "当前页面会把选中的 OfferId 通过 ResolveShop 转发给 RunFlowSubsystem，由它统一刷新或切页。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "ShopNodeOverlayFeedbackDefault", "购买商品会转发 OfferId；离开商店会提交 LeaveShop，由 RunFlowSubsystem 统一刷新或切页。"));
 	}
 
 	if (PreviousOfferButton)
@@ -542,6 +574,24 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 		else
 		{
 			PurchaseOfferButtonText->SetText(NSLOCTEXT("FinalFlowUI", "ShopNodePurchaseButton", "购买当前商品"));
+		}
+	}
+
+	if (LeaveShopButton)
+	{
+		LeaveShopButton->SetIsEnabled(PendingShopNode.bHasPendingContent && !PendingShopNode.bResolved);
+		LeaveShopButton->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (LeaveShopButtonText)
+	{
+		if (PendingShopNode.bResolved)
+		{
+			LeaveShopButtonText->SetText(NSLOCTEXT("FinalFlowUI", "ShopNodeLeaveButtonResolved", "商店已离开"));
+		}
+		else
+		{
+			LeaveShopButtonText->SetText(NSLOCTEXT("FinalFlowUI", "ShopNodeLeaveButton", "离开商店"));
 		}
 	}
 

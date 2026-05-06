@@ -7,6 +7,16 @@
 #include "Runtime/FinalRunCardInstance.h"
 #include "Runtime/FinalRunGrowthChoice.h"
 #include "FinalRunState.generated.h"
+
+USTRUCT(BlueprintType)
+struct FINALRUN_API FFinalRunPurchasedShopOffers
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TArray<FName> PurchasedOfferIds;
+};
+
 USTRUCT(BlueprintType)
 struct FINALRUN_API FFinalRunState
 {
@@ -49,6 +59,9 @@ struct FINALRUN_API FFinalRunState
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
 	TArray<FFinalRelicId> Relics;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Final|Run")
+	TMap<FName, FFinalRunPurchasedShopOffers> PurchasedShopOffersByNode;
 };
 
 

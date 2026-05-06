@@ -13,6 +13,7 @@ enum class EFinalRunCommandType : uint8
 	ResolveReward,
 	ResolveEvent,
 	ResolveShop,
+	LeaveShop,
 	SelectGrowthChoice
 };
 

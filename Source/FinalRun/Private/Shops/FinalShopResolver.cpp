@@ -39,6 +39,16 @@ bool FFinalShopResolver::TryResolveShopOffer(
 		return false;
 	}
 
+	if (const FFinalRunPurchasedShopOffers* PurchasedOffers = RunState.PurchasedShopOffersByNode.Find(NodeDefinition.NodeId))
+	{
+		if (PurchasedOffers->PurchasedOfferIds.Contains(OfferId))
+		{
+			OutRejectReason = EFinalRunCommandRejectReason::ShopOfferUnavailable;
+			OutFailureMessage = NSLOCTEXT("FinalShopResolver", "ShopOfferAlreadyPurchased", "The selected shop offer has already been purchased.");
+			return false;
+		}
+	}
+
 	if (SelectedOffer->bStartsUnavailable)
 	{
 		OutRejectReason = EFinalRunCommandRejectReason::ShopOfferUnavailable;
@@ -78,6 +88,12 @@ void FFinalShopResolver::BuildShopOfferViews(
 
 	for (const FFinalRunShopOfferDefinition& Offer : NodeDefinition.ShopContent.Offers)
 	{
+		bool bPurchased = false;
+		if (const FFinalRunPurchasedShopOffers* PurchasedOffers = RunState.PurchasedShopOffersByNode.Find(NodeDefinition.NodeId))
+		{
+			bPurchased = PurchasedOffers->PurchasedOfferIds.Contains(Offer.OfferId);
+		}
+
 		FFinalRunShopOfferViewData OfferView;
 		OfferView.OfferId = Offer.OfferId;
 		OfferView.DisplayId = Offer.DisplayId;
@@ -86,7 +102,7 @@ void FFinalShopResolver::BuildShopOfferViews(
 			: Offer.DisplayName;
 		OfferView.Description = Offer.Description;
 		OfferView.Price = Offer.Price;
-		OfferView.bPurchased = bNodeResolved;
+		OfferView.bPurchased = bPurchased;
 		OfferView.RewardEntries = FFinalRewardResolver::MakePreviewRewardEntries(Offer.RewardEntries, DataRegistry);
 		OfferView.RewardEntryViews = FFinalRewardResolver::BuildRewardEntryViews(OfferView.RewardEntries, DataRegistry);
 
@@ -94,6 +110,11 @@ void FFinalShopResolver::BuildShopOfferViews(
 		{
 			OfferView.bPurchasable = false;
 			OfferView.AvailabilityMessage = FText::FromString(TEXT("This shop node has already been resolved."));
+		}
+		else if (bPurchased)
+		{
+			OfferView.bPurchasable = false;
+			OfferView.AvailabilityMessage = NSLOCTEXT("FinalShopResolver", "ShopOfferPurchased", "This offer has already been purchased.");
 		}
 		else if (Offer.bStartsUnavailable)
 		{

@@ -715,10 +715,7 @@ void UFinalRunFlowOverlayScreen::HandleSecondaryActionClicked()
 
 void UFinalRunFlowOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
@@ -974,7 +971,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RunFlowOverlayFeedbackDefault", "等待当前流程操作。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RunFlowOverlayFeedbackDefault", "等待当前流程操作。"));
 	}
 
 	const int32 RewardCount = Snapshot.PendingBattleReward.RewardEntries.Num();
@@ -1363,6 +1360,12 @@ void UFinalRunFlowOverlayScreen::HandleListOptionClicked(UFinalRunFlowOptionButt
 			bAccepted = RunFlowSubsystem->ResolveShopOffer(OptionButton->GetPayloadId());
 			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveShopSucceeded", "已提交商店商品。");
 			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionResolveShopFailed", "提交商店商品失败。");
+			break;
+
+		case EFinalRunCommandType::LeaveShop:
+			bAccepted = RunFlowSubsystem->LeaveShop();
+			SuccessText = NSLOCTEXT("FinalFlowUI", "RunFlowActionLeaveShopSucceeded", "已离开商店。");
+			FailureText = NSLOCTEXT("FinalFlowUI", "RunFlowActionLeaveShopFailed", "离开商店失败。");
 			break;
 
 		default:

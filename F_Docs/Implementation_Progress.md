@@ -1,11 +1,26 @@
 # Implementation Progress
 
+## 2026-05-06：Run Overlay 生命周期 / 反馈 / 关闭恢复收口 v0.1
+
+- `FinalRunStageOverlayScreenBase` 当前提供统一 `RequestCloseOverlay / CanCloseOverlay / GetDefaultFocusWidget / RefreshFeedbackText` 协议；各 Run 外层页关闭按钮现在只隐藏 overlay，不修改 `RunSession`、奖励、事件、商店、成长或节点阶段。
+- `FinalRunFlowSubsystem` 当前提供 `HasRestorableRunOverlay()` 与 `GetRestorableRunOverlayText()`，把“当前是否有可恢复 Run 页”和恢复文案集中在 Run 外层桥接层。
+- `RunFlowPromptPanel` 当前作为正式恢复入口：当 `RunSnapshot` 仍处于成长、战后奖励、事件、商店、路线推进、奖励节点或 RunEnded 等待处理阶段时显示，点击后只调用 `RefreshRunFlow(true)` 重新打开应展示页面。
+- 本轮只收口键鼠主路径，不引入 CommonUI，不做手柄方向导航；后续剩余项是 WBP 视觉一致性、焦点循环和键盘 / 手柄基础导航 polish。
+
+## 2026-05-06：Run Growth 专用页候选展示收口 v0.1
+
+- `FinalRunGrowthChoiceOverlayScreen` 当前收口为 Growth 专用页：显示目标角色摘要和成长候选 Entry 列表，仍优先于其他 Run 外层页显示。
+- 新增 `FinalRunGrowthChoiceEntryWidget` 作为成长候选 Entry 父类，支持 `Title / Type / Description / Detail / State / Icon / Tier` 可选绑定；Entry 不保存 Run 真相，不直接调用 `RunSession`。
+- 成长候选交互已改为“点击即确认”：Entry 点击把 `ChoiceInstanceId` 交给 overlay，再通过 `RunFlowSubsystem.SelectGrowthChoice()` 转发给 `FinalRun`；旧 `PrimaryActionButton` 和 `ConfirmCurrentChoice()` 保留兼容但默认不作为主交互。
+- `FinalUIWidgetClassSettings` 当前新增 `RunGrowthChoiceEntryWidgetClass`，未配置时继续使用 C++ fallback。
+
 ## 2026-05-06：Run Shop 专用页 v0.1
 
 - `PendingShopNode` 阶段当前自动打开专用 `FinalRunShopNodeOverlayScreen`；`PendingGrowthChoice`、战后 Reward 专用页和 Event 专用页优先级保持不变。
 - `FinalRunShopNodeOverlayScreen` 当前显示商店标题、摘要、当前节点、金币、商品数量和商品 Entry 列表；点击商品通过 `RunFlowSubsystem.ResolveShopOffer(OfferId)` 转发给 `FinalRun`。
+- 商店规则已从“一次购买即完成节点”调整为“可购买多个商品”；`ResolveShop` 只扣金币、应用奖励并标记该 Offer 已购买，`LeaveShop` 才会完成商店节点并进入路线推进阶段。
 - 新增 `FinalRunShopOfferEntryWidget` 作为商店商品 Entry 父类，支持 `Title / Description / Price / PreviewReward / State / DisabledReason / Icon / Tier / PurchasedVisual` 可选绑定；Entry 不保存 Run 真相，不直接调用 `RunSession`。
-- `FinalUIWidgetClassSettings` 当前新增 `RunShopNodeOverlayScreenClass / RunShopOfferEntryWidgetClass`，未配置时继续使用 C++ fallback。旧上一件 / 下一件 / 购买当前商品绑定保留兼容，但默认隐藏，不再作为主交互。
+- `FinalUIWidgetClassSettings` 当前新增 `RunShopNodeOverlayScreenClass / RunShopOfferEntryWidgetClass`，未配置时继续使用 C++ fallback。旧上一件 / 下一件 / 购买当前商品绑定保留兼容但默认隐藏；`离开商店` 是正式结束商店节点入口。
 
 ## 2026-05-06：Run Event 专用页 v0.1
 

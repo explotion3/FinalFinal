@@ -37,6 +37,7 @@ class UFinalBattleUltimateEntryWidget;
 class UFinalBattleUltimatePanel;
 class UFinalRunFlowOptionButton;
 class UFinalRunFlowOverlayScreen;
+class UFinalRunGrowthChoiceEntryWidget;
 class UFinalRunGrowthChoiceOverlayScreen;
 class UFinalRunFlowPromptPanel;
 class UFinalRunEventNodeOverlayScreen;
@@ -96,6 +97,7 @@ public:
 	static TSubclassOf<UFinalRunShopNodeOverlayScreen> GetRunShopNodeOverlayScreenClass();
 	static TSubclassOf<UFinalRunFlowOptionButton> GetRunFlowOptionButtonClass();
 	static TSubclassOf<UFinalRunRouteNodeEntryWidget> GetRunRouteNodeEntryWidgetClass();
+	static TSubclassOf<UFinalRunGrowthChoiceEntryWidget> GetRunGrowthChoiceEntryWidgetClass();
 	static TSubclassOf<UFinalRunRewardCandidateEntryWidget> GetRunRewardCandidateEntryWidgetClass();
 	static TSubclassOf<UFinalRunEventOptionEntryWidget> GetRunEventOptionEntryWidgetClass();
 	static TSubclassOf<UFinalRunShopOfferEntryWidget> GetRunShopOfferEntryWidgetClass();
@@ -216,6 +218,9 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunRouteNodeEntryWidget> RunRouteNodeEntryWidgetClass;
+
+	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
+	TSoftClassPtr<UFinalRunGrowthChoiceEntryWidget> RunGrowthChoiceEntryWidgetClass;
 
 	UPROPERTY(Config, EditAnywhere, Category="Run Flow")
 	TSoftClassPtr<UFinalRunRewardCandidateEntryWidget> RunRewardCandidateEntryWidgetClass;

@@ -421,37 +421,7 @@ UFinalRunFlowSubsystem* UFinalRunFlowPromptPanel::ResolveRunFlowSubsystem() cons
 bool UFinalRunFlowPromptPanel::ShouldShowPrompt() const
 {
 	const UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
-	if (RunFlowSubsystem == nullptr)
-	{
-		return false;
-	}
-
-	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
-	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
-	{
-		return true;
-	}
-
-	if (Snapshot.PendingBattleReward.bHasPendingReward
-		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
-	{
-		return true;
-	}
-
-	switch (Snapshot.Progression.FlowStage)
-	{
-	case EFinalRunFlowStage::AwaitingNodeAdvance:
-	case EFinalRunFlowStage::PendingRewardNode:
-	case EFinalRunFlowStage::PendingEventNode:
-	case EFinalRunFlowStage::PendingShopNode:
-	case EFinalRunFlowStage::RunEnded:
-		return true;
-
-	case EFinalRunFlowStage::PreparingBattle:
-	case EFinalRunFlowStage::None:
-	default:
-		return false;
-	}
+	return RunFlowSubsystem != nullptr && RunFlowSubsystem->HasRestorableRunOverlay();
 }
 
 FText UFinalRunFlowPromptPanel::BuildPromptText() const
@@ -462,40 +432,7 @@ FText UFinalRunFlowPromptPanel::BuildPromptText() const
 		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptUnavailable", "流程不可用");
 	}
 
-	const FFinalRunSnapshot Snapshot = RunFlowSubsystem->GetCurrentRunSnapshot();
-	if (Snapshot.PendingGrowthChoice.bHasPendingChoice)
-	{
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptGrowthChoice", "选择成长");
-	}
-
-	if (Snapshot.PendingBattleReward.bHasPendingReward
-		|| Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingBattleReward)
-	{
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptBattleReward", "选择战利品");
-	}
-
-	switch (Snapshot.Progression.FlowStage)
-	{
-	case EFinalRunFlowStage::AwaitingNodeAdvance:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptAdvanceNode", "继续旅程");
-
-	case EFinalRunFlowStage::PendingRewardNode:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRewardNode", "领取节点奖励");
-
-	case EFinalRunFlowStage::PendingEventNode:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptEventNode", "处理事件");
-
-	case EFinalRunFlowStage::PendingShopNode:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptShopNode", "进入商店");
-
-	case EFinalRunFlowStage::RunEnded:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptRunEnded", "查看结算");
-
-	case EFinalRunFlowStage::PreparingBattle:
-	case EFinalRunFlowStage::None:
-	default:
-		return NSLOCTEXT("FinalBattleHUD", "RunFlowPromptNoAction", "暂无流程操作");
-	}
+	return RunFlowSubsystem->GetRestorableRunOverlayText();
 }
 
 void UFinalBattleFeedbackPanel::NativeOnInitialized()

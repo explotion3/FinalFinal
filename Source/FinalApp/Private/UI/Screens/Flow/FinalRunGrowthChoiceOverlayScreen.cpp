@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -77,36 +78,147 @@ FText BuildGrowthChoiceTitle(const FFinalRunGrowthChoiceInstance& Choice)
 	return NSLOCTEXT("FinalFlowUI", "GrowthChoiceTitleUnknown", "未命名成长");
 }
 
-FFinalRunFlowOptionButtonData BuildGrowthChoiceOptionData(const FFinalRunGrowthChoiceInstance& Choice, const int32 ChoiceIndex, const bool bSelected)
+FText BuildGrowthChoiceDetailText(const FFinalRunGrowthChoiceInstance& Choice)
 {
-	FFinalRunFlowOptionButtonData Data;
-	Data.Kind = EFinalRunFlowOptionKind::GrowthChoice;
-	Data.PayloadId = Choice.ChoiceInstanceId;
-	Data.PayloadIndex = ChoiceIndex;
-	Data.Title = BuildGrowthChoiceTitle(Choice);
-	Data.Subtitle = FormatGrowthChoiceTypeText(Choice.ChoiceType);
-	Data.bEnabled = Choice.IsValid();
-
 	if (Choice.ChoiceType == EFinalGrowthChoiceType::AttributeGrowth)
 	{
-		Data.Meta = FText::Format(
-			NSLOCTEXT("FinalFlowUI", "GrowthChoiceAttributeMeta", "目标属性：{0} | 变化：+{1}"),
+		return FText::Format(
+			NSLOCTEXT("FinalFlowUI", "GrowthChoiceAttributeDetail", "目标属性：{0} | 变化：+{1}"),
 			FormatGrowthAttributeTypeText(Choice.AttributeType),
 			FText::AsNumber(Choice.AttributeDelta));
 	}
-	else if (Choice.ChoiceType == EFinalGrowthChoiceType::CardEvolution)
+
+	if (Choice.ChoiceType == EFinalGrowthChoiceType::CardEvolution)
 	{
-		Data.Meta = FText::Format(
-			NSLOCTEXT("FinalFlowUI", "GrowthChoiceEvolutionMeta", "进化路径：{0} -> {1}"),
+		return FText::Format(
+			NSLOCTEXT("FinalFlowUI", "GrowthChoiceEvolutionDetail", "进化路径：{0} -> {1}"),
 			Choice.FromCardId.IsValid() ? FText::FromName(Choice.FromCardId.Value) : NSLOCTEXT("FinalFlowUI", "GrowthChoiceEvolutionMetaFromUnknown", "旧卡"),
 			Choice.ToCardId.IsValid() ? FText::FromName(Choice.ToCardId.Value) : NSLOCTEXT("FinalFlowUI", "GrowthChoiceEvolutionMetaToUnknown", "新卡"));
 	}
 
-	Data.State = bSelected
-		? NSLOCTEXT("FinalFlowUI", "GrowthChoiceStateSelected", "当前选择")
-		: NSLOCTEXT("FinalFlowUI", "GrowthChoiceStateSelectable", "点击以选择");
-	return Data;
+	return FText::GetEmpty();
 }
+
+FName BuildGrowthChoiceIconId(const FFinalRunGrowthChoiceInstance& Choice)
+{
+	if (Choice.ChoiceType == EFinalGrowthChoiceType::AttributeGrowth)
+	{
+		switch (Choice.AttributeType)
+		{
+		case EFinalGrowthAttributeType::RootBone:
+			return TEXT("growth.attribute.root_bone");
+
+		case EFinalGrowthAttributeType::Insight:
+			return TEXT("growth.attribute.insight");
+
+		case EFinalGrowthAttributeType::KillingIntent:
+			return TEXT("growth.attribute.killing_intent");
+
+		default:
+			return TEXT("growth.attribute.unknown");
+		}
+	}
+
+	if (Choice.ChoiceType == EFinalGrowthChoiceType::CardEvolution)
+	{
+		return Choice.CardEvolutionId.IsValid() ? Choice.CardEvolutionId.Value : TEXT("growth.card_evolution");
+	}
+
+	return TEXT("growth.special");
+}
+}
+
+void UFinalRunGrowthChoiceEntryWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	EnsureWidgetTree();
+	if (ChoiceButton)
+	{
+		ChoiceButton->OnClicked.AddUniqueDynamic(this, &UFinalRunGrowthChoiceEntryWidget::HandleClicked);
+	}
+	RefreshBoundWidgets();
+}
+
+void UFinalRunGrowthChoiceEntryWidget::ApplyChoiceView(const FFinalRunGrowthChoiceEntryViewData& InViewData)
+{
+	CachedViewData = InViewData;
+	EnsureWidgetTree();
+	RefreshBoundWidgets();
+	OnChoiceViewApplied(CachedViewData);
+}
+
+void UFinalRunGrowthChoiceEntryWidget::HandleClicked()
+{
+	if (!CachedViewData.bEnabled)
+	{
+		return;
+	}
+
+	OnChoiceClicked.Broadcast(this);
+}
+
+void UFinalRunGrowthChoiceEntryWidget::EnsureWidgetTree()
+{
+	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	{
+		return;
+	}
+
+	ChoiceButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ChoiceButton"));
+	WidgetTree->RootWidget = ChoiceButton;
+
+	UVerticalBox* ContentBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ChoiceContentBox"));
+	ChoiceButton->AddChild(ContentBox);
+
+	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+	TypeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TypeText"));
+	DescriptionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescriptionText"));
+	DetailText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailText"));
+	StateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StateText"));
+
+	ContentBox->AddChildToVerticalBox(TitleText);
+	ContentBox->AddChildToVerticalBox(TypeText);
+	ContentBox->AddChildToVerticalBox(DescriptionText);
+	ContentBox->AddChildToVerticalBox(DetailText);
+	ContentBox->AddChildToVerticalBox(StateText);
+}
+
+void UFinalRunGrowthChoiceEntryWidget::RefreshBoundWidgets()
+{
+	if (TitleText)
+	{
+		TitleText->SetText(CachedViewData.Title);
+	}
+	if (TypeText)
+	{
+		TypeText->SetText(CachedViewData.ChoiceTypeText);
+	}
+	if (DescriptionText)
+	{
+		DescriptionText->SetText(CachedViewData.Description);
+		DescriptionText->SetVisibility(CachedViewData.Description.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (DetailText)
+	{
+		DetailText->SetText(CachedViewData.DetailText);
+		DetailText->SetVisibility(CachedViewData.DetailText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (StateText)
+	{
+		StateText->SetText(CachedViewData.StateText);
+	}
+	if (ChoiceButton)
+	{
+		ChoiceButton->SetIsEnabled(CachedViewData.bEnabled);
+	}
+	if (TierVisual)
+	{
+		TierVisual->SetVisibility(CachedViewData.VisualTier != EFinalRunRewardVisualTier::None ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UFinalRunGrowthChoiceOverlayScreen::NativeOnInitialized()
@@ -128,7 +240,7 @@ void UFinalRunGrowthChoiceOverlayScreen::ConfigureFromRunSnapshot(const FFinalRu
 		{
 			if (UISubsystem->GetActiveOverlayScreen() == this)
 			{
-				UISubsystem->CloseOverlayScreen(this);
+				RequestCloseOverlay();
 			}
 		}
 	}
@@ -199,10 +311,7 @@ void UFinalRunGrowthChoiceOverlayScreen::HandlePrimaryActionClicked()
 
 void UFinalRunGrowthChoiceOverlayScreen::HandleCloseClicked()
 {
-	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
-	{
-		UISubsystem->CloseOverlayScreen(this);
-	}
+	RequestCloseOverlay();
 }
 
 void UFinalRunGrowthChoiceOverlayScreen::EnsureWidgetTree()
@@ -301,7 +410,7 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 
 	if (PrimaryActionButton)
 	{
-		PrimaryActionButton->SetVisibility(bHasPendingChoice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		PrimaryActionButton->SetVisibility(ESlateVisibility::Collapsed);
 		PrimaryActionButton->SetIsEnabled(GetSelectedChoice() != nullptr);
 	}
 	if (PrimaryActionButtonText)
@@ -321,7 +430,7 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 
 	if (FeedbackText)
 	{
-		FeedbackText->SetText(BuildFeedbackText(NSLOCTEXT("FinalFlowUI", "RunGrowthDefaultFeedback", "等待选择一项成长。")));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RunGrowthDefaultFeedback", "等待选择一项成长。"));
 	}
 }
 
@@ -339,24 +448,23 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildChoiceList()
 	}
 
 	const FFinalRunPendingGrowthChoiceViewData& PendingGrowthChoice = GetCachedSnapshot().PendingGrowthChoice;
-	const TSubclassOf<UFinalRunFlowOptionButton> OptionButtonClass = UFinalUIWidgetClassSettings::GetRunFlowOptionButtonClass();
-	UClass* ResolvedOptionButtonClass = OptionButtonClass.Get() ? OptionButtonClass.Get() : UFinalRunFlowOptionButton::StaticClass();
+	const TSubclassOf<UFinalRunGrowthChoiceEntryWidget> EntryClass = UFinalUIWidgetClassSettings::GetRunGrowthChoiceEntryWidgetClass();
+	UClass* ResolvedEntryClass = EntryClass.Get() ? EntryClass.Get() : UFinalRunGrowthChoiceEntryWidget::StaticClass();
 
 	for (int32 ChoiceIndex = 0; ChoiceIndex < PendingGrowthChoice.Choices.Num(); ++ChoiceIndex)
 	{
-		const FFinalRunGrowthChoiceInstance& Choice = PendingGrowthChoice.Choices[ChoiceIndex];
-		UFinalRunFlowOptionButton* OptionWidget = WidgetTree->ConstructWidget<UFinalRunFlowOptionButton>(
-			ResolvedOptionButtonClass,
+		UFinalRunGrowthChoiceEntryWidget* ChoiceEntry = WidgetTree->ConstructWidget<UFinalRunGrowthChoiceEntryWidget>(
+			ResolvedEntryClass,
 			*FString::Printf(TEXT("RunGrowthChoiceOption_%d"), ChoiceIndex));
-		if (OptionWidget == nullptr)
+		if (ChoiceEntry == nullptr)
 		{
 			continue;
 		}
 
-		OptionWidget->ConfigureOption(BuildGrowthChoiceOptionData(Choice, ChoiceIndex, ChoiceIndex == SelectedChoiceIndex));
-		OptionWidget->OnOptionClicked.AddUObject(this, &UFinalRunGrowthChoiceOverlayScreen::HandleChoiceOptionClicked);
+		ChoiceEntry->ApplyChoiceView(BuildChoiceEntryData(ChoiceIndex));
+		ChoiceEntry->OnChoiceClicked.AddUObject(this, &UFinalRunGrowthChoiceOverlayScreen::HandleGrowthChoiceEntryClicked);
 
-		if (UVerticalBoxSlot* OptionSlot = GrowthChoiceListBox->AddChildToVerticalBox(OptionWidget))
+		if (UVerticalBoxSlot* OptionSlot = GrowthChoiceListBox->AddChildToVerticalBox(ChoiceEntry))
 		{
 			OptionSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 		}
@@ -389,20 +497,67 @@ void UFinalRunGrowthChoiceOverlayScreen::ClampSelectionIndex()
 	}
 }
 
-void UFinalRunGrowthChoiceOverlayScreen::HandleChoiceOptionClicked(UFinalRunFlowOptionButton* OptionButton)
+void UFinalRunGrowthChoiceOverlayScreen::HandleGrowthChoiceEntryClicked(UFinalRunGrowthChoiceEntryWidget* ChoiceEntry)
 {
-	if (OptionButton == nullptr)
+	if (ChoiceEntry == nullptr)
 	{
 		return;
 	}
 
-	SelectChoiceByIndex(OptionButton->GetPayloadIndex());
+	SubmitChoiceByInstanceId(ChoiceEntry->GetChoiceViewData().ChoiceInstanceId);
+}
+
+bool UFinalRunGrowthChoiceOverlayScreen::SubmitChoiceByInstanceId(const FName ChoiceInstanceId)
+{
+	const FFinalRunGrowthChoiceInstance* Choice = FindChoiceByInstanceId(ChoiceInstanceId);
+	if (Choice == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryInvalid", "当前没有对应的成长候选。"));
+		RebuildVisual();
+		return false;
+	}
+
+	SelectedChoiceIndex = GetCachedSnapshot().PendingGrowthChoice.Choices.IndexOfByPredicate([ChoiceInstanceId](const FFinalRunGrowthChoiceInstance& Candidate)
+	{
+		return Candidate.ChoiceInstanceId == ChoiceInstanceId;
+	});
+
+	UFinalRunFlowSubsystem* RunFlowSubsystem = ResolveRunFlowSubsystem();
+	if (RunFlowSubsystem == nullptr)
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryMissingSubsystem", "当前无法访问 RunFlowSubsystem。"));
+		RebuildVisual();
+		return false;
+	}
+
+	const bool bAccepted = RunFlowSubsystem->SelectGrowthChoice(ChoiceInstanceId);
+	ConfigureFromRunSnapshot(RunFlowSubsystem->GetCurrentRunSnapshot());
+	SetLastActionFeedback(!RunFlowSubsystem->GetLastFlowMessage().IsEmpty()
+		? RunFlowSubsystem->GetLastFlowMessage()
+		: (bAccepted
+			? NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryApplySucceeded", "已应用成长。")
+			: NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryApplyFailed", "提交成长选择失败。")));
+	RebuildVisual();
+	return bAccepted;
 }
 
 const FFinalRunGrowthChoiceInstance* UFinalRunGrowthChoiceOverlayScreen::GetSelectedChoice() const
 {
 	const TArray<FFinalRunGrowthChoiceInstance>& Choices = GetCachedSnapshot().PendingGrowthChoice.Choices;
 	return Choices.IsValidIndex(SelectedChoiceIndex) ? &Choices[SelectedChoiceIndex] : nullptr;
+}
+
+const FFinalRunGrowthChoiceInstance* UFinalRunGrowthChoiceOverlayScreen::FindChoiceByInstanceId(const FName ChoiceInstanceId) const
+{
+	if (ChoiceInstanceId.IsNone())
+	{
+		return nullptr;
+	}
+
+	return GetCachedSnapshot().PendingGrowthChoice.Choices.FindByPredicate([ChoiceInstanceId](const FFinalRunGrowthChoiceInstance& Choice)
+	{
+		return Choice.ChoiceInstanceId == ChoiceInstanceId;
+	});
 }
 
 const FFinalRunCharacterViewData* UFinalRunGrowthChoiceOverlayScreen::GetTargetCharacter() const
@@ -412,6 +567,35 @@ const FFinalRunCharacterViewData* UFinalRunGrowthChoiceOverlayScreen::GetTargetC
 	{
 		return Character.CharacterId == TargetCharacterId;
 	});
+}
+
+FFinalRunGrowthChoiceEntryViewData UFinalRunGrowthChoiceOverlayScreen::BuildChoiceEntryData(const int32 ChoiceIndex) const
+{
+	FFinalRunGrowthChoiceEntryViewData EntryData;
+	const TArray<FFinalRunGrowthChoiceInstance>& Choices = GetCachedSnapshot().PendingGrowthChoice.Choices;
+	if (!Choices.IsValidIndex(ChoiceIndex))
+	{
+		EntryData.Title = NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryInvalidTitle", "无效成长候选");
+		EntryData.StateText = NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryInvalidState", "不可选择");
+		return EntryData;
+	}
+
+	const FFinalRunGrowthChoiceInstance& Choice = Choices[ChoiceIndex];
+	EntryData.ChoiceInstanceId = Choice.ChoiceInstanceId;
+	EntryData.ChoiceIndex = ChoiceIndex;
+	EntryData.Title = BuildGrowthChoiceTitle(Choice);
+	EntryData.ChoiceTypeText = FormatGrowthChoiceTypeText(Choice.ChoiceType);
+	EntryData.Description = FormatOptionalText(Choice.Description, FText::GetEmpty());
+	EntryData.DetailText = BuildGrowthChoiceDetailText(Choice);
+	EntryData.IconId = BuildGrowthChoiceIconId(Choice);
+	EntryData.VisualTier = Choice.ChoiceType == EFinalGrowthChoiceType::CardEvolution
+		? EFinalRunRewardVisualTier::Rare
+		: EFinalRunRewardVisualTier::Common;
+	EntryData.bEnabled = Choice.IsValid();
+	EntryData.StateText = EntryData.bEnabled
+		? NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryEnabled", "点击确认")
+		: NSLOCTEXT("FinalFlowUI", "GrowthChoiceEntryDisabled", "不可选择");
+	return EntryData;
 }
 
 FText UFinalRunGrowthChoiceOverlayScreen::BuildCharacterSummaryText() const

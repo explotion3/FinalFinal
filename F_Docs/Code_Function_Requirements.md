@@ -517,6 +517,8 @@
 当前阶段补充：
 
 - `FinalRunFlowSubsystem` 仍是 `FinalApp` 内唯一的 Run 外层流程桥接入口
+- `FinalRunStageOverlayScreenBase` 是 Run 外层页生命周期基类；关闭按钮只允许隐藏 overlay，不允许修改 `FinalRun` 真相或提交隐式 RunCommand
+- `RunFlowPromptPanel` 是关闭后的恢复入口；它通过 `RunFlowSubsystem.HasRestorableRunOverlay()` 判断是否显示，并通过 `RefreshRunFlow(true)` 重新打开当前 snapshot 对应页面
 - `FinalRunSession` 通过 `RunSnapshot.RouteOverview` 提供整条路线的节点状态，通过 `RunSnapshot.AvailableFlowActions` 提供当前阶段可展示动作；`FinalApp / World` 只消费这些 ViewData 并提交对应 `RunCommand`，不自行推断路线真相
 - `FinalRunFlowOverlayScreen` 是统一 RunFlow 主流程页：顶部 / 路线概览 / 动作列表 / 反馈区都只消费 `RunSnapshot`，主操作按钮只从 `AvailableFlowActions` 构建；旧 reward / event / shop / progression 专用数据区只能作为兼容 fallback 或详情参考
 - `FinalRunRouteNodeEntryWidget` 是只读路线节点 Entry，不允许直接推进节点；所有节点推进仍必须通过 `AvailableFlowActions` 里的 `AdvanceToNode` 动作提交到 `RunFlowSubsystem`
@@ -524,11 +526,12 @@
 - `FinalRunRewardCandidateEntryWidget` 是只读候选 Entry，只负责展示和点击回调，不允许直接调用 `RunSession`
 - `FinalRunEventNodeOverlayScreen` 是事件节点专用页：只消费 `RunSnapshot.PendingEventNode` 构建选项列表，点击选项经 `RunFlowSubsystem.ResolveEventOption(OptionId)` 转发；页面不自行判断事件结算、不直接调用 `RunSession`
 - `FinalRunEventOptionEntryWidget` 是只读事件选项 Entry，只负责展示选项标题、结果摘要、奖励预览、阻塞原因和点击回调
-- `FinalRunShopNodeOverlayScreen` 是商店节点专用页：只消费 `RunSnapshot.PendingShopNode` 构建商品列表，点击商品经 `RunFlowSubsystem.ResolveShopOffer(OfferId)` 转发；页面不自行判断金币、库存、奖励合法性，也不直接调用 `RunSession`
+- `FinalRunShopNodeOverlayScreen` 是商店节点专用页：只消费 `RunSnapshot.PendingShopNode` 构建商品列表，点击商品经 `RunFlowSubsystem.ResolveShopOffer(OfferId)` 转发；购买只标记该商品已购买并刷新商店页，不自动完成节点
+- `FinalRunShopNodeOverlayScreen` 的离开按钮经 `RunFlowSubsystem.LeaveShop()` 转发，由 `FinalRun` 标记商店节点 resolved 并进入路线推进阶段；页面不自行判断金币、库存、奖励合法性，也不直接调用 `RunSession`
 - `FinalRunShopOfferEntryWidget` 是只读商品 Entry，只负责展示商品名、描述、价格、奖励预览、阻塞原因、购买状态和点击回调
 - `FinalGameFlowSubsystem` 当前是 BattleGrowthFact -> Run 突破值桥接层，同时负责“立即弹 / 延后弹”的安全窗口判断
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
-- Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相
+- Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相；候选通过 `FinalRunGrowthChoiceEntryWidget` 展示，点击即转发 `ChoiceInstanceId`
 - `SelectGrowthChoice` 仍然只通过 `RunFlowSubsystem -> RunSession.SubmitRunCommand()` 提交，不新增 UI 直写规则入口
 
 优先级：`P0`

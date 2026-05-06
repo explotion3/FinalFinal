@@ -15,6 +15,31 @@ void UFinalRunStageOverlayScreenBase::ConfigureFromRunSnapshot(const FFinalRunSn
 	LastActionFeedback = FText::GetEmpty();
 }
 
+void UFinalRunStageOverlayScreenBase::RequestCloseOverlay()
+{
+	if (!CanCloseOverlay())
+	{
+		SetLastActionFeedback(NSLOCTEXT("FinalFlowUI", "RunStageOverlayCloseRejected", "当前流程页暂时不能关闭。"));
+		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RunStageOverlayCloseRejectedFallback", "当前流程页暂时不能关闭。"));
+		return;
+	}
+
+	if (UFinalUISubsystem* UISubsystem = ResolveUISubsystem())
+	{
+		UISubsystem->CloseOverlayScreen(this);
+	}
+}
+
+bool UFinalRunStageOverlayScreenBase::CanCloseOverlay() const
+{
+	return true;
+}
+
+UWidget* UFinalRunStageOverlayScreenBase::GetDefaultFocusWidget() const
+{
+	return nullptr;
+}
+
 void UFinalRunStageOverlayScreenBase::EnsureBaseWidgetTree(const FLinearColor& RootTint, const TCHAR* RootName, const TCHAR* ContentName)
 {
 	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
@@ -96,6 +121,14 @@ FText UFinalRunStageOverlayScreenBase::BuildFeedbackText(const FText& DefaultTex
 	}
 
 	return DefaultText;
+}
+
+void UFinalRunStageOverlayScreenBase::RefreshFeedbackText(const FText& DefaultText)
+{
+	if (FeedbackText)
+	{
+		FeedbackText->SetText(BuildFeedbackText(DefaultText));
+	}
 }
 
 void UFinalRunStageOverlayScreenBase::SetLastActionFeedback(const FText& InFeedbackText)
