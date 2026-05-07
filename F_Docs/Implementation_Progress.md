@@ -1,5 +1,12 @@
 # Implementation Progress
 
+## 2026-05-07：Run Overlay WBP 视觉一致性与导航 Polish v0.1
+
+- `FinalRunStageOverlayScreenBase` 当前提供统一焦点注册协议：RunFlow、Reward、Event、Shop、Growth、RewardNode 和 Node 页面会在刷新时登记主操作 Entry、主按钮和关闭按钮。
+- `FinalUISubsystem` 当前会在 Run overlay 打开、关闭恢复或模态关闭后，把焦点交给最上层 Run overlay 的第一个可用主操作；没有可用主操作时回退到关闭按钮。
+- Run 外层 Entry 当前统一支持焦点态 `SelectedVisual`：Reward / Event / Shop / Growth / FlowAction Entry 在 UMG Focus 进入时显示焦点提示，离开时隐藏；disabled Entry 仍保留显示和阻塞原因。
+- 本轮只接 UMG 默认键鼠 / 手柄基础导航，不引入 CommonUI，不做复杂焦点循环、肩键 Tab、返回键关闭或专门动画。
+
 ## 2026-05-06：Run Overlay 生命周期 / 反馈 / 关闭恢复收口 v0.1
 
 - `FinalRunStageOverlayScreenBase` 当前提供统一 `RequestCloseOverlay / CanCloseOverlay / GetDefaultFocusWidget / RefreshFeedbackText` 协议；各 Run 外层页关闭按钮现在只隐藏 overlay，不修改 `RunSession`、奖励、事件、商店、成长或节点阶段。

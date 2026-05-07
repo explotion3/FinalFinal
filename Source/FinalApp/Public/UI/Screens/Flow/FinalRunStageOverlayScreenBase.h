@@ -19,6 +19,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	virtual void ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot);
 
+	virtual void HandleScreenClosed() override;
+
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	virtual void RequestCloseOverlay();
 
@@ -28,6 +30,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Final|UI")
 	virtual UWidget* GetDefaultFocusWidget() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Final|UI")
+	virtual bool FocusFirstAvailableAction();
+
 protected:
 	void EnsureBaseWidgetTree(const FLinearColor& RootTint, const TCHAR* RootName, const TCHAR* ContentName);
 	UTextBlock* CreateStageLabel(const TCHAR* Name, int32 FontSize) const;
@@ -35,6 +40,8 @@ protected:
 	FText BuildFeedbackText(const FText& DefaultText) const;
 	void RefreshFeedbackText(const FText& DefaultText);
 	void SetLastActionFeedback(const FText& InFeedbackText);
+	void ClearFocusableWidgets();
+	void RegisterFocusableWidget(UWidget* Widget);
 	class UFinalRunFlowSubsystem* ResolveRunFlowSubsystem() const;
 	class UFinalUISubsystem* ResolveUISubsystem() const;
 
@@ -63,4 +70,7 @@ protected:
 
 	UPROPERTY(Transient)
 	FText LastActionFeedback;
+
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<UWidget>> FocusableWidgets;
 };

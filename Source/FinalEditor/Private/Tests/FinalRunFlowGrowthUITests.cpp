@@ -938,6 +938,8 @@ bool FFinalRunGrowthOverlayWidgetSelectionTest::RunTest(const FString& Parameter
 	GrowthScreen->ConfigureFromRunSnapshot(PendingSnapshot);
 	TestEqual(TEXT("Growth overlay should default to the first growth choice."), GrowthScreen->GetSelectedChoiceIndex(), 0);
 	TestEqual(TEXT("Growth overlay should default to the first choice instance id."), GrowthScreen->GetSelectedChoiceInstanceId(), PendingSnapshot.PendingGrowthChoice.Choices[0].ChoiceInstanceId);
+	TestNotNull(TEXT("Growth overlay should expose a default focus widget after refresh."), GrowthScreen->GetDefaultFocusWidget());
+	TestTrue(TEXT("Growth overlay should focus its first available action after refresh."), GrowthScreen->FocusFirstAvailableAction());
 
 	TestTrue(TEXT("Selecting the second growth option through the widget should succeed."), GrowthScreen->SelectChoiceByIndex(1));
 	TestEqual(TEXT("Widget selection should update to the requested choice index."), GrowthScreen->GetSelectedChoiceIndex(), 1);

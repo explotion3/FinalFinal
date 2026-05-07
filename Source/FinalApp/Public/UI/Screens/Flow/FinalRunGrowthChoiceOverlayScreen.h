@@ -57,9 +57,12 @@ class FINALAPP_API UFinalRunGrowthChoiceEntryWidget : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 
 	void ApplyChoiceView(const FFinalRunGrowthChoiceEntryViewData& InViewData);
 	const FFinalRunGrowthChoiceEntryViewData& GetChoiceViewData() const { return CachedViewData; }
+	UWidget* GetFocusTarget() const;
 
 	FFinalRunGrowthChoiceClickedNative OnChoiceClicked;
 

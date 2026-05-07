@@ -98,6 +98,24 @@ void UFinalRunShopOfferEntryWidget::NativeOnInitialized()
 	RefreshBoundWidgets();
 }
 
+void UFinalRunShopOfferEntryWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UFinalRunShopOfferEntryWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UFinalRunShopOfferEntryWidget::ApplyOfferView(const FFinalRunShopOfferEntryViewData& InViewData)
 {
 	CachedViewData = InViewData;
@@ -109,6 +127,11 @@ void UFinalRunShopOfferEntryWidget::ApplyOfferView(const FFinalRunShopOfferEntry
 void UFinalRunShopOfferEntryWidget::HandleClicked()
 {
 	OnOfferClicked.Broadcast(this);
+}
+
+UWidget* UFinalRunShopOfferEntryWidget::GetFocusTarget() const
+{
+	return OfferButton;
 }
 
 void UFinalRunShopOfferEntryWidget::EnsureWidgetTree()
@@ -205,6 +228,10 @@ void UFinalRunShopOfferEntryWidget::RefreshBoundWidgets()
 	if (PurchasedVisual)
 	{
 		PurchasedVisual->SetVisibility(CachedViewData.bPurchased ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
@@ -448,6 +475,8 @@ void UFinalRunShopNodeOverlayScreen::StepSelectedOffer(const int32 Direction)
 
 void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunPendingShopNodeViewData& PendingShopNode = Snapshot.PendingShopNode;
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
@@ -547,6 +576,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 			&& SelectedOffer->bPurchasable
 			&& !SelectedOffer->bPurchased);
 		PurchaseOfferButton->SetVisibility(ESlateVisibility::Collapsed);
+		RegisterFocusableWidget(PurchaseOfferButton);
 	}
 
 	if (PurchaseOfferButtonText)
@@ -596,6 +626,15 @@ void UFinalRunShopNodeOverlayScreen::RebuildVisual()
 	}
 
 	RebuildOfferList();
+	RegisterFocusableWidget(LeaveShopButton);
+	if (CloseButton)
+	{
+		CloseButton->SetVisibility(ESlateVisibility::Visible);
+		CloseButton->SetIsEnabled(true);
+		RegisterFocusableWidget(CloseButton);
+	}
+
+	FocusFirstAvailableAction();
 }
 
 void UFinalRunShopNodeOverlayScreen::RebuildOfferList()
@@ -622,6 +661,7 @@ void UFinalRunShopNodeOverlayScreen::RebuildOfferList()
 
 		OfferEntry->OnOfferClicked.AddUObject(this, &UFinalRunShopNodeOverlayScreen::HandleOfferClicked);
 		OfferEntry->ApplyOfferView(BuildOfferEntryData(OfferIndex));
+		RegisterFocusableWidget(OfferEntry->GetFocusTarget());
 
 		UVerticalBoxSlot* EntrySlot = OfferListBox->AddChildToVerticalBox(OfferEntry);
 		if (EntrySlot)

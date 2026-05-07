@@ -533,6 +533,9 @@
 - `PendingGrowthChoice` 现在通过独立 `FinalRunGrowthChoiceOverlayScreen` 接入 UI
 - Growth overlay 只消费 `RunSnapshot.PendingGrowthChoice / Characters` 与 `GrowthChoiceApplied` 事件，不在 Widget 中缓存或推导成长真相；候选通过 `FinalRunGrowthChoiceEntryWidget` 展示，点击即转发 `ChoiceInstanceId`
 - `SelectGrowthChoice` 仍然只通过 `RunFlowSubsystem -> RunSession.SubmitRunCommand()` 提交，不新增 UI 直写规则入口
+- `FinalRunStageOverlayScreenBase` 当前统一维护 Run overlay 的可聚焦主操作列表；各页刷新后登记可用 Entry、主按钮和关闭按钮，`UISubsystem` 在 overlay 打开 / 恢复后调用默认焦点入口。
+- Run overlay 的键鼠 / 手柄基础导航只依赖 UMG Focus 路径；UI 可以显示 `SelectedVisual` 作为焦点提示，但不能把它当作 Run 规则选中状态。
+- disabled Entry 必须保留显示并带阻塞原因；点击、键盘确认和手柄确认最终仍只转发到 `RunFlowSubsystem`，不能绕过 `FinalRunSession` 权威校验。
 
 优先级：`P0`
 

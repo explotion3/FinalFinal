@@ -60,9 +60,12 @@ class FINALAPP_API UFinalRunRewardCandidateEntryWidget : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 
 	void ApplyCandidateView(const FFinalRunRewardCandidateEntryViewData& InViewData);
 	const FFinalRunRewardCandidateEntryViewData& GetCandidateViewData() const { return CachedViewData; }
+	UWidget* GetFocusTarget() const;
 
 	FFinalRunRewardCandidateClickedNative OnCandidateClicked;
 

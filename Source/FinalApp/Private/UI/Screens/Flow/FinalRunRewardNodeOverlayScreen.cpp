@@ -92,6 +92,8 @@ void UFinalRunRewardNodeOverlayScreen::EnsureWidgetTree()
 
 void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunPendingRewardNodeViewData& PendingRewardNode = Snapshot.PendingRewardNode;
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
@@ -147,6 +149,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 	if (ResolveRewardButton)
 	{
 		ResolveRewardButton->SetIsEnabled(PendingRewardNode.bHasPendingContent && PendingRewardNode.bCanResolve && !PendingRewardNode.bResolved);
+		RegisterFocusableWidget(ResolveRewardButton);
 	}
 
 	if (ResolveRewardButtonText)
@@ -168,4 +171,7 @@ void UFinalRunRewardNodeOverlayScreen::RebuildVisual()
 			ResolveRewardButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RewardNodeResolveButton", "确认奖励节点"));
 		}
 	}
+	RegisterFocusableWidget(CloseButton);
+
+	FocusFirstAvailableAction();
 }

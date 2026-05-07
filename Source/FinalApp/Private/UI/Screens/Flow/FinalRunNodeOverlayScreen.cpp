@@ -261,6 +261,8 @@ void UFinalRunNodeOverlayScreen::EnsureWidgetTree()
 
 void UFinalRunNodeOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
 
@@ -323,6 +325,7 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 		const bool bHasSelectedNode = Progression.AvailableNextNodes.IsValidIndex(SelectedNodeIndex);
 		const bool bSelectedNodeUnlocked = bHasSelectedNode ? !Progression.AvailableNextNodes[SelectedNodeIndex].bLocked : false;
 		AdvanceNodeButton->SetIsEnabled(Progression.bCanAdvanceToNextNode && bHasAvailableNodes && bHasSelectedNode && bSelectedNodeUnlocked);
+		RegisterFocusableWidget(AdvanceNodeButton);
 	}
 
 	if (AdvanceNodeButtonText)
@@ -356,5 +359,9 @@ void UFinalRunNodeOverlayScreen::RebuildVisual()
 	if (OpenRewardPageButton)
 	{
 		OpenRewardPageButton->SetIsEnabled(Progression.bCanClaimPendingBattleReward || Snapshot.PendingBattleReward.bHasPendingReward);
+		RegisterFocusableWidget(OpenRewardPageButton);
 	}
+	RegisterFocusableWidget(CloseButton);
+
+	FocusFirstAvailableAction();
 }

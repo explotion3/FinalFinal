@@ -5,14 +5,35 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/Widget.h"
 #include "Styling/CoreStyle.h"
 #include "Subsystems/FinalRunFlowSubsystem.h"
 #include "Subsystems/UI/FinalUISubsystem.h"
+
+namespace
+{
+bool IsRunOverlayFocusCandidate(const UWidget* Widget)
+{
+	if (Widget == nullptr || !Widget->GetIsEnabled())
+	{
+		return false;
+	}
+
+	const ESlateVisibility Visibility = Widget->GetVisibility();
+	return Visibility == ESlateVisibility::Visible || Visibility == ESlateVisibility::SelfHitTestInvisible;
+}
+}
 
 void UFinalRunStageOverlayScreenBase::ConfigureFromRunSnapshot(const FFinalRunSnapshot& InSnapshot)
 {
 	CachedSnapshot = InSnapshot;
 	LastActionFeedback = FText::GetEmpty();
+}
+
+void UFinalRunStageOverlayScreenBase::HandleScreenClosed()
+{
+	Super::HandleScreenClosed();
+	ClearFocusableWidgets();
 }
 
 void UFinalRunStageOverlayScreenBase::RequestCloseOverlay()
@@ -37,7 +58,28 @@ bool UFinalRunStageOverlayScreenBase::CanCloseOverlay() const
 
 UWidget* UFinalRunStageOverlayScreenBase::GetDefaultFocusWidget() const
 {
+	for (const TWeakObjectPtr<UWidget>& FocusableWidget : FocusableWidgets)
+	{
+		UWidget* Widget = FocusableWidget.Get();
+		if (IsRunOverlayFocusCandidate(Widget))
+		{
+			return Widget;
+		}
+	}
+
 	return nullptr;
+}
+
+bool UFinalRunStageOverlayScreenBase::FocusFirstAvailableAction()
+{
+	UWidget* DefaultFocusWidget = GetDefaultFocusWidget();
+	if (DefaultFocusWidget == nullptr)
+	{
+		return false;
+	}
+
+	DefaultFocusWidget->SetKeyboardFocus();
+	return true;
 }
 
 void UFinalRunStageOverlayScreenBase::EnsureBaseWidgetTree(const FLinearColor& RootTint, const TCHAR* RootName, const TCHAR* ContentName)
@@ -134,6 +176,19 @@ void UFinalRunStageOverlayScreenBase::RefreshFeedbackText(const FText& DefaultTe
 void UFinalRunStageOverlayScreenBase::SetLastActionFeedback(const FText& InFeedbackText)
 {
 	LastActionFeedback = InFeedbackText;
+}
+
+void UFinalRunStageOverlayScreenBase::ClearFocusableWidgets()
+{
+	FocusableWidgets.Reset();
+}
+
+void UFinalRunStageOverlayScreenBase::RegisterFocusableWidget(UWidget* Widget)
+{
+	if (Widget != nullptr)
+	{
+		FocusableWidgets.Add(Widget);
+	}
 }
 
 UFinalRunFlowSubsystem* UFinalRunStageOverlayScreenBase::ResolveRunFlowSubsystem() const

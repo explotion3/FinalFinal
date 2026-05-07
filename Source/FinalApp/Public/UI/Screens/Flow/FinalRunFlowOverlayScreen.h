@@ -44,6 +44,8 @@ class FINALAPP_API UFinalRunFlowOptionButton : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 
 	void ConfigureOption(EFinalRunFlowOptionKind InKind, FName InPayloadId, int32 InPayloadIndex, const FText& InLabel, bool bInEnabled);
 	void ConfigureOption(const FFinalRunFlowOptionButtonData& InData);
@@ -52,6 +54,7 @@ public:
 	EFinalRunCommandType GetCommandType() const { return CachedData.CommandType; }
 	FName GetPayloadId() const { return PayloadId; }
 	int32 GetPayloadIndex() const { return PayloadIndex; }
+	UWidget* GetFocusTarget() const;
 
 	FFinalRunFlowOptionClickedNative OnOptionClicked;
 
@@ -78,6 +81,9 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StateText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> SelectedVisual;
 
 	FFinalRunFlowOptionButtonData CachedData;
 

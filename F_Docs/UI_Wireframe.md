@@ -316,7 +316,9 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * 若突破值在玩家命令结算后首次达到阈值，Growth overlay 会立即成为当前外层页；若来自敌方阶段、被动链或战斗胜利，则等下一个安全窗口再展示
 * `BattleHUDScreen` 当前提供独立 `RunFlowPromptPanel` 作为正式可恢复入口：当流程处于成长选择、战后奖励、节点推进、奖励节点、事件节点、商店节点或 `RunEnded` 时显示；它只触发 `RunFlowSubsystem.RefreshRunFlow(true)`，不直接执行任何 RunCommand
 * `RunFlowPromptPanel` 的显示与文案由 `RunFlowSubsystem.HasRestorableRunOverlay()` 和 `GetRestorableRunOverlayText()` 统一提供，不在 WBP 或 Panel 内重复推断流程阶段
-* 当前 Run 外层页只收口键鼠主路径；手柄 / 键盘方向导航、焦点循环、默认选中和按钮状态 polish 留后续 WBP 一致性专轮
+* 当前 Run 外层页已补统一焦点入口：`FinalRunStageOverlayScreenBase` 维护本页可聚焦主操作列表，页面刷新或重新打开后会优先聚焦第一个可用主操作；若没有可用主操作，则聚焦关闭按钮。
+* Run 外层页当前支持 UMG 默认键鼠 / 手柄基础导航：鼠标点击保持现状，方向键 / 左摇杆依赖 UMG 默认 Focus 路径移动，`Enter / Space / Gamepad FaceButtonBottom` 激活当前按钮。本轮不做复杂焦点循环、肩键 Tab 或返回键统一关闭。
+* Run 外层 Entry 的 `SelectedVisual` 当前表示“焦点 / 当前可操作提示”，不是 Run 规则状态；disabled Entry 保持显示但不可点击，阻塞原因应写入 `DisabledReasonText` 或 `StateText`。
 * `FinalRunFlowOverlayScreen` 当前主操作区优先消费 `RunSnapshot.AvailableFlowActions`，统一生成动作按钮；节点推进和奖励节点确认通过 action 转发到 `RunFlowSubsystem -> RunSession.SubmitRunCommand()`，不在 UI 中分阶段重建命令真相。战后奖励、事件选项和商店购买已经分别迁到专用页。
 * `FinalRunFlowOverlayScreen` 当前同时消费 `RunSnapshot.RouteOverview` 生成只读路线概览；节点显示优先使用 `DisplayName / DisplayLabel`，缺失时回退到中文节点类型，裸 `NodeId` 只作为最后 fallback。
 * `RunSnapshot.RouteOverview` 是路线可视化的主输入：路线图 UI、未来 HD-2D RunMap 和房间卡改造都应读取它的节点状态，不在 Widget 或 World Actor 中反推 visited / resolved / reachable / locked。
@@ -355,6 +357,7 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `MetaText`：详情、章节楼层、奖励摘要或商品说明
 * `StateText`：可领取 / 可前往 / 可选择 / 可购买，或不可用原因
 * `OptionLabel`：旧版兼容字段；如果 WBP 只绑定这个控件，C++ 会写入合并后的多行文本
+* `SelectedVisual`：当前焦点提示，由 C++ 在 Focus 进入 / 离开时控制显隐
 
 条目数据来源仍是 `RunSnapshot` 展示数据，点击后由 `FinalRunFlowOverlayScreen` 统一转发到 `RunFlowSubsystem`。
 
@@ -391,7 +394,14 @@ Run 外层流程界面，使用 Overlay 层承接，不直接销毁 Battle HUD�
 * `StateText`
 * `IconImage`
 * `TierVisual`
-* `SelectedVisual`：当前首版不使用选中态，默认可隐藏
+* `SelectedVisual`：当前焦点提示，由 C++ 在 Focus 进入 / 离开时控制显隐
+
+Run 外层专用 Entry 通用绑定约定：
+
+* 主按钮建议命名为 `ActionButton / OptionButton / ChoiceButton / OfferButton`，具体名称以对应 C++ 父类为准。
+* `TitleText / DescriptionText / DetailText / StateText / DisabledReasonText / IconImage / TierVisual / SelectedVisual` 是当前推荐的跨页命名。
+* 装饰图片、边框、文本若不负责点击，应设置为 `Hit Test Invisible` 或 `Self Hit Test Invisible`；只让按钮和 Entry 主交互区接收焦点与点击。
+* 缺少任意可选绑定时不视为错误；C++ fallback 仍需保持可读。
 
 ## 3. 当前已桥接字段
 ### 3.1 Battle Snapshot 已可直接驱动

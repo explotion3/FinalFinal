@@ -66,9 +66,12 @@ class FINALAPP_API UFinalRunShopOfferEntryWidget : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 
 	void ApplyOfferView(const FFinalRunShopOfferEntryViewData& InViewData);
 	const FFinalRunShopOfferEntryViewData& GetOfferViewData() const { return CachedViewData; }
+	UWidget* GetFocusTarget() const;
 
 	FFinalRunShopOfferClickedNative OnOfferClicked;
 
@@ -112,6 +115,9 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> PurchasedVisual;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> SelectedVisual;
 
 	FFinalRunShopOfferEntryViewData CachedViewData;
 };

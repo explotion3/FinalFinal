@@ -63,9 +63,12 @@ class FINALAPP_API UFinalRunEventOptionEntryWidget : public UFinalWidgetBase
 
 public:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 
 	void ApplyOptionView(const FFinalRunEventOptionEntryViewData& InViewData);
 	const FFinalRunEventOptionEntryViewData& GetOptionViewData() const { return CachedViewData; }
+	UWidget* GetFocusTarget() const;
 
 	FFinalRunEventOptionClickedNative OnOptionClicked;
 

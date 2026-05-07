@@ -408,6 +408,24 @@ void UFinalRunFlowOptionButton::NativeOnInitialized()
 	}
 }
 
+void UFinalRunFlowOptionButton::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UFinalRunFlowOptionButton::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UFinalRunFlowOptionButton::ConfigureOption(
 	const EFinalRunFlowOptionKind InKind,
 	const FName InPayloadId,
@@ -470,11 +488,20 @@ void UFinalRunFlowOptionButton::ConfigureOption(const FFinalRunFlowOptionButtonD
 	{
 		OptionButton->SetIsEnabled(InData.bEnabled);
 	}
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UFinalRunFlowOptionButton::HandleClicked()
 {
 	OnOptionClicked.Broadcast(this);
+}
+
+UWidget* UFinalRunFlowOptionButton::GetFocusTarget() const
+{
+	return OptionButton;
 }
 
 void UFinalRunFlowOptionButton::EnsureWidgetTree()
@@ -914,6 +941,8 @@ void UFinalRunFlowOverlayScreen::EnsureWidgetTree()
 
 void UFinalRunFlowOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
 	const bool bPendingBattleReward = Snapshot.PendingBattleReward.bHasPendingReward
@@ -1030,6 +1059,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 		const bool bUsePrimaryFallback = Snapshot.Progression.FlowStage == EFinalRunFlowStage::PendingRewardNode;
 		PrimaryActionButton->SetVisibility((bUsePrimaryFallback && CanUsePrimaryAction()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		PrimaryActionButton->SetIsEnabled(CanUsePrimaryAction());
+		RegisterFocusableWidget(PrimaryActionButton);
 	}
 	if (PrimaryActionButtonText)
 	{
@@ -1040,6 +1070,7 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	{
 		SecondaryActionButton->SetVisibility(CanUseSecondaryAction() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		SecondaryActionButton->SetIsEnabled(CanUseSecondaryAction());
+		RegisterFocusableWidget(SecondaryActionButton);
 	}
 	if (SecondaryActionButtonText)
 	{
@@ -1050,11 +1081,14 @@ void UFinalRunFlowOverlayScreen::RebuildVisual()
 	{
 		CloseButton->SetVisibility(ESlateVisibility::Visible);
 		CloseButton->SetIsEnabled(true);
+		RegisterFocusableWidget(CloseButton);
 	}
 	if (CloseButtonText)
 	{
 		CloseButtonText->SetText(NSLOCTEXT("FinalFlowUI", "RunFlowCloseLabel", "关闭"));
 	}
+
+	FocusFirstAvailableAction();
 }
 
 void UFinalRunFlowOverlayScreen::ClampSelectionIndices()
@@ -1187,6 +1221,7 @@ void UFinalRunFlowOverlayScreen::RebuildOptionLists()
 
 		OptionWidget->ConfigureOption(OptionData);
 		OptionWidget->OnOptionClicked.AddUObject(this, &UFinalRunFlowOverlayScreen::HandleListOptionClicked);
+		RegisterFocusableWidget(OptionWidget->GetFocusTarget());
 		if (UVerticalBoxSlot* OptionSlot = ListBox->AddChildToVerticalBox(OptionWidget))
 		{
 			OptionSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));

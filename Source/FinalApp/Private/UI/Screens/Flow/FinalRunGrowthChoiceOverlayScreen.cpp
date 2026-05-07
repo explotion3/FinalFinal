@@ -139,6 +139,24 @@ void UFinalRunGrowthChoiceEntryWidget::NativeOnInitialized()
 	RefreshBoundWidgets();
 }
 
+void UFinalRunGrowthChoiceEntryWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UFinalRunGrowthChoiceEntryWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UFinalRunGrowthChoiceEntryWidget::ApplyChoiceView(const FFinalRunGrowthChoiceEntryViewData& InViewData)
 {
 	CachedViewData = InViewData;
@@ -155,6 +173,11 @@ void UFinalRunGrowthChoiceEntryWidget::HandleClicked()
 	}
 
 	OnChoiceClicked.Broadcast(this);
+}
+
+UWidget* UFinalRunGrowthChoiceEntryWidget::GetFocusTarget() const
+{
+	return ChoiceButton;
 }
 
 void UFinalRunGrowthChoiceEntryWidget::EnsureWidgetTree()
@@ -367,6 +390,7 @@ void UFinalRunGrowthChoiceOverlayScreen::EnsureWidgetTree()
 void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 {
 	EnsureWidgetTree();
+	ClearFocusableWidgets();
 
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunPendingGrowthChoiceViewData& PendingGrowthChoice = Snapshot.PendingGrowthChoice;
@@ -412,6 +436,7 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 	{
 		PrimaryActionButton->SetVisibility(ESlateVisibility::Collapsed);
 		PrimaryActionButton->SetIsEnabled(GetSelectedChoice() != nullptr);
+		RegisterFocusableWidget(PrimaryActionButton);
 	}
 	if (PrimaryActionButtonText)
 	{
@@ -422,6 +447,7 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 	{
 		CloseButton->SetVisibility(ESlateVisibility::Visible);
 		CloseButton->SetIsEnabled(true);
+		RegisterFocusableWidget(CloseButton);
 	}
 	if (CloseButtonText)
 	{
@@ -432,6 +458,8 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildVisual()
 	{
 		RefreshFeedbackText(NSLOCTEXT("FinalFlowUI", "RunGrowthDefaultFeedback", "等待选择一项成长。"));
 	}
+
+	FocusFirstAvailableAction();
 }
 
 void UFinalRunGrowthChoiceOverlayScreen::RebuildChoiceList()
@@ -463,6 +491,7 @@ void UFinalRunGrowthChoiceOverlayScreen::RebuildChoiceList()
 
 		ChoiceEntry->ApplyChoiceView(BuildChoiceEntryData(ChoiceIndex));
 		ChoiceEntry->OnChoiceClicked.AddUObject(this, &UFinalRunGrowthChoiceOverlayScreen::HandleGrowthChoiceEntryClicked);
+		RegisterFocusableWidget(ChoiceEntry->GetFocusTarget());
 
 		if (UVerticalBoxSlot* OptionSlot = GrowthChoiceListBox->AddChildToVerticalBox(ChoiceEntry))
 		{

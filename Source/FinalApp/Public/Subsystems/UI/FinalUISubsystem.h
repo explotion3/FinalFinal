@@ -127,6 +127,7 @@ private:
 	void ApplyInputConfig(const FFinalUIInputConfig& InputConfig, UFinalScreenBase* FocusScreen) const;
 	void ApplyTopScreenInputMode() const;
 	void ApplyGameplayHudInputMode() const;
+	void FocusTopRunOverlay() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APlayerController> PrimaryPlayerController;

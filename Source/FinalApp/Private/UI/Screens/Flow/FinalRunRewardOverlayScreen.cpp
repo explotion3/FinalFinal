@@ -48,6 +48,24 @@ void UFinalRunRewardCandidateEntryWidget::NativeOnInitialized()
 	RefreshBoundWidgets();
 }
 
+void UFinalRunRewardCandidateEntryWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UFinalRunRewardCandidateEntryWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UFinalRunRewardCandidateEntryWidget::ApplyCandidateView(const FFinalRunRewardCandidateEntryViewData& InViewData)
 {
 	CachedViewData = InViewData;
@@ -59,6 +77,11 @@ void UFinalRunRewardCandidateEntryWidget::ApplyCandidateView(const FFinalRunRewa
 void UFinalRunRewardCandidateEntryWidget::HandleClicked()
 {
 	OnCandidateClicked.Broadcast(this);
+}
+
+UWidget* UFinalRunRewardCandidateEntryWidget::GetFocusTarget() const
+{
+	return OptionButton;
 }
 
 void UFinalRunRewardCandidateEntryWidget::EnsureWidgetTree()
@@ -385,6 +408,8 @@ void UFinalRunRewardOverlayScreen::EnsureWidgetTree()
 
 void UFinalRunRewardOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunPendingBattleRewardViewData& PendingReward = Snapshot.PendingBattleReward;
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
@@ -453,6 +478,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 			&& Progression.bCanClaimPendingBattleReward
 			&& PendingReward.RewardEntries.Num() == 1;
 		ClaimRewardButton->SetIsEnabled(bCanClaimReward);
+		RegisterFocusableWidget(ClaimRewardButton);
 	}
 
 	if (ClaimRewardButtonText)
@@ -513,6 +539,7 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 	if (SkipRewardButton)
 	{
 		SkipRewardButton->SetIsEnabled(PendingReward.bHasPendingReward && PendingReward.bCanClaim && Progression.bCanClaimPendingBattleReward);
+		RegisterFocusableWidget(SkipRewardButton);
 	}
 
 	if (SkipRewardButtonText)
@@ -526,12 +553,21 @@ void UFinalRunRewardOverlayScreen::RebuildVisual()
 	{
 		OpenNodePageButton->SetVisibility(ESlateVisibility::Collapsed);
 		OpenNodePageButton->SetIsEnabled(Progression.bCanAdvanceToNextNode || Progression.CurrentNodeId != NAME_None);
+		RegisterFocusableWidget(OpenNodePageButton);
 	}
 
 	if (OpenModalButton)
 	{
 		OpenModalButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	if (CloseButton)
+	{
+		CloseButton->SetVisibility(ESlateVisibility::Visible);
+		CloseButton->SetIsEnabled(true);
+		RegisterFocusableWidget(CloseButton);
+	}
+
+	FocusFirstAvailableAction();
 }
 
 void UFinalRunRewardOverlayScreen::RebuildCandidateList()
@@ -567,6 +603,7 @@ void UFinalRunRewardOverlayScreen::RebuildCandidateList()
 
 		CandidateEntry->OnCandidateClicked.AddUObject(this, &UFinalRunRewardOverlayScreen::HandleCandidateClicked);
 		CandidateEntry->ApplyCandidateView(BuildCandidateEntryData(RewardIndex));
+		RegisterFocusableWidget(CandidateEntry->GetFocusTarget());
 		if (UVerticalBoxSlot* CandidateSlot = CandidateListBox->AddChildToVerticalBox(CandidateEntry))
 		{
 			CandidateSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));

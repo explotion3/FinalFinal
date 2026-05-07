@@ -104,6 +104,24 @@ void UFinalRunEventOptionEntryWidget::NativeOnInitialized()
 	RefreshBoundWidgets();
 }
 
+void UFinalRunEventOptionEntryWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UFinalRunEventOptionEntryWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+	if (SelectedVisual)
+	{
+		SelectedVisual->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UFinalRunEventOptionEntryWidget::ApplyOptionView(const FFinalRunEventOptionEntryViewData& InViewData)
 {
 	CachedViewData = InViewData;
@@ -115,6 +133,11 @@ void UFinalRunEventOptionEntryWidget::ApplyOptionView(const FFinalRunEventOption
 void UFinalRunEventOptionEntryWidget::HandleClicked()
 {
 	OnOptionClicked.Broadcast(this);
+}
+
+UWidget* UFinalRunEventOptionEntryWidget::GetFocusTarget() const
+{
+	return OptionButton;
 }
 
 void UFinalRunEventOptionEntryWidget::EnsureWidgetTree()
@@ -419,6 +442,8 @@ void UFinalRunEventNodeOverlayScreen::StepSelectedOption(const int32 Direction)
 
 void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 {
+	ClearFocusableWidgets();
+
 	const FFinalRunSnapshot& Snapshot = GetCachedSnapshot();
 	const FFinalRunPendingEventNodeViewData& PendingEventNode = Snapshot.PendingEventNode;
 	const FFinalRunProgressionViewData& Progression = Snapshot.Progression;
@@ -514,6 +539,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 			&& SelectedOption->OptionId != NAME_None
 			&& SelectedOption->bSelectable);
 		ResolveOptionButton->SetVisibility(ESlateVisibility::Collapsed);
+		RegisterFocusableWidget(ResolveOptionButton);
 	}
 
 	if (ResolveOptionButtonText)
@@ -539,6 +565,14 @@ void UFinalRunEventNodeOverlayScreen::RebuildVisual()
 			ResolveOptionButtonText->SetText(NSLOCTEXT("FinalFlowUI", "EventNodeResolveButton", "确认当前事件选项"));
 		}
 	}
+	if (CloseButton)
+	{
+		CloseButton->SetVisibility(ESlateVisibility::Visible);
+		CloseButton->SetIsEnabled(true);
+		RegisterFocusableWidget(CloseButton);
+	}
+
+	FocusFirstAvailableAction();
 }
 
 void UFinalRunEventNodeOverlayScreen::RebuildOptionList()
@@ -565,6 +599,7 @@ void UFinalRunEventNodeOverlayScreen::RebuildOptionList()
 
 		OptionEntry->OnOptionClicked.AddUObject(this, &UFinalRunEventNodeOverlayScreen::HandleOptionClicked);
 		OptionEntry->ApplyOptionView(BuildOptionEntryData(OptionIndex));
+		RegisterFocusableWidget(OptionEntry->GetFocusTarget());
 
 		UVerticalBoxSlot* EntrySlot = OptionListBox->AddChildToVerticalBox(OptionEntry);
 		if (EntrySlot)

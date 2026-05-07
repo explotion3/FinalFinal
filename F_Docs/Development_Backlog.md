@@ -4,7 +4,7 @@
 
 ## P0
 
-**Run 外层 WBP 视觉一致性与导航 polish**：系统为 `FinalRun / FinalApp / UI`。RunFlow 主页面、战后 Reward 专用页、Event 专用页、Shop 专用页和 Growth 专用页当前已经完成 C++ 可读化，Overlay 关闭 / 恢复入口与反馈协议也已收口；后续 P0 剩余重点是统一 WBP 视觉语言、补键盘 / 手柄基础导航、焦点循环、列表默认选中与更明确的按钮状态表现。
+**Run 外层 WBP 美术一致性与深度导航 polish**：系统为 `FinalApp / UI / Content`。Run 外层页当前已经完成 C++ 可读化、关闭 / 恢复、反馈、默认焦点和 UMG 基础键鼠 / 手柄导航；后续 P0 剩余重点是统一 WBP 视觉语言、补更明确的按钮 / 焦点动画、复杂焦点循环、肩键 Tab、返回键关闭和页面转场 polish。
 
 ## P1
 

@@ -191,6 +191,7 @@ void UFinalUISubsystem::OpenOverlayScreen(UFinalScreenBase* Screen, const bool b
 	Screen->HandleScreenOpened();
 	RebuildScreenLayer(EFinalUIScreenLayer::Overlay);
 	ApplyTopScreenInputMode();
+	FocusTopRunOverlay();
 }
 
 void UFinalUISubsystem::CloseOverlayScreen(UFinalScreenBase* Screen)
@@ -215,6 +216,7 @@ void UFinalUISubsystem::CloseOverlayScreen(UFinalScreenBase* Screen)
 		ScreenToClose->HandleScreenClosed();
 		RebuildScreenLayer(EFinalUIScreenLayer::Overlay);
 		ApplyTopScreenInputMode();
+		FocusTopRunOverlay();
 	}
 }
 
@@ -248,6 +250,7 @@ void UFinalUISubsystem::OpenModalScreen(UFinalScreenBase* Screen, const bool bRe
 	Screen->HandleScreenOpened();
 	RebuildScreenLayer(EFinalUIScreenLayer::Modal);
 	ApplyTopScreenInputMode();
+	FocusTopRunOverlay();
 }
 
 void UFinalUISubsystem::CloseModalScreen(UFinalScreenBase* Screen)
@@ -272,6 +275,7 @@ void UFinalUISubsystem::CloseModalScreen(UFinalScreenBase* Screen)
 		ScreenToClose->HandleScreenClosed();
 		RebuildScreenLayer(EFinalUIScreenLayer::Modal);
 		ApplyTopScreenInputMode();
+		FocusTopRunOverlay();
 	}
 }
 
@@ -619,4 +623,17 @@ void UFinalUISubsystem::ApplyGameplayHudInputMode() const
 
 	UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(PrimaryPlayerController, nullptr, EMouseLockMode::DoNotLock, false, false);
 	PrimaryPlayerController->SetShowMouseCursor(true);
+}
+
+void UFinalUISubsystem::FocusTopRunOverlay() const
+{
+	if (GetActiveModalScreen() != nullptr)
+	{
+		return;
+	}
+
+	if (UFinalRunStageOverlayScreenBase* RunOverlay = Cast<UFinalRunStageOverlayScreenBase>(GetActiveOverlayScreen()))
+	{
+		RunOverlay->FocusFirstAvailableAction();
+	}
 }
