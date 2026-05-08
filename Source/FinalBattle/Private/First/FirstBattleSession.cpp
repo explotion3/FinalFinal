@@ -1,7 +1,7 @@
 #include "First/FirstBattleSession.h"
 
 #include "First/FirstCardDefinitionCompiler.h"
-#include "First/FirstBattleKernel.h"
+#include "First/Core/FirstBattleKernel.h"
 #include "First/FirstCardDefinition.h"
 #include "Queries/FinalDataRegistry.h"
 

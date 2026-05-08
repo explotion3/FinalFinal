@@ -56,3 +56,6 @@
 - `FirstBattle Combo / Self Move v0.1` 已建立：`UFirstCardDefinition / FFirstCardInstance / FFirstCardViewData` 新增 `PlayDestination`，首版支持 `DiscardPile` 与 `ReturnToHandRandomZone`。
 - First kernel 出牌后会在完整结算结束时处理打出后去向；普通牌维持进入弃牌堆，`ReturnToHandRandomZone` 牌会从弃牌堆取回并插入随机有效手牌区域，缺少有效区域时安全回到手牌且区域为 `None`。
 - 回手不会重复触发 `PlayerMaxHPBonusOnEnterBattle`，并通过 `CardReturnedToHand` 事件可见；首批 First 内容中，烁光蝶已设置为打出后回手随机落区，左手、右手、朝光暮蝶、赤腹工蚁仍进入弃牌堆。
+- `FirstBattle Kernel Private Split v0.1` 已完成：`FFirstBattleKernel` 从巨型实现收缩为 private coordinator，First 规则细节拆入 `Core / Cards / Hand / Deck / Enemy / Events / Snapshots` 私有目录。
+- 本次拆分不改变 `FFirstBattleSession / Command / Snapshot / Types` 对外 API，不新增 `FinalRun / FinalApp` 依赖，不引入新的反射类型；规则行为保持由 `FinalBattle` 私有服务承载。
+- `FirstBattleKernelTests.cpp` 已按行为域拆分到 `Source/FinalBattle/Private/Tests/First/`，测试路径仍保持 `Final.Battle.First.*`。
