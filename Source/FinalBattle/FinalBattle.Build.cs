@@ -5,6 +5,7 @@ public class FinalBattle : ModuleRules
 	public FinalBattle(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		bUseUnity = false;
 
 		PublicDependencyModuleNames.AddRange(new string[]
 		{

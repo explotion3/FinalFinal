@@ -8,6 +8,7 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Final_Keyword_Retain, "Final.Keyword.Retain",
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Final_Keyword_Expend, "Final.Keyword.Expend", "Card keyword that sends a card to the consume pile.");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Final_Keyword_SwordArray, "Final.Keyword.SwordArray", "Derived sword-array card family tag.");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Final_Keyword_Opening, "Final.Keyword.Opening", "Card keyword that is moved to the top of the initial draw pile.");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_First_Keyword_Swift, "First.Keyword.Swift", "First battle card keyword that skips initiative reduction and perfect release.");
 
 void FFinalGameplayTags::InitializeNativeTags()
 {
