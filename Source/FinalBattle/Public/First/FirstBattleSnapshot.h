@@ -24,6 +24,7 @@ struct FINALBATTLE_API FFirstEnemyPartViewData
 	bool bDestroyed = false;
 	FName CurrentIntentId = NAME_None;
 	FText CurrentIntentDisplayName;
+	int32 CurrentIntentIndex = 0;
 	int32 CurrentInitiative = 0;
 };
 

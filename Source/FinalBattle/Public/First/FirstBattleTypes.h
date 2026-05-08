@@ -51,6 +51,13 @@ struct FINALBATTLE_API FFirstCardInstance
 	TArray<FFirstCardEffectInstance> Effects;
 };
 
+struct FINALBATTLE_API FFirstEnemyPartIntentInstance
+{
+	FName IntentId = NAME_None;
+	FText DisplayName;
+	int32 InitialInitiative = 0;
+};
+
 struct FINALBATTLE_API FFirstEnemyPartStartData
 {
 	FName PartId = NAME_None;
@@ -61,6 +68,8 @@ struct FINALBATTLE_API FFirstEnemyPartStartData
 	FName CurrentIntentId = NAME_None;
 	FText CurrentIntentDisplayName;
 	int32 CurrentInitiative = 0;
+	TArray<FFirstEnemyPartIntentInstance> IntentSequence;
+	int32 CurrentIntentIndex = 0;
 };
 
 struct FINALBATTLE_API FFirstBattleStartParams

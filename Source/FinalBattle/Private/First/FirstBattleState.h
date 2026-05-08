@@ -13,6 +13,8 @@ struct FFirstEnemyPartState
 	bool bDestroyed = false;
 	FName CurrentIntentId = NAME_None;
 	FText CurrentIntentDisplayName;
+	TArray<FFirstEnemyPartIntentInstance> IntentSequence;
+	int32 CurrentIntentIndex = 0;
 	int32 CurrentInitiative = 0;
 };
 

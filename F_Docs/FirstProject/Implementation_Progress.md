@@ -14,3 +14,6 @@
 - 新增 `Final.Battle.First.Kernel.*` 自动化测试覆盖初始化、snapshot 复制隔离、未实现命令拒绝和未初始化安全 snapshot。
 - `FirstBattle PlayCard Core v0.1` 已建立：`PlayCard` 现在可执行目标部位 `Damage`、移动手牌到弃牌堆、按出牌前先机触发完美释放事件、按 `RuntimeCost` 扣减所有存活部位先机、为归零部位记录行动占位事件，并在全部部位破坏后判定胜利。
 - `First.Keyword.Swift` 已注册为 First 专用 native gameplay tag；迅捷牌跳过先机扣减和完美释放，但仍执行自身其他效果。
+- `FirstBattle EndTurn + 部位行动刷新 v0.1` 已建立：敌方部位拥有首版 `IntentSequence`，部位行动会记录 `EnemyPartActed`、推进到下一意图并重置先机。
+- `EndTurn` 现在可执行：所有存活部位按 `PositionIndex` 行动一次，随后 `CurrentRound +1`；本玩家回合内已经因先机归零行动过的部位，结束回合仍会再次行动。
+- `PlayCard` 触发先机归零时已从占位事件升级为真实部位行动刷新；本轮仍不执行敌人意图效果、不伤害玩家、不抽牌、不接 UI / Run / DataAsset。

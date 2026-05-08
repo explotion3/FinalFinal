@@ -19,7 +19,10 @@ void FFirstBattleKernel::Initialize(const FFirstBattleStartParams& StartParams)
 		PartState.bDestroyed = PartState.CurrentHP <= 0;
 		PartState.CurrentIntentId = PartStartData.CurrentIntentId;
 		PartState.CurrentIntentDisplayName = PartStartData.CurrentIntentDisplayName;
+		PartState.IntentSequence = PartStartData.IntentSequence;
+		PartState.CurrentIntentIndex = PartStartData.CurrentIntentIndex;
 		PartState.CurrentInitiative = PartStartData.CurrentInitiative;
+		EnsureIntentSequence(PartState);
 	}
 
 	State.EnemyParts.Sort(
@@ -41,7 +44,7 @@ FFirstBattleCommandResult FFirstBattleKernel::SubmitCommand(const FFirstBattleCo
 	case EFirstBattleCommandType::PlayCard:
 		return ResolvePlayCard(Command);
 	case EFirstBattleCommandType::EndTurn:
-		return MakeRejectedResult(TEXT("first.command.rejected.end_turn_not_implemented"), NSLOCTEXT("FirstBattle", "FirstEndTurnNotImplemented", "First battle EndTurn is not implemented yet."));
+		return ResolveEndTurn();
 	default:
 		return MakeRejectedResult(TEXT("first.command.rejected.unsupported"), NSLOCTEXT("FirstBattle", "FirstUnsupportedCommand", "Unsupported First battle command."));
 	}
@@ -81,6 +84,7 @@ FFirstBattleSnapshot FFirstBattleKernel::BuildSnapshot() const
 		PartView.bDestroyed = PartState.bDestroyed;
 		PartView.CurrentIntentId = PartState.CurrentIntentId;
 		PartView.CurrentIntentDisplayName = PartState.CurrentIntentDisplayName;
+		PartView.CurrentIntentIndex = PartState.CurrentIntentIndex;
 		PartView.CurrentInitiative = PartState.CurrentInitiative;
 	}
 
@@ -148,6 +152,25 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolvePlayCard(const FFirstBattle
 	}
 
 	return MakeAcceptedResult(NSLOCTEXT("FirstBattle", "FirstPlayCardAccepted", "Card played."));
+}
+
+FFirstBattleCommandResult FFirstBattleKernel::ResolveEndTurn()
+{
+	if (State.bBattleEnded)
+	{
+		return MakeRejectedResult(TEXT("first.command.rejected.battle_ended"), NSLOCTEXT("FirstBattle", "FirstEndTurnBattleEnded", "First battle has already ended."));
+	}
+
+	for (FFirstEnemyPartState& Part : State.EnemyParts)
+	{
+		if (IsAlivePart(Part))
+		{
+			ResolveEnemyPartAction(Part, FGuid());
+		}
+	}
+
+	State.CurrentRound += 1;
+	return MakeAcceptedResult(NSLOCTEXT("FirstBattle", "FirstEndTurnAccepted", "Turn ended."));
 }
 
 void FFirstBattleKernel::ApplyDamageEffects(const FFirstCardInstance& Card, FFirstEnemyPartState& TargetPart)
@@ -251,29 +274,50 @@ void FFirstBattleKernel::ResolveInitiativeAfterCard(const FFirstCardInstance& Ca
 		}
 	}
 
-	ResolveEnemyPartActionPlaceholders(QueuedPartIds, Card);
+	ResolveQueuedEnemyPartActions(QueuedPartIds, Card.CardInstanceId);
 }
 
-void FFirstBattleKernel::ResolveEnemyPartActionPlaceholders(const TArray<FName>& QueuedPartIds, const FFirstCardInstance& Card)
+void FFirstBattleKernel::ResolveQueuedEnemyPartActions(const TArray<FName>& QueuedPartIds, const FGuid& SourceCardInstanceId)
 {
-	for (const FFirstEnemyPartState& Part : State.EnemyParts)
+	for (FFirstEnemyPartState& Part : State.EnemyParts)
 	{
 		if (!QueuedPartIds.Contains(Part.PartId) || !IsAlivePart(Part))
 		{
 			continue;
 		}
 
-		FFirstBattleEvent Event;
-		Event.EventType = EFirstBattleEventType::EnemyPartActed;
-		Event.RelatedId = Part.CurrentIntentId;
-		Event.CardInstanceId = Card.CardInstanceId;
-		Event.PartId = Part.PartId;
-		Event.PrimaryValue = Part.CurrentInitiative;
-		Event.Message = FText::Format(
-			NSLOCTEXT("FirstBattle", "FirstEnemyPartActedPlaceholder", "{0} acted by initiative placeholder."),
-			Part.DisplayName.IsEmpty() ? FText::FromName(Part.PartId) : Part.DisplayName);
-		AppendEvent(Event);
+		ResolveEnemyPartAction(Part, SourceCardInstanceId);
 	}
+}
+
+void FFirstBattleKernel::ResolveEnemyPartAction(FFirstEnemyPartState& Part, const FGuid& SourceCardInstanceId)
+{
+	if (!IsAlivePart(Part))
+	{
+		return;
+	}
+
+	const FName ActedIntentId = Part.CurrentIntentId;
+	const int32 PreviousInitiative = Part.CurrentInitiative;
+
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::EnemyPartActed;
+	Event.RelatedId = ActedIntentId;
+	Event.CardInstanceId = SourceCardInstanceId;
+	Event.PartId = Part.PartId;
+	Event.PrimaryValue = PreviousInitiative;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstEnemyPartActed", "{0} acted."),
+		Part.DisplayName.IsEmpty() ? FText::FromName(Part.PartId) : Part.DisplayName);
+
+	if (!Part.IntentSequence.IsEmpty())
+	{
+		Part.CurrentIntentIndex = (Part.CurrentIntentIndex + 1) % Part.IntentSequence.Num();
+		ApplyIntentFromSequence(Part);
+		Event.SecondaryValue = Part.CurrentInitiative;
+	}
+
+	AppendEvent(Event);
 }
 
 void FFirstBattleKernel::ResolveVictory()
@@ -324,6 +368,39 @@ FFirstEnemyPartState* FFirstBattleKernel::FindEnemyPart(FName PartId)
 		{
 			return Part.PartId == PartId;
 		});
+}
+
+void FFirstBattleKernel::EnsureIntentSequence(FFirstEnemyPartState& Part)
+{
+	if (Part.IntentSequence.IsEmpty())
+	{
+		FFirstEnemyPartIntentInstance& Intent = Part.IntentSequence.AddDefaulted_GetRef();
+		Intent.IntentId = Part.CurrentIntentId;
+		Intent.DisplayName = Part.CurrentIntentDisplayName;
+		Intent.InitialInitiative = Part.CurrentInitiative;
+	}
+
+	if (!Part.IntentSequence.IsEmpty())
+	{
+		Part.CurrentIntentIndex = FMath::Clamp(Part.CurrentIntentIndex, 0, Part.IntentSequence.Num() - 1);
+		const FFirstEnemyPartIntentInstance& CurrentIntent = Part.IntentSequence[Part.CurrentIntentIndex];
+		Part.CurrentIntentId = CurrentIntent.IntentId;
+		Part.CurrentIntentDisplayName = CurrentIntent.DisplayName;
+	}
+}
+
+void FFirstBattleKernel::ApplyIntentFromSequence(FFirstEnemyPartState& Part)
+{
+	if (Part.IntentSequence.IsEmpty())
+	{
+		return;
+	}
+
+	Part.CurrentIntentIndex = FMath::Clamp(Part.CurrentIntentIndex, 0, Part.IntentSequence.Num() - 1);
+	const FFirstEnemyPartIntentInstance& CurrentIntent = Part.IntentSequence[Part.CurrentIntentIndex];
+	Part.CurrentIntentId = CurrentIntent.IntentId;
+	Part.CurrentIntentDisplayName = CurrentIntent.DisplayName;
+	Part.CurrentInitiative = CurrentIntent.InitialInitiative;
 }
 
 bool FFirstBattleKernel::IsAlivePart(const FFirstEnemyPartState& Part)

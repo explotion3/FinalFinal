@@ -4,11 +4,11 @@
 
 ## P0
 
-FirstBattle EndTurn + 部位行动刷新：实现 `EndTurn` 和正式部位行动刷新，玩家主动结束回合时所有存活部位按顺序行动；本玩家回合中已经因先机归零行动过的部位，在结束回合时仍然会再次行动。补齐部位行动后的 intent 刷新与 initiative 重置，替换当前 `EnemyPartActed` 占位事件。
-
-First Hand Zones：实现左手区 / 双手区 / 右手区，左手牌 / 右手牌作为可打出和可删除的核心卡牌，回合开始强制抽回缺失的左右手牌，再补抽到 5 张；打出任一手牌后双手区立即失效。
+First Hand Zones：实现左手区 / 双手区 / 右手区，左手牌 / 右手牌作为可打出和可删除的核心卡牌，回合开始强制抽回缺失的左右手牌，再补抽到 5 张；打出任一左/右手牌后对应手区和双手区立即失效。
 
 First Card Data：建立 First 卡牌 schema，明确 Cost、Runtime Cost、迅捷、完美释放、区域条件、腾挪、连击、耐久、容量、任务和升级等字段如何 authoring。
+
+First Enemy Intent Effects：在现有 `IntentSequence` 和部位行动刷新基础上，为敌方部位意图补最小 effect 执行；首版只需验证部位行动能通过 intent effect 影响玩家侧占位资源或事件日志，暂不接复杂状态。
 
 ## P1
 

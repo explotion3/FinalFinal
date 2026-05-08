@@ -58,6 +58,28 @@ namespace FirstBattleKernelTests
 		return Part;
 	}
 
+	FFirstEnemyPartIntentInstance MakeIntent(const FName IntentId, const int32 InitialInitiative)
+	{
+		FFirstEnemyPartIntentInstance Intent;
+		Intent.IntentId = IntentId;
+		Intent.DisplayName = FText::FromName(IntentId);
+		Intent.InitialInitiative = InitialInitiative;
+		return Intent;
+	}
+
+	FFirstEnemyPartStartData MakeSequencedPart(const FName PartId, const int32 PositionIndex, const TArray<FFirstEnemyPartIntentInstance>& Intents, const int32 CurrentIntentIndex = 0, const int32 HP = 10)
+	{
+		FFirstEnemyPartStartData Part = MakePart(PartId, PositionIndex, Intents.IsValidIndex(CurrentIntentIndex) ? Intents[CurrentIntentIndex].InitialInitiative : 0, HP);
+		Part.IntentSequence = Intents;
+		Part.CurrentIntentIndex = CurrentIntentIndex;
+		if (Intents.IsValidIndex(CurrentIntentIndex))
+		{
+			Part.CurrentIntentId = Intents[CurrentIntentIndex].IntentId;
+			Part.CurrentIntentDisplayName = Intents[CurrentIntentIndex].DisplayName;
+		}
+		return Part;
+	}
+
 	FFirstBattleStartParams MakeStartParams()
 	{
 		FFirstBattleStartParams Params;
@@ -76,6 +98,13 @@ namespace FirstBattleKernelTests
 		Command.CommandType = EFirstBattleCommandType::PlayCard;
 		Command.CardInstanceId = CardInstanceId;
 		Command.TargetPartId = TargetPartId;
+		return Command;
+	}
+
+	FFirstBattleCommand MakeEndTurnCommand()
+	{
+		FFirstBattleCommand Command;
+		Command.CommandType = EFirstBattleCommandType::EndTurn;
 		return Command;
 	}
 
@@ -237,11 +266,11 @@ bool FFirstBattleKernelPerfectReleaseTriggersForMatchingPartsTest::RunTest(const
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FFirstBattleKernelInitiativeZeroQueuesActionPlaceholdersInPositionOrderTest,
-	"Final.Battle.First.Kernel.InitiativeZeroQueuesActionPlaceholdersInPositionOrder",
+	FFirstBattleKernelInitiativeZeroResolvesActionsInPositionOrderTest,
+	"Final.Battle.First.Kernel.InitiativeZeroResolvesActionsInPositionOrder",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FFirstBattleKernelInitiativeZeroQueuesActionPlaceholdersInPositionOrderTest::RunTest(const FString& Parameters)
+bool FFirstBattleKernelInitiativeZeroResolvesActionsInPositionOrderTest::RunTest(const FString& Parameters)
 {
 	using namespace FirstBattleKernelTests;
 
@@ -255,7 +284,7 @@ bool FFirstBattleKernelInitiativeZeroQueuesActionPlaceholdersInPositionOrderTest
 	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
 	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
 
-	TestEqual(TEXT("Both parts should emit acted placeholders."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 2);
+	TestEqual(TEXT("Both parts should act."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 2);
 
 	TArray<FName> ActedParts;
 	for (const FFirstBattleEvent& Event : Snapshot.RecentEvents)
@@ -267,6 +296,179 @@ bool FFirstBattleKernelInitiativeZeroQueuesActionPlaceholdersInPositionOrderTest
 	}
 	TestEqual(TEXT("First acted part should be head by position."), ActedParts[0], FName(TEXT("part.head")));
 	TestEqual(TEXT("Second acted part should be tail by position."), ActedParts[1], FName(TEXT("part.tail")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelEndTurnActsInPositionOrderAndAdvancesRoundTest,
+	"Final.Battle.First.Kernel.EndTurnActsInPositionOrderAndAdvancesRound",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelEndTurnActsInPositionOrderAndAdvancesRoundTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleSession Session;
+	Session.Initialize(MakeStartParams());
+
+	const FFirstBattleCommandResult Result = Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("EndTurn should be accepted."), Result.IsAccepted());
+	TestEqual(TEXT("EndTurn should advance round."), Snapshot.CurrentRound, 2);
+	TestEqual(TEXT("Both parts should act at end turn."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 2);
+
+	TArray<FName> ActedParts;
+	for (const FFirstBattleEvent& Event : Snapshot.RecentEvents)
+	{
+		if (Event.EventType == EFirstBattleEventType::EnemyPartActed)
+		{
+			ActedParts.Add(Event.PartId);
+		}
+	}
+	TestEqual(TEXT("Head should act first by position."), ActedParts[0], FName(TEXT("part.head")));
+	TestEqual(TEXT("Tail should act second by position."), ActedParts[1], FName(TEXT("part.tail")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelEndTurnRefreshesIntentAndInitiativeTest,
+	"Final.Battle.First.Kernel.EndTurnRefreshesIntentAndInitiative",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelEndTurnRefreshesIntentAndInitiativeTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.StartingRound = 1;
+	Params.EnemyParts.Add(MakeSequencedPart(
+		TEXT("part.head"),
+		0,
+		{MakeIntent(TEXT("intent.test.attack"), 3), MakeIntent(TEXT("intent.test.bite"), 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Part should refresh to next intent."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.bite")));
+	TestEqual(TEXT("Part initiative should reset to next intent initial value."), Snapshot.EnemyParts[0].CurrentInitiative, 5);
+	TestEqual(TEXT("Current intent index should advance."), Snapshot.EnemyParts[0].CurrentIntentIndex, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelSingleIntentLoopsAndResetsInitiativeTest,
+	"Final.Battle.First.Kernel.SingleIntentLoopsAndResetsInitiative",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelSingleIntentLoopsAndResetsInitiativeTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.EnemyParts.Add(MakePart(TEXT("part.head"), 0, 4, 10));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Single-intent part should keep the same intent."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.attack")));
+	TestEqual(TEXT("Single-intent part should reset to its initial initiative."), Snapshot.EnemyParts[0].CurrentInitiative, 4);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelPlayCardInitiativeActionRefreshesIntentTest,
+	"Final.Battle.First.Kernel.PlayCardInitiativeActionRefreshesIntent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelPlayCardInitiativeActionRefreshesIntentTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.InitialHand.Add(MakeCard(StrikeCardInstanceId(), TEXT("card.test.strike"), 2, 1));
+	Params.EnemyParts.Add(MakeSequencedPart(
+		TEXT("part.head"),
+		0,
+		{MakeIntent(TEXT("intent.test.attack"), 2), MakeIntent(TEXT("intent.test.bite"), 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Initiative action should refresh to next intent."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.bite")));
+	TestEqual(TEXT("Initiative action should reset next initiative."), Snapshot.EnemyParts[0].CurrentInitiative, 5);
+	TestEqual(TEXT("Part should act once from initiative."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelPartCanActByInitiativeAndAgainAtEndTurnTest,
+	"Final.Battle.First.Kernel.PartCanActByInitiativeAndAgainAtEndTurn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelPartCanActByInitiativeAndAgainAtEndTurnTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.StartingRound = 1;
+	Params.InitialHand.Add(MakeCard(StrikeCardInstanceId(), TEXT("card.test.strike"), 2, 1));
+	Params.EnemyParts.Add(MakeSequencedPart(
+		TEXT("part.head"),
+		0,
+		{MakeIntent(TEXT("intent.test.attack"), 2), MakeIntent(TEXT("intent.test.bite"), 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Part should act once by initiative and once at end turn."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 2);
+	TestEqual(TEXT("End turn should advance round."), Snapshot.CurrentRound, 2);
+	TestEqual(TEXT("Second action should cycle back to first intent."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.attack")));
+	TestEqual(TEXT("Second action should reset initiative to first intent initial."), Snapshot.EnemyParts[0].CurrentInitiative, 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelDestroyedPartsDoNotActAtEndTurnTest,
+	"Final.Battle.First.Kernel.DestroyedPartsDoNotActAtEndTurn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelDestroyedPartsDoNotActAtEndTurnTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.EnemyParts.Add(MakePart(TEXT("part.head"), 0, 3, 0));
+	Params.EnemyParts.Add(MakePart(TEXT("part.tail"), 1, 4, 10));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("Head should start destroyed."), Snapshot.EnemyParts[0].bDestroyed);
+	TestEqual(TEXT("Only living tail should act."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
+	TestNotNull(TEXT("Tail acted event should exist."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.tail")));
+	TestTrue(TEXT("Destroyed head should not act."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.head")) == nullptr);
 	return true;
 }
 
@@ -426,25 +628,28 @@ bool FFirstBattleKernelBattleEndedPlayCardRejectedWithoutMutationTest::RunTest(c
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FFirstBattleKernelUnsupportedEndTurnRejectedTest,
-	"Final.Battle.First.Kernel.UnsupportedEndTurnRejected",
+	FFirstBattleKernelEndTurnAfterBattleEndRejectedWithoutMutationTest,
+	"Final.Battle.First.Kernel.EndTurnAfterBattleEndRejectedWithoutMutation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FFirstBattleKernelUnsupportedEndTurnRejectedTest::RunTest(const FString& Parameters)
+bool FFirstBattleKernelEndTurnAfterBattleEndRejectedWithoutMutationTest::RunTest(const FString& Parameters)
 {
 	using namespace FirstBattleKernelTests;
 
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.InitialHand.Add(MakeCard(StrikeCardInstanceId(), TEXT("card.test.finish"), 2, 10));
+	Params.EnemyParts.Add(MakePart(TEXT("part.head"), 0, 3, 10));
+
 	FFirstBattleSession Session;
-	Session.Initialize(MakeStartParams());
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
 	const FFirstBattleSnapshot Before = Session.GetSnapshot();
 
-	FFirstBattleCommand Command;
-	Command.CommandType = EFirstBattleCommandType::EndTurn;
-
-	const FFirstBattleCommandResult Result = Session.SubmitCommand(Command);
+	const FFirstBattleCommandResult Result = Session.SubmitCommand(MakeEndTurnCommand());
 	const FFirstBattleSnapshot After = Session.GetSnapshot();
 
-	TestFalse(TEXT("EndTurn should still be rejected."), Result.IsAccepted());
+	TestFalse(TEXT("EndTurn after battle end should be rejected."), Result.IsAccepted());
 	TestEqual(TEXT("Rejected EndTurn should not advance round."), After.CurrentRound, Before.CurrentRound);
 	TestEqual(TEXT("Rejected EndTurn should not append events."), After.RecentEvents.Num(), Before.RecentEvents.Num());
 	return true;
