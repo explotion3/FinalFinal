@@ -252,15 +252,6 @@ World 表现层使用 `FinalBattleDirector` 同步 Battle snapshot 到 Presentat
 - `Development_Backlog.md`：待办内容。
 - `Source_Bootstrap_Checklist.md`：内容生成与 bootstrap 检查。
 
-## 开发约束
-
-- 不把规则真相写进 UI、Actor 或 Blueprint。
-- 不让 `FinalBattle` 和 `FinalRun` 互相依赖。
-- 不用 Tick 驱动战斗主规则。
-- 不用行为树驱动卡牌战斗时序。
-- 不用 GAS 作为当前核心规则框架。
-- 不硬编码具体卡牌、敌人、状态资产 Id 来实现玩法。
-- 协议、规则或模块边界变化需要同步更新 `F_Docs`。
 
 ## 当前状态
 
