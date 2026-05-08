@@ -1,5 +1,6 @@
 #include "Bootstrap/FinalPrototypeContentBootstrapCommandlet.h"
 
+#include "Bootstrap/FirstPrototypeContentBundleBuilder.h"
 #include "Bootstrap/FinalPrototypeContentBootstrapAssetUtils.h"
 #include "Bootstrap/FinalPrototypeTestBundleBuilder.h"
 #include "Bootstrap/FinalStarterContentBundleBuilder.h"
@@ -20,6 +21,7 @@ int32 UFinalPrototypeContentBootstrapCommandlet::Main(const FString& Params)
 
 	FFinalPrototypeTestBundleBuilder::Build(PackagesToSave);
 	FFinalStarterContentBundleBuilder::Build(PackagesToSave);
+	FFirstPrototypeContentBundleBuilder::Build(PackagesToSave);
 
 	FinalPrototypeContentBootstrap::SavePackages(PackagesToSave);
 

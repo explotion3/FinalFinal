@@ -8,6 +8,7 @@ struct FFinalDataValidationProjectIndex
 	static FFinalDataValidationProjectIndex Build();
 
 	TArray<FString> FindDuplicateCardDefinitionPaths(const FFinalCardId& CardId, const FString& CurrentAssetPath) const;
+	TArray<FString> FindDuplicateFirstCardDefinitionPaths(FName CardId, const FString& CurrentAssetPath) const;
 	TArray<FString> FindDuplicateCharacterDefinitionPaths(const FFinalCharacterId& CharacterId, const FString& CurrentAssetPath) const;
 	TArray<FString> FindDuplicateEnemyDefinitionPaths(const FFinalEnemyId& EnemyId, const FString& CurrentAssetPath) const;
 	TArray<FString> FindDuplicateEnemyIntentDefinitionPaths(FName IntentId, const FString& CurrentAssetPath) const;
@@ -21,6 +22,7 @@ struct FFinalDataValidationProjectIndex
 	TArray<FString> FindDuplicateRuleConfigDefinitionPaths(const FFinalRuleConfigId& RuleConfigId, const FString& CurrentAssetPath) const;
 
 	bool HasCardDefinition(const FFinalCardId& CardId) const;
+	bool HasFirstCardDefinition(FName CardId) const;
 	bool HasCharacterDefinition(const FFinalCharacterId& CharacterId) const;
 	bool HasEncounterDefinition(const FFinalEncounterId& EncounterId) const;
 	bool HasPassiveDefinition(const FFinalPassiveId& PassiveId) const;
@@ -33,6 +35,7 @@ struct FFinalDataValidationProjectIndex
 
 private:
 	TMap<FName, TArray<FString>> CardDefinitionPathsById;
+	TMap<FName, TArray<FString>> FirstCardDefinitionPathsById;
 	TMap<FName, TArray<FString>> CharacterDefinitionPathsById;
 	TMap<FName, TArray<FString>> EnemyDefinitionPathsById;
 	TMap<FName, TArray<FString>> EnemyIntentDefinitionPathsById;

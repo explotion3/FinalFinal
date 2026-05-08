@@ -20,6 +20,7 @@ class UFinalPrototypeBootstrapDefinition;
 class UFinalRunRouteDefinition;
 class UFinalStatusDefinition;
 class UFinalUltimateDefinition;
+class UFirstCardDefinition;
 
 USTRUCT()
 struct FINALDATA_API FFinalDataRegistryAssetEntry
@@ -43,6 +44,7 @@ public:
 
 	void RegisterCharacterDefinition(UFinalCharacterDefinition* Definition);
 	void RegisterCardDefinition(UFinalCardDefinition* Definition);
+	void RegisterFirstCardDefinition(UFirstCardDefinition* Definition);
 	void RegisterEnemyDefinition(UFinalEnemyDefinition* Definition);
 	void RegisterEnemyIntentDefinition(UFinalEnemyIntentDefinition* Definition);
 	void RegisterEncounterDefinition(UFinalBattleEncounterDefinition* Definition);
@@ -59,6 +61,7 @@ public:
 
 	UFinalCharacterDefinition* FindCharacterDefinition(const FFinalCharacterId& CharacterId) const;
 	UFinalCardDefinition* FindCardDefinition(const FFinalCardId& CardId) const;
+	UFirstCardDefinition* FindFirstCardDefinition(FName CardId) const;
 	UFinalEnemyDefinition* FindEnemyDefinition(const FFinalEnemyId& EnemyId) const;
 	UFinalEnemyIntentDefinition* FindEnemyIntentDefinition(const FName& IntentId) const;
 	UFinalBattleEncounterDefinition* FindEncounterDefinition(const FFinalEncounterId& EncounterId) const;
@@ -88,6 +91,9 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> CardDefinitions;
+
+	UPROPERTY(Transient)
+	TMap<FName, FFinalDataRegistryAssetEntry> FirstCardDefinitions;
 
 	UPROPERTY(Transient)
 	TMap<FName, FFinalDataRegistryAssetEntry> EnemyDefinitions;

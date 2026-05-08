@@ -215,9 +215,12 @@ namespace FirstBattleKernelTests
 		const EFirstHandMoveTargetPolicy TargetPolicy = EFirstHandMoveTargetPolicy::RandomValidZone,
 		const EFirstHandZone TargetZone = EFirstHandZone::None,
 		const bool bRequiresSourceZone = false,
-		const EFirstHandZone SourceZone = EFirstHandZone::None)
+		const EFirstHandZone SourceZone = EFirstHandZone::None,
+		const int32 MoveTargetCostDelta = 0,
+		const bool bTransferActualCostReductionToSourceCard = false,
+		const int32 RuntimeCost = 1)
 	{
-		FFirstCardInstance Card = MakeCard(CardInstanceId, CardId, 1, 0);
+		FFirstCardInstance Card = MakeCard(CardInstanceId, CardId, RuntimeCost, 0);
 		FFirstCardEffectInstance& Effect = Card.Effects.AddDefaulted_GetRef();
 		Effect.EffectId = TEXT("effect.move.hand_card");
 		Effect.EffectType = EFirstCardEffectType::MoveHandCard;
@@ -226,6 +229,8 @@ namespace FirstBattleKernelTests
 		Effect.MoveSourceZone = SourceZone;
 		Effect.MoveTargetPolicy = TargetPolicy;
 		Effect.MoveTargetZone = TargetZone;
+		Effect.MoveTargetCostDelta = MoveTargetCostDelta;
+		Effect.bTransferActualCostReductionToSourceCard = bTransferActualCostReductionToSourceCard;
 		return Card;
 	}
 
@@ -257,6 +262,15 @@ namespace FirstBattleKernelTests
 			});
 	}
 
+	const FFirstBattleEvent* FindCostChangedEventForCard(const FFirstBattleSnapshot& Snapshot, const FGuid& CardInstanceId)
+	{
+		return Snapshot.RecentEvents.FindByPredicate(
+			[CardInstanceId](const FFirstBattleEvent& Event)
+			{
+				return Event.EventType == EFirstBattleEventType::CardRuntimeCostChanged && Event.CardInstanceId == CardInstanceId;
+			});
+	}
+
 	TArray<FName> GetDrawnCardIdsBySource(const FFirstBattleSnapshot& Snapshot, const EFirstCardDrawSource DrawSource)
 	{
 		TArray<FName> CardIds;
@@ -273,6 +287,13 @@ namespace FirstBattleKernelTests
 	int32 CountDrawnCardsBySource(const FFirstBattleSnapshot& Snapshot, const EFirstCardDrawSource DrawSource)
 	{
 		return GetDrawnCardIdsBySource(Snapshot, DrawSource).Num();
+	}
+
+	FFirstCardInstance MakeReturnToHandCard(const FGuid& CardInstanceId, const FName CardId, const int32 RuntimeCost = 1, const int32 Damage = 7)
+	{
+		FFirstCardInstance Card = MakeCard(CardInstanceId, CardId, RuntimeCost, Damage);
+		Card.PlayDestination = EFirstCardPlayDestination::ReturnToHandRandomZone;
+		return Card;
 	}
 }
 
@@ -296,6 +317,66 @@ bool FFirstBattleKernelInitializeBuildsSnapshotTest::RunTest(const FString& Para
 	TestEqual(TEXT("Snapshot should include initial hand."), Snapshot.HandCards.Num(), 2);
 	TestEqual(TEXT("Snapshot should include enemy parts."), Snapshot.EnemyParts.Num(), 2);
 	TestEqual(TEXT("Enemy parts should be sorted by position."), Snapshot.EnemyParts[0].PartId, FName(TEXT("part.head")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelInitializeAppliesEntryHPBonusesTest,
+	"Final.Battle.First.Kernel.InitializeAppliesEntryHPBonuses",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelInitializeAppliesEntryHPBonusesTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstCardInstance HandBonusCard = MakeCard(FGuid(0x70000001, 0, 0, 0), TEXT("card.test.hand_hp_bonus"), 1, 1);
+	HandBonusCard.PlayerMaxHPBonusOnEnterBattle = 2;
+	FFirstCardInstance DrawBonusCard = MakeCard(FGuid(0x70000002, 0, 0, 0), TEXT("card.test.draw_hp_bonus"), 1, 1);
+	DrawBonusCard.PlayerMaxHPBonusOnEnterBattle = 3;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.PlayerMaxHP = 20;
+	Params.PlayerCurrentHP = 11;
+	Params.InitialHand.Add(HandBonusCard);
+	Params.InitialDrawPile.Add(DrawBonusCard);
+	Params.EnemyParts.Add(MakePart(TEXT("part.head"), 0, 9, 20));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Entry HP bonuses should increase player max HP."), Snapshot.PlayerMaxHP, 25);
+	TestEqual(TEXT("Entry HP bonuses should increase current HP by the same total."), Snapshot.PlayerCurrentHP, 16);
+	TestEqual(TEXT("Card view should expose entry HP bonus."), Snapshot.HandCards[0].PlayerMaxHPBonusOnEnterBattle, 2);
+	TestEqual(TEXT("Entry HP bonus events should be emitted per card."), CountEvents(Snapshot, EFirstBattleEventType::PlayerMaxHPChanged), 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelEntryHPBonusDoesNotRepeatOnDrawTest,
+	"Final.Battle.First.Kernel.EntryHPBonusDoesNotRepeatOnDraw",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelEntryHPBonusDoesNotRepeatOnDrawTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params = MakeDrawStartParams();
+	FFirstCardInstance DrawBonusCard = MakeDrawCard(1);
+	DrawBonusCard.PlayerMaxHPBonusOnEnterBattle = 3;
+	Params.InitialDrawPile.Add(DrawBonusCard);
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+	TestEqual(TEXT("Entry HP bonus applies at initialization."), Snapshot.PlayerMaxHP, 33);
+	TestEqual(TEXT("Entry HP bonus event applies once at initialization."), CountEvents(Snapshot, EFirstBattleEventType::PlayerMaxHPChanged), 1);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	Snapshot = Session.GetSnapshot();
+	TestEqual(TEXT("Drawing the same card should not apply entry HP again."), Snapshot.PlayerMaxHP, 33);
+	TestEqual(TEXT("No additional entry HP event should be emitted on draw."), CountEvents(Snapshot, EFirstBattleEventType::PlayerMaxHPChanged), 1);
 	return true;
 }
 
@@ -1335,6 +1416,174 @@ bool FFirstBattleKernelMoveHandCardNoOrdinaryCandidatesNoOpsTest::RunTest(const 
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelMoveHandCardCostTransferReducesTargetAndTransfersToSourceTest,
+	"Final.Battle.First.Kernel.MoveHandCardCostTransferReducesTargetAndTransfersToSource",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelMoveHandCardCostTransferReducesTargetAndTransfersToSourceTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid SourceCardId(0x95000001, 0, 0, 0);
+	const FGuid TargetCardId(0x95000002, 0, 0, 0);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeMoveHandCard(SourceCardId, TEXT("card.test.cost_transfer"), EFirstHandMoveTargetPolicy::FixedZone, EFirstHandZone::Right, true, EFirstHandZone::Both, -1, true, 1),
+		MakeLeftHandCard(),
+		MakeCard(TargetCardId, TEXT("card.test.target"), 3, 0),
+		MakeRightHandCard()
+	});
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(SourceCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot AfterPlay = Session.GetSnapshot();
+
+	const FFirstCardViewData* TargetCard = FindCardView(AfterPlay, TEXT("card.test.target"));
+	TestNotNull(TEXT("Moved target should remain in hand."), TargetCard);
+	if (TargetCard != nullptr)
+	{
+		TestEqual(TEXT("Moved target should be reduced by actual cost delta."), TargetCard->RuntimeCost, 2);
+	}
+
+	const FFirstBattleEvent* TargetCostEvent = FindCostChangedEventForCard(AfterPlay, TargetCardId);
+	TestNotNull(TEXT("Target cost change should be visible."), TargetCostEvent);
+	if (TargetCostEvent != nullptr)
+	{
+		TestEqual(TEXT("Target cost event should record previous cost."), TargetCostEvent->PrimaryValue, 3);
+		TestEqual(TEXT("Target cost event should record new cost."), TargetCostEvent->SecondaryValue, 2);
+	}
+
+	const FFirstBattleEvent* SourceCostEvent = FindCostChangedEventForCard(AfterPlay, SourceCardId);
+	TestNotNull(TEXT("Source cost transfer should be visible."), SourceCostEvent);
+	if (SourceCostEvent != nullptr)
+	{
+		TestEqual(TEXT("Source cost event should record previous cost."), SourceCostEvent->PrimaryValue, 1);
+		TestEqual(TEXT("Source cost event should record transferred cost."), SourceCostEvent->SecondaryValue, 2);
+	}
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot AfterDraw = Session.GetSnapshot();
+	const FFirstCardViewData* SourceCard = FindCardView(AfterDraw, TEXT("card.test.cost_transfer"));
+	TestNotNull(TEXT("Source card should return from discard through draw loop."), SourceCard);
+	if (SourceCard != nullptr)
+	{
+		TestEqual(TEXT("Source card should preserve transferred runtime cost after returning to hand."), SourceCard->RuntimeCost, 2);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelMoveHandCardCostTransferUsesActualReductionTest,
+	"Final.Battle.First.Kernel.MoveHandCardCostTransferUsesActualReduction",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelMoveHandCardCostTransferUsesActualReductionTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid SourceCardId(0x95000003, 0, 0, 0);
+	const FGuid TargetCardId(0x95000004, 0, 0, 0);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeMoveHandCard(SourceCardId, TEXT("card.test.cost_transfer"), EFirstHandMoveTargetPolicy::FixedZone, EFirstHandZone::Right, true, EFirstHandZone::Both, -1, true, 1),
+		MakeLeftHandCard(),
+		MakeCard(TargetCardId, TEXT("card.test.zero_cost_target"), 0, 0),
+		MakeRightHandCard()
+	});
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(SourceCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot AfterPlay = Session.GetSnapshot();
+
+	const FFirstCardViewData* TargetCard = FindCardView(AfterPlay, TEXT("card.test.zero_cost_target"));
+	TestNotNull(TEXT("Zero-cost target should remain in hand."), TargetCard);
+	if (TargetCard != nullptr)
+	{
+		TestEqual(TEXT("Zero-cost target should not go below zero."), TargetCard->RuntimeCost, 0);
+	}
+	TestEqual(TEXT("No actual reduction should emit no cost events."), CountEvents(AfterPlay, EFirstBattleEventType::CardRuntimeCostChanged), 0);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot AfterDraw = Session.GetSnapshot();
+	const FFirstCardViewData* SourceCard = FindCardView(AfterDraw, TEXT("card.test.cost_transfer"));
+	TestNotNull(TEXT("Source card should return to hand."), SourceCard);
+	if (SourceCard != nullptr)
+	{
+		TestEqual(TEXT("Source card should not gain cost when target did not actually reduce."), SourceCard->RuntimeCost, 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelMoveHandCardCostTransferNoOpsWithoutMoveTest,
+	"Final.Battle.First.Kernel.MoveHandCardCostTransferNoOpsWithoutMove",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelMoveHandCardCostTransferNoOpsWithoutMoveTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid SourceCardId(0x95000005, 0, 0, 0);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeMoveHandCard(SourceCardId, TEXT("card.test.cost_transfer"), EFirstHandMoveTargetPolicy::FixedZone, EFirstHandZone::Both, false, EFirstHandZone::None, -1, true, 1),
+		MakeLeftHandCard(),
+		MakeCard(FGuid(0x95000006, 0, 0, 0), TEXT("card.test.left_candidate"), 3, 0)
+	});
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(SourceCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Missing target zone should produce no move event."), CountEvents(Snapshot, EFirstBattleEventType::HandCardMoved), 0);
+	TestEqual(TEXT("Missing target zone should produce no cost event."), CountEvents(Snapshot, EFirstBattleEventType::CardRuntimeCostChanged), 0);
+	const FFirstCardViewData* Candidate = FindCardView(Snapshot, TEXT("card.test.left_candidate"));
+	TestNotNull(TEXT("Candidate should remain in hand."), Candidate);
+	if (Candidate != nullptr)
+	{
+		TestEqual(TEXT("Candidate cost should remain unchanged."), Candidate->RuntimeCost, 3);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelMoveHandCardCostTransferDoesNotAffectCurrentPlayCostTest,
+	"Final.Battle.First.Kernel.MoveHandCardCostTransferDoesNotAffectCurrentPlayCost",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelMoveHandCardCostTransferDoesNotAffectCurrentPlayCostTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid SourceCardId(0x95000007, 0, 0, 0);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeMoveHandCard(SourceCardId, TEXT("card.test.cost_transfer"), EFirstHandMoveTargetPolicy::FixedZone, EFirstHandZone::Right, true, EFirstHandZone::Both, -1, true, 1),
+		MakeLeftHandCard(),
+		MakeCard(FGuid(0x95000008, 0, 0, 0), TEXT("card.test.target"), 3, 0),
+		MakeRightHandCard()
+	});
+	Params.EnemyParts[0].CurrentInitiative = 5;
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(SourceCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Current play should reduce initiative by source cost before transfer."), Snapshot.EnemyParts[0].CurrentInitiative, 4);
+	const FFirstBattleEvent* PlayedEvent = Snapshot.RecentEvents.FindByPredicate(
+		[SourceCardId](const FFirstBattleEvent& Event)
+		{
+			return Event.EventType == EFirstBattleEventType::CardPlayed && Event.CardInstanceId == SourceCardId;
+		});
+	TestNotNull(TEXT("CardPlayed event should exist."), PlayedEvent);
+	if (PlayedEvent != nullptr)
+	{
+		TestEqual(TEXT("CardPlayed should record pre-transfer runtime cost."), PlayedEvent->PrimaryValue, 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFirstBattleKernelPlayCardAppliesDamageAndMovesCardTest,
 	"Final.Battle.First.Kernel.PlayCardAppliesDamageAndMovesCard",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1960,6 +2209,150 @@ bool FFirstBattleKernelUninitializedSessionReturnsSafeSnapshotTest::RunTest(cons
 	TestEqual(TEXT("Uninitialized snapshot should have no hand cards."), Snapshot.HandCards.Num(), 0);
 	TestEqual(TEXT("Uninitialized snapshot should have no enemy parts."), Snapshot.EnemyParts.Num(), 0);
 	TestFalse(TEXT("Uninitialized snapshot should not be ended."), Snapshot.bBattleEnded);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelReturnToHandRandomZoneDoesNotEnterDiscardTest,
+	"Final.Battle.First.Kernel.ReturnToHandRandomZone.DoesNotEnterDiscard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelReturnToHandRandomZoneDoesNotEnterDiscardTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid ReturnCardId(0x33330001, 0x44440001, 0x55550001, 0x66660001);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeCard(DrawCardInstanceId(1), TEXT("card.test.left_zone"), 1, 1),
+		MakeLeftHandCard(),
+		MakeReturnToHandCard(ReturnCardId, TEXT("card.test.return"), 1, 7),
+		MakeRightHandCard(),
+		MakeCard(DrawCardInstanceId(2), TEXT("card.test.right_zone"), 1, 1),
+	});
+	Params.RandomSeed = 17;
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	const FFirstBattleCommandResult Result = Session.SubmitCommand(MakePlayCommand(ReturnCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("Return destination card should be playable."), Result.IsAccepted());
+	TestNotNull(TEXT("Returned card should be back in hand."), FindCardView(Snapshot, TEXT("card.test.return")));
+	TestEqual(TEXT("Returned card should not remain in discard."), Snapshot.DiscardPileCount, 0);
+	TestEqual(TEXT("CardReturnedToHand should be emitted."), CountEvents(Snapshot, EFirstBattleEventType::CardReturnedToHand), 1);
+	TestEqual(TEXT("Card damage should still resolve."), Snapshot.EnemyParts[0].CurrentHP, 13);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelReturnToHandRandomZoneReprojectsHandZoneTest,
+	"Final.Battle.First.Kernel.ReturnToHandRandomZone.ReprojectsHandZone",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelReturnToHandRandomZoneReprojectsHandZoneTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid ReturnCardId(0x33330002, 0x44440002, 0x55550002, 0x66660002);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeLeftHandCard(),
+		MakeReturnToHandCard(ReturnCardId, TEXT("card.test.return"), 1, 1),
+		MakeRightHandCard(),
+	});
+	Params.RandomSeed = 23;
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	Session.SubmitCommand(MakePlayCommand(ReturnCardId, TEXT("part.head")));
+
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+	const FFirstCardViewData* ReturnedCard = FindCardView(Snapshot, TEXT("card.test.return"));
+	if (!TestNotNull(TEXT("Returned card should be in hand."), ReturnedCard))
+	{
+		return false;
+	}
+
+	TestNotEqual(TEXT("Returned card should be projected into an active hand zone when anchors exist."), ReturnedCard->HandZone, EFirstHandZone::None);
+	const FFirstBattleEvent* ReturnEvent = Snapshot.RecentEvents.FindByPredicate(
+		[ReturnCardId](const FFirstBattleEvent& Event)
+		{
+			return Event.EventType == EFirstBattleEventType::CardReturnedToHand && Event.CardInstanceId == ReturnCardId;
+		});
+	TestNotNull(TEXT("Return event should record returned card."), ReturnEvent);
+	TestNotEqual(TEXT("Return event should record a valid target zone."), static_cast<EFirstHandZone>(ReturnEvent->PrimaryValue), EFirstHandZone::None);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelReturnToHandRandomZoneDoesNotReapplyEntryHPTest,
+	"Final.Battle.First.Kernel.ReturnToHandRandomZone.DoesNotReapplyEntryHP",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelReturnToHandRandomZoneDoesNotReapplyEntryHPTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid ReturnCardId(0x33330003, 0x44440003, 0x55550003, 0x66660003);
+	FFirstCardInstance ReturnCard = MakeReturnToHandCard(ReturnCardId, TEXT("card.test.return"), 1, 1);
+	ReturnCard.PlayerMaxHPBonusOnEnterBattle = 6;
+
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeLeftHandCard(),
+		ReturnCard,
+		MakeRightHandCard(),
+	});
+	Params.PlayerMaxHP = 20;
+	Params.PlayerCurrentHP = 10;
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+	TestEqual(TEXT("Entry HP bonus applies once on initialization."), Snapshot.PlayerMaxHP, 26);
+	TestEqual(TEXT("Current HP follows entry bonus once."), Snapshot.PlayerCurrentHP, 16);
+
+	Session.SubmitCommand(MakePlayCommand(ReturnCardId, TEXT("part.head")));
+	Snapshot = Session.GetSnapshot();
+	TestEqual(TEXT("Returning to hand should not reapply max HP bonus."), Snapshot.PlayerMaxHP, 26);
+	TestEqual(TEXT("Returning to hand should not reapply current HP bonus."), Snapshot.PlayerCurrentHP, 16);
+	TestEqual(TEXT("Only initial entry HP event should exist."), CountEvents(Snapshot, EFirstBattleEventType::PlayerMaxHPChanged), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelReturnToHandRandomZoneFallbackWithoutValidZoneTest,
+	"Final.Battle.First.Kernel.ReturnToHandRandomZone.FallbackWithoutValidZone",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelReturnToHandRandomZoneFallbackWithoutValidZoneTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	const FGuid ReturnCardId(0x33330004, 0x44440004, 0x55550004, 0x66660004);
+	FFirstBattleStartParams Params = MakeHandZoneStartParams({
+		MakeReturnToHandCard(ReturnCardId, TEXT("card.test.return"), 1, 1),
+	});
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+	const FFirstBattleCommandResult Result = Session.SubmitCommand(MakePlayCommand(ReturnCardId, TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("Return should still succeed without active hand zones."), Result.IsAccepted());
+	const FFirstCardViewData* ReturnedCard = FindCardView(Snapshot, TEXT("card.test.return"));
+	if (!TestNotNull(TEXT("Returned card should fallback into hand."), ReturnedCard))
+	{
+		return false;
+	}
+	TestEqual(TEXT("Fallback returned card has no active hand zone."), ReturnedCard->HandZone, EFirstHandZone::None);
+	TestEqual(TEXT("Returned card should not be discarded."), Snapshot.DiscardPileCount, 0);
+	const FFirstBattleEvent* ReturnEvent = Snapshot.RecentEvents.FindByPredicate(
+		[](const FFirstBattleEvent& Event)
+		{
+			return Event.EventType == EFirstBattleEventType::CardReturnedToHand;
+		});
+	TestNotNull(TEXT("Fallback return should still emit an event."), ReturnEvent);
+	TestEqual(TEXT("Fallback event target zone is None."), static_cast<EFirstHandZone>(ReturnEvent->PrimaryValue), EFirstHandZone::None);
 	return true;
 }
 

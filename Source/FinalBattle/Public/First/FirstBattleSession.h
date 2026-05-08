@@ -5,6 +5,7 @@
 #include "First/FirstBattleSnapshot.h"
 
 class FFirstBattleKernel;
+class UFinalDataRegistry;
 
 class FINALBATTLE_API FFirstBattleSession
 {
@@ -19,6 +20,7 @@ public:
 	FFirstBattleSession& operator=(const FFirstBattleSession&) = delete;
 
 	void Initialize(const FFirstBattleStartParams& StartParams);
+	FFirstBattleInitializeResult InitializeFromDefinitions(const FFirstBattleStartParams& StartParams, const UFinalDataRegistry& DataRegistry);
 	FFirstBattleCommandResult SubmitCommand(const FFirstBattleCommand& Command);
 	FFirstBattleSnapshot GetSnapshot() const;
 

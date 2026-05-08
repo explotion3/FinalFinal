@@ -13,6 +13,7 @@ void FFirstBattleKernel::Initialize(const FFirstBattleStartParams& StartParams)
 	State.bInitialized = true;
 	State.HandCards = StartParams.InitialHand;
 	State.DrawPile = StartParams.InitialDrawPile;
+	ApplyEntryStatBonuses();
 
 	for (const FFirstEnemyPartStartData& PartStartData : StartParams.EnemyParts)
 	{
@@ -84,6 +85,8 @@ FFirstBattleSnapshot FFirstBattleKernel::BuildSnapshot() const
 		CardView.HandIndex = CardIndex;
 		CardView.BaseCost = CardInstance.BaseCost;
 		CardView.RuntimeCost = CardInstance.RuntimeCost;
+		CardView.PlayerMaxHPBonusOnEnterBattle = CardInstance.PlayerMaxHPBonusOnEnterBattle;
+		CardView.PlayDestination = CardInstance.PlayDestination;
 		CardView.HandRole = CardInstance.HandRole;
 		CardView.HandZone = ResolveHandZoneForCard(State.HandCards, CardIndex, LeftHandIndex, RightHandIndex);
 		CardView.Keywords = CardInstance.Keywords;
@@ -173,6 +176,8 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolvePlayCard(const FFirstBattle
 	{
 		ResolveInitiativeAfterCard(PlayedCard, PrePlayInitiatives);
 	}
+
+	ResolvePlayedCardDestination(PlayedCard);
 
 	return MakeAcceptedResult(NSLOCTEXT("FirstBattle", "FirstPlayCardAccepted", "Card played."));
 }
@@ -458,6 +463,33 @@ void FFirstBattleKernel::BeginPlayerTurnDraw()
 	RebuildHandWithRandomZones(State.HandCards);
 }
 
+void FFirstBattleKernel::ApplyEntryStatBonuses()
+{
+	for (const FFirstCardInstance& Card : State.HandCards)
+	{
+		ApplyCardEntryStatBonus(Card);
+	}
+
+	for (const FFirstCardInstance& Card : State.DrawPile)
+	{
+		ApplyCardEntryStatBonus(Card);
+	}
+}
+
+void FFirstBattleKernel::ApplyCardEntryStatBonus(const FFirstCardInstance& Card)
+{
+	const int32 Bonus = FMath::Max(0, Card.PlayerMaxHPBonusOnEnterBattle);
+	if (Bonus <= 0)
+	{
+		return;
+	}
+
+	const int32 PreviousMaxHP = State.PlayerMaxHP;
+	State.PlayerMaxHP += Bonus;
+	State.PlayerCurrentHP = FMath::Clamp(State.PlayerCurrentHP + Bonus, 0, State.PlayerMaxHP);
+	AppendPlayerMaxHPChangedEvent(Card, PreviousMaxHP, State.PlayerMaxHP);
+}
+
 void FFirstBattleKernel::PullMissingCoreCards(TArray<FFirstCardInstance>& DrawnCards, const int32 DrawTargetCount)
 {
 	if (DrawnCards.Num() >= DrawTargetCount)
@@ -707,6 +739,22 @@ void FFirstBattleKernel::AppendPlayerTurnStartedEvent()
 	AppendEvent(Event);
 }
 
+void FFirstBattleKernel::AppendPlayerMaxHPChangedEvent(const FFirstCardInstance& Card, const int32 PreviousMaxHP, const int32 NewMaxHP)
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::PlayerMaxHPChanged;
+	Event.RelatedId = Card.CardId;
+	Event.CardInstanceId = Card.CardInstanceId;
+	Event.PrimaryValue = PreviousMaxHP;
+	Event.SecondaryValue = NewMaxHP;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstPlayerMaxHPChanged", "{0} changed player max HP {1} -> {2}."),
+		Card.DisplayName.IsEmpty() ? FText::FromName(Card.CardId) : Card.DisplayName,
+		FText::AsNumber(PreviousMaxHP),
+		FText::AsNumber(NewMaxHP));
+	AppendEvent(Event);
+}
+
 void FFirstBattleKernel::AppendCardDrawnEvent(const FFirstCardInstance& Card, const EFirstCardDrawSource DrawSource)
 {
 	FFirstBattleEvent Event;
@@ -728,6 +776,74 @@ void FFirstBattleKernel::AppendDrawPileShuffledEvent(const int32 ShuffledCount)
 	Event.Message = FText::Format(
 		NSLOCTEXT("FirstBattle", "FirstDrawPileShuffled", "Shuffled {0} cards into the draw pile."),
 		FText::AsNumber(ShuffledCount));
+	AppendEvent(Event);
+}
+
+void FFirstBattleKernel::ResolvePlayedCardDestination(const FFirstCardInstance& PlayedCard)
+{
+	if (PlayedCard.PlayDestination == EFirstCardPlayDestination::ReturnToHandRandomZone)
+	{
+		ReturnPlayedCardToHandRandomZone(PlayedCard);
+	}
+}
+
+void FFirstBattleKernel::ReturnPlayedCardToHandRandomZone(const FFirstCardInstance& PlayedCard)
+{
+	const int32 DiscardIndex = State.DiscardPile.IndexOfByPredicate(
+		[&PlayedCard](const FFirstCardInstance& Card)
+		{
+			return Card.CardInstanceId == PlayedCard.CardInstanceId;
+		});
+	if (DiscardIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	FFirstCardInstance ReturningCard = State.DiscardPile[DiscardIndex];
+	State.DiscardPile.RemoveAt(DiscardIndex);
+
+	EFirstHandZone TargetZone = EFirstHandZone::None;
+	const TArray<EFirstHandZone> TargetZones = ResolveValidHandMoveTargetZones();
+	if (!TargetZones.IsEmpty())
+	{
+		TargetZone = TargetZones[State.RandomStream.RandRange(0, TargetZones.Num() - 1)];
+		if (!InsertCardIntoZone(FFirstCardInstance(ReturningCard), TargetZone))
+		{
+			TargetZone = EFirstHandZone::None;
+			State.HandCards.Add(ReturningCard);
+		}
+	}
+	else
+	{
+		State.HandCards.Add(ReturningCard);
+	}
+
+	AppendCardReturnedToHandEvent(ReturningCard, TargetZone);
+}
+
+TArray<EFirstHandZone> FFirstBattleKernel::ResolveValidHandMoveTargetZones() const
+{
+	TArray<EFirstHandZone> TargetZones;
+	for (const EFirstHandZone Zone : {EFirstHandZone::Left, EFirstHandZone::Both, EFirstHandZone::Right})
+	{
+		if (IsValidHandMoveTargetZone(State.HandCards, Zone))
+		{
+			TargetZones.Add(Zone);
+		}
+	}
+	return TargetZones;
+}
+
+void FFirstBattleKernel::AppendCardReturnedToHandEvent(const FFirstCardInstance& Card, const EFirstHandZone TargetZone)
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::CardReturnedToHand;
+	Event.RelatedId = Card.CardId;
+	Event.CardInstanceId = Card.CardInstanceId;
+	Event.PrimaryValue = static_cast<int32>(TargetZone);
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstCardReturnedToHand", "{0} returned to hand."),
+		Card.DisplayName.IsEmpty() ? FText::FromName(Card.CardId) : Card.DisplayName);
 	AppendEvent(Event);
 }
 
@@ -782,14 +898,26 @@ bool FFirstBattleKernel::MoveRandomHandCard(const FFirstCardInstance& SourceCard
 	const EFirstHandZone TargetZone = TargetZones[State.RandomStream.RandRange(0, TargetZones.Num() - 1)];
 	FFirstCardInstance MovedCard = State.HandCards[CardIndex];
 	State.HandCards.RemoveAt(CardIndex);
+	const int32 PreviousTargetCost = MovedCard.RuntimeCost;
+	const int32 ActualTargetCostDelta = ApplyRuntimeCostDelta(MovedCard, Effect.MoveTargetCostDelta);
 
 	if (!InsertCardIntoZone(FFirstCardInstance(MovedCard), TargetZone))
 	{
+		MovedCard.RuntimeCost = PreviousTargetCost;
 		State.HandCards.Insert(MovedCard, FMath::Clamp(CardIndex, 0, State.HandCards.Num()));
 		return false;
 	}
 
 	AppendHandCardMovedEvent(SourceCard, MovedCard, SourceZone, TargetZone);
+	if (ActualTargetCostDelta != 0)
+	{
+		AppendCardRuntimeCostChangedEvent(MovedCard, PreviousTargetCost, MovedCard.RuntimeCost);
+	}
+
+	if (Effect.bTransferActualCostReductionToSourceCard && ActualTargetCostDelta < 0)
+	{
+		ApplyTransferredCostReductionToSourceCard(SourceCard, -ActualTargetCostDelta);
+	}
 	return true;
 }
 
@@ -883,6 +1011,61 @@ void FFirstBattleKernel::AppendHandCardMovedEvent(const FFirstCardInstance& Sour
 	Event.Message = FText::Format(
 		NSLOCTEXT("FirstBattle", "FirstHandCardMoved", "Moved {0}."),
 		MovedCard.DisplayName.IsEmpty() ? FText::FromName(MovedCard.CardId) : MovedCard.DisplayName);
+	AppendEvent(Event);
+}
+
+int32 FFirstBattleKernel::ApplyRuntimeCostDelta(FFirstCardInstance& Card, const int32 CostDelta)
+{
+	if (CostDelta == 0)
+	{
+		return 0;
+	}
+
+	const int32 PreviousCost = Card.RuntimeCost;
+	Card.RuntimeCost = FMath::Max(0, Card.RuntimeCost + CostDelta);
+	return Card.RuntimeCost - PreviousCost;
+}
+
+void FFirstBattleKernel::ApplyTransferredCostReductionToSourceCard(const FFirstCardInstance& SourceCard, const int32 ActualCostReduction)
+{
+	if (ActualCostReduction <= 0)
+	{
+		return;
+	}
+
+	FFirstCardInstance* DiscardedSourceCard = State.DiscardPile.FindByPredicate(
+		[&SourceCard](const FFirstCardInstance& Card)
+		{
+			return Card.CardInstanceId == SourceCard.CardInstanceId;
+		});
+	if (DiscardedSourceCard == nullptr)
+	{
+		return;
+	}
+
+	const int32 PreviousCost = DiscardedSourceCard->RuntimeCost;
+	DiscardedSourceCard->RuntimeCost += ActualCostReduction;
+	AppendCardRuntimeCostChangedEvent(*DiscardedSourceCard, PreviousCost, DiscardedSourceCard->RuntimeCost);
+}
+
+void FFirstBattleKernel::AppendCardRuntimeCostChangedEvent(const FFirstCardInstance& Card, const int32 PreviousCost, const int32 NewCost)
+{
+	if (PreviousCost == NewCost)
+	{
+		return;
+	}
+
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::CardRuntimeCostChanged;
+	Event.RelatedId = Card.CardId;
+	Event.CardInstanceId = Card.CardInstanceId;
+	Event.PrimaryValue = PreviousCost;
+	Event.SecondaryValue = NewCost;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstCardRuntimeCostChanged", "{0} cost {1} -> {2}."),
+		Card.DisplayName.IsEmpty() ? FText::FromName(Card.CardId) : Card.DisplayName,
+		FText::AsNumber(PreviousCost),
+		FText::AsNumber(NewCost));
 	AppendEvent(Event);
 }
 

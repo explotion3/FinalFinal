@@ -33,6 +33,7 @@
 #include "Battle/Effects/FinalBattleEffectRemoveStatus.h"
 #include "Battle/Effects/FinalBattleTargetedEffectDefinition.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "First/FirstCardDefinition.h"
 #include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
@@ -1014,6 +1015,56 @@ namespace FinalDataAssetValidation
 		}
 	}
 
+	void ValidateFirstCardDefinition(FDataValidationContext& Context, bool& bIsValid, const UFirstCardDefinition* Card)
+	{
+		RequireName(Context, bIsValid, Card->CardId, TEXT("CardId"));
+		RequireText(Context, bIsValid, Card->DisplayName, TEXT("DisplayName"));
+		ValidateNonNegative(Context, bIsValid, Card->BaseCost, TEXT("BaseCost"));
+		ValidateNonNegative(Context, bIsValid, Card->PlayerMaxHPBonusOnEnterBattle, TEXT("PlayerMaxHPBonusOnEnterBattle"));
+
+		if (Card->bRequiresHandZoneToPlay && Card->RequiredHandZone == EFirstCardDefinitionHandZone::None)
+		{
+			AddError(Context, bIsValid, TEXT("RequiredHandZone must not be None when bRequiresHandZoneToPlay is true."));
+		}
+
+		if (Card->bSkipInitiativeReductionOnPerfectReleaseInZone && Card->PerfectReleaseInitiativeSkipZone == EFirstCardDefinitionHandZone::None)
+		{
+			AddError(Context, bIsValid, TEXT("PerfectReleaseInitiativeSkipZone must not be None when bSkipInitiativeReductionOnPerfectReleaseInZone is true."));
+		}
+
+		for (int32 EffectIndex = 0; EffectIndex < Card->Effects.Num(); ++EffectIndex)
+		{
+			const FFirstCardDefinitionEffect& Effect = Card->Effects[EffectIndex];
+			const FString FieldPrefix = FString::Printf(TEXT("Effects[%d]"), EffectIndex);
+
+			switch (Effect.EffectType)
+			{
+			case EFirstCardDefinitionEffectType::Damage:
+				ValidatePositive(Context, bIsValid, Effect.Value, *FString::Printf(TEXT("%s.Value"), *FieldPrefix));
+				break;
+			case EFirstCardDefinitionEffectType::MoveHandCard:
+				ValidatePositive(Context, bIsValid, Effect.MoveCardCount, *FString::Printf(TEXT("%s.MoveCardCount"), *FieldPrefix));
+				if (Effect.bMoveRequiresSourceZone && Effect.MoveSourceZone == EFirstCardDefinitionHandZone::None)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.MoveSourceZone must not be None when bMoveRequiresSourceZone is true."), *FieldPrefix));
+				}
+				if (Effect.MoveTargetPolicy == EFirstCardDefinitionHandMoveTargetPolicy::FixedZone
+					&& Effect.MoveTargetZone == EFirstCardDefinitionHandZone::None)
+				{
+					AddError(Context, bIsValid, FString::Printf(TEXT("%s.MoveTargetZone must not be None when MoveTargetPolicy is FixedZone."), *FieldPrefix));
+				}
+				if (Effect.bTransferActualCostReductionToSourceCard && Effect.MoveTargetCostDelta >= 0)
+				{
+					AddWarning(Context, FString::Printf(TEXT("%s transfers actual cost reduction to the source card, but MoveTargetCostDelta is not negative."), *FieldPrefix));
+				}
+				break;
+			default:
+				AddWarning(Context, FString::Printf(TEXT("%s has EffectType=None and will compile to a no-op First effect."), *FieldPrefix));
+				break;
+			}
+		}
+	}
+
 	void ValidateCharacterDefinition(FDataValidationContext& Context, bool& bIsValid, const UFinalCharacterDefinition* Character)
 	{
 		if (!Character->CharacterId.IsValid())
@@ -1937,6 +1988,21 @@ namespace FinalDataAssetValidation
 			ProjectIndex.FindDuplicateCardDefinitionPaths(Card->CardId, CurrentAssetPath));
 	}
 
+	void ValidateFirstCardDefinitionProjectConsistency(
+		FDataValidationContext& Context,
+		bool& bIsValid,
+		const UFirstCardDefinition* Card,
+		const FString& CurrentAssetPath,
+		const FFinalDataValidationProjectIndex& ProjectIndex)
+	{
+		ValidateDuplicateStableId(
+			Context,
+			bIsValid,
+			TEXT("CardId"),
+			Card->CardId.ToString(),
+			ProjectIndex.FindDuplicateFirstCardDefinitionPaths(Card->CardId, CurrentAssetPath));
+	}
+
 	void ValidateCharacterDefinitionProjectConsistency(
 		FDataValidationContext& Context,
 		bool& bIsValid,
@@ -2178,6 +2244,7 @@ bool UFinalDataAssetValidator::CanValidateAsset_Implementation(const FAssetData&
 {
 	return InAsset
 		&& (InAsset->IsA<UFinalCardDefinition>()
+			|| InAsset->IsA<UFirstCardDefinition>()
 			|| InAsset->IsA<UFinalCharacterDefinition>()
 			|| InAsset->IsA<UFinalEnemyDefinition>()
 			|| InAsset->IsA<UFinalEnemyIntentDefinition>()
@@ -2201,6 +2268,11 @@ EDataValidationResult UFinalDataAssetValidator::ValidateLoadedAsset_Implementati
 	{
 		FinalDataAssetValidation::ValidateCardDefinition(InContext, bIsValid, Card);
 		FinalDataAssetValidation::ValidateCardDefinitionProjectConsistency(InContext, bIsValid, Card, CurrentAssetPath, ProjectIndex);
+	}
+	else if (const UFirstCardDefinition* FirstCard = Cast<UFirstCardDefinition>(InAsset))
+	{
+		FinalDataAssetValidation::ValidateFirstCardDefinition(InContext, bIsValid, FirstCard);
+		FinalDataAssetValidation::ValidateFirstCardDefinitionProjectConsistency(InContext, bIsValid, FirstCard, CurrentAssetPath, ProjectIndex);
 	}
 	else if (const UFinalCharacterDefinition* Character = Cast<UFinalCharacterDefinition>(InAsset))
 	{

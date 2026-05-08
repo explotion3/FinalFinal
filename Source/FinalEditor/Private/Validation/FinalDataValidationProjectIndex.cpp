@@ -10,6 +10,7 @@
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "First/FirstCardDefinition.h"
 #include "Run/Definitions/FinalPrototypeBootstrapDefinition.h"
 #include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalRelicDefinition.h"
@@ -93,6 +94,11 @@ FFinalDataValidationProjectIndex FFinalDataValidationProjectIndex::Build()
 		return Asset.CardId.Value;
 	});
 
+	CollectDefinitionIds<UFirstCardDefinition>(AssetRegistry, ProjectIndex.FirstCardDefinitionPathsById, [](const UFirstCardDefinition& Asset)
+	{
+		return Asset.CardId;
+	});
+
 	CollectDefinitionIds<UFinalCharacterDefinition>(AssetRegistry, ProjectIndex.CharacterDefinitionPathsById, [](const UFinalCharacterDefinition& Asset)
 	{
 		return Asset.CharacterId.Value;
@@ -156,6 +162,11 @@ TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateCardDefinitionPat
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(CardDefinitionPathsById, CardId.Value, CurrentAssetPath);
 }
 
+TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateFirstCardDefinitionPaths(const FName CardId, const FString& CurrentAssetPath) const
+{
+	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(FirstCardDefinitionPathsById, CardId, CurrentAssetPath);
+}
+
 TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateCharacterDefinitionPaths(const FFinalCharacterId& CharacterId, const FString& CurrentAssetPath) const
 {
 	return FinalDataValidationProjectIndexInternal::FindConflictingPaths(CharacterDefinitionPathsById, CharacterId.Value, CurrentAssetPath);
@@ -214,6 +225,11 @@ TArray<FString> FFinalDataValidationProjectIndex::FindDuplicateRuleConfigDefinit
 bool FFinalDataValidationProjectIndex::HasCardDefinition(const FFinalCardId& CardId) const
 {
 	return FinalDataValidationProjectIndexInternal::HasStableId(CardDefinitionPathsById, CardId.Value);
+}
+
+bool FFinalDataValidationProjectIndex::HasFirstCardDefinition(const FName CardId) const
+{
+	return FinalDataValidationProjectIndexInternal::HasStableId(FirstCardDefinitionPathsById, CardId);
 }
 
 bool FFinalDataValidationProjectIndex::HasCharacterDefinition(const FFinalCharacterId& CharacterId) const

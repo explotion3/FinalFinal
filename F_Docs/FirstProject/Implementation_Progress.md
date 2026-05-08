@@ -35,3 +35,24 @@
 - `FirstBattle Draw Loop v0.2` 已建立：抽牌堆耗尽且本次仍需要抽牌时，First kernel 会使用 `RandomStream` 将弃牌堆洗入抽牌堆，并继续补抽本回合最多 5 张。
 - 回合开始、抽牌和洗牌现在有正式事件可见性：`PlayerTurnStarted / CardDrawn / DrawPileShuffled`；`CardDrawn` 会记录强制核心牌、普通抽牌和洗后抽牌等来源。
 - 本轮仍不引入手牌上限：保留手牌不会被弃掉，本回合抽入最多 5 张可以和原手牌共存；手牌容量规则留后续单独处理。
+- `FirstBattle Cost Transfer v0.1` 已建立：`MoveHandCard` 可在腾挪成功后修改被腾挪牌 `RuntimeCost`，并把实际降低的费用转移到本次打出的来源牌上。
+- 费用转移只修改 `RuntimeCost`，不改 `BaseCost`；来源牌费用承接写回弃牌堆中的同一 `CardInstanceId`，因此后续回手后仍保留转移后的费用。
+- 卡牌运行时费用变化现在通过 `CardRuntimeCostChanged` 事件可见，事件记录被改费牌以及改费前后的 `RuntimeCost`。
+- `First Card Data Skeleton v0.1` 已建立：`FinalData` 模块新增 `UFirstCardDefinition`，用于 First 专用卡牌 authoring，不复用旧 `UFinalCardDefinition` 的 AP、三角色卡牌类型或旧 effect 对象。
+- `UFirstCardDefinition` 首版覆盖当前 First kernel 已支持的最小字段：`CardId / DisplayName / BaseCost / Keywords / HandRole / 区域出牌限制 / 完美释放区域跳过先机 / Damage / MoveHandCard`。
+- `FinalDataRegistry` 已支持 `RegisterFirstCardDefinition()` 与 `FindFirstCardDefinition(CardId)`，First 与 legacy 卡牌定义双轨索引。
+- `FinalBattle` 已新增 `FFirstCardDefinitionCompiler`，可将 `UFirstCardDefinition` 编译为 `FFirstCardInstance`，其中 `RuntimeCost` 初始等于 `BaseCost`，后续战斗改费仍只作用于 runtime instance。
+- `FinalEditor` Validator 已接入 First card 基础校验与 `CardId` 唯一性检查；本轮不生成 starter 资产，也不接 First session 初始化、Run、UI 或背包。
+- `FirstBattle Session Data 接入 v0.1` 已建立：`FFirstBattleStartParams` 新增 `InitialHandCardDefinitions / InitialDrawPileCardDefinitions`，可用 `CardId + Count` 引用 First card definitions。
+- `FFirstBattleSession::InitializeFromDefinitions()` 已接入 `UFinalDataRegistry + FFirstCardDefinitionCompiler`，会把 First card definitions 编译并追加到 runtime `InitialHand / InitialDrawPile` 后再初始化 kernel。
+- FirstBattle 初始化现在对缺失 `CardId` 和非法 `Count` 做结构化失败返回；失败时不会覆盖当前 session runtime 状态。
+- 现有低层 `Initialize(const FFirstBattleStartParams&)` 保持不变，仍可直接接收手写 `FFirstCardInstance`，供 kernel 单元测试和特殊 runtime 场景使用。
+- `First Card Content Bootstrap v0.1` 已建立：`FinalPrototypeContentBootstrapCommandlet` 现在会通过 First 专用 builder 生成 `/Game/Prototype/FirstProject/Cards/` 下的首批 `UFirstCardDefinition` 资产。
+- 首批 First 内容只覆盖当前 kernel 已支持的规则：左手、右手、朝光暮蝶、赤腹工蚁和烁光蝶；拂晓飞蛾、暮蛉、暮色引虫灯等仍等待手牌回收、状态/冻结、任务/耐久/容量 schema 后再 authoring。
+- 新增 First 内容验证覆盖真实资产加载、DataRegistry 查询、compiler 字段保留，以及 `InitializeFromDefinitions()` 使用真实 First card assets 初始化并执行右手伤害链。
+- `FirstBattle Card Entry Stats v0.1` 已建立：`UFirstCardDefinition / FFirstCardInstance / FFirstCardViewData` 新增 `PlayerMaxHPBonusOnEnterBattle`，用于表达卡牌入战时提高玩家生命上限。
+- First kernel 初始化时会对 `InitialHand / InitialDrawPile` 中的入战生命加成统一结算一次：玩家 `PlayerMaxHP` 与 `PlayerCurrentHP` 同步增加，后续抽牌、回手、腾挪、出牌、弃牌和洗牌不会重复触发。
+- 卡牌入战生命上限变化通过 `PlayerMaxHPChanged` 事件可见；首批 First 内容中，朝光暮蝶和赤腹工蚁提供 `+1` 生命上限，烁光蝶提供 `+6` 生命上限，左手 / 右手暂不提供该加成。
+- `FirstBattle Combo / Self Move v0.1` 已建立：`UFirstCardDefinition / FFirstCardInstance / FFirstCardViewData` 新增 `PlayDestination`，首版支持 `DiscardPile` 与 `ReturnToHandRandomZone`。
+- First kernel 出牌后会在完整结算结束时处理打出后去向；普通牌维持进入弃牌堆，`ReturnToHandRandomZone` 牌会从弃牌堆取回并插入随机有效手牌区域，缺少有效区域时安全回到手牌且区域为 `None`。
+- 回手不会重复触发 `PlayerMaxHPBonusOnEnterBattle`，并通过 `CardReturnedToHand` 事件可见；首批 First 内容中，烁光蝶已设置为打出后回手随机落区，左手、右手、朝光暮蝶、赤腹工蚁仍进入弃牌堆。

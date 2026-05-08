@@ -11,6 +11,8 @@ struct FINALBATTLE_API FFirstCardViewData
 	int32 HandIndex = INDEX_NONE;
 	int32 BaseCost = 0;
 	int32 RuntimeCost = 0;
+	int32 PlayerMaxHPBonusOnEnterBattle = 0;
+	EFirstCardPlayDestination PlayDestination = EFirstCardPlayDestination::DiscardPile;
 	EFirstHandRole HandRole = EFirstHandRole::None;
 	EFirstHandZone HandZone = EFirstHandZone::None;
 	FGameplayTagContainer Keywords;

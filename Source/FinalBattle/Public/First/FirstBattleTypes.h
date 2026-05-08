@@ -27,6 +27,7 @@ enum class EFirstBattleEventType : uint8
 	None,
 	PlayerTurnStarted,
 	CardPlayed,
+	CardReturnedToHand,
 	CardDrawn,
 	DrawPileShuffled,
 	InitiativeChanged,
@@ -37,6 +38,8 @@ enum class EFirstBattleEventType : uint8
 	BattleWon,
 	BattleLost,
 	HandCardMoved,
+	CardRuntimeCostChanged,
+	PlayerMaxHPChanged,
 	CommandRejected
 };
 
@@ -71,6 +74,12 @@ enum class EFirstCardDrawSource : uint8
 	ShuffledDiscard
 };
 
+enum class EFirstCardPlayDestination : uint8
+{
+	DiscardPile,
+	ReturnToHandRandomZone
+};
+
 struct FINALBATTLE_API FFirstCardEffectInstance
 {
 	EFirstCardEffectType EffectType = EFirstCardEffectType::None;
@@ -81,6 +90,8 @@ struct FINALBATTLE_API FFirstCardEffectInstance
 	EFirstHandZone MoveSourceZone = EFirstHandZone::None;
 	EFirstHandMoveTargetPolicy MoveTargetPolicy = EFirstHandMoveTargetPolicy::RandomValidZone;
 	EFirstHandZone MoveTargetZone = EFirstHandZone::None;
+	int32 MoveTargetCostDelta = 0;
+	bool bTransferActualCostReductionToSourceCard = false;
 };
 
 struct FINALBATTLE_API FFirstCardInstance
@@ -90,6 +101,8 @@ struct FINALBATTLE_API FFirstCardInstance
 	FText DisplayName;
 	int32 BaseCost = 0;
 	int32 RuntimeCost = 0;
+	int32 PlayerMaxHPBonusOnEnterBattle = 0;
+	EFirstCardPlayDestination PlayDestination = EFirstCardPlayDestination::DiscardPile;
 	EFirstHandRole HandRole = EFirstHandRole::None;
 	bool bRequiresHandZoneToPlay = false;
 	EFirstHandZone RequiredHandZone = EFirstHandZone::None;
@@ -97,6 +110,12 @@ struct FINALBATTLE_API FFirstCardInstance
 	EFirstHandZone PerfectReleaseInitiativeSkipZone = EFirstHandZone::None;
 	FGameplayTagContainer Keywords;
 	TArray<FFirstCardEffectInstance> Effects;
+};
+
+struct FINALBATTLE_API FFirstCardDefinitionStartEntry
+{
+	FName CardId = NAME_None;
+	int32 Count = 1;
 };
 
 struct FINALBATTLE_API FFirstEnemyPartIntentInstance
@@ -130,7 +149,17 @@ struct FINALBATTLE_API FFirstBattleStartParams
 	int32 PlayerCurrentHP = 30;
 	TArray<FFirstCardInstance> InitialHand;
 	TArray<FFirstCardInstance> InitialDrawPile;
+	TArray<FFirstCardDefinitionStartEntry> InitialHandCardDefinitions;
+	TArray<FFirstCardDefinitionStartEntry> InitialDrawPileCardDefinitions;
 	TArray<FFirstEnemyPartStartData> EnemyParts;
+};
+
+struct FINALBATTLE_API FFirstBattleInitializeResult
+{
+	bool bSuccess = false;
+	TArray<FName> MissingCardIds;
+	TArray<FName> InvalidCardIds;
+	FText Message;
 };
 
 struct FINALBATTLE_API FFirstBattleEvent

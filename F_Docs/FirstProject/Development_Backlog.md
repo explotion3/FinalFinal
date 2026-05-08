@@ -4,11 +4,13 @@
 
 ## P0
 
-First Card Data：建立 First 卡牌 schema，明确 Cost、Runtime Cost、迅捷、完美释放、区域出牌限制、完美释放区域修正、腾挪、连击、耐久、容量、任务和升级等字段如何 authoring。
+First Card Data 扩展：在当前 `Damage / MoveHandCard / 入战生命上限 / PlayDestination` schema 上继续补连击次数限制、耐久、容量、任务、升级、背包容量、战斗中获得卡牌入战结算和更多区域条件效果等 authoring 字段。
 
-First Hand Zone Rules：在已有手牌三区 snapshot 投影、区域出牌限制和基础腾挪 effect 基础上，继续实现 Cost 转移、连击自移动、更多区域条件效果、左手 / 右手永久删除和区域失效后的复杂卡牌规则。
+First Hand Zone Rules：在已有手牌三区 snapshot 投影、区域出牌限制、基础腾挪 effect、Cost 转移和打出后回手随机落区基础上，继续实现连击次数限制、更多打出后去向、更多区域条件效果、更多费用来源、跨区域条件费用、左手 / 右手永久删除和区域失效后的复杂卡牌规则。
 
 First Draw Loop：在已完成的回合开始抽牌、弃牌洗牌和抽牌事件可见性基础上，后续补手牌上限、抽牌溢出处理和更完整的回合开始 / 回合结束触发窗口。
+
+First Card Content Expansion：在首批 `UFirstCardDefinition` 资产已覆盖左手、右手、朝光暮蝶、赤腹工蚁和烁光蝶后，等 schema 到位再补拂晓飞蛾、暮蛉、暮色引虫灯，以及完整角色初始卡组。
 
 ## P1
 

@@ -10,6 +10,7 @@
 #include "Battle/Definitions/FinalPassiveDefinition.h"
 #include "Battle/Definitions/FinalStatusDefinition.h"
 #include "Battle/Definitions/FinalUltimateDefinition.h"
+#include "First/FirstCardDefinition.h"
 #include "Modules/ModuleManager.h"
 #include "Run/Definitions/FinalCardEvolutionDefinition.h"
 #include "Run/Definitions/FinalCharacterGrowthConfig.h"
@@ -200,6 +201,7 @@ void UFinalDataRegistry::Initialize(FSubsystemCollectionBase& Collection)
 
 	CharacterDefinitions.Reset();
 	CardDefinitions.Reset();
+	FirstCardDefinitions.Reset();
 	EnemyDefinitions.Reset();
 	EnemyIntentDefinitions.Reset();
 	EncounterDefinitions.Reset();
@@ -227,6 +229,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 
 	const FFinalDataRegistryIndexStats CharacterStats = IndexDefinitionAssets<UFinalCharacterDefinition>(AssetRegistry, TEXT("CharacterId"), CharacterDefinitions, TEXT("CharacterDefinition"));
 	const FFinalDataRegistryIndexStats CardStats = IndexDefinitionAssets<UFinalCardDefinition>(AssetRegistry, TEXT("CardId"), CardDefinitions, TEXT("CardDefinition"));
+	const FFinalDataRegistryIndexStats FirstCardStats = IndexDefinitionAssets<UFirstCardDefinition>(AssetRegistry, TEXT("CardId"), FirstCardDefinitions, TEXT("FirstCardDefinition"));
 	const FFinalDataRegistryIndexStats EnemyStats = IndexDefinitionAssets<UFinalEnemyDefinition>(AssetRegistry, TEXT("EnemyId"), EnemyDefinitions, TEXT("EnemyDefinition"));
 	const FFinalDataRegistryIndexStats EnemyIntentStats = IndexDefinitionAssets<UFinalEnemyIntentDefinition>(AssetRegistry, TEXT("IntentId"), EnemyIntentDefinitions, TEXT("EnemyIntentDefinition"));
 	const FFinalDataRegistryIndexStats EncounterStats = IndexDefinitionAssets<UFinalBattleEncounterDefinition>(AssetRegistry, TEXT("EncounterId"), EncounterDefinitions, TEXT("BattleEncounterDefinition"));
@@ -245,6 +248,7 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	const int32 MissingTagCount =
 		CharacterStats.MissingStableIdTagCount
 		+ CardStats.MissingStableIdTagCount
+		+ FirstCardStats.MissingStableIdTagCount
 		+ EnemyStats.MissingStableIdTagCount
 		+ EnemyIntentStats.MissingStableIdTagCount
 		+ EncounterStats.MissingStableIdTagCount
@@ -262,11 +266,12 @@ void UFinalDataRegistry::DiscoverRuntimeDefinitions()
 	UE_LOG(
 		LogFinalDataRegistry,
 		Log,
-		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Passives=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d CharacterGrowthConfigs=%d GrowthChoices=%d CardEvolutions=%d MissingStableIdTags=%d"),
+		TEXT("Indexed runtime definitions in %.2f ms: RuleConfigs=%d Characters=%d Cards=%d FirstCards=%d Ultimates=%d Enemies=%d EnemyIntents=%d Passives=%d Statuses=%d Encounters=%d PrototypeBootstraps=%d Relics=%d RunRoutes=%d CharacterGrowthConfigs=%d GrowthChoices=%d CardEvolutions=%d MissingStableIdTags=%d"),
 		ElapsedMilliseconds,
 		RuleConfigStats.IndexedCount,
 		CharacterStats.IndexedCount,
 		CardStats.IndexedCount,
+		FirstCardStats.IndexedCount,
 		UltimateStats.IndexedCount,
 		EnemyStats.IndexedCount,
 		EnemyIntentStats.IndexedCount,
@@ -359,6 +364,16 @@ void UFinalDataRegistry::RegisterCardDefinition(UFinalCardDefinition* Definition
 	}
 
 	RegisterLoadedDefinition(CardDefinitions, Definition->CardId.Value, Definition);
+}
+
+void UFinalDataRegistry::RegisterFirstCardDefinition(UFirstCardDefinition* Definition)
+{
+	if (!IsValid(Definition) || Definition->CardId.IsNone())
+	{
+		return;
+	}
+
+	RegisterLoadedDefinition(FirstCardDefinitions, Definition->CardId, Definition);
 }
 
 void UFinalDataRegistry::RegisterEnemyDefinition(UFinalEnemyDefinition* Definition)
@@ -501,6 +516,12 @@ UFinalCardDefinition* UFinalDataRegistry::FindCardDefinition(const FFinalCardId&
 {
 	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
 	return MutableThis->FindLoadedDefinition<UFinalCardDefinition>(MutableThis->CardDefinitions, CardId.Value, TEXT("CardDefinition"));
+}
+
+UFirstCardDefinition* UFinalDataRegistry::FindFirstCardDefinition(const FName CardId) const
+{
+	UFinalDataRegistry* MutableThis = const_cast<UFinalDataRegistry*>(this);
+	return MutableThis->FindLoadedDefinition<UFirstCardDefinition>(MutableThis->FirstCardDefinitions, CardId, TEXT("FirstCardDefinition"));
 }
 
 UFinalEnemyDefinition* UFinalDataRegistry::FindEnemyDefinition(const FFinalEnemyId& EnemyId) const

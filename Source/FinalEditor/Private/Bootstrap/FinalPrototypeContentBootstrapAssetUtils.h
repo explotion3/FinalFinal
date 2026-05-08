@@ -14,7 +14,7 @@ namespace FinalPrototypeContentBootstrap
 	{
 		const FString AssetName = FPackageName::GetLongPackageAssetName(PackagePath);
 		const FString ObjectPath = FString::Printf(TEXT("%s.%s"), *PackagePath, *AssetName);
-		if (TAsset* LoadedAsset = LoadObject<TAsset>(nullptr, *ObjectPath))
+		if (TAsset* LoadedAsset = Cast<TAsset>(StaticLoadObject(TAsset::StaticClass(), nullptr, *ObjectPath, nullptr, LOAD_NoWarn)))
 		{
 			bOutCreated = false;
 			return LoadedAsset;
