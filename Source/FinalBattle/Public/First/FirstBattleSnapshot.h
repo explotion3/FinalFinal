@@ -8,8 +8,11 @@ struct FINALBATTLE_API FFirstCardViewData
 	FGuid CardInstanceId;
 	FName CardId = NAME_None;
 	FText DisplayName;
+	int32 HandIndex = INDEX_NONE;
 	int32 BaseCost = 0;
 	int32 RuntimeCost = 0;
+	EFirstHandRole HandRole = EFirstHandRole::None;
+	EFirstHandZone HandZone = EFirstHandZone::None;
 	FGameplayTagContainer Keywords;
 	TArray<FFirstCardEffectInstance> Effects;
 };
@@ -37,6 +40,7 @@ struct FINALBATTLE_API FFirstBattleSnapshot
 	bool bInitialized = false;
 	bool bBattleEnded = false;
 	bool bPlayerVictory = false;
+	int32 DrawPileCount = 0;
 	int32 DiscardPileCount = 0;
 	TArray<FFirstCardViewData> HandCards;
 	TArray<FFirstEnemyPartViewData> EnemyParts;

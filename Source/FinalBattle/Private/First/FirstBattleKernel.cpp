@@ -5,11 +5,14 @@ void FFirstBattleKernel::Initialize(const FFirstBattleStartParams& StartParams)
 	State = FFirstBattleState();
 	State.BattleId = StartParams.BattleId;
 	State.CurrentRound = StartParams.StartingRound;
+	State.RandomSeed = StartParams.RandomSeed;
+	State.RandomStream.Initialize(State.RandomSeed);
 	State.PlayerMaxHP = FMath::Max(StartParams.PlayerMaxHP, StartParams.PlayerCurrentHP);
 	State.PlayerCurrentHP = StartParams.PlayerCurrentHP > 0 ? StartParams.PlayerCurrentHP : State.PlayerMaxHP;
 	State.PlayerCurrentHP = FMath::Clamp(State.PlayerCurrentHP, 0, State.PlayerMaxHP);
 	State.bInitialized = true;
 	State.HandCards = StartParams.InitialHand;
+	State.DrawPile = StartParams.InitialDrawPile;
 
 	for (const FFirstEnemyPartStartData& PartStartData : StartParams.EnemyParts)
 	{
@@ -63,17 +66,26 @@ FFirstBattleSnapshot FFirstBattleKernel::BuildSnapshot() const
 	Snapshot.bInitialized = State.bInitialized;
 	Snapshot.bBattleEnded = State.bBattleEnded;
 	Snapshot.bPlayerVictory = State.bPlayerVictory;
+	Snapshot.DrawPileCount = State.DrawPile.Num();
 	Snapshot.DiscardPileCount = State.DiscardPile.Num();
 	Snapshot.RecentEvents = State.Events;
 
-	for (const FFirstCardInstance& CardInstance : State.HandCards)
+	int32 LeftHandIndex = INDEX_NONE;
+	int32 RightHandIndex = INDEX_NONE;
+	ResolveHandAnchorIndices(State.HandCards, LeftHandIndex, RightHandIndex);
+
+	for (int32 CardIndex = 0; CardIndex < State.HandCards.Num(); ++CardIndex)
 	{
+		const FFirstCardInstance& CardInstance = State.HandCards[CardIndex];
 		FFirstCardViewData& CardView = Snapshot.HandCards.AddDefaulted_GetRef();
 		CardView.CardInstanceId = CardInstance.CardInstanceId;
 		CardView.CardId = CardInstance.CardId;
 		CardView.DisplayName = CardInstance.DisplayName;
+		CardView.HandIndex = CardIndex;
 		CardView.BaseCost = CardInstance.BaseCost;
 		CardView.RuntimeCost = CardInstance.RuntimeCost;
+		CardView.HandRole = CardInstance.HandRole;
+		CardView.HandZone = ResolveHandZoneForCard(State.HandCards, CardIndex, LeftHandIndex, RightHandIndex);
 		CardView.Keywords = CardInstance.Keywords;
 		CardView.Effects = CardInstance.Effects;
 	}
@@ -123,6 +135,12 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolvePlayCard(const FFirstBattle
 		return MakeRejectedResult(TEXT("first.command.rejected.target_destroyed"), NSLOCTEXT("FirstBattle", "FirstPlayCardTargetDestroyed", "Target enemy part is destroyed."));
 	}
 
+	const EFirstHandZone PlayedHandZone = ResolveCurrentHandZoneForCardIndex(HandIndex);
+	if (State.HandCards[HandIndex].bRequiresHandZoneToPlay && State.HandCards[HandIndex].RequiredHandZone != PlayedHandZone)
+	{
+		return MakeRejectedResult(TEXT("first.command.rejected.hand_zone_requirement_not_met"), NSLOCTEXT("FirstBattle", "FirstPlayCardHandZoneRequirementNotMet", "Card is not in the required hand zone."));
+	}
+
 	TMap<FName, int32> PrePlayInitiatives;
 	for (const FFirstEnemyPartState& Part : State.EnemyParts)
 	{
@@ -147,11 +165,11 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolvePlayCard(const FFirstBattle
 		PlayedCard.DisplayName.IsEmpty() ? FText::FromName(PlayedCard.CardId) : PlayedCard.DisplayName);
 	AppendEvent(PlayedEvent);
 
-	ApplyDamageEffects(PlayedCard, *TargetPart);
-	ResolvePerfectReleaseEvents(PlayedCard, PrePlayInitiatives);
+	ExecuteCardEffects(PlayedCard, *TargetPart);
+	const bool bTriggeredPerfectRelease = ResolvePerfectReleaseEvents(PlayedCard, PrePlayInitiatives);
 	ResolveVictory();
 
-	if (!State.bBattleEnded && !HasSwiftKeyword(PlayedCard))
+	if (!State.bBattleEnded && !HasSwiftKeyword(PlayedCard) && !ShouldSkipInitiativeReductionForZonePerfectRelease(PlayedCard, PlayedHandZone, bTriggeredPerfectRelease))
 	{
 		ResolveInitiativeAfterCard(PlayedCard, PrePlayInitiatives);
 	}
@@ -182,53 +200,75 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolveEndTurn()
 	if (!State.bBattleEnded)
 	{
 		State.CurrentRound += 1;
+		AppendPlayerTurnStartedEvent();
+		BeginPlayerTurnDraw();
 	}
 
 	return MakeAcceptedResult(NSLOCTEXT("FirstBattle", "FirstEndTurnAccepted", "Turn ended."));
 }
 
-void FFirstBattleKernel::ApplyDamageEffects(const FFirstCardInstance& Card, FFirstEnemyPartState& TargetPart)
+void FFirstBattleKernel::ExecuteCardEffects(const FFirstCardInstance& Card, FFirstEnemyPartState& TargetPart)
 {
-	if (!IsAlivePart(TargetPart))
-	{
-		return;
-	}
-
 	for (const FFirstCardEffectInstance& Effect : Card.Effects)
 	{
-		if (Effect.EffectType != EFirstCardEffectType::Damage || Effect.Value <= 0 || !IsAlivePart(TargetPart))
+		if (Effect.EffectType == EFirstCardEffectType::Damage)
 		{
-			continue;
+			ApplyCardDamageEffect(Card, TargetPart, Effect);
 		}
-
-		const int32 PreviousHP = TargetPart.CurrentHP;
-		TargetPart.CurrentHP = FMath::Max(0, TargetPart.CurrentHP - Effect.Value);
-		if (PreviousHP > 0 && TargetPart.CurrentHP <= 0)
+		else if (Effect.EffectType == EFirstCardEffectType::MoveHandCard)
 		{
-			TargetPart.bDestroyed = true;
-
-			FFirstBattleEvent DestroyedEvent;
-			DestroyedEvent.EventType = EFirstBattleEventType::EnemyPartDestroyed;
-			DestroyedEvent.RelatedId = TargetPart.PartId;
-			DestroyedEvent.CardInstanceId = Card.CardInstanceId;
-			DestroyedEvent.PartId = TargetPart.PartId;
-			DestroyedEvent.PrimaryValue = PreviousHP;
-			DestroyedEvent.SecondaryValue = TargetPart.CurrentHP;
-			DestroyedEvent.Message = FText::Format(
-				NSLOCTEXT("FirstBattle", "FirstEnemyPartDestroyed", "{0} was destroyed."),
-				TargetPart.DisplayName.IsEmpty() ? FText::FromName(TargetPart.PartId) : TargetPart.DisplayName);
-			AppendEvent(DestroyedEvent);
+			ApplyMoveHandCardEffect(Card, Effect);
 		}
 	}
 }
 
-void FFirstBattleKernel::ResolvePerfectReleaseEvents(const FFirstCardInstance& Card, const TMap<FName, int32>& PrePlayInitiatives)
+void FFirstBattleKernel::ApplyCardDamageEffect(const FFirstCardInstance& Card, FFirstEnemyPartState& TargetPart, const FFirstCardEffectInstance& Effect)
 {
-	if (HasSwiftKeyword(Card))
+	if (Effect.Value <= 0 || !IsAlivePart(TargetPart))
 	{
 		return;
 	}
 
+	const int32 PreviousHP = TargetPart.CurrentHP;
+	TargetPart.CurrentHP = FMath::Max(0, TargetPart.CurrentHP - Effect.Value);
+	if (PreviousHP > 0 && TargetPart.CurrentHP <= 0)
+	{
+		TargetPart.bDestroyed = true;
+
+		FFirstBattleEvent DestroyedEvent;
+		DestroyedEvent.EventType = EFirstBattleEventType::EnemyPartDestroyed;
+		DestroyedEvent.RelatedId = TargetPart.PartId;
+		DestroyedEvent.CardInstanceId = Card.CardInstanceId;
+		DestroyedEvent.PartId = TargetPart.PartId;
+		DestroyedEvent.PrimaryValue = PreviousHP;
+		DestroyedEvent.SecondaryValue = TargetPart.CurrentHP;
+		DestroyedEvent.Message = FText::Format(
+			NSLOCTEXT("FirstBattle", "FirstEnemyPartDestroyed", "{0} was destroyed."),
+			TargetPart.DisplayName.IsEmpty() ? FText::FromName(TargetPart.PartId) : TargetPart.DisplayName);
+		AppendEvent(DestroyedEvent);
+	}
+}
+
+void FFirstBattleKernel::ApplyMoveHandCardEffect(const FFirstCardInstance& Card, const FFirstCardEffectInstance& Effect)
+{
+	const int32 MoveCount = FMath::Max(Effect.MoveCardCount, 0);
+	for (int32 MoveIndex = 0; MoveIndex < MoveCount; ++MoveIndex)
+	{
+		if (!MoveRandomHandCard(Card, Effect))
+		{
+			break;
+		}
+	}
+}
+
+bool FFirstBattleKernel::ResolvePerfectReleaseEvents(const FFirstCardInstance& Card, const TMap<FName, int32>& PrePlayInitiatives)
+{
+	if (HasSwiftKeyword(Card))
+	{
+		return false;
+	}
+
+	bool bTriggeredAny = false;
 	for (const FFirstEnemyPartState& Part : State.EnemyParts)
 	{
 		const int32* PreInitiative = PrePlayInitiatives.Find(Part.PartId);
@@ -248,7 +288,10 @@ void FFirstBattleKernel::ResolvePerfectReleaseEvents(const FFirstCardInstance& C
 			NSLOCTEXT("FirstBattle", "FirstPerfectReleaseTriggered", "{0} triggered perfect release."),
 			Part.DisplayName.IsEmpty() ? FText::FromName(Part.PartId) : Part.DisplayName);
 		AppendEvent(Event);
+		bTriggeredAny = true;
 	}
+
+	return bTriggeredAny;
 }
 
 void FFirstBattleKernel::ResolveInitiativeAfterCard(const FFirstCardInstance& Card, const TMap<FName, int32>& PreInitiativeByPart)
@@ -397,6 +440,213 @@ void FFirstBattleKernel::ApplyIntentDamageEffect(const FFirstEnemyPartState& Par
 	ResolvePlayerDefeat();
 }
 
+void FFirstBattleKernel::BeginPlayerTurnDraw()
+{
+	constexpr int32 DrawTargetCount = 5;
+
+	TArray<FFirstCardInstance> DrawnCards;
+	PullMissingCoreCards(DrawnCards, DrawTargetCount);
+	DrawCardsFromDrawPile(DrawnCards, DrawTargetCount);
+
+	if (DrawnCards.IsEmpty())
+	{
+		RebuildHandWithRandomZones(State.HandCards);
+		return;
+	}
+
+	State.HandCards.Append(DrawnCards);
+	RebuildHandWithRandomZones(State.HandCards);
+}
+
+void FFirstBattleKernel::PullMissingCoreCards(TArray<FFirstCardInstance>& DrawnCards, const int32 DrawTargetCount)
+{
+	if (DrawnCards.Num() >= DrawTargetCount)
+	{
+		return;
+	}
+
+	PullMissingCoreCard(EFirstHandRole::LeftHandCore, DrawnCards);
+	if (DrawnCards.Num() >= DrawTargetCount)
+	{
+		return;
+	}
+
+	PullMissingCoreCard(EFirstHandRole::RightHandCore, DrawnCards);
+}
+
+bool FFirstBattleKernel::PullMissingCoreCard(const EFirstHandRole HandRole, TArray<FFirstCardInstance>& DrawnCards)
+{
+	const bool bAlreadyInHand = State.HandCards.ContainsByPredicate(
+		[HandRole](const FFirstCardInstance& Card)
+		{
+			return Card.HandRole == HandRole;
+		});
+	if (bAlreadyInHand)
+	{
+		return false;
+	}
+
+	FFirstCardInstance CoreCard;
+	if (RemoveFirstCardWithRole(State.DrawPile, HandRole, CoreCard))
+	{
+		DrawnCards.Add(CoreCard);
+		AppendCardDrawnEvent(CoreCard, EFirstCardDrawSource::ForcedCoreFromDrawPile);
+		return true;
+	}
+
+	if (RemoveFirstCardWithRole(State.DiscardPile, HandRole, CoreCard))
+	{
+		DrawnCards.Add(CoreCard);
+		AppendCardDrawnEvent(CoreCard, EFirstCardDrawSource::ForcedCoreFromDiscard);
+		return true;
+	}
+
+	return false;
+}
+
+bool FFirstBattleKernel::RemoveFirstCardWithRole(TArray<FFirstCardInstance>& Cards, const EFirstHandRole HandRole, FFirstCardInstance& OutCard)
+{
+	const int32 CardIndex = Cards.IndexOfByPredicate(
+		[HandRole](const FFirstCardInstance& Card)
+		{
+			return Card.HandRole == HandRole;
+		});
+	if (CardIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutCard = Cards[CardIndex];
+	Cards.RemoveAt(CardIndex);
+	return true;
+}
+
+void FFirstBattleKernel::DrawCardsFromDrawPile(TArray<FFirstCardInstance>& DrawnCards, const int32 DrawTargetCount)
+{
+	bool bDrawingFromShuffledDiscard = false;
+	while (DrawnCards.Num() < DrawTargetCount)
+	{
+		if (State.DrawPile.IsEmpty())
+		{
+			if (!ShuffleDiscardIntoDrawPile())
+			{
+				break;
+			}
+
+			bDrawingFromShuffledDiscard = true;
+		}
+
+		FFirstCardInstance DrawnCard = State.DrawPile[0];
+		State.DrawPile.RemoveAt(0);
+		DrawnCards.Add(DrawnCard);
+		AppendCardDrawnEvent(DrawnCard, bDrawingFromShuffledDiscard ? EFirstCardDrawSource::ShuffledDiscard : EFirstCardDrawSource::DrawPile);
+	}
+}
+
+bool FFirstBattleKernel::ShuffleDiscardIntoDrawPile()
+{
+	if (State.DiscardPile.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FFirstCardInstance> ShuffledCards = State.DiscardPile;
+	State.DiscardPile.Reset();
+	ShuffleCards(ShuffledCards);
+	AppendDrawPileShuffledEvent(ShuffledCards.Num());
+	State.DrawPile.Append(ShuffledCards);
+	return true;
+}
+
+void FFirstBattleKernel::ShuffleCards(TArray<FFirstCardInstance>& Cards)
+{
+	for (int32 Index = Cards.Num() - 1; Index > 0; --Index)
+	{
+		const int32 SwapIndex = State.RandomStream.RandRange(0, Index);
+		if (SwapIndex != Index)
+		{
+			Cards.Swap(Index, SwapIndex);
+		}
+	}
+}
+
+void FFirstBattleKernel::RebuildHandWithRandomZones(TArray<FFirstCardInstance>& Cards)
+{
+	TArray<FFirstCardInstance> LeftCoreCards;
+	TArray<FFirstCardInstance> RightCoreCards;
+	TArray<FFirstCardInstance> OrdinaryCards;
+
+	for (const FFirstCardInstance& Card : Cards)
+	{
+		if (Card.HandRole == EFirstHandRole::LeftHandCore)
+		{
+			LeftCoreCards.Add(Card);
+		}
+		else if (Card.HandRole == EFirstHandRole::RightHandCore)
+		{
+			RightCoreCards.Add(Card);
+		}
+		else
+		{
+			OrdinaryCards.Add(Card);
+		}
+	}
+
+	const bool bHasLeftCore = !LeftCoreCards.IsEmpty();
+	const bool bHasRightCore = !RightCoreCards.IsEmpty();
+	TArray<FFirstCardInstance> LeftZoneCards;
+	TArray<FFirstCardInstance> BothZoneCards;
+	TArray<FFirstCardInstance> RightZoneCards;
+	TArray<FFirstCardInstance> UnzonedCards;
+
+	for (const FFirstCardInstance& Card : OrdinaryCards)
+	{
+		switch (RollZoneBucket(bHasLeftCore, bHasRightCore))
+		{
+		case 0:
+			LeftZoneCards.Add(Card);
+			break;
+		case 1:
+			BothZoneCards.Add(Card);
+			break;
+		case 2:
+			RightZoneCards.Add(Card);
+			break;
+		default:
+			UnzonedCards.Add(Card);
+			break;
+		}
+	}
+
+	Cards.Reset();
+	Cards.Append(LeftZoneCards);
+	Cards.Append(LeftCoreCards);
+	Cards.Append(BothZoneCards);
+	Cards.Append(RightCoreCards);
+	Cards.Append(RightZoneCards);
+	Cards.Append(UnzonedCards);
+}
+
+int32 FFirstBattleKernel::RollZoneBucket(const bool bHasLeftCore, const bool bHasRightCore)
+{
+	if (bHasLeftCore && bHasRightCore)
+	{
+		return State.RandomStream.RandRange(0, 2);
+	}
+
+	if (bHasLeftCore)
+	{
+		return 0;
+	}
+
+	if (bHasRightCore)
+	{
+		return 2;
+	}
+
+	return INDEX_NONE;
+}
+
 void FFirstBattleKernel::ResolveVictory()
 {
 	if (State.EnemyParts.IsEmpty())
@@ -446,6 +696,41 @@ void FFirstBattleKernel::AppendEvent(const FFirstBattleEvent& Event)
 	State.Events.Add(Event);
 }
 
+void FFirstBattleKernel::AppendPlayerTurnStartedEvent()
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::PlayerTurnStarted;
+	Event.PrimaryValue = State.CurrentRound;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstPlayerTurnStarted", "Player turn {0} started."),
+		FText::AsNumber(State.CurrentRound));
+	AppendEvent(Event);
+}
+
+void FFirstBattleKernel::AppendCardDrawnEvent(const FFirstCardInstance& Card, const EFirstCardDrawSource DrawSource)
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::CardDrawn;
+	Event.RelatedId = Card.CardId;
+	Event.CardInstanceId = Card.CardInstanceId;
+	Event.PrimaryValue = static_cast<int32>(DrawSource);
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstCardDrawn", "{0} was drawn."),
+		Card.DisplayName.IsEmpty() ? FText::FromName(Card.CardId) : Card.DisplayName);
+	AppendEvent(Event);
+}
+
+void FFirstBattleKernel::AppendDrawPileShuffledEvent(const int32 ShuffledCount)
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::DrawPileShuffled;
+	Event.PrimaryValue = ShuffledCount;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstDrawPileShuffled", "Shuffled {0} cards into the draw pile."),
+		FText::AsNumber(ShuffledCount));
+	AppendEvent(Event);
+}
+
 FFirstCardInstance* FFirstBattleKernel::FindHandCard(const FGuid& CardInstanceId)
 {
 	return State.HandCards.FindByPredicate(
@@ -462,6 +747,185 @@ FFirstEnemyPartState* FFirstBattleKernel::FindEnemyPart(FName PartId)
 		{
 			return Part.PartId == PartId;
 		});
+}
+
+EFirstHandZone FFirstBattleKernel::ResolveCurrentHandZoneForCardIndex(const int32 CardIndex) const
+{
+	int32 LeftHandIndex = INDEX_NONE;
+	int32 RightHandIndex = INDEX_NONE;
+	ResolveHandAnchorIndices(State.HandCards, LeftHandIndex, RightHandIndex);
+	return ResolveHandZoneForCard(State.HandCards, CardIndex, LeftHandIndex, RightHandIndex);
+}
+
+bool FFirstBattleKernel::MoveRandomHandCard(const FFirstCardInstance& SourceCard, const FFirstCardEffectInstance& Effect)
+{
+	const TArray<int32> CandidateIndices = CollectMoveCandidateIndices(Effect);
+	if (CandidateIndices.IsEmpty())
+	{
+		return false;
+	}
+
+	const int32 CandidateListIndex = State.RandomStream.RandRange(0, CandidateIndices.Num() - 1);
+	const int32 CardIndex = CandidateIndices[CandidateListIndex];
+	if (!State.HandCards.IsValidIndex(CardIndex))
+	{
+		return false;
+	}
+
+	const EFirstHandZone SourceZone = ResolveCurrentHandZoneForCardIndex(CardIndex);
+	const TArray<EFirstHandZone> TargetZones = ResolveMoveTargetZones(Effect, SourceZone);
+	if (TargetZones.IsEmpty())
+	{
+		return false;
+	}
+
+	const EFirstHandZone TargetZone = TargetZones[State.RandomStream.RandRange(0, TargetZones.Num() - 1)];
+	FFirstCardInstance MovedCard = State.HandCards[CardIndex];
+	State.HandCards.RemoveAt(CardIndex);
+
+	if (!InsertCardIntoZone(FFirstCardInstance(MovedCard), TargetZone))
+	{
+		State.HandCards.Insert(MovedCard, FMath::Clamp(CardIndex, 0, State.HandCards.Num()));
+		return false;
+	}
+
+	AppendHandCardMovedEvent(SourceCard, MovedCard, SourceZone, TargetZone);
+	return true;
+}
+
+TArray<int32> FFirstBattleKernel::CollectMoveCandidateIndices(const FFirstCardEffectInstance& Effect) const
+{
+	TArray<int32> CandidateIndices;
+	for (int32 CardIndex = 0; CardIndex < State.HandCards.Num(); ++CardIndex)
+	{
+		const FFirstCardInstance& Card = State.HandCards[CardIndex];
+		if (Card.HandRole != EFirstHandRole::None)
+		{
+			continue;
+		}
+
+		const EFirstHandZone CardZone = ResolveCurrentHandZoneForCardIndex(CardIndex);
+		if (Effect.bMoveRequiresSourceZone && CardZone != Effect.MoveSourceZone)
+		{
+			continue;
+		}
+
+		CandidateIndices.Add(CardIndex);
+	}
+	return CandidateIndices;
+}
+
+TArray<EFirstHandZone> FFirstBattleKernel::ResolveMoveTargetZones(const FFirstCardEffectInstance& Effect, const EFirstHandZone SourceZone) const
+{
+	TArray<EFirstHandZone> TargetZones;
+	if (Effect.MoveTargetPolicy == EFirstHandMoveTargetPolicy::FixedZone)
+	{
+		if (IsValidHandMoveTargetZone(State.HandCards, Effect.MoveTargetZone))
+		{
+			TargetZones.Add(Effect.MoveTargetZone);
+		}
+		return TargetZones;
+	}
+
+	for (const EFirstHandZone Zone : {EFirstHandZone::Left, EFirstHandZone::Both, EFirstHandZone::Right})
+	{
+		if (!IsValidHandMoveTargetZone(State.HandCards, Zone))
+		{
+			continue;
+		}
+		if (Effect.MoveTargetPolicy == EFirstHandMoveTargetPolicy::RandomOtherThanSourceZone && Zone == SourceZone)
+		{
+			continue;
+		}
+		TargetZones.Add(Zone);
+	}
+	return TargetZones;
+}
+
+bool FFirstBattleKernel::InsertCardIntoZone(FFirstCardInstance&& Card, const EFirstHandZone TargetZone)
+{
+	int32 LeftHandIndex = INDEX_NONE;
+	int32 RightHandIndex = INDEX_NONE;
+	ResolveHandAnchorIndices(State.HandCards, LeftHandIndex, RightHandIndex);
+
+	if (TargetZone == EFirstHandZone::Left && LeftHandIndex != INDEX_NONE)
+	{
+		const int32 InsertIndex = State.RandomStream.RandRange(0, LeftHandIndex);
+		State.HandCards.Insert(MoveTemp(Card), InsertIndex);
+		return true;
+	}
+
+	if (TargetZone == EFirstHandZone::Both && LeftHandIndex != INDEX_NONE && RightHandIndex != INDEX_NONE && LeftHandIndex < RightHandIndex)
+	{
+		const int32 InsertIndex = State.RandomStream.RandRange(LeftHandIndex + 1, RightHandIndex);
+		State.HandCards.Insert(MoveTemp(Card), InsertIndex);
+		return true;
+	}
+
+	if (TargetZone == EFirstHandZone::Right && RightHandIndex != INDEX_NONE)
+	{
+		const int32 InsertIndex = State.RandomStream.RandRange(RightHandIndex + 1, State.HandCards.Num());
+		State.HandCards.Insert(MoveTemp(Card), InsertIndex);
+		return true;
+	}
+
+	return false;
+}
+
+void FFirstBattleKernel::AppendHandCardMovedEvent(const FFirstCardInstance& SourceCard, const FFirstCardInstance& MovedCard, const EFirstHandZone SourceZone, const EFirstHandZone TargetZone)
+{
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::HandCardMoved;
+	Event.RelatedId = SourceCard.CardId;
+	Event.CardInstanceId = MovedCard.CardInstanceId;
+	Event.PrimaryValue = static_cast<int32>(SourceZone);
+	Event.SecondaryValue = static_cast<int32>(TargetZone);
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstHandCardMoved", "Moved {0}."),
+		MovedCard.DisplayName.IsEmpty() ? FText::FromName(MovedCard.CardId) : MovedCard.DisplayName);
+	AppendEvent(Event);
+}
+
+bool FFirstBattleKernel::ShouldSkipInitiativeReductionForZonePerfectRelease(const FFirstCardInstance& Card, const EFirstHandZone PlayedHandZone, const bool bTriggeredPerfectRelease) const
+{
+	return Card.bSkipInitiativeReductionOnPerfectReleaseInZone
+		&& bTriggeredPerfectRelease
+		&& Card.PerfectReleaseInitiativeSkipZone == PlayedHandZone;
+}
+
+void FFirstBattleKernel::ResolveHandAnchorIndices(const TArray<FFirstCardInstance>& HandCards, int32& OutLeftHandIndex, int32& OutRightHandIndex)
+{
+	OutLeftHandIndex = HandCards.IndexOfByPredicate(
+		[](const FFirstCardInstance& Card)
+		{
+			return Card.HandRole == EFirstHandRole::LeftHandCore;
+		});
+	OutRightHandIndex = HandCards.IndexOfByPredicate(
+		[](const FFirstCardInstance& Card)
+		{
+			return Card.HandRole == EFirstHandRole::RightHandCore;
+		});
+}
+
+bool FFirstBattleKernel::IsValidHandMoveTargetZone(const TArray<FFirstCardInstance>& HandCards, const EFirstHandZone Zone)
+{
+	int32 LeftHandIndex = INDEX_NONE;
+	int32 RightHandIndex = INDEX_NONE;
+	ResolveHandAnchorIndices(HandCards, LeftHandIndex, RightHandIndex);
+
+	if (Zone == EFirstHandZone::Left)
+	{
+		return LeftHandIndex != INDEX_NONE;
+	}
+	if (Zone == EFirstHandZone::Both)
+	{
+		return LeftHandIndex != INDEX_NONE && RightHandIndex != INDEX_NONE && LeftHandIndex < RightHandIndex;
+	}
+	if (Zone == EFirstHandZone::Right)
+	{
+		return RightHandIndex != INDEX_NONE;
+	}
+	return false;
 }
 
 void FFirstBattleKernel::EnsureIntentSequence(FFirstEnemyPartState& Part)
@@ -495,6 +959,58 @@ void FFirstBattleKernel::ApplyIntentFromSequence(FFirstEnemyPartState& Part)
 	Part.CurrentIntentId = CurrentIntent.IntentId;
 	Part.CurrentIntentDisplayName = CurrentIntent.DisplayName;
 	Part.CurrentInitiative = CurrentIntent.InitialInitiative;
+}
+
+EFirstHandZone FFirstBattleKernel::ResolveHandZoneForCard(const TArray<FFirstCardInstance>& HandCards, const int32 CardIndex, const int32 LeftHandIndex, const int32 RightHandIndex)
+{
+	if (!HandCards.IsValidIndex(CardIndex) || HandCards[CardIndex].HandRole != EFirstHandRole::None)
+	{
+		return EFirstHandZone::None;
+	}
+
+	if (LeftHandIndex != INDEX_NONE && RightHandIndex != INDEX_NONE)
+	{
+		if (LeftHandIndex < RightHandIndex)
+		{
+			if (CardIndex < LeftHandIndex)
+			{
+				return EFirstHandZone::Left;
+			}
+			if (CardIndex > RightHandIndex)
+			{
+				return EFirstHandZone::Right;
+			}
+			if (CardIndex > LeftHandIndex && CardIndex < RightHandIndex)
+			{
+				return EFirstHandZone::Both;
+			}
+		}
+		else
+		{
+			if (CardIndex < RightHandIndex)
+			{
+				return EFirstHandZone::Left;
+			}
+			if (CardIndex > LeftHandIndex)
+			{
+				return EFirstHandZone::Right;
+			}
+		}
+
+		return EFirstHandZone::None;
+	}
+
+	if (LeftHandIndex != INDEX_NONE && CardIndex < LeftHandIndex)
+	{
+		return EFirstHandZone::Left;
+	}
+
+	if (RightHandIndex != INDEX_NONE && CardIndex > RightHandIndex)
+	{
+		return EFirstHandZone::Right;
+	}
+
+	return EFirstHandZone::None;
 }
 
 bool FFirstBattleKernel::IsAlivePart(const FFirstEnemyPartState& Part)

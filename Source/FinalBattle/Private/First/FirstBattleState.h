@@ -27,7 +27,10 @@ struct FFirstBattleState
 	bool bInitialized = false;
 	bool bBattleEnded = false;
 	bool bPlayerVictory = false;
+	int32 RandomSeed = 1337;
+	FRandomStream RandomStream;
 	TArray<FFirstCardInstance> HandCards;
+	TArray<FFirstCardInstance> DrawPile;
 	TArray<FFirstCardInstance> DiscardPile;
 	TArray<FFirstEnemyPartState> EnemyParts;
 	TArray<FFirstBattleEvent> Events;

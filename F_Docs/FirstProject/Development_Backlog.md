@@ -4,11 +4,11 @@
 
 ## P0
 
-First Hand Zones：实现左手区 / 双手区 / 右手区，左手牌 / 右手牌作为可打出和可删除的核心卡牌，回合开始强制抽回缺失的左右手牌，再补抽到 5 张；打出任一左/右手牌后对应手区和双手区立即失效。
+First Card Data：建立 First 卡牌 schema，明确 Cost、Runtime Cost、迅捷、完美释放、区域出牌限制、完美释放区域修正、腾挪、连击、耐久、容量、任务和升级等字段如何 authoring。
 
-First Card Data：建立 First 卡牌 schema，明确 Cost、Runtime Cost、迅捷、完美释放、区域条件、腾挪、连击、耐久、容量、任务和升级等字段如何 authoring。
+First Hand Zone Rules：在已有手牌三区 snapshot 投影、区域出牌限制和基础腾挪 effect 基础上，继续实现 Cost 转移、连击自移动、更多区域条件效果、左手 / 右手永久删除和区域失效后的复杂卡牌规则。
 
-First Player Turn Draw：实现 First 回合开始抽牌流程，强制抽回缺失的左手 / 右手核心牌，再补抽到 5 张；仍不自动结束回合。
+First Draw Loop：在已完成的回合开始抽牌、弃牌洗牌和抽牌事件可见性基础上，后续补手牌上限、抽牌溢出处理和更完整的回合开始 / 回合结束触发窗口。
 
 ## P1
 

@@ -6,7 +6,8 @@
 enum class EFirstCardEffectType : uint8
 {
 	None,
-	Damage
+	Damage,
+	MoveHandCard
 };
 
 enum class EFirstBattleCommandType : uint8
@@ -24,7 +25,10 @@ enum class EFirstBattleCommandResultCode : uint8
 enum class EFirstBattleEventType : uint8
 {
 	None,
+	PlayerTurnStarted,
 	CardPlayed,
+	CardDrawn,
+	DrawPileShuffled,
 	InitiativeChanged,
 	PerfectReleaseTriggered,
 	EnemyPartActed,
@@ -32,7 +36,39 @@ enum class EFirstBattleEventType : uint8
 	EnemyPartDestroyed,
 	BattleWon,
 	BattleLost,
+	HandCardMoved,
 	CommandRejected
+};
+
+enum class EFirstHandRole : uint8
+{
+	None,
+	LeftHandCore,
+	RightHandCore
+};
+
+enum class EFirstHandZone : uint8
+{
+	None,
+	Left,
+	Both,
+	Right
+};
+
+enum class EFirstHandMoveTargetPolicy : uint8
+{
+	RandomValidZone,
+	RandomOtherThanSourceZone,
+	FixedZone
+};
+
+enum class EFirstCardDrawSource : uint8
+{
+	None,
+	ForcedCoreFromDrawPile,
+	ForcedCoreFromDiscard,
+	DrawPile,
+	ShuffledDiscard
 };
 
 struct FINALBATTLE_API FFirstCardEffectInstance
@@ -40,6 +76,11 @@ struct FINALBATTLE_API FFirstCardEffectInstance
 	EFirstCardEffectType EffectType = EFirstCardEffectType::None;
 	FName EffectId = NAME_None;
 	int32 Value = 0;
+	int32 MoveCardCount = 1;
+	bool bMoveRequiresSourceZone = false;
+	EFirstHandZone MoveSourceZone = EFirstHandZone::None;
+	EFirstHandMoveTargetPolicy MoveTargetPolicy = EFirstHandMoveTargetPolicy::RandomValidZone;
+	EFirstHandZone MoveTargetZone = EFirstHandZone::None;
 };
 
 struct FINALBATTLE_API FFirstCardInstance
@@ -49,6 +90,11 @@ struct FINALBATTLE_API FFirstCardInstance
 	FText DisplayName;
 	int32 BaseCost = 0;
 	int32 RuntimeCost = 0;
+	EFirstHandRole HandRole = EFirstHandRole::None;
+	bool bRequiresHandZoneToPlay = false;
+	EFirstHandZone RequiredHandZone = EFirstHandZone::None;
+	bool bSkipInitiativeReductionOnPerfectReleaseInZone = false;
+	EFirstHandZone PerfectReleaseInitiativeSkipZone = EFirstHandZone::None;
 	FGameplayTagContainer Keywords;
 	TArray<FFirstCardEffectInstance> Effects;
 };
@@ -79,9 +125,11 @@ struct FINALBATTLE_API FFirstBattleStartParams
 {
 	FGuid BattleId;
 	int32 StartingRound = 1;
+	int32 RandomSeed = 1337;
 	int32 PlayerMaxHP = 30;
 	int32 PlayerCurrentHP = 30;
 	TArray<FFirstCardInstance> InitialHand;
+	TArray<FFirstCardInstance> InitialDrawPile;
 	TArray<FFirstEnemyPartStartData> EnemyParts;
 };
 
