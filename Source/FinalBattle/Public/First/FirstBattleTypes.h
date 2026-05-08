@@ -28,8 +28,10 @@ enum class EFirstBattleEventType : uint8
 	InitiativeChanged,
 	PerfectReleaseTriggered,
 	EnemyPartActed,
+	PlayerDamaged,
 	EnemyPartDestroyed,
 	BattleWon,
+	BattleLost,
 	CommandRejected
 };
 
@@ -56,6 +58,7 @@ struct FINALBATTLE_API FFirstEnemyPartIntentInstance
 	FName IntentId = NAME_None;
 	FText DisplayName;
 	int32 InitialInitiative = 0;
+	TArray<FFirstCardEffectInstance> Effects;
 };
 
 struct FINALBATTLE_API FFirstEnemyPartStartData
@@ -76,6 +79,8 @@ struct FINALBATTLE_API FFirstBattleStartParams
 {
 	FGuid BattleId;
 	int32 StartingRound = 1;
+	int32 PlayerMaxHP = 30;
+	int32 PlayerCurrentHP = 30;
 	TArray<FFirstCardInstance> InitialHand;
 	TArray<FFirstEnemyPartStartData> EnemyParts;
 };

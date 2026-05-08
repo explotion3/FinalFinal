@@ -58,12 +58,19 @@ namespace FirstBattleKernelTests
 		return Part;
 	}
 
-	FFirstEnemyPartIntentInstance MakeIntent(const FName IntentId, const int32 InitialInitiative)
+	FFirstEnemyPartIntentInstance MakeIntent(const FName IntentId, const int32 InitialInitiative, const int32 Damage = 0)
 	{
 		FFirstEnemyPartIntentInstance Intent;
 		Intent.IntentId = IntentId;
 		Intent.DisplayName = FText::FromName(IntentId);
 		Intent.InitialInitiative = InitialInitiative;
+		if (Damage > 0)
+		{
+			FFirstCardEffectInstance& Effect = Intent.Effects.AddDefaulted_GetRef();
+			Effect.EffectId = TEXT("effect.intent.damage");
+			Effect.EffectType = EFirstCardEffectType::Damage;
+			Effect.Value = Damage;
+		}
 		return Intent;
 	}
 
@@ -142,6 +149,8 @@ bool FFirstBattleKernelInitializeBuildsSnapshotTest::RunTest(const FString& Para
 	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
 	TestEqual(TEXT("Snapshot should use start BattleId."), Snapshot.BattleId, TestBattleId());
 	TestTrue(TEXT("Snapshot should be initialized."), Snapshot.bInitialized);
+	TestEqual(TEXT("Snapshot should include default player max HP."), Snapshot.PlayerMaxHP, 30);
+	TestEqual(TEXT("Snapshot should include default player current HP."), Snapshot.PlayerCurrentHP, 30);
 	TestEqual(TEXT("Snapshot should include initial hand."), Snapshot.HandCards.Num(), 2);
 	TestEqual(TEXT("Snapshot should include enemy parts."), Snapshot.EnemyParts.Num(), 2);
 	TestEqual(TEXT("Enemy parts should be sorted by position."), Snapshot.EnemyParts[0].PartId, FName(TEXT("part.head")));
@@ -361,6 +370,38 @@ bool FFirstBattleKernelEndTurnRefreshesIntentAndInitiativeTest::RunTest(const FS
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelEndTurnIntentDamageReducesPlayerHPTest,
+	"Final.Battle.First.Kernel.EndTurnIntentDamageReducesPlayerHP",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelEndTurnIntentDamageReducesPlayerHPTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.PlayerMaxHP = 20;
+	Params.PlayerCurrentHP = 20;
+	Params.EnemyParts.Add(MakeSequencedPart(
+		TEXT("part.head"),
+		0,
+		{MakeIntent(TEXT("intent.test.attack"), 3, 6), MakeIntent(TEXT("intent.test.bite"), 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Intent damage should reduce player HP."), Snapshot.PlayerCurrentHP, 14);
+	TestEqual(TEXT("PlayerDamaged event should be appended."), CountEvents(Snapshot, EFirstBattleEventType::PlayerDamaged), 1);
+	TestEqual(TEXT("Battle should continue after nonlethal damage."), Snapshot.bBattleEnded, false);
+	TestEqual(TEXT("Nonlethal EndTurn should advance round."), Snapshot.CurrentRound, 2);
+	TestEqual(TEXT("Part should still refresh intent after nonlethal damage."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.bite")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFirstBattleKernelSingleIntentLoopsAndResetsInitiativeTest,
 	"Final.Battle.First.Kernel.SingleIntentLoopsAndResetsInitiative",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -410,6 +451,37 @@ bool FFirstBattleKernelPlayCardInitiativeActionRefreshesIntentTest::RunTest(cons
 	TestEqual(TEXT("Initiative action should refresh to next intent."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.bite")));
 	TestEqual(TEXT("Initiative action should reset next initiative."), Snapshot.EnemyParts[0].CurrentInitiative, 5);
 	TestEqual(TEXT("Part should act once from initiative."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelInitiativeActionExecutesIntentDamageTest,
+	"Final.Battle.First.Kernel.InitiativeActionExecutesIntentDamage",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelInitiativeActionExecutesIntentDamageTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.PlayerMaxHP = 20;
+	Params.PlayerCurrentHP = 20;
+	Params.InitialHand.Add(MakeCard(StrikeCardInstanceId(), TEXT("card.test.strike"), 2, 1));
+	Params.EnemyParts.Add(MakeSequencedPart(
+		TEXT("part.head"),
+		0,
+		{MakeIntent(TEXT("intent.test.attack"), 2, 4), MakeIntent(TEXT("intent.test.bite"), 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestEqual(TEXT("Initiative-triggered action should damage player."), Snapshot.PlayerCurrentHP, 16);
+	TestEqual(TEXT("PlayerDamaged event should be appended."), CountEvents(Snapshot, EFirstBattleEventType::PlayerDamaged), 1);
+	TestEqual(TEXT("Initiative action should still refresh intent after nonlethal damage."), Snapshot.EnemyParts[0].CurrentIntentId, FName(TEXT("intent.test.bite")));
 	return true;
 }
 
@@ -469,6 +541,70 @@ bool FFirstBattleKernelDestroyedPartsDoNotActAtEndTurnTest::RunTest(const FStrin
 	TestEqual(TEXT("Only living tail should act."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
 	TestNotNull(TEXT("Tail acted event should exist."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.tail")));
 	TestTrue(TEXT("Destroyed head should not act."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.head")) == nullptr);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelPlayerDefeatStopsEndTurnActionsAndRoundAdvanceTest,
+	"Final.Battle.First.Kernel.PlayerDefeatStopsEndTurnActionsAndRoundAdvance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelPlayerDefeatStopsEndTurnActionsAndRoundAdvanceTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.PlayerMaxHP = 5;
+	Params.PlayerCurrentHP = 5;
+	Params.EnemyParts.Add(MakeSequencedPart(TEXT("part.head"), 0, {MakeIntent(TEXT("intent.test.attack"), 3, 5)}));
+	Params.EnemyParts.Add(MakeSequencedPart(TEXT("part.tail"), 1, {MakeIntent(TEXT("intent.test.tail"), 3, 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakeEndTurnCommand());
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("Battle should end after lethal player damage."), Snapshot.bBattleEnded);
+	TestFalse(TEXT("Player should lose after lethal player damage."), Snapshot.bPlayerVictory);
+	TestEqual(TEXT("Player HP should be zero."), Snapshot.PlayerCurrentHP, 0);
+	TestEqual(TEXT("BattleLost event should be appended."), CountEvents(Snapshot, EFirstBattleEventType::BattleLost), 1);
+	TestEqual(TEXT("Only first part should act before defeat stops queue."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
+	TestNotNull(TEXT("Head acted event should exist."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.head")));
+	TestTrue(TEXT("Tail should not act after player defeat."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.tail")) == nullptr);
+	TestEqual(TEXT("Defeating EndTurn should not advance round."), Snapshot.CurrentRound, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstBattleKernelPlayerDefeatStopsInitiativeActionQueueTest,
+	"Final.Battle.First.Kernel.PlayerDefeatStopsInitiativeActionQueue",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstBattleKernelPlayerDefeatStopsInitiativeActionQueueTest::RunTest(const FString& Parameters)
+{
+	using namespace FirstBattleKernelTests;
+
+	FFirstBattleStartParams Params;
+	Params.BattleId = TestBattleId();
+	Params.PlayerMaxHP = 5;
+	Params.PlayerCurrentHP = 5;
+	Params.InitialHand.Add(MakeCard(StrikeCardInstanceId(), TEXT("card.test.strike"), 2, 1));
+	Params.EnemyParts.Add(MakeSequencedPart(TEXT("part.head"), 0, {MakeIntent(TEXT("intent.test.attack"), 2, 5)}));
+	Params.EnemyParts.Add(MakeSequencedPart(TEXT("part.tail"), 1, {MakeIntent(TEXT("intent.test.tail"), 2, 5)}));
+
+	FFirstBattleSession Session;
+	Session.Initialize(Params);
+
+	Session.SubmitCommand(MakePlayCommand(StrikeCardInstanceId(), TEXT("part.head")));
+	const FFirstBattleSnapshot Snapshot = Session.GetSnapshot();
+
+	TestTrue(TEXT("Battle should end after lethal initiative action."), Snapshot.bBattleEnded);
+	TestFalse(TEXT("Player should lose after lethal initiative action."), Snapshot.bPlayerVictory);
+	TestEqual(TEXT("Only first queued part should act before defeat stops queue."), CountEvents(Snapshot, EFirstBattleEventType::EnemyPartActed), 1);
+	TestNotNull(TEXT("Head acted event should exist."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.head")));
+	TestTrue(TEXT("Tail should not act after player defeat."), FindEventForPart(Snapshot, EFirstBattleEventType::EnemyPartActed, TEXT("part.tail")) == nullptr);
 	return true;
 }
 

@@ -8,7 +8,7 @@ First Hand Zones：实现左手区 / 双手区 / 右手区，左手牌 / 右手�
 
 First Card Data：建立 First 卡牌 schema，明确 Cost、Runtime Cost、迅捷、完美释放、区域条件、腾挪、连击、耐久、容量、任务和升级等字段如何 authoring。
 
-First Enemy Intent Effects：在现有 `IntentSequence` 和部位行动刷新基础上，为敌方部位意图补最小 effect 执行；首版只需验证部位行动能通过 intent effect 影响玩家侧占位资源或事件日志，暂不接复杂状态。
+First Player Turn Draw：实现 First 回合开始抽牌流程，强制抽回缺失的左手 / 右手核心牌，再补抽到 5 张；仍不自动结束回合。
 
 ## P1
 

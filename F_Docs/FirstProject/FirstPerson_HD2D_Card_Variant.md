@@ -1,6 +1,6 @@
 # First-Person HD-2D Card Variant
 
-本文用于记录“单人第一人称 HD-2D 卡牌冒险”变体方案。它不是当前主线规则文档，也不替代 `Battle_Rules.md / Card_Design_Guide.md / Combat_Data_Schema_v2.md`。当前用途是沉淀已确认设计、待确认问题和后续原型切片，方便判断是否在当前项目分支上验证。
+本文用于记录“单人第一人称 HD-2D 卡牌冒险”中有关战斗部分的方案。它不是当前主线规则文档，也不替代 `Battle_Rules.md / Card_Design_Guide.md / Combat_Data_Schema_v2.md`。当前用途是沉淀已确认设计、待确认问题和后续原型切片，方便判断是否在当前项目分支上验证。
 
 ## 设计定位
 
@@ -15,17 +15,6 @@
 - 左手牌 / 右手牌本身也是普通核心卡牌，可以被打出、删除或被事件影响。
 - 战斗外存在背包，背包管理玩家永久卡牌池。
 
-## 当前建议
-
-不建议新建 UE 工程。建议在当前项目基础上开长期变体分支验证，例如：
-
-`codex/first-person-hd2d-handzone-prototype`
-
-原因：
-
-- 当前项目已有 `FinalData / FinalBattle / FinalRun / FinalApp / FinalEditor` 模块底座。
-- Snapshot、Command、Event、DataRegistry、Validator、UI 父类、Run 外层奖励 / 商店 / 事件等机制仍有复用价值。
-- 但新玩法会重写 `FinalBattle` 核心模型，因此不应直接在主线修改。
 
 ## 已确认战斗规则
 

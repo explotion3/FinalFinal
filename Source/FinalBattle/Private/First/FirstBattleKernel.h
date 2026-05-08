@@ -22,7 +22,10 @@ private:
 	void ResolveInitiativeAfterCard(const FFirstCardInstance& Card, const TMap<FName, int32>& PreInitiativeByPart);
 	void ResolveQueuedEnemyPartActions(const TArray<FName>& QueuedPartIds, const FGuid& SourceCardInstanceId);
 	void ResolveEnemyPartAction(FFirstEnemyPartState& Part, const FGuid& SourceCardInstanceId);
+	void ExecuteIntentEffects(const FFirstEnemyPartState& Part, const FFirstEnemyPartIntentInstance& Intent, const FGuid& SourceCardInstanceId);
+	void ApplyIntentDamageEffect(const FFirstEnemyPartState& Part, const FFirstEnemyPartIntentInstance& Intent, const FFirstCardEffectInstance& Effect, const FGuid& SourceCardInstanceId);
 	void ResolveVictory();
+	void ResolvePlayerDefeat();
 	void AppendEvent(const FFirstBattleEvent& Event);
 
 	FFirstCardInstance* FindHandCard(const FGuid& CardInstanceId);

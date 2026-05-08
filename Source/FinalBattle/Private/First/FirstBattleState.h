@@ -22,6 +22,8 @@ struct FFirstBattleState
 {
 	FGuid BattleId;
 	int32 CurrentRound = 0;
+	int32 PlayerMaxHP = 0;
+	int32 PlayerCurrentHP = 0;
 	bool bInitialized = false;
 	bool bBattleEnded = false;
 	bool bPlayerVictory = false;

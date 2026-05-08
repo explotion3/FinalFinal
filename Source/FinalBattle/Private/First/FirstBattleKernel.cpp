@@ -5,6 +5,9 @@ void FFirstBattleKernel::Initialize(const FFirstBattleStartParams& StartParams)
 	State = FFirstBattleState();
 	State.BattleId = StartParams.BattleId;
 	State.CurrentRound = StartParams.StartingRound;
+	State.PlayerMaxHP = FMath::Max(StartParams.PlayerMaxHP, StartParams.PlayerCurrentHP);
+	State.PlayerCurrentHP = StartParams.PlayerCurrentHP > 0 ? StartParams.PlayerCurrentHP : State.PlayerMaxHP;
+	State.PlayerCurrentHP = FMath::Clamp(State.PlayerCurrentHP, 0, State.PlayerMaxHP);
 	State.bInitialized = true;
 	State.HandCards = StartParams.InitialHand;
 
@@ -55,6 +58,8 @@ FFirstBattleSnapshot FFirstBattleKernel::BuildSnapshot() const
 	FFirstBattleSnapshot Snapshot;
 	Snapshot.BattleId = State.BattleId;
 	Snapshot.CurrentRound = State.CurrentRound;
+	Snapshot.PlayerMaxHP = State.PlayerMaxHP;
+	Snapshot.PlayerCurrentHP = State.PlayerCurrentHP;
 	Snapshot.bInitialized = State.bInitialized;
 	Snapshot.bBattleEnded = State.bBattleEnded;
 	Snapshot.bPlayerVictory = State.bPlayerVictory;
@@ -163,13 +168,22 @@ FFirstBattleCommandResult FFirstBattleKernel::ResolveEndTurn()
 
 	for (FFirstEnemyPartState& Part : State.EnemyParts)
 	{
+		if (State.bBattleEnded)
+		{
+			break;
+		}
+
 		if (IsAlivePart(Part))
 		{
 			ResolveEnemyPartAction(Part, FGuid());
 		}
 	}
 
-	State.CurrentRound += 1;
+	if (!State.bBattleEnded)
+	{
+		State.CurrentRound += 1;
+	}
+
 	return MakeAcceptedResult(NSLOCTEXT("FirstBattle", "FirstEndTurnAccepted", "Turn ended."));
 }
 
@@ -281,6 +295,11 @@ void FFirstBattleKernel::ResolveQueuedEnemyPartActions(const TArray<FName>& Queu
 {
 	for (FFirstEnemyPartState& Part : State.EnemyParts)
 	{
+		if (State.bBattleEnded)
+		{
+			break;
+		}
+
 		if (!QueuedPartIds.Contains(Part.PartId) || !IsAlivePart(Part))
 		{
 			continue;
@@ -299,6 +318,17 @@ void FFirstBattleKernel::ResolveEnemyPartAction(FFirstEnemyPartState& Part, cons
 
 	const FName ActedIntentId = Part.CurrentIntentId;
 	const int32 PreviousInitiative = Part.CurrentInitiative;
+	FFirstEnemyPartIntentInstance CurrentIntent;
+	if (Part.IntentSequence.IsValidIndex(Part.CurrentIntentIndex))
+	{
+		CurrentIntent = Part.IntentSequence[Part.CurrentIntentIndex];
+	}
+	else
+	{
+		CurrentIntent.IntentId = Part.CurrentIntentId;
+		CurrentIntent.DisplayName = Part.CurrentIntentDisplayName;
+		CurrentIntent.InitialInitiative = Part.CurrentInitiative;
+	}
 
 	FFirstBattleEvent Event;
 	Event.EventType = EFirstBattleEventType::EnemyPartActed;
@@ -310,14 +340,61 @@ void FFirstBattleKernel::ResolveEnemyPartAction(FFirstEnemyPartState& Part, cons
 		NSLOCTEXT("FirstBattle", "FirstEnemyPartActed", "{0} acted."),
 		Part.DisplayName.IsEmpty() ? FText::FromName(Part.PartId) : Part.DisplayName);
 
+	AppendEvent(Event);
+
+	ExecuteIntentEffects(Part, CurrentIntent, SourceCardInstanceId);
+	if (State.bBattleEnded)
+	{
+		return;
+	}
+
 	if (!Part.IntentSequence.IsEmpty())
 	{
 		Part.CurrentIntentIndex = (Part.CurrentIntentIndex + 1) % Part.IntentSequence.Num();
 		ApplyIntentFromSequence(Part);
-		Event.SecondaryValue = Part.CurrentInitiative;
+	}
+}
+
+void FFirstBattleKernel::ExecuteIntentEffects(const FFirstEnemyPartState& Part, const FFirstEnemyPartIntentInstance& Intent, const FGuid& SourceCardInstanceId)
+{
+	for (const FFirstCardEffectInstance& Effect : Intent.Effects)
+	{
+		if (State.bBattleEnded)
+		{
+			break;
+		}
+
+		if (Effect.EffectType == EFirstCardEffectType::Damage)
+		{
+			ApplyIntentDamageEffect(Part, Intent, Effect, SourceCardInstanceId);
+		}
+	}
+}
+
+void FFirstBattleKernel::ApplyIntentDamageEffect(const FFirstEnemyPartState& Part, const FFirstEnemyPartIntentInstance& Intent, const FFirstCardEffectInstance& Effect, const FGuid& SourceCardInstanceId)
+{
+	if (Effect.Value <= 0 || State.PlayerCurrentHP <= 0)
+	{
+		return;
 	}
 
+	const int32 PreviousHP = State.PlayerCurrentHP;
+	State.PlayerCurrentHP = FMath::Max(0, State.PlayerCurrentHP - Effect.Value);
+
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::PlayerDamaged;
+	Event.RelatedId = Intent.IntentId;
+	Event.CardInstanceId = SourceCardInstanceId;
+	Event.PartId = Part.PartId;
+	Event.PrimaryValue = PreviousHP;
+	Event.SecondaryValue = State.PlayerCurrentHP;
+	Event.Message = FText::Format(
+		NSLOCTEXT("FirstBattle", "FirstPlayerDamaged", "{0} dealt {1} damage to the player."),
+		Part.DisplayName.IsEmpty() ? FText::FromName(Part.PartId) : Part.DisplayName,
+		FText::AsNumber(PreviousHP - State.PlayerCurrentHP));
 	AppendEvent(Event);
+
+	ResolvePlayerDefeat();
 }
 
 void FFirstBattleKernel::ResolveVictory()
@@ -344,6 +421,23 @@ void FFirstBattleKernel::ResolveVictory()
 	FFirstBattleEvent Event;
 	Event.EventType = EFirstBattleEventType::BattleWon;
 	Event.Message = NSLOCTEXT("FirstBattle", "FirstBattleWon", "Battle won.");
+	AppendEvent(Event);
+}
+
+void FFirstBattleKernel::ResolvePlayerDefeat()
+{
+	if (State.bBattleEnded || State.PlayerCurrentHP > 0)
+	{
+		return;
+	}
+
+	State.bBattleEnded = true;
+	State.bPlayerVictory = false;
+
+	FFirstBattleEvent Event;
+	Event.EventType = EFirstBattleEventType::BattleLost;
+	Event.PrimaryValue = State.PlayerCurrentHP;
+	Event.Message = NSLOCTEXT("FirstBattle", "FirstBattleLost", "Battle lost.");
 	AppendEvent(Event);
 }
 

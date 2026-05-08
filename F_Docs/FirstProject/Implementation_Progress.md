@@ -17,3 +17,6 @@
 - `FirstBattle EndTurn + 部位行动刷新 v0.1` 已建立：敌方部位拥有首版 `IntentSequence`，部位行动会记录 `EnemyPartActed`、推进到下一意图并重置先机。
 - `EndTurn` 现在可执行：所有存活部位按 `PositionIndex` 行动一次，随后 `CurrentRound +1`；本玩家回合内已经因先机归零行动过的部位，结束回合仍会再次行动。
 - `PlayCard` 触发先机归零时已从占位事件升级为真实部位行动刷新；本轮仍不执行敌人意图效果、不伤害玩家、不抽牌、不接 UI / Run / DataAsset。
+- `FirstBattle Enemy Intent Effects v0.1` 已建立：玩家侧拥有最小 `PlayerMaxHP / PlayerCurrentHP` runtime 与 snapshot 字段，敌方部位意图可 authoring 最小 `Damage` effect。
+- 部位行动现在会执行当前意图的 `Damage` effect，对玩家 HP 造成伤害并记录 `PlayerDamaged`；玩家 HP 归零时记录 `BattleLost`，设置战斗结束且玩家失败。
+- `PlayCard` 先机归零行动队列与 `EndTurn` 部位行动都已接入失败中断：某个部位行动击败玩家后，后续部位不再行动，`EndTurn` 不推进回合。
